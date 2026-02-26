@@ -19,53 +19,43 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-
     if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
-
     setLoading(true);
     try {
       await login(email, password);
-      router.push("/chat");
+      router.push("/dashboard");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="animate-fade-in flex flex-col justify-between h-full min-h-[420px]">
-      {/* Header */}
-      <div className="mb-6">
+    <div className="animate-fade-in">
+      <div className="mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-content dark:text-content-dark">
-          Welcome back
+          Sign in
         </h2>
-        <p className="text-content-secondary dark:text-content-dark-secondary mt-2">
-          Sign in to continue to Poornasree AI
+        <p className="text-content-secondary dark:text-content-dark-secondary mt-1 text-sm">
+          Poornasree AI — Admin Portal
         </p>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-center space-y-8">
-        {/* Error banner */}
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm animate-fade-in">
+          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
             {error}
           </div>
         )}
 
-        {/* Email */}
         <Input
-          label="Email address"
+          label="Email"
           type="email"
-          placeholder="you@company.com"
+          placeholder="admin@poornasree.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           leftIcon={<Mail className="w-4 h-4" />}
@@ -73,7 +63,6 @@ export default function LoginPage() {
           required
         />
 
-        {/* Password */}
         <Input
           label="Password"
           type={showPassword ? "text" : "password"}
@@ -88,21 +77,16 @@ export default function LoginPage() {
               className="text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark transition-colors"
               tabIndex={-1}
             >
-              {showPassword ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           }
           autoComplete="current-password"
           required
         />
 
-        {/* Submit */}
         <Button
           type="submit"
-          className="w-full"
+          className="w-full mt-2"
           size="lg"
           loading={loading}
           icon={<ArrowRight className="w-4 h-4" />}
@@ -110,8 +94,6 @@ export default function LoginPage() {
           Sign in
         </Button>
       </form>
-
-
     </div>
   );
 }

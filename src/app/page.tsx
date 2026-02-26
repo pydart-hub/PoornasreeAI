@@ -5,13 +5,23 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { LoadingScreen } from "@/components/ui";
 
+const DASHBOARD_ROLES = ["service", "r_and_d", "production", "sales"];
+
 export default function Home() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
     if (!isLoading) {
-      router.replace(user ? "/chat" : "/login");
+      if (!user) {
+        router.replace("/login");
+      } else if (user.role === "customer") {
+        router.replace("/customer");
+      } else if (DASHBOARD_ROLES.includes(user.role)) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/chat");
+      }
     }
   }, [user, isLoading, router]);
 

@@ -13,6 +13,7 @@ export interface User {
   department?: string;
   languagePref: string;
   themePref: string;
+  permissions: Record<string, boolean>;
 }
 
 interface AuthState {
@@ -35,6 +36,88 @@ interface RegisterData {
   firstName: string;
   lastName?: string;
 }
+
+// ── Mock credential store (replace with real API later) ──
+const MOCK_USERS: Array<{ email: string; password: string; user: User }> = [
+  {
+    email: "admin@poornasree.com",
+    password: "Admin@123",
+    user: {
+      id: "usr_001",
+      email: "admin@poornasree.com",
+      firstName: "Admin",
+      lastName: "Poornasree",
+      role: "admin",
+      department: "Administration",
+      languagePref: "en",
+      themePref: "system",
+      permissions: { all: true },
+    },
+  },
+  {
+    email: "service@poornasree.com",
+    password: "Service@123",
+    user: {
+      id: "usr_002",
+      email: "service@poornasree.com",
+      firstName: "Rajan",
+      lastName: "Kumar",
+      role: "service",
+      department: "Service",
+      languagePref: "en",
+      themePref: "system",
+      permissions: {
+        chat: true,
+        "documents.read": true,
+        "documents.upload": true,
+        "documents.delete": true,
+        "users.read_department": true,
+        "chats.read_department": true,
+        "analytics.department": true,
+        "profile.edit": true,
+      },
+    },
+  },
+  {
+    email: "rd@poornasree.com",
+    password: "RnD@123",
+    user: {
+      id: "usr_003",
+      email: "rd@poornasree.com",
+      firstName: "Priya",
+      lastName: "Sharma",
+      role: "r_and_d",
+      department: "R&D",
+      languagePref: "en",
+      themePref: "system",
+      permissions: {
+        chat: true,
+        "documents.read": true,
+        "documents.upload": true,
+        "documents.delete": true,
+        "users.read_department": true,
+        "chats.read_department": true,
+        "analytics.department": true,
+        "profile.edit": true,
+      },
+    },
+  },
+  {
+    email: "customer@example.com",
+    password: "Customer@123",
+    user: {
+      id: "usr_005",
+      email: "customer@example.com",
+      firstName: "Amit",
+      lastName: "Patel",
+      role: "customer",
+      department: "Customer",
+      languagePref: "en",
+      themePref: "system",
+      permissions: { chat: true },
+    },
+  },
+];
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -66,24 +149,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const login = useCallback(async (email: string, _password: string) => {
-    // TODO: Replace with actual API call
-    const mockUser: User = {
-      id: "1",
-      email,
-      firstName: email.split("@")[0],
-      role: "admin",
-      languagePref: "en",
-      themePref: "system",
-    };
-    const mockToken = "mock-jwt-token";
+  const login = useCallback(async (email: string, password: string) => {
+    // Simulate network delay
+    await new Promise((r) => setTimeout(r, 600));
 
-    localStorage.setItem("poornasree_user", JSON.stringify(mockUser));
+    const match = MOCK_USERS.find(
+      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+    );
+
+    if (!match) {
+      throw new Error("Invalid email or password. Please try again.");
+    }
+
+    const mockToken = `mock-jwt-${match.user.role}-${Date.now()}`;
+
+    localStorage.setItem("poornasree_user", JSON.stringify(match.user));
     localStorage.setItem("poornasree_token", mockToken);
 
     setState({
-      user: mockUser,
+      user: match.user,
       accessToken: mockToken,
       isAuthenticated: true,
       isLoading: false,
@@ -91,13 +175,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
+    // Simulate network delay
+    await new Promise((r) => setTimeout(r, 600));
     // TODO: Replace with actual API call
     const mockUser: User = {
-      id: "1",
+      id: crypto.randomUUID(),
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
       role: "user",
+      permissions: { chat: true, "documents.read": true, "profile.edit": true },
       languagePref: "en",
       themePref: "system",
     };

@@ -1,0 +1,1101 @@
+{
+  "project": {
+    "name": "Poornasree AI",
+    "version": "1.0.0",
+    "description": "Self-hosted full-stack troubleshooting chatbot for milk analyzer equipment",
+    "date": "2026-02-25",
+    "stack": {
+      "frontend": "Next.js 14 (App Router)",
+      "backend": "Node.js + Express",
+      "llm": "Ollama + Mistral 7B (q4_K_M)",
+      "embeddings": "Ollama + nomic-embed-text",
+      "vectorDb": "Qdrant (self-hosted)",
+      "database": "PostgreSQL 16",
+      "automation": "n8n (self-hosted)",
+      "reverseProxy": "Nginx + Let's Encrypt",
+      "containerization": "Docker + Docker Compose"
+    },
+    "server": {
+      "provider": "Hostinger KVM4",
+      "cpu": "8 vCPU",
+      "ram": "16GB",
+      "storage": "200GB NVMe",
+      "os": "Ubuntu 22.04 LTS"
+    }
+  },
+
+  "database": {
+    "name": "poornasree_ai",
+    "engine": "PostgreSQL 16",
+    "orm": "Prisma",
+
+    "tables": {
+      "users": {
+        "description": "All registered users of the system",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Unique user identifier" },
+          "email": { "type": "VARCHAR(255)", "unique": true, "nullable": false, "description": "User email address" },
+          "password_hash": { "type": "VARCHAR(255)", "nullable": false, "description": "bcrypt hashed password (12 salt rounds)" },
+          "first_name": { "type": "VARCHAR(100)", "nullable": false, "description": "User first name" },
+          "last_name": { "type": "VARCHAR(100)", "nullable": true, "default": null, "description": "User last name" },
+          "avatar_url": { "type": "VARCHAR(500)", "nullable": true, "default": null, "description": "Profile picture URL" },
+          "phone": { "type": "VARCHAR(20)", "nullable": true, "default": null, "description": "Phone number" },
+          "role_id": { "type": "UUID", "nullable": false, "foreignKey": "roles.id", "description": "Assigned role" },
+          "department": { "type": "VARCHAR(100)", "nullable": true, "default": null, "description": "Department name" },
+          "is_active": { "type": "BOOLEAN", "nullable": false, "default": true, "description": "Account active status" },
+          "is_email_verified": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "Email verification status" },
+          "language_pref": { "type": "VARCHAR(5)", "nullable": false, "default": "en", "description": "Preferred UI language (en/hi/ta)" },
+          "theme_pref": { "type": "VARCHAR(10)", "nullable": false, "default": "system", "description": "Theme preference (light/dark/system)" },
+          "last_login_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "Last login timestamp" },
+          "login_attempts": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Failed login attempt counter" },
+          "locked_until": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "Account lock expiry (after 5 failed attempts)" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Record creation time" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" },
+          "deleted_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "Soft delete timestamp" }
+        },
+        "indexes": [
+          { "name": "idx_users_email", "columns": ["email"], "unique": true },
+          { "name": "idx_users_role_id", "columns": ["role_id"] },
+          { "name": "idx_users_is_active", "columns": ["is_active"] },
+          { "name": "idx_users_department", "columns": ["department"] }
+        ]
+      },
+
+      "roles": {
+        "description": "Role definitions with hierarchical permissions",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Unique role identifier" },
+          "name": { "type": "VARCHAR(50)", "unique": true, "nullable": false, "description": "Role name (system key)" },
+          "display_name": { "type": "VARCHAR(100)", "nullable": false, "description": "Human-readable role label" },
+          "description": { "type": "TEXT", "nullable": true, "default": null, "description": "Role description" },
+          "permissions": { "type": "JSONB", "nullable": false, "default": "{}", "description": "Permission flags object" },
+          "hierarchy_level": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Role priority (higher = more access)" },
+          "is_system_role": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "If true, cannot be deleted" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Record creation time" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" }
+        },
+        "seedData": [
+          {
+            "name": "admin",
+            "display_name": "Administrator",
+            "hierarchy_level": 100,
+            "is_system_role": true,
+            "permissions": {
+              "all": true
+            }
+          },
+          {
+            "name": "r_and_d",
+            "display_name": "R&D Manager",
+            "hierarchy_level": 80,
+            "is_system_role": true,
+            "permissions": {
+              "chat": true,
+              "documents.read": true,
+              "documents.upload": true,
+              "documents.delete": true,
+              "users.read_department": true,
+              "chats.read_department": true,
+              "analytics.department": true
+            }
+          },
+          {
+            "name": "production",
+            "display_name": "Production Manager",
+            "hierarchy_level": 80,
+            "is_system_role": true,
+            "permissions": {
+              "chat": true,
+              "documents.read": true,
+              "documents.upload": true,
+              "documents.delete": true,
+              "users.read_department": true,
+              "chats.read_department": true,
+              "analytics.department": true
+            }
+          },
+          {
+            "name": "service",
+            "display_name": "Service Manager",
+            "hierarchy_level": 80,
+            "is_system_role": true,
+            "permissions": {
+              "chat": true,
+              "documents.read": true,
+              "documents.upload": true,
+              "documents.delete": true,
+              "users.read_department": true,
+              "chats.read_department": true,
+              "analytics.department": true
+            }
+          },
+          {
+            "name": "sales",
+            "display_name": "Sales Manager",
+            "hierarchy_level": 80,
+            "is_system_role": true,
+            "permissions": {
+              "chat": true,
+              "documents.read": true,
+              "documents.upload": true,
+              "documents.delete": true,
+              "users.read_department": true,
+              "chats.read_department": true,
+              "analytics.department": true
+            }
+          },
+          {
+            "name": "user",
+            "display_name": "Standard User",
+            "hierarchy_level": 10,
+            "is_system_role": true,
+            "permissions": {
+              "chat": true,
+              "documents.read": true,
+              "profile.edit": true
+            }
+          }
+        ],
+        "permissionsSchema": {
+          "all": { "type": "boolean", "description": "Full unrestricted access" },
+          "chat": { "type": "boolean", "description": "Can use the chatbot" },
+          "documents.read": { "type": "boolean", "description": "Can view documents" },
+          "documents.upload": { "type": "boolean", "description": "Can upload documents" },
+          "documents.delete": { "type": "boolean", "description": "Can delete documents" },
+          "users.read": { "type": "boolean", "description": "Can view all users" },
+          "users.create": { "type": "boolean", "description": "Can create users" },
+          "users.update": { "type": "boolean", "description": "Can update users" },
+          "users.delete": { "type": "boolean", "description": "Can delete users" },
+          "users.read_department": { "type": "boolean", "description": "Can view users in own department" },
+          "roles.manage": { "type": "boolean", "description": "Can create/edit/delete roles" },
+          "chats.read_all": { "type": "boolean", "description": "Can read all conversations" },
+          "chats.read_department": { "type": "boolean", "description": "Can read department conversations" },
+          "analytics.global": { "type": "boolean", "description": "Can view global analytics" },
+          "analytics.department": { "type": "boolean", "description": "Can view department analytics" },
+          "settings.manage": { "type": "boolean", "description": "Can manage app settings" },
+          "profile.edit": { "type": "boolean", "description": "Can edit own profile" }
+        }
+      },
+
+      "sessions": {
+        "description": "User login sessions with refresh tokens",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Session identifier" },
+          "user_id": { "type": "UUID", "nullable": false, "foreignKey": "users.id", "description": "User who owns session" },
+          "refresh_token_hash": { "type": "VARCHAR(255)", "nullable": false, "description": "Hashed refresh token" },
+          "device_info": { "type": "VARCHAR(500)", "nullable": true, "default": null, "description": "User-Agent parsed device info" },
+          "ip_address": { "type": "INET", "nullable": true, "default": null, "description": "Login IP address" },
+          "is_valid": { "type": "BOOLEAN", "nullable": false, "default": true, "description": "Whether session is still active" },
+          "expires_at": { "type": "TIMESTAMPTZ", "nullable": false, "description": "Refresh token expiry (7 days)" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Session creation time" }
+        },
+        "indexes": [
+          { "name": "idx_sessions_user_id", "columns": ["user_id"] },
+          { "name": "idx_sessions_refresh_token", "columns": ["refresh_token_hash"] },
+          { "name": "idx_sessions_expires_at", "columns": ["expires_at"] }
+        ]
+      },
+
+      "password_reset_tokens": {
+        "description": "Password reset request tokens",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Token identifier" },
+          "user_id": { "type": "UUID", "nullable": false, "foreignKey": "users.id", "description": "User requesting reset" },
+          "token_hash": { "type": "VARCHAR(255)", "unique": true, "nullable": false, "description": "SHA-256 hashed reset token" },
+          "expires_at": { "type": "TIMESTAMPTZ", "nullable": false, "description": "Token expiry (1 hour)" },
+          "used_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "When token was consumed" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Token creation time" }
+        }
+      },
+
+      "email_verification_tokens": {
+        "description": "Email verification tokens for new registrations",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Token identifier" },
+          "user_id": { "type": "UUID", "nullable": false, "foreignKey": "users.id", "description": "User to verify" },
+          "token_hash": { "type": "VARCHAR(255)", "unique": true, "nullable": false, "description": "SHA-256 hashed verification token" },
+          "expires_at": { "type": "TIMESTAMPTZ", "nullable": false, "description": "Token expiry (24 hours)" },
+          "used_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "When token was consumed" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Token creation time" }
+        }
+      },
+
+      "documents": {
+        "description": "Uploaded training documents (CSV, PDF, JSON, XLSX)",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Document identifier" },
+          "filename": { "type": "VARCHAR(255)", "nullable": false, "description": "Original filename" },
+          "display_name": { "type": "VARCHAR(255)", "nullable": true, "default": null, "description": "Admin-given display name" },
+          "file_type": { "type": "VARCHAR(10)", "nullable": false, "description": "File extension (csv/pdf/json/xlsx)" },
+          "mime_type": { "type": "VARCHAR(100)", "nullable": false, "description": "MIME type" },
+          "file_size_bytes": { "type": "BIGINT", "nullable": false, "description": "File size in bytes" },
+          "file_path": { "type": "VARCHAR(500)", "nullable": false, "description": "Storage path on server" },
+          "file_hash": { "type": "VARCHAR(64)", "nullable": false, "description": "SHA-256 hash for deduplication" },
+          "status": { "type": "VARCHAR(20)", "nullable": false, "default": "pending", "description": "Processing status" },
+          "chunk_count": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Number of chunks created" },
+          "embedding_model": { "type": "VARCHAR(100)", "nullable": true, "default": null, "description": "Model used for embeddings" },
+          "error_message": { "type": "TEXT", "nullable": true, "default": null, "description": "Error details if processing failed" },
+          "category": { "type": "VARCHAR(100)", "nullable": true, "default": null, "description": "Document category" },
+          "tags": { "type": "TEXT[]", "nullable": true, "default": "{}", "description": "Searchable tags array" },
+          "metadata": { "type": "JSONB", "nullable": true, "default": "{}", "description": "Additional metadata" },
+          "uploaded_by": { "type": "UUID", "nullable": false, "foreignKey": "users.id", "description": "User who uploaded" },
+          "processed_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "When processing completed" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Upload time" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" },
+          "deleted_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "Soft delete timestamp" }
+        },
+        "statusEnum": ["pending", "processing", "indexed", "failed", "archived"],
+        "categoryEnum": ["troubleshooting", "manual", "training", "general"],
+        "indexes": [
+          { "name": "idx_documents_status", "columns": ["status"] },
+          { "name": "idx_documents_file_hash", "columns": ["file_hash"], "unique": true },
+          { "name": "idx_documents_uploaded_by", "columns": ["uploaded_by"] },
+          { "name": "idx_documents_category", "columns": ["category"] },
+          { "name": "idx_documents_tags", "columns": ["tags"], "type": "GIN" }
+        ]
+      },
+
+      "document_chunks": {
+        "description": "Chunked text from documents, linked to Qdrant vectors",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Chunk identifier" },
+          "document_id": { "type": "UUID", "nullable": false, "foreignKey": "documents.id", "onDelete": "CASCADE", "description": "Parent document" },
+          "chunk_index": { "type": "INTEGER", "nullable": false, "description": "Order within document (0-based)" },
+          "chunk_text": { "type": "TEXT", "nullable": false, "description": "Raw text content of chunk" },
+          "chunk_type": { "type": "VARCHAR(30)", "nullable": false, "default": "text", "description": "Type: text / troubleshooting_step / table_row" },
+          "token_count": { "type": "INTEGER", "nullable": true, "default": null, "description": "Approximate token count" },
+          "qdrant_point_id": { "type": "VARCHAR(36)", "nullable": true, "default": null, "description": "Corresponding Qdrant vector point UUID" },
+          "metadata": { "type": "JSONB", "nullable": true, "default": "{}", "description": "Chunk-specific metadata" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Creation time" }
+        },
+        "metadataSchema": {
+          "product": "string — e.g. VIBRO, ECOD-DPST BOARD",
+          "psc_code": "string — PSC code from CSV",
+          "complaint": "string — complaint description",
+          "step_number": "integer — step position",
+          "check": "string — what to check",
+          "action": "string — what action to take",
+          "section": "string — parent section name",
+          "row_index": "integer — CSV row number"
+        },
+        "indexes": [
+          { "name": "idx_chunks_document_id", "columns": ["document_id"] },
+          { "name": "idx_chunks_qdrant_point_id", "columns": ["qdrant_point_id"] },
+          { "name": "idx_chunks_chunk_type", "columns": ["chunk_type"] },
+          { "name": "idx_chunks_metadata", "columns": ["metadata"], "type": "GIN" }
+        ]
+      },
+
+      "training_data": {
+        "description": "Structured troubleshooting data parsed from CSV — product, complaint, ordered steps",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Record identifier" },
+          "document_id": { "type": "UUID", "nullable": true, "foreignKey": "documents.id", "description": "Source document (if from upload)" },
+          "product": { "type": "VARCHAR(100)", "nullable": false, "description": "Product/part name" },
+          "psc_code": { "type": "VARCHAR(50)", "nullable": true, "default": null, "description": "PSC code from CSV" },
+          "complaint": { "type": "TEXT", "nullable": false, "description": "Complaint description" },
+          "steps": { "type": "JSONB", "nullable": false, "default": "[]", "description": "Ordered troubleshooting steps array" },
+          "total_steps": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Number of check/action pairs" },
+          "category": { "type": "VARCHAR(100)", "nullable": true, "default": null, "description": "Group category" },
+          "keywords": { "type": "TEXT[]", "nullable": true, "default": "{}", "description": "Extracted keywords for search" },
+          "is_active": { "type": "BOOLEAN", "nullable": false, "default": true, "description": "Whether this entry is searchable" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Creation time" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" }
+        },
+        "stepsSchema": [
+          { "step": 1, "check": "CHECK THE FUSE", "action": "REPLACE FUSE" },
+          { "step": 2, "check": "CHECK THE POWER SUPPLY", "action": "REPLACE POWER SUPPLY" }
+        ],
+        "products": [
+          "VIBRO",
+          "SOLAR CHARGER BOARD",
+          "COMPACT ADAPTER",
+          "CHARGER ADAPTER",
+          "ECOD-DPST BOARD",
+          "PUMP",
+          "ECOD/ECOSV/LSES V3 BATTERY",
+          "ANALYZER MAINBOARD",
+          "OTHERS"
+        ],
+        "indexes": [
+          { "name": "idx_training_product", "columns": ["product"] },
+          { "name": "idx_training_keywords", "columns": ["keywords"], "type": "GIN" },
+          { "name": "idx_training_is_active", "columns": ["is_active"] },
+          { "name": "idx_training_complaint_fts", "columns": ["complaint"], "type": "FULLTEXT" }
+        ]
+      },
+
+      "conversations": {
+        "description": "Chat conversations between users and the AI",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Conversation identifier" },
+          "user_id": { "type": "UUID", "nullable": false, "foreignKey": "users.id", "description": "Conversation owner" },
+          "title": { "type": "VARCHAR(255)", "nullable": true, "default": null, "description": "Auto-generated or user-edited title" },
+          "is_pinned": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "User pinned this conversation" },
+          "is_archived": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "User archived this conversation" },
+          "message_count": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Cached message count" },
+          "last_message_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "Timestamp of latest message" },
+          "metadata": { "type": "JSONB", "nullable": true, "default": "{}", "description": "Additional context" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Conversation start time" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" },
+          "deleted_at": { "type": "TIMESTAMPTZ", "nullable": true, "default": null, "description": "Soft delete timestamp" }
+        },
+        "indexes": [
+          { "name": "idx_conversations_user_id", "columns": ["user_id"] },
+          { "name": "idx_conversations_last_message", "columns": ["last_message_at"], "order": "DESC" },
+          { "name": "idx_conversations_pinned", "columns": ["user_id", "is_pinned"] }
+        ]
+      },
+
+      "messages": {
+        "description": "Individual messages within conversations",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Message identifier" },
+          "conversation_id": { "type": "UUID", "nullable": false, "foreignKey": "conversations.id", "onDelete": "CASCADE", "description": "Parent conversation" },
+          "role": { "type": "VARCHAR(10)", "nullable": false, "description": "Message sender: user / assistant / system" },
+          "content": { "type": "TEXT", "nullable": false, "description": "Message text content (markdown supported)" },
+          "content_type": { "type": "VARCHAR(20)", "nullable": false, "default": "text", "description": "Content format: text / markdown / step_list" },
+          "sources": { "type": "JSONB", "nullable": true, "default": null, "description": "Referenced document chunks for AI responses" },
+          "model_used": { "type": "VARCHAR(100)", "nullable": true, "default": null, "description": "LLM model that generated response" },
+          "token_count_prompt": { "type": "INTEGER", "nullable": true, "default": null, "description": "Tokens in prompt sent to LLM" },
+          "token_count_completion": { "type": "INTEGER", "nullable": true, "default": null, "description": "Tokens in LLM response" },
+          "response_time_ms": { "type": "INTEGER", "nullable": true, "default": null, "description": "Time to generate response (ms)" },
+          "feedback": { "type": "VARCHAR(10)", "nullable": true, "default": null, "description": "User feedback: helpful / not_helpful / null" },
+          "feedback_text": { "type": "TEXT", "nullable": true, "default": null, "description": "Optional feedback comment" },
+          "is_error": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "Whether this is an error message" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Message creation time" }
+        },
+        "roleEnum": ["user", "assistant", "system"],
+        "sourcesSchema": [
+          {
+            "chunk_id": "uuid-of-chunk",
+            "document_id": "uuid-of-document",
+            "document_name": "Training syllabus and documents.xlsx.csv",
+            "product": "VIBRO",
+            "complaint": "NOT WORKING (NOT ON LED)",
+            "relevance_score": 0.94,
+            "chunk_text": "CHECK THE FUSE → REPLACE FUSE..."
+          }
+        ],
+        "indexes": [
+          { "name": "idx_messages_conversation_id", "columns": ["conversation_id"] },
+          { "name": "idx_messages_created_at", "columns": ["created_at"] },
+          { "name": "idx_messages_role", "columns": ["role"] },
+          { "name": "idx_messages_feedback", "columns": ["feedback"], "condition": "WHERE feedback IS NOT NULL" }
+        ]
+      },
+
+      "audit_logs": {
+        "description": "System audit trail for all important actions",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Log identifier" },
+          "user_id": { "type": "UUID", "nullable": true, "foreignKey": "users.id", "description": "User who performed action (null for system)" },
+          "action": { "type": "VARCHAR(50)", "nullable": false, "description": "Action type" },
+          "resource_type": { "type": "VARCHAR(50)", "nullable": false, "description": "Target resource: user / document / conversation / role / settings" },
+          "resource_id": { "type": "UUID", "nullable": true, "default": null, "description": "ID of affected resource" },
+          "details": { "type": "JSONB", "nullable": true, "default": "{}", "description": "Action details / changed fields" },
+          "ip_address": { "type": "INET", "nullable": true, "default": null, "description": "Request IP address" },
+          "user_agent": { "type": "VARCHAR(500)", "nullable": true, "default": null, "description": "Browser/device info" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Event timestamp" }
+        },
+        "actionEnum": [
+          "user.login", "user.logout", "user.login_failed", "user.locked",
+          "user.created", "user.updated", "user.deleted", "user.role_changed",
+          "document.uploaded", "document.processed", "document.deleted",
+          "conversation.created", "conversation.deleted",
+          "role.created", "role.updated", "role.deleted",
+          "settings.updated", "password.reset", "password.changed"
+        ],
+        "indexes": [
+          { "name": "idx_audit_user_id", "columns": ["user_id"] },
+          { "name": "idx_audit_action", "columns": ["action"] },
+          { "name": "idx_audit_created_at", "columns": ["created_at"], "order": "DESC" },
+          { "name": "idx_audit_resource", "columns": ["resource_type", "resource_id"] }
+        ]
+      },
+
+      "app_settings": {
+        "description": "Application configuration (key-value store)",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Setting identifier" },
+          "key": { "type": "VARCHAR(100)", "unique": true, "nullable": false, "description": "Setting key" },
+          "value": { "type": "JSONB", "nullable": false, "description": "Setting value" },
+          "description": { "type": "TEXT", "nullable": true, "default": null, "description": "What this setting controls" },
+          "is_public": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "Visible to non-admin users" },
+          "updated_by": { "type": "UUID", "nullable": true, "foreignKey": "users.id", "description": "Who last changed it" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" }
+        },
+        "seedData": [
+          { "key": "app.name", "value": "Poornasree AI", "description": "Application display name", "is_public": true },
+          { "key": "app.tagline", "value": "Your Technical Support Assistant", "description": "Welcome screen tagline", "is_public": true },
+          { "key": "llm.model", "value": "mistral:7b-instruct-v0.3-q4_K_M", "description": "Active LLM model" },
+          { "key": "llm.temperature", "value": 0.3, "description": "LLM creativity (low for factual)" },
+          { "key": "llm.max_tokens", "value": 2048, "description": "Max response length" },
+          { "key": "embedding.model", "value": "nomic-embed-text", "description": "Embedding model" },
+          { "key": "rag.top_k", "value": 5, "description": "Number of chunks to retrieve" },
+          { "key": "rag.similarity_threshold", "value": 0.7, "description": "Minimum similarity score" },
+          { "key": "auth.max_login_attempts", "value": 5, "description": "Lock after N failed logins" },
+          { "key": "auth.lockout_duration_min", "value": 30, "description": "Lock duration in minutes" },
+          { "key": "auth.session_timeout_days", "value": 7, "description": "Refresh token lifespan" },
+          { "key": "chat.max_messages_per_day", "value": 100, "description": "Rate limit per user per day" },
+          { "key": "upload.max_file_size_mb", "value": 50, "description": "Max upload file size" },
+          { "key": "upload.allowed_types", "value": ["csv", "pdf", "json", "xlsx"], "description": "Allowed file types" }
+        ]
+      },
+
+      "analytics_daily": {
+        "description": "Aggregated daily usage statistics",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Record identifier" },
+          "date": { "type": "DATE", "unique": true, "nullable": false, "description": "The date" },
+          "total_conversations": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Conversations started" },
+          "total_messages": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Messages sent" },
+          "unique_users": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Distinct active users" },
+          "avg_response_time_ms": { "type": "INTEGER", "nullable": true, "default": null, "description": "Average LLM response time" },
+          "helpful_count": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Thumbs up count" },
+          "not_helpful_count": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Thumbs down count" },
+          "top_products": { "type": "JSONB", "nullable": true, "default": "[]", "description": "Most queried products" },
+          "top_complaints": { "type": "JSONB", "nullable": true, "default": "[]", "description": "Most queried complaints" },
+          "error_count": { "type": "INTEGER", "nullable": false, "default": 0, "description": "Failed responses" },
+          "created_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Aggregation time" }
+        }
+      },
+
+      "user_preferences": {
+        "description": "Extended user UI preferences",
+        "columns": {
+          "id": { "type": "UUID", "primaryKey": true, "default": "gen_random_uuid()", "description": "Record identifier" },
+          "user_id": { "type": "UUID", "unique": true, "nullable": false, "foreignKey": "users.id", "onDelete": "CASCADE", "description": "Owner user" },
+          "sidebar_collapsed": { "type": "BOOLEAN", "nullable": false, "default": false, "description": "Sidebar state" },
+          "notification_enabled": { "type": "BOOLEAN", "nullable": false, "default": true, "description": "Browser notifications" },
+          "font_size": { "type": "VARCHAR(10)", "nullable": false, "default": "medium", "description": "Text size: small/medium/large" },
+          "send_on_enter": { "type": "BOOLEAN", "nullable": false, "default": true, "description": "Enter key sends message" },
+          "show_sources": { "type": "BOOLEAN", "nullable": false, "default": true, "description": "Auto-expand source citations" },
+          "chat_density": { "type": "VARCHAR(10)", "nullable": false, "default": "comfortable", "description": "comfortable/compact" },
+          "updated_at": { "type": "TIMESTAMPTZ", "nullable": false, "default": "NOW()", "description": "Last update time" }
+        }
+      }
+    },
+
+    "relationships": [
+      { "from": "users.role_id", "to": "roles.id", "type": "many-to-one" },
+      { "from": "sessions.user_id", "to": "users.id", "type": "many-to-one" },
+      { "from": "password_reset_tokens.user_id", "to": "users.id", "type": "many-to-one" },
+      { "from": "email_verification_tokens.user_id", "to": "users.id", "type": "many-to-one" },
+      { "from": "documents.uploaded_by", "to": "users.id", "type": "many-to-one" },
+      { "from": "document_chunks.document_id", "to": "documents.id", "type": "many-to-one", "onDelete": "CASCADE" },
+      { "from": "training_data.document_id", "to": "documents.id", "type": "many-to-one" },
+      { "from": "conversations.user_id", "to": "users.id", "type": "many-to-one" },
+      { "from": "messages.conversation_id", "to": "conversations.id", "type": "many-to-one", "onDelete": "CASCADE" },
+      { "from": "audit_logs.user_id", "to": "users.id", "type": "many-to-one" },
+      { "from": "app_settings.updated_by", "to": "users.id", "type": "many-to-one" },
+      { "from": "user_preferences.user_id", "to": "users.id", "type": "one-to-one", "onDelete": "CASCADE" },
+      { "from": "document_chunks.qdrant_point_id", "to": "qdrant.poornasree_docs.points", "type": "one-to-one", "external": true }
+    ]
+  },
+
+  "authentication": {
+    "strategy": "JWT + Refresh Token Rotation",
+    "accessToken": {
+      "type": "JWT (HS256)",
+      "storedIn": "Memory (React state)",
+      "lifespan": "15 minutes",
+      "payload": {
+        "sub": "user-uuid",
+        "email": "user@example.com",
+        "role": "service",
+        "permissions": {
+          "chat": true,
+          "documents.read": true,
+          "documents.upload": true,
+          "users.read_department": true
+        },
+        "department": "Service",
+        "iat": 1740000000,
+        "exp": 1740000900
+      }
+    },
+    "refreshToken": {
+      "type": "Opaque (crypto.randomBytes(64))",
+      "storedIn": "HttpOnly Secure Cookie + hashed in sessions table",
+      "lifespan": "7 days",
+      "rotation": "New refresh token issued on each refresh call"
+    },
+    "passwordPolicy": {
+      "minLength": 8,
+      "requireUppercase": true,
+      "requireLowercase": true,
+      "requireNumber": true,
+      "requireSpecialChar": true,
+      "specialChars": "@ # $ % ^ & * ! ?",
+      "hashAlgorithm": "bcrypt",
+      "saltRounds": 12,
+      "maxLoginAttempts": 5,
+      "lockoutDurationMinutes": 30
+    },
+    "middlewareChain": [
+      "rateLimiter",
+      "corsCheck",
+      "parseJWT",
+      "validateToken",
+      "checkPermission('required.permission')",
+      "routeHandler"
+    ],
+    "rbacMatrix": {
+      "admin": {
+        "displayName": "Administrator",
+        "hierarchyLevel": 100,
+        "access": {
+          "chatWithBot": true,
+          "viewOwnHistory": true,
+          "viewDeptChatHistory": true,
+          "viewAllChatHistory": true,
+          "uploadDocuments": true,
+          "deleteDocuments": true,
+          "manageUsers": true,
+          "manageRoles": true,
+          "viewGlobalAnalytics": true,
+          "viewDeptAnalytics": true,
+          "manageAppSettings": true,
+          "viewAuditLogs": true
+        }
+      },
+      "r_and_d": {
+        "displayName": "R&D Manager",
+        "hierarchyLevel": 80,
+        "access": {
+          "chatWithBot": true,
+          "viewOwnHistory": true,
+          "viewDeptChatHistory": true,
+          "viewAllChatHistory": false,
+          "uploadDocuments": true,
+          "deleteDocuments": true,
+          "manageUsers": false,
+          "manageRoles": false,
+          "viewGlobalAnalytics": false,
+          "viewDeptAnalytics": true,
+          "manageAppSettings": false,
+          "viewAuditLogs": false
+        }
+      },
+      "production": {
+        "displayName": "Production Manager",
+        "hierarchyLevel": 80,
+        "access": {
+          "chatWithBot": true,
+          "viewOwnHistory": true,
+          "viewDeptChatHistory": true,
+          "viewAllChatHistory": false,
+          "uploadDocuments": true,
+          "deleteDocuments": true,
+          "manageUsers": false,
+          "manageRoles": false,
+          "viewGlobalAnalytics": false,
+          "viewDeptAnalytics": true,
+          "manageAppSettings": false,
+          "viewAuditLogs": false
+        }
+      },
+      "service": {
+        "displayName": "Service Manager",
+        "hierarchyLevel": 80,
+        "access": {
+          "chatWithBot": true,
+          "viewOwnHistory": true,
+          "viewDeptChatHistory": true,
+          "viewAllChatHistory": false,
+          "uploadDocuments": true,
+          "deleteDocuments": true,
+          "manageUsers": false,
+          "manageRoles": false,
+          "viewGlobalAnalytics": false,
+          "viewDeptAnalytics": true,
+          "manageAppSettings": false,
+          "viewAuditLogs": false
+        }
+      },
+      "sales": {
+        "displayName": "Sales Manager",
+        "hierarchyLevel": 80,
+        "access": {
+          "chatWithBot": true,
+          "viewOwnHistory": true,
+          "viewDeptChatHistory": true,
+          "viewAllChatHistory": false,
+          "uploadDocuments": true,
+          "deleteDocuments": true,
+          "manageUsers": false,
+          "manageRoles": false,
+          "viewGlobalAnalytics": false,
+          "viewDeptAnalytics": true,
+          "manageAppSettings": false,
+          "viewAuditLogs": false
+        }
+      },
+      "user": {
+        "displayName": "Standard User",
+        "hierarchyLevel": 10,
+        "access": {
+          "chatWithBot": true,
+          "viewOwnHistory": true,
+          "viewDeptChatHistory": false,
+          "viewAllChatHistory": false,
+          "uploadDocuments": false,
+          "deleteDocuments": false,
+          "manageUsers": false,
+          "manageRoles": false,
+          "viewGlobalAnalytics": false,
+          "viewDeptAnalytics": false,
+          "manageAppSettings": false,
+          "viewAuditLogs": false
+        }
+      }
+    }
+  },
+
+  "api": {
+    "baseUrl": "/api",
+    "endpoints": {
+      "auth": [
+        { "method": "POST", "path": "/api/auth/register", "auth": false, "body": ["email", "password", "firstName", "lastName"], "response": "201 { user, accessToken, refreshToken }", "description": "Register new user" },
+        { "method": "POST", "path": "/api/auth/login", "auth": false, "body": ["email", "password"], "response": "200 { user, accessToken, refreshToken }", "description": "Login" },
+        { "method": "POST", "path": "/api/auth/refresh", "auth": "cookie", "body": ["refreshToken (cookie)"], "response": "200 { accessToken, refreshToken }", "description": "Rotate tokens" },
+        { "method": "POST", "path": "/api/auth/logout", "auth": true, "body": [], "response": "200 { message }", "description": "Invalidate session" },
+        { "method": "POST", "path": "/api/auth/forgot-password", "auth": false, "body": ["email"], "response": "200 { message }", "description": "Send reset email" },
+        { "method": "POST", "path": "/api/auth/reset-password", "auth": false, "body": ["token", "newPassword"], "response": "200 { message }", "description": "Reset password" },
+        { "method": "POST", "path": "/api/auth/verify-email", "auth": false, "body": ["token"], "response": "200 { message }", "description": "Verify email" }
+      ],
+      "chat": [
+        { "method": "GET", "path": "/api/conversations", "auth": true, "params": ["page", "limit", "search"], "response": "200 { conversations[], total }", "description": "List user conversations" },
+        { "method": "POST", "path": "/api/conversations", "auth": true, "body": ["title?"], "response": "201 { conversation }", "description": "Create new conversation" },
+        { "method": "GET", "path": "/api/conversations/:id", "auth": true, "response": "200 { conversation, messages[] }", "description": "Get conversation with messages" },
+        { "method": "PATCH", "path": "/api/conversations/:id", "auth": true, "body": ["title?", "isPinned?", "isArchived?"], "response": "200 { conversation }", "description": "Update conversation" },
+        { "method": "DELETE", "path": "/api/conversations/:id", "auth": true, "response": "204", "description": "Soft delete conversation" },
+        { "method": "POST", "path": "/api/conversations/:id/messages", "auth": true, "body": ["content"], "response": "SSE stream", "description": "Send message, stream AI response" },
+        { "method": "POST", "path": "/api/messages/:id/feedback", "auth": true, "body": ["feedback", "feedbackText?"], "response": "200 { message }", "description": "Rate a response" }
+      ],
+      "documents": [
+        { "method": "GET", "path": "/api/documents", "auth": true, "permission": "documents.read", "params": ["status", "category", "page", "limit"], "response": "200 { documents[], total }", "description": "List documents" },
+        { "method": "POST", "path": "/api/documents/upload", "auth": true, "permission": "documents.upload", "body": ["file (multipart)", "category?", "tags?"], "response": "201 { document }", "description": "Upload document" },
+        { "method": "GET", "path": "/api/documents/:id", "auth": true, "permission": "documents.read", "response": "200 { document, chunks[] }", "description": "Get document detail" },
+        { "method": "DELETE", "path": "/api/documents/:id", "auth": true, "permission": "documents.delete", "response": "204", "description": "Delete document" },
+        { "method": "POST", "path": "/api/documents/:id/reprocess", "auth": true, "permission": "documents.upload", "response": "200 { document }", "description": "Reprocess document" },
+        { "method": "GET", "path": "/api/documents/:id/chunks", "auth": true, "permission": "documents.read", "params": ["page", "limit"], "response": "200 { chunks[], total }", "description": "List document chunks" }
+      ],
+      "users": [
+        { "method": "GET", "path": "/api/users", "auth": true, "permission": "users.read", "params": ["role", "dept", "active", "page", "limit"], "response": "200 { users[], total }", "description": "List all users" },
+        { "method": "POST", "path": "/api/users", "auth": true, "permission": "users.create", "body": ["email", "password", "firstName", "lastName", "roleId", "department"], "response": "201 { user }", "description": "Create user" },
+        { "method": "GET", "path": "/api/users/:id", "auth": true, "permission": "users.read", "response": "200 { user }", "description": "Get user detail" },
+        { "method": "PATCH", "path": "/api/users/:id", "auth": true, "permission": "users.update", "body": ["firstName?", "lastName?", "roleId?", "department?", "isActive?"], "response": "200 { user }", "description": "Update user" },
+        { "method": "DELETE", "path": "/api/users/:id", "auth": true, "permission": "users.delete", "response": "204", "description": "Delete user" }
+      ],
+      "profile": [
+        { "method": "GET", "path": "/api/profile", "auth": true, "response": "200 { user, preferences }", "description": "Get own profile" },
+        { "method": "PATCH", "path": "/api/profile", "auth": true, "body": ["firstName?", "lastName?", "phone?", "avatar?"], "response": "200 { user }", "description": "Update profile" },
+        { "method": "PATCH", "path": "/api/profile/preferences", "auth": true, "body": ["languagePref?", "themePref?", "fontSize?", "sidebarCollapsed?", "sendOnEnter?", "showSources?", "chatDensity?"], "response": "200 { preferences }", "description": "Update preferences" },
+        { "method": "POST", "path": "/api/profile/change-password", "auth": true, "body": ["currentPassword", "newPassword"], "response": "200 { message }", "description": "Change password" },
+        { "method": "GET", "path": "/api/profile/sessions", "auth": true, "response": "200 { sessions[] }", "description": "List active sessions" },
+        { "method": "DELETE", "path": "/api/profile/sessions/:id", "auth": true, "response": "204", "description": "Revoke session" }
+      ],
+      "admin": [
+        { "method": "GET", "path": "/api/admin/roles", "auth": true, "permission": "roles.manage", "response": "200 { roles[] }", "description": "List all roles" },
+        { "method": "POST", "path": "/api/admin/roles", "auth": true, "permission": "roles.manage", "body": ["name", "displayName", "description?", "permissions", "hierarchyLevel"], "response": "201 { role }", "description": "Create role" },
+        { "method": "PATCH", "path": "/api/admin/roles/:id", "auth": true, "permission": "roles.manage", "body": ["displayName?", "description?", "permissions?", "hierarchyLevel?"], "response": "200 { role }", "description": "Update role" },
+        { "method": "DELETE", "path": "/api/admin/roles/:id", "auth": true, "permission": "roles.manage", "response": "204", "description": "Delete role" },
+        { "method": "GET", "path": "/api/admin/analytics", "auth": true, "permission": "analytics.global", "response": "200 { stats }", "description": "Global analytics summary" },
+        { "method": "GET", "path": "/api/admin/analytics/daily", "auth": true, "permission": "analytics.global|analytics.department", "params": ["startDate", "endDate"], "response": "200 { dailyStats[] }", "description": "Daily analytics" },
+        { "method": "GET", "path": "/api/admin/audit-logs", "auth": true, "permission": "all", "params": ["userId", "action", "startDate", "endDate", "page", "limit"], "response": "200 { logs[], total }", "description": "Audit log viewer" },
+        { "method": "GET", "path": "/api/admin/settings", "auth": true, "permission": "settings.manage", "response": "200 { settings[] }", "description": "List app settings" },
+        { "method": "PATCH", "path": "/api/admin/settings/:key", "auth": true, "permission": "settings.manage", "body": ["value"], "response": "200 { setting }", "description": "Update setting" }
+      ]
+    }
+  },
+
+  "vectorDb": {
+    "engine": "Qdrant",
+    "collection": {
+      "name": "poornasree_docs",
+      "vectorSize": 768,
+      "distanceMetric": "Cosine",
+      "onDiskStorage": true,
+      "hnswConfig": {
+        "ef_construct": 128,
+        "m": 16
+      },
+      "payloadSchema": {
+        "chunk_id": { "type": "keyword", "description": "UUID linking to document_chunks.id" },
+        "document_id": { "type": "keyword", "description": "UUID linking to documents.id" },
+        "chunk_text": { "type": "text", "description": "Full text of the chunk" },
+        "chunk_type": { "type": "keyword", "indexed": true, "description": "text / troubleshooting_step / table_row" },
+        "product": { "type": "keyword", "indexed": true, "description": "Product name for filtered search" },
+        "complaint": { "type": "text", "description": "Complaint description" },
+        "psc_code": { "type": "keyword", "description": "PSC code" },
+        "category": { "type": "keyword", "indexed": true, "description": "Document category" },
+        "step_number": { "type": "integer", "description": "Step number in procedure" },
+        "total_steps": { "type": "integer", "description": "Total steps in procedure" }
+      }
+    }
+  },
+
+  "ragPipeline": {
+    "ingestion": {
+      "flow": [
+        "File Upload",
+        "Validate (type, size, hash dedup)",
+        "Store file on disk",
+        "Parse (CSV/PDF/JSON)",
+        "Extract text",
+        "Chunk (500 tokens, 50 overlap, logical boundaries)",
+        "Generate embeddings (nomic-embed-text via Ollama)",
+        "Upsert vectors to Qdrant",
+        "Save chunks to PostgreSQL",
+        "Update document status → indexed"
+      ],
+      "chunkingConfig": {
+        "maxTokens": 500,
+        "overlapTokens": 50,
+        "splitBy": "logical_boundary"
+      }
+    },
+    "query": {
+      "flow": [
+        "User sends message",
+        "Embed query (nomic-embed-text)",
+        "Search Qdrant (top-5, cosine, threshold ≥ 0.7)",
+        "Filter by product if detected in query",
+        "Build system prompt with retrieved context",
+        "Send to Mistral 7B via Ollama",
+        "Stream response via SSE",
+        "Save message + sources to PostgreSQL"
+      ],
+      "config": {
+        "topK": 5,
+        "similarityThreshold": 0.7,
+        "embeddingModel": "nomic-embed-text",
+        "chatModel": "mistral:7b-instruct-v0.3-q4_K_M",
+        "temperature": 0.3,
+        "maxTokens": 2048
+      }
+    },
+    "systemPrompt": "You are Poornasree AI, a technical troubleshooting assistant for milk analyzer equipment manufactured by Poornasree. You help service engineers diagnose and fix issues with VIBRO stirrers, Solar Charger Boards, Adapters, ECOD-DPST Boards, Pumps, Analyzer Mainboards, and related equipment.\n\nRULES:\n1. ONLY answer based on the provided CONTEXT below. Never make up information.\n2. Provide step-by-step troubleshooting procedures in numbered format.\n3. Each step should clearly state what to CHECK and what ACTION to take.\n4. If the context does not contain relevant information, respond with: \"I don't have information about this in my training documents. Please contact the technical support team.\"\n5. Be concise, clear, and professional.\n6. If asked about multiple products, address each separately.\n\nCONTEXT:\n{retrieved_chunks}\n\nUSER QUERY: {user_message}\n\nProvide a step-by-step troubleshooting procedure:"
+  },
+
+  "frontend": {
+    "framework": "Next.js 14 (App Router)",
+    "styling": "Tailwind CSS + CSS Variables",
+    "uiLibrary": "Radix UI (primitives for accessibility)",
+    "theming": "next-themes (light/dark/system)",
+    "i18n": "next-intl (en/hi/ta)",
+    "routes": [
+      { "path": "/", "component": "Redirect", "auth": false, "description": "Redirect to /chat or /login" },
+      { "path": "/login", "component": "LoginPage", "auth": false, "description": "Email/password login" },
+      { "path": "/register", "component": "RegisterPage", "auth": false, "description": "Registration form" },
+      { "path": "/forgot-password", "component": "ForgotPasswordPage", "auth": false, "description": "Password reset request" },
+      { "path": "/reset-password", "component": "ResetPasswordPage", "auth": false, "description": "Password reset form" },
+      { "path": "/chat", "component": "ChatPage", "auth": true, "description": "New conversation" },
+      { "path": "/chat/[id]", "component": "ChatConversationPage", "auth": true, "description": "Existing conversation" },
+      { "path": "/documents", "component": "DocumentsPage", "auth": true, "role": "manager+", "description": "Document management" },
+      { "path": "/users", "component": "UsersPage", "auth": true, "role": "admin", "description": "User management" },
+      { "path": "/roles", "component": "RolesPage", "auth": true, "role": "admin", "description": "Role management" },
+      { "path": "/analytics", "component": "AnalyticsPage", "auth": true, "role": "manager+", "description": "Dashboard analytics" },
+      { "path": "/audit-logs", "component": "AuditLogsPage", "auth": true, "role": "admin", "description": "System audit trail" },
+      { "path": "/settings", "component": "SettingsPage", "auth": true, "description": "Profile & preferences" },
+      { "path": "/admin/settings", "component": "AdminSettingsPage", "auth": true, "role": "admin", "description": "App configuration" }
+    ],
+    "reusableComponents": [
+      { "name": "Button", "props": ["variant (primary/secondary/ghost/danger)", "size (sm/md/lg)", "loading", "disabled", "icon", "onClick"] },
+      { "name": "Input", "props": ["label", "error", "helper", "type", "icon"] },
+      { "name": "Textarea", "props": ["label", "error", "rows", "autoResize"] },
+      { "name": "Select", "props": ["options", "label", "error", "multi", "searchable"] },
+      { "name": "Modal", "props": ["open", "onClose", "title", "size"] },
+      { "name": "Drawer", "props": ["open", "onClose", "side", "title"] },
+      { "name": "Card", "props": ["title", "actions", "padding", "hoverable"] },
+      { "name": "Badge", "props": ["variant", "size", "dot"] },
+      { "name": "Avatar", "props": ["src", "name", "size", "status"] },
+      { "name": "Tooltip", "props": ["content", "side", "delay"] },
+      { "name": "Toast", "props": ["type (success/error/warning/info)", "message", "duration", "action"] },
+      { "name": "Skeleton", "props": ["variant", "width", "height", "count"] },
+      { "name": "DataTable", "props": ["columns", "data", "sortable", "filterable", "paginated"] },
+      { "name": "FileUpload", "props": ["accept", "maxSize", "onUpload", "preview"] },
+      { "name": "ThemeToggle", "props": [] },
+      { "name": "LanguageSelector", "props": [] },
+      { "name": "Logo", "props": ["variant (full/icon/flower)", "size"] },
+      { "name": "ConfirmDialog", "props": ["title", "message", "onConfirm", "destructive"] },
+      { "name": "EmptyState", "props": ["icon", "title", "description", "action"] },
+      { "name": "SearchInput", "props": ["placeholder", "onSearch", "debounce"] }
+    ],
+    "responsive": {
+      "mobile": { "breakpoint": "<640px", "features": ["Full-screen chat", "Bottom nav bar", "Hamburger sidebar", "Swipe gestures"] },
+      "tablet": { "breakpoint": "640-1024px", "features": ["Collapsible sidebar overlay", "Adapted spacing"] },
+      "desktop": { "breakpoint": ">1024px", "features": ["Persistent sidebar", "Spacious layout", "Keyboard shortcuts"] }
+    },
+    "languages": {
+      "en": "English",
+      "hi": "Hindi (हिन्दी)",
+      "ta": "Tamil (தமிழ்)"
+    },
+    "branding": {
+      "logos": {
+        "fullLogo": "fulllogo.png — Header + Welcome screen",
+        "flogo": "flogo.png — Favicon + Sidebar collapsed icon",
+        "flower": "flower.png — Decorative accent"
+      },
+      "themes": {
+        "light": "Clean white backgrounds, brand-colored accents, subtle borders",
+        "dark": "Dark slate/charcoal backgrounds, adjusted brand colors for contrast"
+      }
+    }
+  },
+
+  "docker": {
+    "composeFile": "docker-compose.prod.yml",
+    "services": [
+      { "name": "nginx", "image": "nginx:alpine", "ports": ["80:80", "443:443"], "memoryLimit": "128MB", "volumes": ["./nginx/nginx.conf", "certbot certs"] },
+      { "name": "nextjs", "image": "Custom Dockerfile", "port": "3000 (internal)", "memoryLimit": "512MB", "volumes": ["App build"] },
+      { "name": "api", "image": "Custom Dockerfile", "port": "4000 (internal)", "memoryLimit": "512MB", "volumes": ["Uploads dir"] },
+      { "name": "ollama", "image": "ollama/ollama:latest", "port": "11434 (internal)", "memoryLimit": "6GB", "volumes": ["ollama_data"] },
+      { "name": "qdrant", "image": "qdrant/qdrant:latest", "port": "6333 (internal)", "memoryLimit": "512MB", "volumes": ["qdrant_data"] },
+      { "name": "postgres", "image": "postgres:16-alpine", "port": "5432 (internal)", "memoryLimit": "512MB", "volumes": ["postgres_data"] },
+      { "name": "n8n", "image": "n8nio/n8n:latest", "port": "5678 (internal)", "memoryLimit": "384MB", "volumes": ["n8n_data"] }
+    ],
+    "namedVolumes": [
+      { "name": "postgres_data", "purpose": "Database files", "backup": "Daily pg_dump cron" },
+      { "name": "qdrant_data", "purpose": "Vector indexes + snapshots", "backup": "Qdrant snapshot API" },
+      { "name": "ollama_data", "purpose": "Downloaded LLM models (~5GB)", "backup": "No (re-downloadable)" },
+      { "name": "n8n_data", "purpose": "Workflow configs, credentials", "backup": "Daily file backup" },
+      { "name": "upload_data", "purpose": "Uploaded documents", "backup": "Daily file backup" },
+      { "name": "certbot_certs", "purpose": "SSL certificates", "backup": "Auto-renewed" }
+    ],
+    "memoryBudget": {
+      "ollama": "5-6GB",
+      "qdrant": "300MB",
+      "postgres": "500MB",
+      "n8n": "300MB",
+      "nextjs_api": "500MB",
+      "nginx": "50MB",
+      "os": "2GB",
+      "buffer": "~6GB"
+    }
+  },
+
+  "environment": {
+    "NODE_ENV": "production",
+    "APP_NAME": "Poornasree AI",
+    "APP_URL": "https://yourdomain.com",
+    "APP_PORT": 4000,
+    "NEXTJS_PORT": 3000,
+    "DATABASE_URL": "postgresql://poornasree:STRONG_PASSWORD_HERE@postgres:5432/poornasree_ai",
+    "DB_HOST": "postgres",
+    "DB_PORT": 5432,
+    "DB_NAME": "poornasree_ai",
+    "DB_USER": "poornasree",
+    "DB_PASSWORD": "STRONG_PASSWORD_HERE",
+    "DB_SSL": false,
+    "JWT_SECRET": "GENERATE_64_CHAR_RANDOM_STRING",
+    "JWT_ACCESS_EXPIRY": "15m",
+    "JWT_REFRESH_EXPIRY": "7d",
+    "BCRYPT_SALT_ROUNDS": 12,
+    "COOKIE_SECRET": "GENERATE_32_CHAR_RANDOM_STRING",
+    "COOKIE_DOMAIN": "yourdomain.com",
+    "OLLAMA_BASE_URL": "http://ollama:11434",
+    "OLLAMA_CHAT_MODEL": "mistral:7b-instruct-v0.3-q4_K_M",
+    "OLLAMA_EMBEDDING_MODEL": "nomic-embed-text",
+    "OLLAMA_TIMEOUT_MS": 120000,
+    "QDRANT_URL": "http://qdrant:6333",
+    "QDRANT_COLLECTION": "poornasree_docs",
+    "QDRANT_VECTOR_SIZE": 768,
+    "N8N_HOST": "n8n",
+    "N8N_PORT": 5678,
+    "N8N_WEBHOOK_URL": "https://yourdomain.com/n8n",
+    "N8N_BASIC_AUTH_USER": "admin",
+    "N8N_BASIC_AUTH_PASSWORD": "STRONG_PASSWORD_HERE",
+    "UPLOAD_DIR": "/app/uploads",
+    "MAX_FILE_SIZE_MB": 50,
+    "ALLOWED_FILE_TYPES": "csv,pdf,json,xlsx",
+    "RATE_LIMIT_WINDOW_MS": 900000,
+    "RATE_LIMIT_MAX": 100,
+    "CHAT_RATE_LIMIT_PER_DAY": 100,
+    "CORS_ORIGIN": "https://yourdomain.com",
+    "ADMIN_EMAIL": "admin@poornasree.com",
+    "ADMIN_PASSWORD": "CHANGE_THIS_ON_FIRST_LOGIN",
+    "ADMIN_FIRST_NAME": "Admin",
+    "ADMIN_LAST_NAME": "Poornasree"
+  },
+
+  "n8nWorkflows": {
+    "documentIngestion": {
+      "trigger": "Webhook POST /webhook/document-ingest",
+      "steps": [
+        { "step": 1, "node": "Webhook Trigger", "config": "POST /webhook/document-ingest" },
+        { "step": 2, "node": "HTTP Request", "config": "Download file from API server" },
+        { "step": 3, "node": "Code Node", "config": "Parse CSV/PDF/JSON → extract text chunks" },
+        { "step": 4, "node": "Split In Batches", "config": "Process 10 chunks at a time" },
+        { "step": 5, "node": "HTTP Request", "config": "POST ollama:11434/api/embeddings (nomic-embed-text)" },
+        { "step": 6, "node": "HTTP Request", "config": "PUT qdrant:6333/collections/poornasree_docs/points" },
+        { "step": 7, "node": "Postgres Node", "config": "Insert chunk records into document_chunks" },
+        { "step": 8, "node": "Postgres Node", "config": "Update documents.status → indexed" },
+        { "step": 9, "node": "Respond to Webhook", "config": "Return success/failure" }
+      ]
+    },
+    "dailyAnalytics": {
+      "trigger": "Cron — Every day at 00:05 UTC",
+      "steps": [
+        { "step": 1, "node": "Cron Trigger", "config": "Every day at 00:05 UTC" },
+        { "step": 2, "node": "Postgres Node", "config": "Aggregate yesterday's messages, conversations, users" },
+        { "step": 3, "node": "Postgres Node", "config": "INSERT into analytics_daily" }
+      ]
+    },
+    "scheduledReindex": {
+      "trigger": "Cron — Weekly Sunday 02:00 UTC",
+      "steps": [
+        { "step": 1, "node": "Cron Trigger", "config": "Weekly Sunday 02:00 UTC" },
+        { "step": 2, "node": "Postgres Node", "config": "Fetch all active document chunks" },
+        { "step": 3, "node": "HTTP Request", "config": "Re-embed all chunks via Ollama" },
+        { "step": 4, "node": "HTTP Request", "config": "Recreate Qdrant collection and upsert" },
+        { "step": 5, "node": "Postgres Node", "config": "Update qdrant_point_ids in document_chunks" }
+      ]
+    }
+  },
+
+  "trainingData": {
+    "sourceFile": "Training syllabus and documents.xlsx.csv",
+    "format": "CSV with 27 columns (SI.NO, PSC, PRODUCT/PARTS, COMPLAINT, CHECK-1 through CHECK-12 with ACTION pairs)",
+    "totalRows": 77,
+    "products": [
+      {
+        "name": "VIBRO",
+        "rows": "2-9",
+        "complaints": [
+          "NOT WORKING (NOT ON LED)",
+          "NOT WORKING (LED JUST ON AND OFF)",
+          "LED GLOWING BUT NOT VIBRATING",
+          "CONTINUOUS VIBRATION",
+          "LOW VIBRATION",
+          "LED ON BUT BLOW FUSE",
+          "PUSH SWITCH NOT WORKING",
+          "LED BLINKING"
+        ]
+      },
+      {
+        "name": "SOLAR CHARGER BOARD",
+        "rows": "10-18",
+        "complaints": [
+          "BATTERY CHARGING VOLTAGE",
+          "GREEN LED (BATTERY FULL)",
+          "RED LED (CHARGING)",
+          "CUTOFF ISSUES",
+          "EXTERNAL BATTERY"
+        ]
+      },
+      {
+        "name": "COMPACT ADAPTER",
+        "rows": "19-21",
+        "complaints": [
+          "ADAPTER OUTPUT VOLTAGE IS ZERO (LSE V3)",
+          "ADAPTER OUTPUT VOLTAGE IS ZERO (ECO V)"
+        ]
+      },
+      {
+        "name": "CHARGER ADAPTER",
+        "rows": "22-25",
+        "complaints": [
+          "ADAPTER OUTPUT VOLTAGE IS ZERO (LSE-S V3/ECOD/ECOSV)",
+          "ADAPTER OUTPUT VOLTAGE IS ZERO BUT LED IS GLOWING"
+        ]
+      },
+      {
+        "name": "ECOD-DPST BOARD",
+        "rows": "26-48",
+        "complaints": [
+          "PLEASE WAIT NOTIFICATION CONTINUOUSLY",
+          "DISPLAY NOT WORKING",
+          "RTC NOT WORKING",
+          "KEYPAD NOT WORKING",
+          "USB NOT WORKING",
+          "WEIGHING SCALE ISSUES",
+          "COMPUTER OUTPUT ISSUES",
+          "WIFI/GSM NOT WORKING",
+          "SD CARD ISSUES",
+          "PRINTER NOT WORKING",
+          "CLOUD CONNECTIVITY"
+        ]
+      },
+      {
+        "name": "PUMP",
+        "rows": "49-51",
+        "complaints": [
+          "PUMP NOT WORKING",
+          "PUMP DIRECTION ISSUES",
+          "PUMP SENSING ERRORS"
+        ]
+      },
+      {
+        "name": "ECOD/ECOSV/LSES V3 BATTERY",
+        "rows": "52-53",
+        "complaints": [
+          "LOW BATTERY ERROR SHOWN",
+          "BATTERY FULL LED ISSUES"
+        ]
+      },
+      {
+        "name": "ANALYZER MAINBOARD",
+        "rows": "54-77",
+        "complaints": [
+          "T2/TEMP ERRORS",
+          "SENSOR ISSUES",
+          "CALIBRATION PROBLEMS",
+          "LCD NOT WORKING",
+          "KEYBOARD NOT WORKING",
+          "WIFI/GSM ISSUES",
+          "WEIGHING SCALE ERRORS",
+          "EXTERNAL DISPLAY ISSUES"
+        ]
+      },
+      {
+        "name": "OTHERS",
+        "rows": "78",
+        "complaints": [
+          "ANALYZER NOT WORKING (GENERAL)"
+        ]
+      }
+    ],
+    "jsonTrainingFormat": {
+      "description": "Each CSV row converts into this JSON structure for embedding and retrieval",
+      "example": {
+        "product": "VIBRO",
+        "psc_code": null,
+        "complaint": "NOT WORKING (NOT ON LED)",
+        "category": "troubleshooting",
+        "total_steps": 6,
+        "steps": [
+          { "step": 1, "check": "CHECK THE FUSE", "action": "REPLACE FUSE" },
+          { "step": 2, "check": "CHECK THE POWER SUPPLY", "action": "REPLACE POWER SUPPLY" },
+          { "step": 3, "check": "CHECK THE SUPPLY VOLTAGE (11v TO 14V)", "action": "REPLACE POWER SUPPLY" },
+          { "step": 4, "check": "CHECK THE GUN ELEMENT SHORT", "action": "REPLACE THE GUN" },
+          { "step": 5, "check": "REPLACE THE DC CONNECTOR", "action": "CHECK THE STIRRER BOARD" },
+          { "step": 6, "check": "REPLACE THE STIRRER BOARD", "action": null }
+        ],
+        "keywords": ["vibro", "not working", "led", "fuse", "power supply", "gun element", "dc connector", "stirrer board"]
+      }
+    }
+  },
+
+  "deployment": {
+    "checklist": [
+      "Provision Hostinger KVM4, install Docker + Docker Compose",
+      "Clone repo, configure .env.production",
+      "Run docker compose -f docker-compose.prod.yml up -d",
+      "Pull Ollama models: docker exec ollama ollama pull mistral:7b-instruct-v0.3-q4_K_M",
+      "Pull embedding model: docker exec ollama ollama pull nomic-embed-text",
+      "Run Prisma migrations: docker exec api npx prisma migrate deploy",
+      "Seed database (roles, admin user, app settings)",
+      "Configure Nginx + SSL certificates",
+      "Upload training CSV via admin UI",
+      "Verify RAG pipeline (ask a test question)",
+      "Import n8n workflows",
+      "Set up daily backup cron for PostgreSQL",
+      "Load-test with concurrent users",
+      "Monitor memory usage (should stay under 14GB)"
+    ]
+  }
+}
