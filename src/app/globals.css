@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ── Light Theme (default) ── */
+  :root {
+    --background: #FFFFFF;
+    --foreground: #1F2937;
+    --surface-secondary: #F9FAFB;
+    --surface-tertiary: #F3F4F6;
+    --border-color: #E5E7EB;
+    --primary: #2B5F9E;
+    --primary-hover: #234D80;
+    --accent: #9CCB3B;
+    --accent-hover: #88B432;
+    --text-secondary: #7A7A7A;
+    --text-tertiary: #9CA3AF;
+    --bubble-user: #2B5F9E;
+    --bubble-bot: #F4F7FB;
+    --sidebar-bg: #F9FAFB;
+    --input-bg: #F3F4F6;
+    --card-bg: #FFFFFF;
+    --shadow-color: rgba(0, 0, 0, 0.06);
+  }
+
+  /* ── Dark Theme ── */
+  .dark {
+    --background: #111827;
+    --foreground: #F9FAFB;
+    --surface-secondary: #1F2937;
+    --surface-tertiary: #374151;
+    --border-color: #374151;
+    --primary: #5B8FCA;
+    --primary-hover: #4A7AB5;
+    --accent: #9CCB3B;
+    --accent-hover: #88B432;
+    --text-secondary: #9CA3AF;
+    --text-tertiary: #6B7280;
+    --bubble-user: #2B5F9E;
+    --bubble-bot: #1E293B;
+    --sidebar-bg: #1F2937;
+    --input-bg: #374151;
+    --card-bg: #1F2937;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+  }
+
+  * {
+    @apply border-line dark:border-line-dark;
+  }
+
+  body {
+    @apply bg-surface text-content dark:bg-surface-dark dark:text-content-dark antialiased;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-content-tertiary/30 rounded-full hover:bg-content-tertiary/50;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    @apply bg-content-dark-secondary/30 hover:bg-content-dark-secondary/50;
+  }
+}
+
+@layer components {
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-surface dark:focus:ring-offset-surface-dark;
+  }
+
+  /* Glass effect for cards */
+  .glass {
+    @apply bg-white/80 dark:bg-surface-dark-secondary/80 backdrop-blur-xl border border-line dark:border-line-dark;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+  }
+  .dark .scrollbar-thin {
+    scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
+  }
+}
