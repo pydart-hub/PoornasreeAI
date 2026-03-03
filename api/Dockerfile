@@ -5,10 +5,10 @@
 #   - Compiles TypeScript → /app/dist
 #   - Prunes devDependencies so only production modules remain
 # ============================================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 # Native module build tools (required by bcrypt)
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -31,10 +31,10 @@ RUN npm prune --omit=dev
 
 # ============================================================
 # Stage 2: production
-#   - Lean node:20-alpine image
+#   - Lean node:20-slim image
 #   - Only contains: node_modules, dist, prisma
 # ============================================================
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
 WORKDIR /app
 
