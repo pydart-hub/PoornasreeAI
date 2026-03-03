@@ -206,7 +206,7 @@ export default function AdminDashboard() {
               System Dashboard
             </h1>
             <p className="text-sm text-content-secondary dark:text-content-dark-secondary mt-0.5">
-              Welcome back, {user.firstName}. Here's a system overview.
+              Welcome back, {user.firstName}. Here&apos;s a system overview.
             </p>
           </div>
 

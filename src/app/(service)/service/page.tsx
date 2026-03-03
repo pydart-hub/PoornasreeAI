@@ -9,7 +9,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { cn, formatRelativeTime, truncate, getInitials } from "@/lib/utils";
+import { cn, formatRelativeTime, truncate } from "@/lib/utils";
 import {
   LogOut,
   RefreshCw,
