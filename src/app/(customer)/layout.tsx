@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Customer Portal – Poornasree AI",
-  description: "AI-powered product guidance and troubleshooting for Poornasree customers.",
+  title: "AI Support Assistant – Poornasree",
+  description: "Get instant AI-powered product guidance and troubleshooting support, 24/7.",
 };
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <div data-layout="customer" className="min-h-screen customer-shell">
+      {children}
+    </div>
+  );
 }

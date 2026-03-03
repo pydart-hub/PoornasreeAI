@@ -360,6 +360,16 @@ export default function CustomerChatPage() {
         <Logo variant="full" size="sm" className="hidden sm:flex" />
         <Logo variant="icon" size="sm" className="flex sm:hidden" />
 
+        {/* Product title */}
+        <div className="hidden md:flex flex-col -ml-1">
+          <span className="text-sm font-semibold text-content dark:text-content-dark leading-tight">
+            AI Support Assistant
+          </span>
+          <span className="text-[10px] text-content-secondary dark:text-content-dark-secondary leading-none">
+            Powered by Poornasree AI
+          </span>
+        </div>
+
         {/* Status pill */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 ml-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />

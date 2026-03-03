@@ -9,20 +9,42 @@ import { LoadingScreen } from "@/components/ui";
 import type { Message, Conversation } from "@/types/chat";
 export type { Message, Conversation };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+// Normalises API date strings (ISO) → Date objects used by UI components.
+function normaliseConversation(raw: {
+  id: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: { id: string; role: string; content: string; createdAt: string }[];
+}): Conversation {
+  return {
+    id: raw.id,
+    title: raw.title ?? "New conversation",
+    createdAt: new Date(raw.createdAt),
+    updatedAt: new Date(raw.updatedAt),
+    messages: raw.messages.map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      timestamp: new Date(m.createdAt),
+    })),
+  };
+}
+
 export default function ChatPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<
-    string | null
-  >(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
 
-  // Responsive detection
+  // ── Responsive detection ────────────────────────────────────────
   useEffect(() => {
     const check = () => {
       const mobile = window.innerWidth < 768;
@@ -34,37 +56,52 @@ export default function ChatPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Auth guard
+  // ── Auth guard ──────────────────────────────────────────────────
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
     }
   }, [user, authLoading, router]);
 
-  const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId
-  );
+  // ── Load conversations from API on mount ────────────────────────
+  useEffect(() => {
+    if (!user) return;
+    async function load() {
+      try {
+        const res = await fetch(`${API_URL}/api/conversations`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setConversations(data.conversations.map(normaliseConversation));
+      } catch (err) {
+        console.error("Failed to load conversations:", err);
+      }
+    }
+    load();
+  }, [user]);
 
+  const activeConversation = conversations.find((c) => c.id === activeConversationId);
+
+  // ── New conversation: clear active state (DB entry created on first message) ──
   const createNewConversation = useCallback(() => {
-    const newConv: Conversation = {
-      id: crypto.randomUUID(),
-      title: "New conversation",
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setConversations((prev) => [newConv, ...prev]);
-    setActiveConversationId(newConv.id);
+    setActiveConversationId(null);
     if (isMobile) setSidebarOpen(false);
-    return newConv.id;
   }, [isMobile]);
 
+  // ── Delete conversation via API ──────────────────────────────────
   const deleteConversation = useCallback(
-    (id: string) => {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeConversationId === id) {
-        setActiveConversationId(null);
+    async (id: string) => {
+      try {
+        await fetch(`${API_URL}/api/conversations/${id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+      } catch (err) {
+        console.error("Failed to delete conversation:", err);
       }
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (activeConversationId === id) setActiveConversationId(null);
     },
     [activeConversationId]
   );
@@ -77,84 +114,98 @@ export default function ChatPage() {
     [isMobile]
   );
 
-  /* ── Send message (mock streaming) ── */
+  // ── Send message ─────────────────────────────────────────────────
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || streaming) return;
 
-      let convId = activeConversationId;
-      if (!convId) {
-        convId = createNewConversation();
-      }
-
-      const userMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text.trim(),
-        timestamp: new Date(),
-      };
-
-      // Add user message
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== convId) return c;
-          const isFirst = c.messages.length === 0;
-          return {
-            ...c,
-            title: isFirst ? text.trim().slice(0, 50) : c.title,
-            messages: [...c.messages, userMsg],
-            updatedAt: new Date(),
-          };
-        })
-      );
-
       setInput("");
       setStreaming(true);
 
-      // Mock assistant response (will be replaced by real API call)
-      const botId = crypto.randomUUID();
-      const mockResponse = getMockResponse(text);
+      try {
+        let convId = activeConversationId;
 
-      // Add empty assistant message
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== convId) return c;
-          return {
-            ...c,
-            messages: [
-              ...c.messages,
-              {
-                id: botId,
-                role: "assistant",
-                content: "",
-                timestamp: new Date(),
-              },
-            ],
-            updatedAt: new Date(),
-          };
-        })
-      );
+        // 1. Create conversation in DB if none is active
+        if (!convId) {
+          const convRes = await fetch(`${API_URL}/api/conversations`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: text.trim().slice(0, 50) }),
+          });
+          if (!convRes.ok) { setStreaming(false); return; }
+          const { conversation } = await convRes.json();
+          convId = conversation.id as string;
+          setConversations((prev) => [normaliseConversation(conversation), ...prev]);
+          setActiveConversationId(convId);
+        }
 
-      // Simulate streaming character by character
-      for (let i = 0; i <= mockResponse.length; i++) {
-        await new Promise((r) => setTimeout(r, 15));
-        const partial = mockResponse.slice(0, i);
+        // 2. Optimistically show user bubble
+        const tempUserId = `temp-user-${Date.now()}`;
         setConversations((prev) =>
-          prev.map((c) => {
-            if (c.id !== convId) return c;
-            return {
-              ...c,
-              messages: c.messages.map((m) =>
-                m.id === botId ? { ...m, content: partial } : m
-              ),
-            };
-          })
+          prev.map((c) =>
+            c.id !== convId
+              ? c
+              : { ...c, messages: [...c.messages, { id: tempUserId, role: "user" as const, content: text.trim(), timestamp: new Date() }], updatedAt: new Date() }
+          )
         );
-      }
 
-      setStreaming(false);
+        // 3. Show empty assistant streaming bubble
+        const tempBotId = `temp-bot-${Date.now()}`;
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id !== convId
+              ? c
+              : { ...c, messages: [...c.messages, { id: tempBotId, role: "assistant" as const, content: "", timestamp: new Date() }] }
+          )
+        );
+
+        // 4. Persist message to DB
+        const msgRes = await fetch(`${API_URL}/api/messages`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId: convId, content: text.trim() }),
+        });
+        if (!msgRes.ok) { setStreaming(false); return; }
+        const { userMessage, assistantMessage } = await msgRes.json();
+
+        // 5. Replace temp user bubble with persisted record
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id !== convId
+              ? c
+              : { ...c, messages: c.messages.map((m) => m.id === tempUserId ? { ...m, id: userMessage.id, timestamp: new Date(userMessage.createdAt) } : m) }
+          )
+        );
+
+        // 6. Stream assistant reply character by character from DB response
+        const fullReply: string = assistantMessage.content;
+        for (let i = 0; i <= fullReply.length; i++) {
+          await new Promise((r) => setTimeout(r, 12));
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id !== convId) return c;
+              return {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === tempBotId
+                    ? i === fullReply.length
+                      ? { ...m, id: assistantMessage.id, content: fullReply, timestamp: new Date(assistantMessage.createdAt) }
+                      : { ...m, content: fullReply.slice(0, i) }
+                    : m
+                ),
+              };
+            })
+          );
+        }
+      } catch (err) {
+        console.error("sendMessage error:", err);
+      } finally {
+        setStreaming(false);
+      }
     },
-    [activeConversationId, createNewConversation, streaming]
+    [activeConversationId, streaming]
   );
 
   if (authLoading) {
@@ -200,45 +251,4 @@ export default function ChatPage() {
   );
 }
 
-/* ── Mock response helper (replaced by API later) ── */
-function getMockResponse(query: string): string {
-  const q = query.toLowerCase();
 
-  if (q.includes("vibro") || q.includes("analyzer")) {
-    return `Based on the troubleshooting documentation, here's what I found:
-
-**VIBRO Milk Analyzer — Common Issues**
-
-1. **Check the power supply connection** — Ensure the adapter is properly plugged in and the LED indicator is on.
-2. **Verify calibration settings** — Go to Settings → Calibration → Run Auto-Calibrate.
-3. **Clean the sample chamber** — Use distilled water to flush the measurement cell.
-
-If the issue persists, please provide more details about the specific error message or behavior you're observing.
-
-*Sources: Training Syllabus — VIBRO section*`;
-  }
-
-  if (q.includes("battery") || q.includes("charge")) {
-    return `Here's the troubleshooting guide for battery and charging issues:
-
-**Battery & Charger Troubleshooting**
-
-1. **Check the charger adapter** — Verify the output voltage matches the required specification (typically 12V DC).
-2. **Inspect the battery terminals** — Look for corrosion or loose connections.
-3. **Test with a multimeter** — Measure the battery voltage; it should read above 11.5V when charged.
-
-Would you like me to walk you through any of these steps in more detail?
-
-*Sources: Training Syllabus — BATTERY, CHARGER ADAPTER sections*`;
-  }
-
-  return `Thank you for your question! I'm Poornasree AI, your technical support assistant for milk analyzer equipment.
-
-I can help you with:
-- **Troubleshooting** equipment issues (VIBRO, SOLAR CHARGER, COMPACT ADAPTER, etc.)
-- **Step-by-step repair guides** with detailed instructions
-- **Calibration procedures** for various analyzer models
-- **Maintenance schedules** and best practices
-
-Could you provide more details about the specific equipment or issue you're facing? The more information you share, the better I can assist you.`;
-}

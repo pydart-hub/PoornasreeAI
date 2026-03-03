@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 // ── Types ──
 export interface User {
   id: string;
@@ -11,20 +13,19 @@ export interface User {
   avatarUrl?: string;
   role: string;
   department?: string;
-  languagePref: string;
-  themePref: string;
-  permissions: Record<string, boolean>;
+  languagePref?: string;
+  themePref?: string;
+  permissions?: Record<string, boolean>;
 }
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   setUser: (user: User) => void;
@@ -37,183 +38,125 @@ interface RegisterData {
   lastName?: string;
 }
 
-// ── Mock credential store (replace with real API later) ──
-const MOCK_USERS: Array<{ email: string; password: string; user: User }> = [
-  {
-    email: "admin@poornasree.com",
-    password: "Admin@123",
-    user: {
-      id: "usr_001",
-      email: "admin@poornasree.com",
-      firstName: "Admin",
-      lastName: "Poornasree",
-      role: "admin",
-      department: "Administration",
-      languagePref: "en",
-      themePref: "system",
-      permissions: { all: true },
-    },
+// ── Role → permissions mapping ──
+const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
+  admin: { all: true },
+  service: {
+    chat: true,
+    "documents.read": true,
+    "documents.upload": true,
+    "documents.delete": true,
+    "users.read_department": true,
+    "chats.read_department": true,
+    "analytics.department": true,
+    "profile.edit": true,
   },
-  {
-    email: "service@poornasree.com",
-    password: "Service@123",
-    user: {
-      id: "usr_002",
-      email: "service@poornasree.com",
-      firstName: "Rajan",
-      lastName: "Kumar",
-      role: "service",
-      department: "Service",
-      languagePref: "en",
-      themePref: "system",
-      permissions: {
-        chat: true,
-        "documents.read": true,
-        "documents.upload": true,
-        "documents.delete": true,
-        "users.read_department": true,
-        "chats.read_department": true,
-        "analytics.department": true,
-        "profile.edit": true,
-      },
-    },
+  r_and_d: {
+    chat: true,
+    "documents.read": true,
+    "documents.upload": true,
+    "documents.delete": true,
+    "users.read_department": true,
+    "chats.read_department": true,
+    "analytics.department": true,
+    "profile.edit": true,
   },
-  {
-    email: "rd@poornasree.com",
-    password: "RnD@123",
-    user: {
-      id: "usr_003",
-      email: "rd@poornasree.com",
-      firstName: "Priya",
-      lastName: "Sharma",
-      role: "r_and_d",
-      department: "R&D",
-      languagePref: "en",
-      themePref: "system",
-      permissions: {
-        chat: true,
-        "documents.read": true,
-        "documents.upload": true,
-        "documents.delete": true,
-        "users.read_department": true,
-        "chats.read_department": true,
-        "analytics.department": true,
-        "profile.edit": true,
-      },
-    },
-  },
-  {
-    email: "customer@example.com",
-    password: "Customer@123",
-    user: {
-      id: "usr_005",
-      email: "customer@example.com",
-      firstName: "Amit",
-      lastName: "Patel",
-      role: "customer",
-      department: "Customer",
-      languagePref: "en",
-      themePref: "system",
-      permissions: { chat: true },
-    },
-  },
-];
+  customer: { chat: true, "profile.edit": true },
+};
+
+function enrichUser(raw: Omit<User, "permissions" | "languagePref" | "themePref">): User {
+  return {
+    ...raw,
+    permissions: ROLE_PERMISSIONS[raw.role] || { chat: true },
+    languagePref: "en",
+    themePref: "system",
+  };
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
-    accessToken: null,
     isAuthenticated: false,
     isLoading: true,
   });
 
-  // Check for existing session on mount
+  // Check for existing session on mount via /api/auth/me
   useEffect(() => {
-    const stored = localStorage.getItem("poornasree_user");
-    if (stored) {
-      try {
-        const user = JSON.parse(stored);
-        setState({
-          user,
-          accessToken: localStorage.getItem("poornasree_token"),
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } catch {
+    fetch(`${API_URL}/api/auth/me`, { credentials: "include" })
+      .then(async (res) => {
+        if (res.ok) {
+          const { user } = await res.json();
+          setState({
+            user: enrichUser(user),
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } else {
+          setState((s) => ({ ...s, isLoading: false }));
+        }
+      })
+      .catch(() => {
         setState((s) => ({ ...s, isLoading: false }));
-      }
-    } else {
-      setState((s) => ({ ...s, isLoading: false }));
-    }
+      });
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 600));
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email, password }),
+    });
 
-    const match = MOCK_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
+    const data = await res.json();
 
-    if (!match) {
-      throw new Error("Invalid email or password. Please try again.");
+    if (!res.ok) {
+      throw new Error(data.error || "Invalid email or password.");
     }
 
-    const mockToken = `mock-jwt-${match.user.role}-${Date.now()}`;
-
-    localStorage.setItem("poornasree_user", JSON.stringify(match.user));
-    localStorage.setItem("poornasree_token", mockToken);
-
     setState({
-      user: match.user,
-      accessToken: mockToken,
+      user: enrichUser(data.user),
       isAuthenticated: true,
       isLoading: false,
     });
+
+    return enrichUser(data.user);
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 600));
-    // TODO: Replace with actual API call
-    const mockUser: User = {
-      id: crypto.randomUUID(),
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      role: "user",
-      permissions: { chat: true, "documents.read": true, "profile.edit": true },
-      languagePref: "en",
-      themePref: "system",
-    };
-    const mockToken = "mock-jwt-token";
-
-    localStorage.setItem("poornasree_user", JSON.stringify(mockUser));
-    localStorage.setItem("poornasree_token", mockToken);
-
-    setState({
-      user: mockUser,
-      accessToken: mockToken,
-      isAuthenticated: true,
-      isLoading: false,
+    const res = await fetch(`${API_URL}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
     });
-  }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("poornasree_user");
-    localStorage.removeItem("poornasree_token");
+    const body = await res.json();
+
+    if (!res.ok) {
+      throw new Error(body.error || "Registration failed.");
+    }
+
+    // Auto-login after successful registration
+    await login(data.email, data.password);
+  }, [login]);
+
+  const logout = useCallback(async () => {
+    await fetch(`${API_URL}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
+
     setState({
       user: null,
-      accessToken: null,
       isAuthenticated: false,
       isLoading: false,
     });
   }, []);
 
   const setUser = useCallback((user: User) => {
-    localStorage.setItem("poornasree_user", JSON.stringify(user));
     setState((s) => ({ ...s, user }));
   }, []);
 

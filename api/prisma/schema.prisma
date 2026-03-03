@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String             @id @default(uuid())
+  email         String             @unique
+  passwordHash  String
+  firstName     String
+  lastName      String?
+  role          String             @default("customer")
+  createdAt     DateTime           @default(now())
+  conversations Conversation[]
+  feedback      TrainingFeedback[]
+  documents     Document[]
+}
+
+model Conversation {
+  id         String             @id @default(uuid())
+  userId     String
+  title      String?
+  status     String             @default("open")      // open | in_progress | resolved | escalated
+  escalated  Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages   Message[]
+  feedback   TrainingFeedback[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  role           String       // "user" | "assistant"
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ── Training Feedback ───────────────────────────────────────────────────────
+// Stores service-manager corrections for future AI training.
+model TrainingFeedback {
+  id              String       @id @default(uuid())
+  conversationId  String
+  messageId       String?
+  correctedAnswer String       @db.Text
+  createdById     String
+  createdAt       DateTime     @default(now())
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdBy       User         @relation(fields: [createdById], references: [id])
+}
+
+// ── Document (foundation only — upload logic pending) ──────────────────────
+model Document {
+  id           String          @id @default(uuid())
+  title        String
+  filePath     String
+  uploadedById String
+  createdAt    DateTime        @default(now())
+
+  uploadedBy   User            @relation(fields: [uploadedById], references: [id])
+  chunks       DocumentChunk[]
+}
+
+// ── Document Chunks for RAG vector search ──────────────────────────────────
+model DocumentChunk {
+  id         String   @id @default(uuid())
+  documentId String
+  content    String   @db.Text
+  vectorId   String
+  createdAt  DateTime @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
