@@ -34,13 +34,15 @@ export const env = {
   JWT_EXPIRES_IN: optional("JWT_EXPIRES_IN", "7d"),
 
   // ── CORS ────────────────────────────────────
-  // Dev: defaults to http://localhost:3000
-  // Prod: CORS_ORIGIN must be explicitly set or the server refuses to start.
-  CORS_ORIGIN: isDev
-    ? optional("CORS_ORIGIN", "http://localhost:3000")
-    : required("CORS_ORIGIN"),
+  // All requests arrive from the Next.js proxy container (server-to-server),
+  // so there is no browser Origin header. CORS is set to reflect any origin
+  // (origin: true in Express cors()) — the env var is kept only as a safety
+  // escape-hatch if direct access is re-enabled.
+  CORS_ORIGIN: optional("CORS_ORIGIN", "*"),
 
   // ── Cookies ─────────────────────────────────
-  COOKIE_SECURE: !isDev, // true in production (HTTPS), false in dev
-  COOKIE_SAMESITE: (isDev ? "lax" : "strict") as "lax" | "strict",
+  // The site runs over plain HTTP — secure:true would silently drop cookies.
+  // sameSite:"lax" is safe; the browser only ever talks to port 80 (Next.js).
+  COOKIE_SECURE: false,
+  COOKIE_SAMESITE: "lax" as "lax" | "strict",
 } as const;

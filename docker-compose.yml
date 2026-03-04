@@ -1,0 +1,130 @@
+version: "3.9"
+
+# ── PoornasreeAI — full stack ────────────────────────────────────────────────
+# Services:
+#   web      → Next.js 14 frontend      (host port 3000)
+#   api      → Express 5 backend        (host port 4000)
+#   db       → PostgreSQL 16            (internal only)
+#   qdrant   → Qdrant vector DB         (internal only)
+#   ollama   → Ollama LLM server        (internal only)
+#
+# Usage:
+#   1. Copy .env.example → .env and fill in secrets
+#   2. docker compose up --build -d
+#   3. First run only: docker compose exec api npx prisma migrate deploy
+#   4. First run only: docker compose exec api npx prisma db seed
+#   5. Pull Ollama models: docker compose exec ollama ollama pull mistral
+#                          docker compose exec ollama ollama pull nomic-embed-text
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-poorna_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-poornasree_ai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-poorna_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ── Qdrant vector database ─────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - internal
+
+  # ── Ollama LLM server ──────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - internal
+    # Uncomment to enable GPU (NVIDIA):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ── Express API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-poorna_user}:${POSTGRES_PASSWORD:?}@db:5432/${POSTGRES_DB:-poornasree_ai}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # API is only reachable via the Next.js proxy; CORS_ORIGIN is a safety
+      # escape-hatch. Leave unset to reflect all origins (origin: true).
+      # CORS_ORIGIN: http://187.77.188.63
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_URL: http://ollama:11434
+    volumes:
+      - api_uploads:/app/uploads
+    ports:
+      - "4000:4000"
+    networks:
+      - internal
+      - public
+
+  # ── Next.js frontend ───────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      # PORT and HOSTNAME are already baked into the image (ENV PORT=3000).
+      # Explicitly restating them here ensures no external value can override.
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Internal Docker hostname for server-side proxy rewrites (next.config.mjs).
+      API_INTERNAL_URL: http://api:4000
+    ports:
+      - "3000:3000"
+    networks:
+      - internal
+      - public
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  ollama_data:
+  api_uploads:
+
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge

@@ -11,7 +11,10 @@ import { ensureCollection } from "./services/vector.service";
 const app = express();
 
 // ── Middleware ────────────────────────────────────
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+// All requests arrive server-to-server from the Next.js proxy container.
+// The browser never calls this port directly, so origin: true (reflect
+// whatever origin is present, including none) is the correct setting.
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 

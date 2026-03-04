@@ -7,9 +7,10 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { LoadingScreen } from "@/components/ui";
 import type { Message, Conversation } from "@/types/chat";
+import { API_BASE } from "@/lib/env";
 export type { Message, Conversation };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = API_BASE;
 
 // Normalises API date strings (ISO) → Date objects used by UI components.
 function normaliseConversation(raw: {

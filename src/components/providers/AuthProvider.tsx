@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { API_BASE } from "@/lib/env";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = API_BASE;
 
 // ── Types ──
 export interface User {

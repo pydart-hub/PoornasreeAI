@@ -27,8 +27,9 @@ import {
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { API_BASE } from "@/lib/env";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = API_BASE;
 
 // ─────────────────────────────────────────────
 // Types

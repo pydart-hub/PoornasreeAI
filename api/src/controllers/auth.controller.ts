@@ -51,6 +51,7 @@ export async function registerUser(req: Request, res: Response): Promise<void> {
 
 // ── Login ────────────────────────────────────────
 export async function loginUser(req: Request, res: Response): Promise<void> {
+  console.log(`[auth] Login attempt — email: ${req.body?.email ?? "(missing)"}  origin: ${req.headers.origin ?? "(none)"}`);
   try {
     const { email, password } = req.body;
 
