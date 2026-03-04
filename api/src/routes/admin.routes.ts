@@ -7,6 +7,12 @@ import multer from "multer";
 import path from "path";
 import { protect } from "../middleware/auth";
 import { uploadDocument } from "../controllers/document.controller";
+import {
+  listUsers,
+  deleteUser,
+  listDocuments,
+  deleteDocumentRecord,
+} from "../controllers/admin.controller";
 
 const router = Router();
 
@@ -35,5 +41,17 @@ router.use(protect);
 
 // POST /api/admin/documents  —  upload + embed a PDF
 router.post("/documents", upload.single("file"), uploadDocument);
+
+// GET  /api/admin/documents  —  list all uploaded documents
+router.get("/documents", listDocuments);
+
+// DELETE /api/admin/documents/:id  —  delete a document + file
+router.delete("/documents/:id", deleteDocumentRecord);
+
+// GET  /api/admin/users  —  list all users
+router.get("/users", listUsers);
+
+// DELETE /api/admin/users/:id  —  delete a user
+router.delete("/users/:id", deleteUser);
 
 export default router;
