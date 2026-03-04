@@ -7,10 +7,7 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { LoadingScreen } from "@/components/ui";
 import type { Message, Conversation } from "@/types/chat";
-import { API_BASE } from "@/lib/env";
 export type { Message, Conversation };
-
-const API_URL = API_BASE;
 
 // Normalises API date strings (ISO) → Date objects used by UI components.
 function normaliseConversation(raw: {
@@ -69,7 +66,7 @@ export default function ChatPage() {
     if (!user) return;
     async function load() {
       try {
-        const res = await fetch(`${API_URL}/api/conversations`, {
+        const res = await fetch("/api/conversations", {
           credentials: "include",
         });
         if (!res.ok) return;
@@ -94,7 +91,7 @@ export default function ChatPage() {
   const deleteConversation = useCallback(
     async (id: string) => {
       try {
-        await fetch(`${API_URL}/api/conversations/${id}`, {
+        await fetch(`/api/conversations/${id}`, {
           method: "DELETE",
           credentials: "include",
         });
@@ -128,7 +125,7 @@ export default function ChatPage() {
 
         // 1. Create conversation in DB if none is active
         if (!convId) {
-          const convRes = await fetch(`${API_URL}/api/conversations`, {
+          const convRes = await fetch("/api/conversations", {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
@@ -162,7 +159,7 @@ export default function ChatPage() {
         );
 
         // 4. Persist message to DB
-        const msgRes = await fetch(`${API_URL}/api/messages`, {
+        const msgRes = await fetch("/api/messages", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

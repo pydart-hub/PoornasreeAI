@@ -27,9 +27,6 @@ import {
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { API_BASE } from "@/lib/env";
-
-const API_URL = API_BASE;
 
 // ─────────────────────────────────────────────
 // Types
@@ -127,7 +124,7 @@ export default function AdminPage() {
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/users`, { credentials: "include" });
+      const res = await fetch("/api/admin/users", { credentials: "include" });
       const data = await res.json();
       if (res.ok) setUsers(data.users);
     } finally {
@@ -139,7 +136,7 @@ export default function AdminPage() {
   const fetchDocuments = useCallback(async () => {
     setDocsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/admin/documents`, { credentials: "include" });
+      const res = await fetch("/api/admin/documents", { credentials: "include" });
       const data = await res.json();
       if (res.ok) setDocuments(data.documents);
     } finally {
@@ -166,7 +163,7 @@ export default function AdminPage() {
       formData.append("file", file);
       formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
       try {
-        const res = await fetch(`${API_URL}/api/admin/documents`, {
+        const res = await fetch("/api/admin/documents", {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -195,7 +192,7 @@ export default function AdminPage() {
   const handleDeleteDoc = useCallback(async (id: string) => {
     setDeletingDocId(id);
     try {
-      await fetch(`${API_URL}/api/admin/documents/${id}`, {
+      await fetch(`/api/admin/documents/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -210,7 +207,7 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
     setDeletingUserId(id);
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+      const res = await fetch(`/api/admin/users/${id}`, {
         method: "DELETE",
         credentials: "include",
       });

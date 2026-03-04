@@ -1,9 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { API_BASE } from "@/lib/env";
-
-const API_URL = API_BASE;
 
 // ── Types ──
 export interface User {
@@ -85,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for existing session on mount via /api/auth/me
   useEffect(() => {
-    fetch(`${API_URL}/api/auth/me`, { credentials: "include" })
+    fetch("/api/auth/me", { credentials: "include" })
       .then(async (res) => {
         if (res.ok) {
           const { user } = await res.json();
@@ -104,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -127,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
-    const res = await fetch(`${API_URL}/api/auth/register`, {
+    const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -145,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
-    await fetch(`${API_URL}/api/auth/logout`, {
+    await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
     }).catch(() => {});

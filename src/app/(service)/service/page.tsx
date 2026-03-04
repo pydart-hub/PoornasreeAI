@@ -24,9 +24,7 @@ import {
   X,
 } from "lucide-react";
 
-import { API_BASE } from "@/lib/env";
 
-const API_URL = API_BASE;
 
 // ── Types ─────────────────────────────────────────────────────────────
 type Status = "open" | "in_progress" | "resolved";
@@ -125,7 +123,7 @@ export default function ServiceDashboard() {
   const fetchConversations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/conversations`, {
+      const res = await fetch("/api/conversations", {
         credentials: "include",
       });
       if (!res.ok) return;
@@ -192,7 +190,7 @@ export default function ServiceDashboard() {
     setReplyText("");
 
     try {
-      const res = await fetch(`${API_URL}/api/conversations/${activeId}/reply`, {
+      const res = await fetch(`/api/conversations/${activeId}/reply`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
