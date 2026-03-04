@@ -109,8 +109,6 @@ services:
       # Explicitly restating them here ensures no external value can override.
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      # Internal Docker hostname for server-side proxy rewrites (next.config.mjs).
-      API_INTERNAL_URL: http://api:4000
     ports:
       - "3000:3000"
     networks:
