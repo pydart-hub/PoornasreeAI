@@ -90,7 +90,7 @@ services:
     volumes:
       - api_uploads:/app/uploads
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"   # Nginx proxies to this; not exposed publicly
     networks:
       - internal
       - public
@@ -110,7 +110,7 @@ services:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
     ports:
-      - "80:3000"
+      - "127.0.0.1:3000:3000"   # Nginx proxies to this; not exposed publicly
     networks:
       - internal
       - public
