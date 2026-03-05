@@ -2,42 +2,48 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import Image from "next/image";
+import {
+  Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles,
+} from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
+
+/* ── tiny helpers ── */
+function FloatingOrb({
+  className, style,
+}: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      className={`absolute rounded-full pointer-events-none blur-3xl opacity-30 ${className}`}
+      style={style}
+    />
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail]             = useState("");
+  const [password, setPassword]       = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]             = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email || !password) {
-      setError("Please fill in all fields.");
-      return;
-    }
+    if (!email || !password) { setError("Please fill in all fields."); return; }
     setLoading(true);
     try {
-      const loggedInUser = await login(email, password);
-      const role = loggedInUser.role;
-      if (role === "customer") {
-        router.replace("/customer");
-      } else if (role === "admin") {
-        router.replace("/admin");
-      } else if (role === "service") {
-        router.replace("/service");
-      } else if (["r_and_d", "production", "sales"].includes(role)) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/chat");
-      }
+      const user = await login(email, password);
+      const role = user.role;
+      if (role === "customer")       router.replace("/customer");
+      else if (role === "admin")     router.replace("/admin");
+      else if (role === "service")   router.replace("/service");
+      else if (role === "r_and_d")   router.replace("/dashboard");
+      else                           router.replace("/chat");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
@@ -46,65 +52,182 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="animate-fade-in">
-      <div className="mb-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-content dark:text-content-dark">
-          Sign in
-        </h2>
-        <p className="text-content-secondary dark:text-content-dark-secondary mt-1 text-sm">
-          Poornasree AI — Admin Portal
-        </p>
+    <div className="relative w-full select-none">
+
+      {/* ── Animated background orbs ── */}
+      <FloatingOrb
+        className="w-64 h-64 bg-blue-400 animate-float-a -top-16 -right-16"
+      />
+      <FloatingOrb
+        className="w-48 h-48 bg-green-400 animate-float-b -bottom-8 -left-12"
+      />
+      <FloatingOrb
+        className="w-32 h-32 bg-purple-400 animate-float-c top-1/2 left-1/2 -translate-x-1/2"
+      />
+
+      {/* ── Logo + welcome ── */}
+      <div className="relative animate-fade-up delay-100 mb-8 text-center">
+        {/* Spinning ring behind logo */}
+        <div className="relative inline-flex items-center justify-center mb-4">
+          <div className="absolute w-20 h-20 rounded-full border-2 border-dashed border-[#9CCB3B]/50 animate-spin-slow" />
+          <div className="relative w-16 h-16 rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-md border border-white/50 shadow-xl flex items-center justify-center overflow-hidden">
+            <Image
+              src="/flower.png"
+              alt="Poornasree"
+              width={40}
+              height={40}
+              className="object-contain drop-shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* Greeting */}
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase text-[#2B5F9E] dark:text-[#9CCB3B] animate-fade-up delay-150">
+            <Sparkles className="w-3 h-3" />
+            Welcome back
+            <Sparkles className="w-3 h-3" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white leading-tight">
+            Sign in to{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2B5F9E] to-[#9CCB3B]">
+              Poornasree AI
+            </span>
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Technical Support Assistant Portal
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ── Form ── */}
+      <form onSubmit={handleSubmit} className="relative space-y-4">
+
+        {/* Error banner */}
         {error && (
-          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
+          <div className="animate-fade-up p-3 rounded-xl bg-red-50/80 dark:bg-red-950/40 border border-red-200/70 dark:border-red-800/50 backdrop-blur-sm text-red-600 dark:text-red-400 text-xs flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>
             {error}
           </div>
         )}
 
-        <Input
-          label="Email"
-          type="email"
-          placeholder="admin@poornasree.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          leftIcon={<Mail className="w-4 h-4" />}
-          autoComplete="email"
-          required
-        />
+        {/* Email field */}
+        <div className="animate-fade-up delay-200 space-y-1.5">
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 tracking-wide">
+            Email address
+          </label>
+          <div
+            className={`relative flex items-center rounded-2xl border transition-all duration-300 ${
+              focusedField === "email"
+                ? "border-[#2B5F9E] shadow-[0_0_0_3px_rgba(43,95,158,0.12)] bg-white dark:bg-white/10"
+                : "border-white/40 dark:border-white/10 bg-white/50 dark:bg-white/5"
+            }`}
+          >
+            <span className={`pl-4 transition-colors duration-200 ${focusedField === "email" ? "text-[#2B5F9E]" : "text-gray-400"}`}>
+              <Mail className="w-4 h-4" />
+            </span>
+            <input
+              type="email"
+              placeholder="admin@poornasree.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
+              autoComplete="email"
+              required
+              className="w-full py-3.5 px-3 text-sm bg-transparent text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none"
+            />
+            {/* Active indicator dot */}
+            {email && (
+              <span className="mr-4 w-2 h-2 rounded-full bg-[#9CCB3B] animate-pulse-ring shrink-0" />
+            )}
+          </div>
+        </div>
 
-        <Input
-          label="Password"
-          type={showPassword ? "text" : "password"}
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          leftIcon={<Lock className="w-4 h-4" />}
-          rightIcon={
+        {/* Password field */}
+        <div className="animate-fade-up delay-300 space-y-1.5">
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 tracking-wide">
+            Password
+          </label>
+          <div
+            className={`relative flex items-center rounded-2xl border transition-all duration-300 ${
+              focusedField === "password"
+                ? "border-[#2B5F9E] shadow-[0_0_0_3px_rgba(43,95,158,0.12)] bg-white dark:bg-white/10"
+                : "border-white/40 dark:border-white/10 bg-white/50 dark:bg-white/5"
+            }`}
+          >
+            <span className={`pl-4 transition-colors duration-200 ${focusedField === "password" ? "text-[#2B5F9E]" : "text-gray-400"}`}>
+              <Lock className="w-4 h-4" />
+            </span>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
+              autoComplete="current-password"
+              required
+              className="w-full py-3.5 px-3 text-sm bg-transparent text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none"
+            />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark transition-colors"
               tabIndex={-1}
+              className="mr-4 text-gray-400 hover:text-[#2B5F9E] dark:hover:text-[#9CCB3B] transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-          }
-          autoComplete="current-password"
-          required
-        />
+          </div>
+        </div>
 
-        <Button
-          type="submit"
-          className="w-full mt-2"
-          size="lg"
-          loading={loading}
-          icon={<ArrowRight className="w-4 h-4" />}
-        >
-          Sign in
-        </Button>
+        {/* Submit button */}
+        <div className="animate-fade-up delay-400 pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="relative w-full overflow-hidden rounded-2xl py-3.5 font-semibold text-sm text-white transition-all duration-300 hover:shadow-lg hover:shadow-[#2B5F9E]/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed shimmer-btn group"
+          >
+            <span className="relative flex items-center justify-center gap-2">
+              {loading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Signing in…
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </>
+              )}
+            </span>
+          </button>
+        </div>
       </form>
+
+      {/* ── Bottom divider ── */}
+      <div className="animate-fade-up delay-500 mt-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300/60 dark:via-white/10 to-transparent" />
+        <span className="text-[10px] font-medium text-gray-400 tracking-widest uppercase">Secure login</span>
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300/60 dark:via-white/10 to-transparent" />
+      </div>
+
+      {/* ── Trust badges ── */}
+      <div className="animate-fade-up delay-600 mt-4 flex justify-center gap-4">
+        {["End-to-end encrypted", "JWT auth", "Role-based access"].map((badge) => (
+          <span
+            key={badge}
+            className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1"
+          >
+            <span className="w-1 h-1 rounded-full bg-[#9CCB3B]" />
+            {badge}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
+
