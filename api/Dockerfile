@@ -7,8 +7,8 @@
 # ============================================================
 FROM node:20-slim AS builder
 
-# Native module build tools (required by bcrypt)
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Native module build tools + openssl (required by bcrypt and Prisma)
+RUN apt-get update && apt-get install -y python3 make g++ openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -35,6 +35,9 @@ RUN npm prune --omit=dev
 #   - Only contains: node_modules, dist, prisma
 # ============================================================
 FROM node:20-slim AS production
+
+# Required by Prisma at runtime
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
