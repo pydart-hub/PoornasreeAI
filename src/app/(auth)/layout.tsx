@@ -25,7 +25,8 @@ const SLIDES = [
   },
 ];
 
-const INTERVAL = 8000;
+const INTERVAL = 9000;
+const FADE_MS  = 1800;
 
 export default function AuthLayout({
   children,
@@ -45,7 +46,7 @@ export default function AuthLayout({
         setCurrent(nextIdx);
         setNext(null);
         setTransitioning(false);
-      }, 1400);
+      }, FADE_MS);
     }, INTERVAL);
     return () => clearInterval(timer);
   }, [current]);
@@ -54,29 +55,38 @@ export default function AuthLayout({
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
 
       {/* ── Full-page background slideshow ── */}
-      <Image
+      <div
         key={`curr-${current}`}
-        src={SLIDES[current].src}
-        alt=""
-        fill
-        className="object-cover object-center transition-opacity duration-[1400ms] ease-in-out"
-        style={{ opacity: transitioning ? 0 : 1 }}
-        priority
-      />
-      {next !== null && (
+        className="absolute inset-0 transition-opacity ease-in-out"
+        style={{ opacity: transitioning ? 0 : 1, transitionDuration: `${FADE_MS}ms` }}
+      >
         <Image
-          key={`next-${next}`}
-          src={SLIDES[next].src}
+          src={SLIDES[current].src}
           alt=""
           fill
-          className="object-cover object-center transition-opacity duration-[1400ms] ease-in-out"
-          style={{ opacity: transitioning ? 1 : 0 }}
+          className="object-cover object-center animate-ken-burns"
           priority
         />
+      </div>
+      {next !== null && (
+        <div
+          key={`next-${next}`}
+          className="absolute inset-0 transition-opacity ease-in-out"
+          style={{ opacity: transitioning ? 1 : 0, transitionDuration: `${FADE_MS}ms` }}
+        >
+          <Image
+            src={SLIDES[next].src}
+            alt=""
+            fill
+            className="object-cover object-center animate-ken-burns"
+            priority
+          />
+        </div>
       )}
 
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/35" />
+      {/* Darkened vignette + bottom gradient for text legibility */}
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
       {/* ── Page layout ── */}
       <div className="relative z-10 w-full min-h-screen flex flex-col lg:flex-row">
@@ -92,22 +102,22 @@ export default function AuthLayout({
           {/* Bottom: Per-slide text + dots */}
           <div className="space-y-6">
             {/* Text container — fixed height, crossfade in place */}
-            <div className="relative h-24">
+            <div className="relative h-32">
               {SLIDES.map((slide, i) => (
                 <div
                   key={i}
-                  className={`absolute inset-0 flex flex-col gap-2 transition-all duration-700 ease-out ${
+                  className={`absolute inset-0 flex flex-col gap-2 transition-all duration-[1000ms] ease-out ${
                     i === current
                       ? "opacity-100 translate-y-0"
-                      : "opacity-0 translate-y-3 pointer-events-none"
+                      : "opacity-0 translate-y-5 pointer-events-none"
                   }`}
                 >
-                  <p className="text-xs font-bold tracking-[0.25em] uppercase text-white/50">
+                  <p className="text-[10px] font-black tracking-[0.35em] uppercase text-[#9CCB3B] drop-shadow-sm">
                     {slide.eyebrow}
                   </p>
-                  <h2 className="text-3xl xl:text-4xl font-light text-white leading-snug">
+                  <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight tracking-tight drop-shadow-lg">
                     {slide.heading}{" "}
-                    <span className="font-semibold text-accent-300">{slide.highlight}</span>
+                    <span className="italic text-[#9CCB3B] drop-shadow-[0_2px_12px_rgba(156,203,59,0.55)]">{slide.highlight}</span>
                   </h2>
                 </div>
               ))}
@@ -137,18 +147,12 @@ export default function AuthLayout({
           {/* Form — vertically centered */}
           <div className="flex-1 flex items-center justify-center px-8 sm:px-10">
             <div className="w-full max-w-[380px]">
-              {/* Mobile logo — aligned with form content */}
-              <div className="mb-6 lg:hidden">
-                <Logo variant="full" size="md" />
-              </div>
               {children}
             </div>
           </div>
 
-          {/* Bottom: Logo */}
-          <div className="flex justify-center pb-8 pt-4">
-            <Logo variant="full" size="sm" />
-          </div>
+          {/* Footer spacer */}
+          <div className="pb-8" />
         </div>
       </div>
     </div>

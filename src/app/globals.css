@@ -197,6 +197,14 @@
 .animate-spin-slow{ animation: spin-slow 12s linear infinite; }
 .animate-pulse-ring { animation: pulse-ring 2s ease-in-out infinite; }
 
+@keyframes ken-burns {
+  from { transform: scale(1)    translate(0, 0); }
+  to   { transform: scale(1.08) translate(-1%, -1%); }
+}
+.animate-ken-burns {
+  animation: ken-burns 8s ease-in-out forwards;
+}
+
 .delay-100 { animation-delay:0.1s; }
 .delay-150 { animation-delay:0.15s; }
 .delay-200 { animation-delay:0.2s; }

@@ -2,10 +2,10 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import {
-  Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles,
+  Eye, EyeOff, Mail, Lock, ArrowRight,
 } from "lucide-react";
+import { Logo } from "@/components/ui";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 /* ── tiny helpers ── */
@@ -65,39 +65,24 @@ export default function LoginPage() {
         className="w-32 h-32 bg-purple-400 animate-float-c top-1/2 left-1/2 -translate-x-1/2"
       />
 
-      {/* ── Logo + welcome ── */}
-      <div className="relative animate-fade-up delay-100 mb-8 text-center">
-        {/* Spinning ring behind logo */}
-        <div className="relative inline-flex items-center justify-center mb-4">
-          <div className="absolute w-20 h-20 rounded-full border-2 border-dashed border-[#9CCB3B]/50 animate-spin-slow" />
-          <div className="relative w-16 h-16 rounded-2xl bg-white/70 dark:bg-white/10 backdrop-blur-md border border-white/50 shadow-xl flex items-center justify-center overflow-hidden">
-            <Image
-              src="/flower.png"
-              alt="Poornasree"
-              width={40}
-              height={40}
-              className="object-contain drop-shadow-sm"
-            />
-          </div>
+      {/* ── Brand header ── */}
+      <div className="animate-fade-up delay-100 mb-7">
+        {/* Logo visible on mobile (desktop sees it in left panel) */}
+        <div className="mb-4 lg:hidden">
+          <Logo variant="full" size="md" />
         </div>
-
-        {/* Greeting */}
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase text-[#2B5F9E] dark:text-[#9CCB3B] animate-fade-up delay-150">
-            <Sparkles className="w-3 h-3" />
-            Welcome back
-            <Sparkles className="w-3 h-3" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white leading-tight">
-            Sign in to{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2B5F9E] to-[#9CCB3B]">
-              Poornasree AI
-            </span>
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Technical Support Assistant Portal
-          </p>
-        </div>
+        <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
+          Welcome back
+        </p>
+        <h2 className="text-2xl font-extrabold text-gray-800 dark:text-white leading-tight">
+          Sign in to{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2B5F9E] to-[#9CCB3B]">
+            Poornasree AI
+          </span>
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          Technical Support Assistant Portal
+        </p>
       </div>
 
       {/* ── Form ── */}
