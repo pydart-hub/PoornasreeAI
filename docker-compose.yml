@@ -2,7 +2,7 @@ version: "3.9"
 
 # ── PoornasreeAI — full stack ────────────────────────────────────────────────
 # Services:
-#   web      → Next.js 14 frontend      (host port 3000)
+#   web      → Next.js 14 frontend      (host port 80)
 #   api      → Express 5 backend        (host port 4000)
 #   db       → PostgreSQL 16            (internal only)
 #   qdrant   → Qdrant vector DB         (internal only)
@@ -110,7 +110,7 @@ services:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
     ports:
-      - "3000:3000"
+      - "80:3000"
     networks:
       - internal
       - public

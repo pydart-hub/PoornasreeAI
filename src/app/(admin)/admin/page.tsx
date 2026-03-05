@@ -55,12 +55,10 @@ interface ApiDocument {
 // ─────────────────────────────────────────────
 function getRoleBadge(role: string) {
   const map: Record<string, { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }> = {
-    service:    { label: "Service Engineer",    variant: "info" },
-    r_and_d:    { label: "R&D Manager",         variant: "success" },
-    production: { label: "Production Manager",  variant: "warning" },
-    sales:      { label: "Sales Manager",       variant: "accent" },
-    admin:      { label: "Administrator",       variant: "default" },
-    customer:   { label: "Customer",            variant: "info" },
+    admin:    { label: "Administrator",    variant: "default" },
+    service:  { label: "Service Engineer", variant: "info" },
+    r_and_d:  { label: "R&D Manager",      variant: "success" },
+    customer: { label: "Customer",         variant: "accent" },
   };
   return map[role] ?? { label: role, variant: "default" as const };
 }
@@ -412,6 +410,31 @@ export default function AdminPage() {
                 {users.reduce((sum, u) => sum + (u._count?.conversations ?? 0), 0)}
               </p>
               <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Conversations</p>
+            </div>
+          </section>
+
+          {/* Quick Actions */}
+          <section>
+            <h2 className="text-sm font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider mb-3">
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <button
+                onClick={() => router.push("/admin/users")}
+                className="group flex items-start gap-4 p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card hover:border-primary/40 dark:hover:border-primary-400/40 hover:bg-primary/5 dark:hover:bg-primary-400/5 transition-all text-left"
+              >
+                <div className="p-2.5 rounded-xl bg-violet-50 dark:bg-violet-500/10 group-hover:bg-violet-100 dark:group-hover:bg-violet-500/20 transition-colors shrink-0">
+                  <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-content dark:text-content-dark">
+                    Manage Users
+                  </p>
+                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
+                    Create and manage system users
+                  </p>
+                </div>
+              </button>
             </div>
           </section>
 

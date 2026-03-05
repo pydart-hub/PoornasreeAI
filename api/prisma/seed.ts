@@ -8,7 +8,7 @@ const SALT_ROUNDS = 12;
 const SEED_USERS = [
   {
     email: "admin@poornasree.com",
-    password: "Admin@123",
+    password: "password123",
     firstName: "Admin",
     lastName: "Poornasree",
     role: "admin",
@@ -22,7 +22,7 @@ const SEED_USERS = [
   },
   {
     email: "rd@poornasree.com",
-    password: "RnD@123",
+    password: "RnD@1234",
     firstName: "Priya",
     lastName: "Sharma",
     role: "r_and_d",

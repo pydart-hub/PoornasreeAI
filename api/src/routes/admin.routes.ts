@@ -8,6 +8,7 @@ import path from "path";
 import { protect } from "../middleware/auth";
 import { uploadDocument } from "../controllers/document.controller";
 import {
+  createUser,
   listUsers,
   deleteUser,
   listDocuments,
@@ -47,6 +48,9 @@ router.get("/documents", listDocuments);
 
 // DELETE /api/admin/documents/:id  —  delete a document + file
 router.delete("/documents/:id", deleteDocumentRecord);
+
+// POST /api/admin/users  —  create a user with a specific role
+router.post("/users", createUser);
 
 // GET  /api/admin/users  —  list all users
 router.get("/users", listUsers);

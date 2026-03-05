@@ -3,7 +3,62 @@
 
 import { Request, Response } from "express";
 import fs from "fs";
+import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
+
+const SALT_ROUNDS = 12;
+const VALID_ROLES = ["admin", "customer", "service", "r_and_d"];
+
+// ── POST /api/admin/users ────────────────────────────────────────────────
+export async function createUser(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const { email, password, firstName, lastName, role } = req.body;
+
+    if (!email || !password || !firstName || !role) {
+      res.status(400).json({ error: "Missing required fields: email, password, firstName, role" });
+      return;
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      res.status(400).json({ error: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}` });
+      return;
+    }
+
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      res.status(409).json({ error: "An account with this email already exists" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const user = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        firstName: firstName.trim(),
+        lastName: lastName?.trim() ?? null,
+        role,
+      },
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
+    });
+
+    res.status(201).json({ user });
+  } catch (err) {
+    console.error("createUser error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
 
 // ── GET /api/admin/users ─────────────────────────────────────────────────
 export async function listUsers(req: Request, res: Response): Promise<void> {
