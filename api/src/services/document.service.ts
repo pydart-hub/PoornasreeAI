@@ -4,11 +4,33 @@
 // row so we can map vector results back to source documents.
 
 import fs from "fs";
-import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 import prisma from "../lib/prisma";
 import { embedText, upsertVector } from "./vector.service";
 import { randomUUID } from "crypto";
+
+// pdf-parse v2 exports a class-based API but its typings mark internal methods
+// as private. Use a runtime require to bypass TS visibility checks entirely.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParseModule = require("pdf-parse") as any;
+
+async function parsePdfBuffer(buffer: Buffer): Promise<string> {
+  const PDFParse = pdfParseModule.PDFParse ?? pdfParseModule.default?.PDFParse;
+  if (PDFParse) {
+    // v2 class-based API
+    const parser = new PDFParse({ data: buffer });
+    await parser.load();
+    const result = await parser.getText();
+    return (typeof result === "string" ? result : result?.text) ?? "";
+  }
+  // Fallback: v1 function-based API  pdfParse(buffer) => { text }
+  const fallback = pdfParseModule.default ?? pdfParseModule;
+  if (typeof fallback === "function") {
+    const { text } = await fallback(buffer);
+    return text ?? "";
+  }
+  throw new Error("pdf-parse: no usable export found");
+}
 
 // ── Text extraction by MIME type ──────────────────────────────────────
 
@@ -16,12 +38,7 @@ async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
   switch (mimetype) {
     case "application/pdf": {
       try {
-        // pdf-parse v2 class-based API: new PDFParse({data}) → load() → getText()
-        // getText() returns { text: string, pages: [...] }
-        const parser = new PDFParse({ data: buffer } as any);
-        await parser.load();
-        const result: any = await (parser as any).getText();
-        return (typeof result === "string" ? result : result?.text) ?? "";
+        return await parsePdfBuffer(buffer);
       } catch (err) {
         console.error("[doc] PDF parsing failed:", err);
         throw new Error("Failed to parse PDF document");
