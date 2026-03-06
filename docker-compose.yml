@@ -1,12 +1,11 @@
-version: "3.9"
-
 # ── PoornasreeAI — full stack ────────────────────────────────────────────────
 # Services:
-#   web      → Next.js 14 frontend      (host port 80)
-#   api      → Express 5 backend        (host port 4000)
+#   web      → Next.js 14 frontend      (host port 3000, proxied by Nginx)
+#   api      → Express 5 backend        (host port 4000, proxied by Nginx)
 #   db       → PostgreSQL 16            (internal only)
 #   qdrant   → Qdrant vector DB         (internal only)
 #   ollama   → Ollama LLM server        (internal only)
+#   n8n      → n8n workflow automation  (host port 5678)
 #
 # Usage:
 #   1. Copy .env.example → .env and fill in secrets
@@ -82,15 +81,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-poorna_user}:${POSTGRES_PASSWORD:?}@db:5432/${POSTGRES_DB:-poornasree_ai}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      # API is only reachable via the Next.js proxy; CORS_ORIGIN is a safety
-      # escape-hatch. Leave unset to reflect all origins (origin: true).
-      # CORS_ORIGIN: http://187.77.188.63
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
     volumes:
       - api_uploads:/app/uploads
     ports:
-      - "127.0.0.1:4000:4000"   # Nginx proxies to this; not exposed publicly
+      - "127.0.0.1:4000:4000"
     networks:
       - internal
       - public
@@ -105,12 +101,23 @@ services:
       - api
     environment:
       NODE_ENV: production
-      # PORT and HOSTNAME are already baked into the image (ENV PORT=3000).
-      # Explicitly restating them here ensures no external value can override.
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
     ports:
-      - "127.0.0.1:3000:3000"   # Nginx proxies to this; not exposed publicly
+      - "127.0.0.1:3000:3000"
+    networks:
+      - internal
+      - public
+
+  # ── n8n workflow automation ────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
     networks:
       - internal
       - public
@@ -120,6 +127,7 @@ volumes:
   qdrant_data:
   ollama_data:
   api_uploads:
+  n8n_data:
 
 networks:
   internal:

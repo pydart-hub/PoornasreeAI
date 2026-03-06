@@ -26,13 +26,37 @@ const storage = multer.diskStorage({
   },
 });
 
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/json",
+  "text/csv",
+  "text/plain",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+// Extension → canonical MIME (fallback for browsers that report octet-stream)
+const EXT_TO_MIME: Record<string, string> = {
+  ".pdf":  "application/pdf",
+  ".json": "application/json",
+  ".csv":  "text/csv",
+  ".txt":  "text/plain",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
 const upload = multer({
   storage,
   fileFilter: (_req, file, cb) => {
-    const allowed = [".pdf"];
     const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) cb(null, true);
-    else cb(new Error("Only PDF files are accepted"));
+    // Normalise MIME type: if browser sent a generic type, derive from extension
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      const mimeByExt = EXT_TO_MIME[ext];
+      if (!mimeByExt) {
+        return cb(new Error("Unsupported file type"));
+      }
+      // Override so downstream (processDocument) uses the correct MIME
+      file.mimetype = mimeByExt;
+    }
+    cb(null, true);
   },
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max
 });

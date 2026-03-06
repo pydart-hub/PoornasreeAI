@@ -37,7 +37,7 @@ echo "[3/5] Writing Nginx configuration..."
 echo "$SUDO_PASS" | sudo -S tee "$NGINX_CONF" > /dev/null << 'NGINX_CONF_CONTENT'
 server {
     listen 80;
-    server_name 187.77.188.63;
+    server_name poornasree.pydart.com;
 
     # Compression
     gzip on;
@@ -117,7 +117,7 @@ echo "  Done."
 echo ""
 echo "============================================"
 echo " Setup complete!"
-echo " http://187.77.188.63        -> Next.js"
-echo " http://187.77.188.63/api/*  -> Express API"
+echo " http://poornasree.pydart.com        -> Next.js"
+echo " http://poornasree.pydart.com/api/*  -> Express API"
 echo "============================================"
 echo ""

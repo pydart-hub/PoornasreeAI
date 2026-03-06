@@ -40,6 +40,16 @@ app.get("/", (_req, res) => {
   });
 });
 
+// ── Global error handler ──────────────────────────────────────────────
+// Catches errors thrown by middleware (e.g. multer rejections) and
+// returns a clean JSON response instead of an HTML 500 page.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status: number = err.status ?? err.statusCode ?? 500;
+  const message: string = err.message ?? "Internal server error";
+  res.status(status).json({ error: message });
+});
+
 // ── Start ────────────────────────────────────────
 app.listen(env.PORT, async () => {
   console.log(`[${env.NODE_ENV}] API server running on http://localhost:${env.PORT}`);
@@ -47,3 +57,5 @@ app.listen(env.PORT, async () => {
   // Ensure Qdrant collection exists (non-blocking — logs error if Qdrant is down)
   await ensureCollection();
 });
+
+export default app;

@@ -477,7 +477,7 @@ export default function AdminPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.json,.csv,.txt,.docx"
                   multiple
                   className="hidden"
                   onChange={(e) => e.target.files && handleFiles(e.target.files)}
@@ -495,10 +495,10 @@ export default function AdminPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-content dark:text-content-dark">
-                          Click to upload or drag & drop PDF here
+                          Click to upload or drag & drop files here
                         </p>
                         <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
-                          PDF only · max 50 MB
+                          PDF, JSON, CSV, TXT, DOCX · max 50 MB
                         </p>
                       </div>
                       <p className="text-xs text-primary dark:text-primary-300 font-medium">

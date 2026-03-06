@@ -50,7 +50,7 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
 
     // 2. Kick off embedding pipeline (async — don't block the response for
     //    large files; but for now we await so admin gets immediate feedback).
-    const result = await processDocument(document.id, file.path);
+    const result = await processDocument(document.id, file.path, file.mimetype);
 
     res.status(201).json({
       document: {
