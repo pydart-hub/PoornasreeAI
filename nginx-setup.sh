@@ -59,8 +59,10 @@ server {
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
 
-        proxy_read_timeout  90s;
-        proxy_send_timeout  90s;
+        proxy_connect_timeout 300s;
+        proxy_send_timeout    300s;
+        proxy_read_timeout    300s;
+        send_timeout          300s;
     }
 
     # Frontend — proxied to Next.js
