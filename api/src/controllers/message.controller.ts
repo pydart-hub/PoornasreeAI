@@ -10,10 +10,14 @@ const GEN_MODEL   = "phi3:mini";
 async function generateRAGResponse(userQuery: string): Promise<string> {
   try {
     // 1. Embed the user query
+    const t0 = Date.now();
     const queryEmbedding = await embedText(userQuery);
+    console.log(`[RAG] embed: ${Date.now() - t0} ms`);
 
-    // 2. Search Qdrant for top-3 most relevant document chunks (reduced from 5 for faster inference)
+    // 2. Search Qdrant for top-3 most relevant document chunks
+    const t1 = Date.now();
     const hits = await searchVectors(queryEmbedding, 3);
+    console.log(`[RAG] search: ${Date.now() - t1} ms`);
 
     if (hits.length === 0) {
       return "I couldn't find any relevant documents to answer your question. Please try rephrasing, or contact our service team for help.";
@@ -31,15 +35,16 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
     const prompt = [
       "You are PoornasreeAI, a technical support assistant for industrial equipment.",
       "Your ONLY source of knowledge is the documentation context provided below.",
-      "You MUST follow these rules without exception:",
-      "  1. Answer ONLY using information from the context. Do NOT add steps, advice, or knowledge that is not explicitly stated in the context.",
-      "  2. Do NOT invent, assume, or guess any troubleshooting steps.",
-      "  3. If the context does not contain a direct answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
-      "  4. Format troubleshooting steps as a numbered list using this exact style:",
-      "     Step 1 — <check action> → <fix action>",
-      "     Step 2 — <check action> → <fix action>",
-      "     (and so on for each step)",
-      "  5. Do not add introductory sentences, disclaimers, or closing remarks beyond what is in the context.",
+      "Rules:",
+      "  1. Answer ONLY using information from the context. Do NOT add steps or knowledge not in the context.",
+      "  2. Do NOT invent or guess troubleshooting steps.",
+      "  3. Do NOT use conversational phrases like 'Hello', 'I'm sorry to hear', 'Great question', or any greeting.",
+      "  4. If the context does not contain the answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
+      "  5. Give concise troubleshooting instructions only. Maximum 6 steps.",
+      "  6. Format every step exactly like this:",
+      "     Step 1 — <instruction>",
+      "     Step 2 — <instruction>",
+      "     Step 3 — <instruction>",
       "",
       "--- Documentation Context ---",
       context,
@@ -47,15 +52,17 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
       "",
       `User question: ${userQuery}`,
       "",
-      "Answer (using ONLY the context above):",
+      "Answer:",
     ].join("\n");
 
-    // 4. Call Ollama chat
+    // 4. Call Ollama chat — keep_alive prevents model unloading between requests
+    const t2 = Date.now();
     const { data } = await axios.post(
       `${OLLAMA_URL}/api/chat`,
-      { model: GEN_MODEL, messages: [{ role: "user", content: prompt }], stream: false },
-      { timeout: 300_000 } // 5 min timeout for LLM
+      { model: GEN_MODEL, messages: [{ role: "user", content: prompt }], stream: false, keep_alive: "10m" },
+      { timeout: 300_000 }
     );
+    console.log(`[RAG] generate: ${Date.now() - t2} ms`);
 
     return (data.message?.content as string)?.trim() || "Sorry, I wasn't able to generate a response.";
   } catch (err: any) {
