@@ -41,7 +41,7 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
     const { data } = await axios.post(
       `${OLLAMA_URL}/api/generate`,
       { model: GEN_MODEL, prompt, stream: false },
-      { timeout: 120_000 } // 2 min timeout for LLM
+      { timeout: 300_000 } // 5 min timeout for LLM
     );
 
     return (data.response as string)?.trim() || "Sorry, I wasn't able to generate a response.";
