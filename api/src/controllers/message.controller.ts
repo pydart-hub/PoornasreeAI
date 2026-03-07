@@ -37,14 +37,14 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
       "Answer:",
     ].join("\n");
 
-    // 4. Call Ollama generate
+    // 4. Call Ollama chat
     const { data } = await axios.post(
-      `${OLLAMA_URL}/api/generate`,
-      { model: GEN_MODEL, prompt, stream: false },
+      `${OLLAMA_URL}/api/chat`,
+      { model: GEN_MODEL, messages: [{ role: "user", content: prompt }], stream: false },
       { timeout: 300_000 } // 5 min timeout for LLM
     );
 
-    return (data.response as string)?.trim() || "Sorry, I wasn't able to generate a response.";
+    return (data.message?.content as string)?.trim() || "Sorry, I wasn't able to generate a response.";
   } catch (err: any) {
     console.error("[RAG] generation error:", err?.message ?? err);
     return "I'm having trouble connecting to the AI service right now. Please try again shortly.";
