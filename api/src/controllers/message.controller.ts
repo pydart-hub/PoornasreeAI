@@ -19,13 +19,19 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
     const hits = await searchVectors(queryEmbedding, 3);
     console.log(`[RAG] search: ${Date.now() - t1} ms`);
 
-    if (hits.length === 0) {
-      return "I couldn't find any relevant documents to answer your question. Please try rephrasing, or contact our service team for help.";
+    // Filter out chunks below minimum similarity threshold (cosine score 0–1).
+    // Anything below 0.40 is unlikely to be relevant — skip LLM entirely.
+    const MIN_SCORE = 0.40;
+    const relevantHits = hits.filter((h) => h.score >= MIN_SCORE);
+    console.log(`[RAG] hits: ${hits.length} total, ${relevantHits.length} above threshold (${MIN_SCORE})`);
+
+    if (relevantHits.length === 0) {
+      return "I couldn't find this information in the documentation.";
     }
 
     // 3. Build prompt with context — truncate each chunk to ~400 tokens (~1600 chars) to keep prompt small
     const MAX_CHUNK_CHARS = 1600;
-    const context = hits
+    const context = relevantHits
       .map((h, i) => {
         const content = (h.payload.content as string).slice(0, MAX_CHUNK_CHARS);
         return `[${i + 1}] ${content}`;
