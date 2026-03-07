@@ -12,16 +12,20 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
     // 1. Embed the user query
     const queryEmbedding = await embedText(userQuery);
 
-    // 2. Search Qdrant for top-5 most relevant document chunks
-    const hits = await searchVectors(queryEmbedding, 5);
+    // 2. Search Qdrant for top-3 most relevant document chunks (reduced from 5 for faster inference)
+    const hits = await searchVectors(queryEmbedding, 3);
 
     if (hits.length === 0) {
       return "I couldn't find any relevant documents to answer your question. Please try rephrasing, or contact our service team for help.";
     }
 
-    // 3. Build prompt with context
+    // 3. Build prompt with context — truncate each chunk to ~400 tokens (~1600 chars) to keep prompt small
+    const MAX_CHUNK_CHARS = 1600;
     const context = hits
-      .map((h, i) => `[${i + 1}] ${h.payload.content}`)
+      .map((h, i) => {
+        const content = (h.payload.content as string).slice(0, MAX_CHUNK_CHARS);
+        return `[${i + 1}] ${content}`;
+      })
       .join("\n\n");
 
     const prompt = [
