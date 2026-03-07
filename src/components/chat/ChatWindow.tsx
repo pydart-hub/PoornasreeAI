@@ -145,7 +145,7 @@ export default function ChatWindow({
           </div>
         </div>
         <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
-          Model: Mistral 7B
+          Model: Phi-3 Mini
         </span>
       </header>
 
@@ -242,10 +242,10 @@ export default function ChatWindow({
             />
             <button
               type="submit"
-              disabled={!input.trim() || streaming}
+              disabled={streaming || input.trim() === ""}
               className={cn(
                 "shrink-0 p-2.5 rounded-xl transition-all",
-                input.trim() && !streaming
+                !streaming && input.trim() !== ""
                   ? "bg-primary hover:bg-primary-700 text-white shadow-sm"
                   : "text-content-secondary/40 dark:text-content-dark-secondary/40 cursor-not-allowed"
               )}

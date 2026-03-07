@@ -356,7 +356,7 @@ export default function CustomerChatPage() {
           </button>
           <button
             type="submit"
-            disabled={!input.trim() || isTyping}
+            disabled={isTyping || input.trim() === ""}
             className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="w-4 h-4" />
