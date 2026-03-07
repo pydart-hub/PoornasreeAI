@@ -26,9 +26,15 @@ git reset --hard origin/$BRANCH
 echo "  Done."
 
 echo ""
-echo "[2/2] Rebuilding Docker containers..."
+echo "[2/3] Rebuilding Docker containers..."
 docker compose down
 docker compose up -d --build
+echo "  Done."
+
+echo ""
+echo "[3/3] Applying Prisma schema changes..."
+sleep 5  # wait for DB to be ready
+docker compose exec -T api npx prisma db push || echo "  (schema push skipped or already up to date)"
 echo "  Done."
 
 echo ""

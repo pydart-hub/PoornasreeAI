@@ -59,6 +59,9 @@ export default function ChatPage() {
     if (!authLoading && !user) {
       router.push("/login");
     }
+    if (!authLoading && user && user.role === "customer") {
+      router.replace("/customer");
+    }
   }, [user, authLoading, router]);
 
   // ── Load conversations from API on mount ────────────────────────

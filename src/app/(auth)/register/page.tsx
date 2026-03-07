@@ -17,10 +17,7 @@ import { Button, Input } from "@/components/ui";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 const DEPARTMENTS = [
-  { value: "r_and_d", label: "R&D" },
-  { value: "production", label: "Production" },
   { value: "service", label: "Service" },
-  { value: "sales", label: "Sales" },
   { value: "other", label: "Other" },
 ];
 

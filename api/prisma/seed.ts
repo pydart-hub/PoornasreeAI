@@ -25,7 +25,7 @@ const SEED_USERS = [
     password: "RnD@1234",
     firstName: "Priya",
     lastName: "Sharma",
-    role: "r_and_d",
+    role: "service",
   },
   {
     email: "customer@example.com",

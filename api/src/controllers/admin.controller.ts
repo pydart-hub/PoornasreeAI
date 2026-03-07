@@ -7,7 +7,7 @@ import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
 
 const SALT_ROUNDS = 12;
-const VALID_ROLES = ["admin", "customer", "service", "r_and_d"];
+const VALID_ROLES = ["admin", "customer", "service"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
 export async function createUser(req: Request, res: Response): Promise<void> {
@@ -137,6 +137,7 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
       id: d.id,
       title: d.title,
       filePath: d.filePath,
+      documentType: d.documentType,
       createdAt: d.createdAt,
       uploadedBy: `${d.uploadedBy.firstName} ${d.uploadedBy.lastName ?? ""}`.trim(),
       chunkCount: d._count.chunks,

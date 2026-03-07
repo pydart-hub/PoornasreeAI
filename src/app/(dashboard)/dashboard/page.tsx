@@ -41,7 +41,7 @@ import {
 const ALL_USERS = [
   { id: "usr_001", firstName: "Admin", lastName: "Poornasree", email: "admin@poornasree.com", role: "admin", department: "Administration", status: "online" as const },
   { id: "usr_002", firstName: "Rajan", lastName: "Kumar", email: "service@poornasree.com", role: "service", department: "Service", status: "online" as const },
-  { id: "usr_003", firstName: "Priya", lastName: "Sharma", email: "rd@poornasree.com", role: "r_and_d", department: "R&D", status: "offline" as const },
+  { id: "usr_003", firstName: "Priya", lastName: "Sharma", email: "rd@poornasree.com", role: "service", department: "Service", status: "offline" as const },
   { id: "usr_005", firstName: "Amit", lastName: "Patel", email: "customer@example.com", role: "customer", department: "Customer", status: "offline" as const },
 ];
 
@@ -56,9 +56,7 @@ const NAV_ITEMS = [
 function getRoleBadge(role: string) {
   const map: Record<string, { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }> = {
     service: { label: "Service Engineer", variant: "info" },
-    r_and_d: { label: "R&D Manager", variant: "success" },
-    production: { label: "Production Manager", variant: "warning" },
-    sales: { label: "Sales Manager", variant: "accent" },
+
     admin: { label: "Administrator", variant: "default" },
     customer: { label: "Customer", variant: "info" },
     user: { label: "Standard User", variant: "default" },

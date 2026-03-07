@@ -34,7 +34,6 @@ import {
 const ROLES = [
   { value: "customer",  label: "Customer" },
   { value: "service",   label: "Service Engineer" },
-  { value: "r_and_d",   label: "R&D Manager" },
   { value: "admin",     label: "Administrator" },
 ] as const;
 
@@ -43,7 +42,6 @@ const ROLE_BADGE: Record<
   { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }
 > = {
   service:  { label: "Service Engineer",   variant: "info" },
-  r_and_d:  { label: "R&D Manager",        variant: "success" },
   admin:    { label: "Administrator",      variant: "default" },
   customer: { label: "Customer",           variant: "accent" },
 };

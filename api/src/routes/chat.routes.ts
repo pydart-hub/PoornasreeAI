@@ -32,7 +32,7 @@ router.post  ("/messages",                  createMessage);
 // ── Service / Admin manual reply ───────────────────────────────────────
 router.post  ("/conversations/:id/reply",   addManualReply);
 
-// ── Training feedback (service / admin / r_and_d) ─────────────────────
+// ── Training feedback (service / admin) ───────────────────────────────
 router.post  ("/conversations/:id/feedback",addFeedback);
 
 export default router;

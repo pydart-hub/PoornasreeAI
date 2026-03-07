@@ -1,8 +1,8 @@
 // ── Role definitions ──────────────────────────────────────────────────
-export type UserRole = "customer" | "service" | "admin" | "r_and_d";
+export type UserRole = "customer" | "service" | "admin";
 
 // Roles that can see every conversation (not just their own).
-const ROLES_WITH_FULL_READ: UserRole[] = ["admin", "service", "r_and_d"];
+const ROLES_WITH_FULL_READ: UserRole[] = ["admin", "service"];
 
 // Roles that can delete any conversation (not just their own).
 const ROLES_WITH_FULL_DELETE: UserRole[] = ["admin"];
@@ -11,7 +11,7 @@ const ROLES_WITH_FULL_DELETE: UserRole[] = ["admin"];
 const ROLES_WITH_LIFECYCLE: UserRole[] = ["admin", "service"];
 
 // Roles that may submit training feedback.
-const ROLES_WITH_FEEDBACK: UserRole[] = ["admin", "service", "r_and_d"];
+const ROLES_WITH_FEEDBACK: UserRole[] = ["admin", "service"];
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ export function canDeleteConversation(
 ): boolean {
   if (ROLES_WITH_FULL_DELETE.includes(role)) return true;
   if (role === "customer") return ownerId === currentUserId;
-  // service and r_and_d: no delete rights
+  // service: no delete rights
   return false;
 }
 

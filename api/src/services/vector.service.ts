@@ -64,17 +64,32 @@ export async function upsertVector(
 
 /**
  * Search Qdrant for the top-k most similar vectors.
+ * Optionally filter by document role metadata.
  * Returns the payloads so callers don't depend on Qdrant types.
  */
 export async function searchVectors(
   queryEmbedding: number[],
-  limit = 5
+  limit = 5,
+  roleFilter?: string[]
 ): Promise<Array<{ score: number; payload: Record<string, unknown> }>> {
-  const results = await qdrant.search(COLLECTION, {
+  const searchParams: any = {
     vector: queryEmbedding,
     limit,
     with_payload: true,
-  });
+  };
+
+  if (roleFilter && roleFilter.length > 0) {
+    searchParams.filter = {
+      must: [
+        {
+          key: "role",
+          match: { any: roleFilter },
+        },
+      ],
+    };
+  }
+
+  const results = await qdrant.search(COLLECTION, searchParams);
 
   return results.map((r) => ({
     score:   r.score,

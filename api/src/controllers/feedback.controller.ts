@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 import { canAddFeedback, canAccessConversation, type UserRole } from "../lib/permissions";
 
 // ── POST /api/conversations/:id/feedback ──────────────────────────────
-// Allowed roles: service, admin, r_and_d
+// Allowed roles: service, admin
 // Body: { correctedAnswer: string, messageId?: string }
 //
 // Stores a service-manager correction that will be used for future AI
@@ -19,7 +19,7 @@ export async function addFeedback(req: Request, res: Response): Promise<void> {
 
     // ── Role check ──────────────────────────────────────────────────
     if (!canAddFeedback(role as UserRole)) {
-      res.status(403).json({ error: "Only service, admin, and r_and_d may submit feedback" });
+      res.status(403).json({ error: "Only service and admin may submit feedback" });
       return;
     }
 

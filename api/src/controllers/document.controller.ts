@@ -38,19 +38,26 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
     }
 
     const title = (req.body.title as string)?.trim() || file.originalname;
+    const documentType = (req.body.documentType as string)?.trim() || "service";
+
+    if (!["service", "customer"].includes(documentType)) {
+      res.status(400).json({ error: "documentType must be 'service' or 'customer'" });
+      return;
+    }
 
     // 1. Persist Document record
     const document = await prisma.document.create({
       data: {
         title,
         filePath: file.path,
+        documentType,
         uploadedById: userId,
       },
     });
 
     // 2. Kick off embedding pipeline (async — don't block the response for
     //    large files; but for now we await so admin gets immediate feedback).
-    const result = await processDocument(document.id, file.path, file.mimetype);
+    const result = await processDocument(document.id, file.path, file.mimetype, documentType);
 
     res.status(201).json({
       document: {

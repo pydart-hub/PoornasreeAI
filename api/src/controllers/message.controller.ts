@@ -7,16 +7,25 @@ const OLLAMA_URL  = process.env.OLLAMA_URL || "http://localhost:11434";
 const GEN_MODEL   = "phi3:mini";
 
 // ── RAG helper: build context + call Ollama generate ──────────────────
-async function generateRAGResponse(userQuery: string): Promise<string> {
+async function generateRAGResponse(userQuery: string, userRole: string, language?: string): Promise<string> {
   try {
     // 1. Embed the user query
     const t0 = Date.now();
     const queryEmbedding = await embedText(userQuery);
     console.log(`[RAG] embed: ${Date.now() - t0} ms`);
 
-    // 2. Search Qdrant for top-3 most relevant document chunks
+    // 2. Determine role filter for vector search
+    let roleFilter: string[] | undefined;
+    if (userRole === "customer") {
+      roleFilter = ["customer"];
+    } else if (userRole === "service") {
+      roleFilter = ["service", "customer"];
+    }
+    // admin: no filter (retrieve all)
+
+    // 3. Search Qdrant for top-3 most relevant document chunks
     const t1 = Date.now();
-    const hits = await searchVectors(queryEmbedding, 3);
+    const hits = await searchVectors(queryEmbedding, 3, roleFilter);
     console.log(`[RAG] search: ${Date.now() - t1} ms`);
 
     // Filter out chunks below minimum similarity threshold (cosine score 0–1).
@@ -29,7 +38,7 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
       return "I couldn't find this information in the documentation.";
     }
 
-    // 3. Build prompt with context — truncate each chunk to ~400 tokens (~1600 chars) to keep prompt small
+    // 4. Build prompt with context — truncate each chunk to ~400 tokens (~1600 chars) to keep prompt small
     const MAX_CHUNK_CHARS = 1600;
     const context = relevantHits
       .map((h, i) => {
@@ -38,19 +47,47 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
       })
       .join("\n\n");
 
+    // 5. Build role-specific prompt
+    let roleInstruction: string;
+    if (userRole === "customer") {
+      roleInstruction = [
+        "You are PoornasreeAI, a friendly product support assistant for customers.",
+        "Your ONLY source of knowledge is the documentation context provided below.",
+        "Rules:",
+        "  1. Answer ONLY using information from the context. Do NOT add steps or knowledge not in the context.",
+        "  2. Use simple, beginner-friendly language. Avoid technical jargon.",
+        "  3. Do NOT use conversational phrases like 'Hello', 'I'm sorry to hear', 'Great question', or any greeting.",
+        "  4. If the context does not contain the answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
+        "  5. Give concise product usage guidance. Maximum 6 steps.",
+        "  6. Format every step exactly like this:",
+        "     Step 1 — <instruction>",
+        "     Step 2 — <instruction>",
+      ].join("\n");
+    } else {
+      // service and admin — technical troubleshooting
+      roleInstruction = [
+        "You are PoornasreeAI, a technical support assistant for industrial equipment.",
+        "Your ONLY source of knowledge is the documentation context provided below.",
+        "Rules:",
+        "  1. Answer ONLY using information from the context. Do NOT add steps or knowledge not in the context.",
+        "  2. Do NOT invent or guess troubleshooting steps.",
+        "  3. Do NOT use conversational phrases like 'Hello', 'I'm sorry to hear', 'Great question', or any greeting.",
+        "  4. If the context does not contain the answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
+        "  5. Give concise troubleshooting instructions only. Maximum 6 steps.",
+        "  6. Format every step exactly like this:",
+        "     Step 1 — <instruction>",
+        "     Step 2 — <instruction>",
+        "     Step 3 — <instruction>",
+      ].join("\n");
+    }
+
+    const languageInstruction = language && language !== "en"
+      ? `\nIMPORTANT: Respond entirely in ${language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language}. Translate all instructions.`
+      : "";
+
     const prompt = [
-      "You are PoornasreeAI, a technical support assistant for industrial equipment.",
-      "Your ONLY source of knowledge is the documentation context provided below.",
-      "Rules:",
-      "  1. Answer ONLY using information from the context. Do NOT add steps or knowledge not in the context.",
-      "  2. Do NOT invent or guess troubleshooting steps.",
-      "  3. Do NOT use conversational phrases like 'Hello', 'I'm sorry to hear', 'Great question', or any greeting.",
-      "  4. If the context does not contain the answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
-      "  5. Give concise troubleshooting instructions only. Maximum 6 steps.",
-      "  6. Format every step exactly like this:",
-      "     Step 1 — <instruction>",
-      "     Step 2 — <instruction>",
-      "     Step 3 — <instruction>",
+      roleInstruction,
+      languageInstruction,
       "",
       "--- Documentation Context ---",
       context,
@@ -79,7 +116,8 @@ async function generateRAGResponse(userQuery: string): Promise<string> {
 export async function createMessage(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.user!.userId;
-    const { conversationId, content } = req.body;
+    const userRole = req.user!.role;
+    const { conversationId, content, language } = req.body;
 
     if (!conversationId || !content?.trim()) {
       res.status(400).json({ error: "conversationId and content are required" });
@@ -117,7 +155,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
     });
 
     // ── RAG-powered assistant reply ──────────────────────────────────
-    const assistantContent = await generateRAGResponse(content.trim());
+    const assistantContent = await generateRAGResponse(content.trim(), userRole, language);
 
     const assistantMessage = await prisma.message.create({
       data: {
@@ -160,7 +198,7 @@ export async function addManualReply(req: Request, res: Response): Promise<void>
     }
 
     // Only service and admin may send manual replies
-    const allowedRoles = ["service", "admin", "r_and_d"];
+    const allowedRoles = ["service", "admin"];
     if (!allowedRoles.includes(role)) {
       res.status(403).json({ error: "Access denied" });
       return;

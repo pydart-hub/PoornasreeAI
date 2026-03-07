@@ -102,11 +102,13 @@ export interface ProcessResult {
  * @param documentId  The Document record id (already persisted)
  * @param filePath    Absolute (or relative) path to the file on disk
  * @param mimetype    MIME type of the uploaded file
+ * @param documentType  "service" | "customer" — stored as role metadata in Qdrant
  */
 export async function processDocument(
   documentId: string,
   filePath: string,
-  mimetype: string = "application/pdf"
+  mimetype: string = "application/pdf",
+  documentType: string = "service"
 ): Promise<ProcessResult> {
   // 1. Extract text based on file type
   const buffer = fs.readFileSync(filePath);
@@ -127,6 +129,7 @@ export async function processDocument(
       await upsertVector(vectorId, embedding, {
         documentId,
         content,
+        role: documentType,
       });
 
       await prisma.documentChunk.create({

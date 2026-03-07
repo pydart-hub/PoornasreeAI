@@ -71,7 +71,7 @@ $users = @(
         password  = "RnD@1234"
         firstName = "Priya"
         lastName  = "Sharma"
-        role      = "r_and_d"
+        role      = "service"
     },
     @{
         email     = "customer@example.com"
@@ -145,6 +145,6 @@ Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
 Write-Host " Credentials summary:" -ForegroundColor Cyan
 Write-Host "   service@poornasree.com   /  Service@123  (role: service)"
-Write-Host "   rd@poornasree.com        /  RnD@1234     (role: r_and_d)"
+Write-Host "   rd@poornasree.com        /  RnD@1234     (role: service)"
 Write-Host "   customer@example.com     /  Customer@123 (role: customer)"
 Write-Host ""

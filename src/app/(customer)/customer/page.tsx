@@ -19,6 +19,10 @@ import {
   ThumbsDown,
   User,
   Bot,
+  Volume2,
+  VolumeX,
+  Globe,
+  Youtube,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
@@ -118,12 +122,12 @@ const PRODUCTS = [
 // AI API
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function sendMessageToAI(conversationId: string, content: string): Promise<string> {
+async function sendMessageToAI(conversationId: string, content: string, language?: string): Promise<string> {
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ conversationId, content }),
+    body: JSON.stringify({ conversationId, content, language }),
   });
   if (!res.ok) throw new Error("API error");
   const data = await res.json();
@@ -133,6 +137,15 @@ async function sendMessageToAI(conversationId: string, content: string): Promise
 // ─────────────────────────────────────────────────────────────────────────────
 // REMOVED — mock AI responses were here
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LANGUAGE OPTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "ml", label: "Malayalam", flag: "🇮🇳" },
+  { code: "hi", label: "Hindi", flag: "🇮🇳" },
+] as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WELCOME MESSAGE
@@ -158,6 +171,10 @@ export default function CustomerChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [liked, setLiked] = useState<Record<string, boolean | null>>({});
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [language, setLanguage] = useState<string>("en");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [youtubeResults, setYoutubeResults] = useState<Record<string, string>>({}); // msgId -> search query
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -196,11 +213,14 @@ export default function CustomerChatPage() {
     setIsTyping(true);
     try {
       const convId = conversationId ?? await createConversation();
-      const answer = await sendMessageToAI(convId, text.trim());
+      const answer = await sendMessageToAI(convId, text.trim(), language);
+      const botId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
-        { id: Date.now().toString(), role: "assistant", content: answer },
+        { id: botId, role: "assistant", content: answer },
       ]);
+      // Store YouTube search query for this response
+      setYoutubeResults((prev) => ({ ...prev, [botId]: text.trim() }));
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -221,8 +241,28 @@ export default function CustomerChatPage() {
     if (user) {
       setMessages([makeWelcome(user.firstName)]);
       setConversationId(null);
+      setYoutubeResults({});
+      setSpeakingId(null);
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       createConversation().catch(console.error);
     }
+  };
+
+  const handleSpeak = (msgId: string, text: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (speakingId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.replace(/\*\*(.*?)\*\*/g, "$1"));
+    const langMap: Record<string, string> = { en: "en-US", ml: "ml-IN", hi: "hi-IN" };
+    utterance.lang = langMap[language] || "en-US";
+    utterance.onend = () => setSpeakingId(null);
+    utterance.onerror = () => setSpeakingId(null);
+    setSpeakingId(msgId);
+    window.speechSynthesis.speak(utterance);
   };
   if (isLoading) return <LoadingScreen message="Loading your portal…" />;
   if (!user) return null;
@@ -252,6 +292,39 @@ export default function CustomerChatPage() {
         </div>
 
         <div className="flex-1" />
+
+        {/* Language selector */}
+        <div className="relative">
+          <button
+            onClick={() => setLangMenuOpen((v) => !v)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-line dark:border-line-dark text-xs font-medium text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {LANGUAGES.find((l) => l.code === language)?.flag}{" "}
+            {LANGUAGES.find((l) => l.code === language)?.label}
+          </button>
+          {langMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setLangMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-40 w-36 rounded-xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card shadow-lg overflow-hidden">
+                {LANGUAGES.map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLanguage(l.code); setLangMenuOpen(false); }}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2",
+                      language === l.code
+                        ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                        : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                    )}
+                  >
+                    <span>{l.flag}</span> {l.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
         <ThemeToggle />
 
@@ -303,6 +376,9 @@ export default function CustomerChatPage() {
               msg={msg}
               liked={liked[msg.id]}
               onLike={(v) => setLiked((prev) => ({ ...prev, [msg.id]: v }))}
+              youtubeQuery={youtubeResults[msg.id]}
+              speakingId={speakingId}
+              onSpeak={handleSpeak}
             />
           ))}
 
@@ -378,10 +454,16 @@ function MessageBubble({
   msg,
   liked,
   onLike,
+  youtubeQuery,
+  speakingId,
+  onSpeak,
 }: {
   msg: ChatMessage;
   liked: boolean | null | undefined;
   onLike: (v: boolean) => void;
+  youtubeQuery?: string;
+  speakingId: string | null;
+  onSpeak: (msgId: string, text: string) => void;
 }) {
   if (msg.role === "user") {
     return (
@@ -395,6 +477,11 @@ function MessageBubble({
       </div>
     );
   }
+
+  const isSpeaking = speakingId === msg.id;
+  const ytSearchUrl = youtubeQuery
+    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery + " troubleshooting repair")}`
+    : null;
 
   // Assistant message
   return (
@@ -411,7 +498,30 @@ function MessageBubble({
           </p>
         </div>
 
-        {/* Feedback */}
+        {/* YouTube suggestion */}
+        {ytSearchUrl && msg.id !== "welcome" && (
+          <a
+            href={ytSearchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors group"
+          >
+            <div className="shrink-0 p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20">
+              <Youtube className="w-4 h-4 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-red-700 dark:text-red-300">
+                Watch related videos on YouTube
+              </p>
+              <p className="text-[10px] text-red-500 dark:text-red-400 truncate">
+                Search: {youtubeQuery}
+              </p>
+            </div>
+            <span className="text-xs text-red-400 group-hover:text-red-500 dark:group-hover:text-red-300">→</span>
+          </a>
+        )}
+
+        {/* Feedback + Audio */}
         <div className="flex items-center gap-2 pl-1">
           <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Was this helpful?</span>
           <button
@@ -436,6 +546,22 @@ function MessageBubble({
           >
             <ThumbsDown className="w-3.5 h-3.5" />
           </button>
+
+          {/* Audio TTS button */}
+          {msg.id !== "welcome" && (
+            <button
+              onClick={() => onSpeak(msg.id, msg.content)}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors ml-1",
+                isSpeaking
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+              title={isSpeaking ? "Stop speaking" : "Listen to response"}
+            >
+              {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
       </div>
     </div>

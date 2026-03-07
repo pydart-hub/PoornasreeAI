@@ -47,6 +47,7 @@ interface ApiDocument {
   createdAt: string;
   uploadedBy: string;
   chunkCount: number;
+  documentType: "service" | "customer";
   status: "trained" | "pending";
 }
 
@@ -57,7 +58,6 @@ function getRoleBadge(role: string) {
   const map: Record<string, { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }> = {
     admin:    { label: "Administrator",    variant: "default" },
     service:  { label: "Service Engineer", variant: "info" },
-    r_and_d:  { label: "R&D Manager",      variant: "success" },
     customer: { label: "Customer",         variant: "accent" },
   };
   return map[role] ?? { label: role, variant: "default" as const };
@@ -99,6 +99,7 @@ export default function AdminPage() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [uploadDocType, setUploadDocType] = useState<"service" | "customer">("service");
 
   // ── Responsive ──────────────────────────────
   useEffect(() => {
@@ -160,6 +161,7 @@ export default function AdminPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
+      formData.append("documentType", uploadDocType);
       try {
         const res = await fetch("/api/admin/documents", {
           method: "POST",
@@ -184,7 +186,7 @@ export default function AdminPage() {
       setUploadMessage({ text: "Upload failed. Please check the file and try again.", type: "error" });
     }
     setTimeout(() => setUploadMessage(null), 5000);
-  }, [fetchDocuments]);
+  }, [fetchDocuments, uploadDocType]);
 
   // ── Delete document ──────────────────────────
   const handleDeleteDoc = useCallback(async (id: string) => {
@@ -461,6 +463,28 @@ export default function AdminPage() {
           {activeTab === "documents" && (
             <section className="space-y-6">
 
+              {/* Document type selector */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-content dark:text-content-dark">Upload for:</span>
+                <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary">
+                  {(["service", "customer"] as const).map((dt) => (
+                    <button
+                      key={dt}
+                      type="button"
+                      onClick={() => setUploadDocType(dt)}
+                      className={cn(
+                        "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                        uploadDocType === dt
+                          ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
+                          : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+                      )}
+                    >
+                      {dt === "service" ? "🔧 Service" : "👤 Customer"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Upload area */}
               <div
                 onDragOver={handleDragOver}
@@ -580,6 +604,14 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
+                          <span className={cn(
+                            "text-xs font-medium px-2 py-0.5 rounded-full",
+                            doc.documentType === "service"
+                              ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                              : "bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                          )}>
+                            {doc.documentType === "service" ? "🔧 Service" : "👤 Customer"}
+                          </span>
                           <Badge
                             variant={doc.status === "trained" ? "success" : "warning"}
                             dot
