@@ -118,16 +118,16 @@ const PRODUCTS = [
 // AI API
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function sendMessageToAI(content: string): Promise<string> {
+async function sendMessageToAI(conversationId: string, content: string): Promise<string> {
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ conversationId, content }),
   });
   if (!res.ok) throw new Error("API error");
   const data = await res.json();
-  return data.answer;
+  return data.assistantMessage.content;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,8 +157,22 @@ export default function CustomerChatPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [liked, setLiked] = useState<Record<string, boolean | null>>({});
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const createConversation = async () => {
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title: "Customer Chat" }),
+    });
+    if (!res.ok) throw new Error("Failed to create conversation");
+    const data = await res.json();
+    setConversationId(data.conversation.id);
+    return data.conversation.id as string;
+  };
 
   // Redirect if not authenticated or not customer
   useEffect(() => {
@@ -166,6 +180,7 @@ export default function CustomerChatPage() {
       if (!user) { router.replace("/customer-login"); return; }
       if (user.role !== "customer") { router.replace("/"); return; }
       setMessages([makeWelcome(user.firstName)]);
+      createConversation().catch(console.error);
     }
   }, [user, isLoading, router]);
 
@@ -180,7 +195,8 @@ export default function CustomerChatPage() {
     setInput("");
     setIsTyping(true);
     try {
-      const answer = await sendMessageToAI(text.trim());
+      const convId = conversationId ?? await createConversation();
+      const answer = await sendMessageToAI(convId, text.trim());
       setMessages((prev) => [
         ...prev,
         { id: Date.now().toString(), role: "assistant", content: answer },
@@ -202,7 +218,11 @@ export default function CustomerChatPage() {
   const handleSubmit = (e: FormEvent) => { e.preventDefault(); sendMessage(input); };
   const handleQuickReply = (text: string) => sendMessage(text);
   const handleReset = () => {
-    if (user) setMessages([makeWelcome(user.firstName)]);
+    if (user) {
+      setMessages([makeWelcome(user.firstName)]);
+      setConversationId(null);
+      createConversation().catch(console.error);
+    }
   };
   if (isLoading) return <LoadingScreen message="Loading your portal…" />;
   if (!user) return null;
