@@ -4,7 +4,7 @@ import { embedText, searchVectors } from "../services/vector.service";
 import axios from "axios";
 
 const OLLAMA_URL  = process.env.OLLAMA_URL || "http://localhost:11434";
-const GEN_MODEL   = "mistral";
+const GEN_MODEL   = "phi3:mini";
 
 // ── RAG helper: build context + call Ollama generate ──────────────────
 async function generateRAGResponse(userQuery: string): Promise<string> {
