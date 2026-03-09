@@ -23,6 +23,10 @@ import {
   Shield,
   UserX,
   RefreshCw,
+  BarChart2,
+  TrendingUp,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
@@ -84,7 +88,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"documents" | "users">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -100,6 +104,20 @@ export default function AdminPage() {
   const [uploadMessage, setUploadMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [uploadDocType, setUploadDocType] = useState<"service" | "customer">("service");
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState<{
+    totalConversations: number;
+    totalSupportRequests: number;
+    escalationRate: number;
+    aiResolutionRate: number;
+    resolvedCount: number;
+    pendingCount: number;
+    activeCount: number;
+    topMachines: { name: string; count: number }[];
+    recentIssues: { id: string; problem: string; status: string; customer: { firstName: string; lastName: string | null }; createdAt: string }[];
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   // ── Responsive ──────────────────────────────
   useEffect(() => {
@@ -143,12 +161,31 @@ export default function AdminPage() {
     }
   }, []);
 
+  // ── Fetch analytics ───────────────────────────
+  const fetchAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch("/api/admin/analytics", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok) setAnalytics(data);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchUsers();
       fetchDocuments();
     }
   }, [user, fetchUsers, fetchDocuments]);
+
+  // Fetch analytics when tab becomes active
+  useEffect(() => {
+    if (activeTab === "analytics" && user?.role === "admin" && !analytics && !analyticsLoading) {
+      fetchAnalytics();
+    }
+  }, [activeTab, user, analytics, analyticsLoading, fetchAnalytics]);
 
   // ── Upload PDF ───────────────────────────────
   const handleFiles = useCallback(async (files: FileList | File[]) => {
@@ -442,7 +479,7 @@ export default function AdminPage() {
 
           {/* Tab switcher */}
           <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
-            {(["documents", "users"] as const).map((tab) => (
+            {(["documents", "users", "analytics"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -453,8 +490,8 @@ export default function AdminPage() {
                     : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
                 )}
               >
-                {tab === "documents" ? <FileUp className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
-                {tab === "documents" ? "Documents" : "Users"}
+                {tab === "documents" ? <FileUp className="w-3.5 h-3.5" /> : tab === "users" ? <Users className="w-3.5 h-3.5" /> : <BarChart2 className="w-3.5 h-3.5" />}
+                {tab === "documents" ? "Documents" : tab === "users" ? "Users" : "Analytics"}
               </button>
             ))}
           </div>
@@ -739,6 +776,143 @@ export default function AdminPage() {
                     })
                   )}
                 </div>
+              )}
+            </section>
+          )}
+
+          {/* ── Analytics Tab ── */}
+          {activeTab === "analytics" && (
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-content dark:text-content-dark">
+                  Analytics Overview
+                </h2>
+                <button
+                  onClick={() => { setAnalytics(null); fetchAnalytics(); }}
+                  className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw className={cn("w-4 h-4", analyticsLoading && "animate-spin")} />
+                </button>
+              </div>
+
+              {analyticsLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
+                </div>
+              ) : !analytics ? (
+                <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
+                  <BarChart2 className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-40" />
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No analytics data available</p>
+                </div>
+              ) : (
+                <>
+                  {/* KPI Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                      <div className="inline-flex p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 mb-2">
+                        <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.totalConversations}</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Conversations</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                      <div className="inline-flex p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 mb-2">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.totalSupportRequests}</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Support Escalations</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                      <div className="inline-flex p-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 mb-2">
+                        <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                      </div>
+                      <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.escalationRate}%</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Escalation Rate</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                      <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2">
+                        <Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.aiResolutionRate}%</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">AI Resolution Rate</p>
+                    </div>
+                  </div>
+
+                  {/* Support Request Status */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-center">
+                      <p className="text-2xl font-bold text-amber-500">{analytics.pendingCount}</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Pending</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-center">
+                      <p className="text-2xl font-bold text-blue-500">{analytics.activeCount}</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Active</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-center">
+                      <p className="text-2xl font-bold text-emerald-500">{analytics.resolvedCount}</p>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Resolved</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Top Machines */}
+                    {analytics.topMachines.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Top Reported Machines</h3>
+                        <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+                          {analytics.topMachines.map((m, i) => (
+                            <div
+                              key={m.name}
+                              className={cn(
+                                "flex items-center justify-between px-4 py-3",
+                                i < analytics.topMachines.length - 1 && "border-b border-line dark:border-line-dark"
+                              )}
+                            >
+                              <span className="text-sm text-content dark:text-content-dark truncate">{m.name}</span>
+                              <span className="text-sm font-semibold text-primary dark:text-primary-300 shrink-0 ml-3">{m.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent Issues */}
+                    {analytics.recentIssues.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Recent Issues</h3>
+                        <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+                          {analytics.recentIssues.map((issue, i) => (
+                            <div
+                              key={issue.id}
+                              className={cn(
+                                "px-4 py-3",
+                                i < analytics.recentIssues.length - 1 && "border-b border-line dark:border-line-dark"
+                              )}
+                            >
+                              <p className="text-sm text-content dark:text-content-dark truncate">{issue.problem}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                                  {issue.customer.firstName} {issue.customer.lastName ?? ""}
+                                </span>
+                                <span className={cn(
+                                  "text-xs font-medium px-1.5 py-0.5 rounded-full",
+                                  issue.status === "resolved"
+                                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                    : issue.status === "active"
+                                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                    : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                )}>
+                                  {issue.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </section>
           )}

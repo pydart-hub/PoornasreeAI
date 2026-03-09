@@ -6,7 +6,7 @@ import axios from "axios";
 const OLLAMA_URL  = process.env.OLLAMA_URL || "http://localhost:11434";
 const GEN_MODEL   = "phi3:mini";
 
-// ── RAG helper: build context + call Ollama generate ──────────────────
+// â”€â”€ RAG helper: build context + call Ollama generate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateRAGResponse(userQuery: string, userRole: string, language?: string): Promise<string> {
   try {
     // 1. Embed the user query
@@ -23,86 +23,78 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     }
     // admin: no filter (retrieve all)
 
-    // 3. Search Qdrant for top-3 most relevant document chunks
+    // 3. Search Qdrant for top-1 most relevant document chunk (topK=1 for speed)
     const t1 = Date.now();
-    const hits = await searchVectors(queryEmbedding, 3, roleFilter);
+    const hits = await searchVectors(queryEmbedding, 1, roleFilter);
     console.log(`[RAG] search: ${Date.now() - t1} ms`);
 
-    // Filter out chunks below minimum similarity threshold (cosine score 0–1).
-    // Anything below 0.40 is unlikely to be relevant — skip LLM entirely.
+    // Filter out chunks below minimum similarity threshold (cosine score 0â€“1).
+    // Anything below 0.40 is unlikely to be relevant â€” skip LLM entirely.
     const MIN_SCORE = 0.40;
     const relevantHits = hits.filter((h) => h.score >= MIN_SCORE);
     console.log(`[RAG] hits: ${hits.length} total, ${relevantHits.length} above threshold (${MIN_SCORE})`);
 
     if (relevantHits.length === 0) {
+      console.warn(`[RAG] No documentation found above threshold for query: "${userQuery}"`);
       return "I couldn't find this information in the documentation.";
     }
 
-    // 4. Build prompt with context — truncate each chunk to ~400 tokens (~1600 chars) to keep prompt small
-    const MAX_CHUNK_CHARS = 1600;
+    // 4. Build context — cap chunk at 600 chars (~150 tokens) and total at 1200 chars
+    // This keeps the full prompt under 512 tokens so num_ctx:512 fits without truncation.
+    const MAX_CHUNK_CHARS = 600;
     const context = relevantHits
       .map((h, i) => {
         const content = (h.payload.content as string).slice(0, MAX_CHUNK_CHARS);
         return `[${i + 1}] ${content}`;
       })
-      .join("\n\n");
+      .join("\n\n")
+      .slice(0, 1200);
+    console.log(`[RAG] chunks: ${relevantHits.length}, context size: ${context.length} chars`);
 
-    // 5. Build role-specific prompt
-    let roleInstruction: string;
-    if (userRole === "customer") {
-      roleInstruction = [
-        "You are PoornasreeAI, a friendly product support assistant for customers.",
-        "Your ONLY source of knowledge is the documentation context provided below.",
-        "Rules:",
-        "  1. Answer ONLY using information from the context. Do NOT add steps or knowledge not in the context.",
-        "  2. Use simple, beginner-friendly language. Avoid technical jargon.",
-        "  3. Do NOT use conversational phrases like 'Hello', 'I'm sorry to hear', 'Great question', or any greeting.",
-        "  4. If the context does not contain the answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
-        "  5. Give concise product usage guidance. Maximum 6 steps.",
-        "  6. Format every step exactly like this:",
-        "     Step 1 — <instruction>",
-        "     Step 2 — <instruction>",
-      ].join("\n");
-    } else {
-      // service and admin — technical troubleshooting
-      roleInstruction = [
-        "You are PoornasreeAI, a technical support assistant for industrial equipment.",
-        "Your ONLY source of knowledge is the documentation context provided below.",
-        "Rules:",
-        "  1. Answer ONLY using information from the context. Do NOT add steps or knowledge not in the context.",
-        "  2. Do NOT invent or guess troubleshooting steps.",
-        "  3. Do NOT use conversational phrases like 'Hello', 'I'm sorry to hear', 'Great question', or any greeting.",
-        "  4. If the context does not contain the answer, respond with exactly: \"I couldn't find this information in the documentation.\"",
-        "  5. Give concise troubleshooting instructions only. Maximum 6 steps.",
-        "  6. Format every step exactly like this:",
-        "     Step 1 — <instruction>",
-        "     Step 2 — <instruction>",
-        "     Step 3 — <instruction>",
-      ].join("\n");
-    }
+    // 5. Build prompt
+    const roleInstruction = userRole === "customer"
+      ? [
+          "SYSTEM:",
+          "You are PoornasreeAI, a product support assistant for Poornasree milk analyzer equipment.",
+          "Answer ONLY using the documentation context below. Use clear, simple language.",
+          "If the answer is not in the context, respond exactly: \"I couldn't find this information in the documentation.\"",
+          "Provide up to 5 steps. Format: Step 1 -- <instruction>",
+        ].join("\n")
+      : [
+          "SYSTEM:",
+          "You are PoornasreeAI, a technical support assistant for Poornasree milk analyzer equipment.",
+          "Answer ONLY using the documentation context below. Use precise technical language.",
+          "If the answer is not in the context, respond exactly: \"I couldn't find this information in the documentation.\"",
+          "Provide up to 5 troubleshooting steps. Format: Step 1 -- <instruction>",
+        ].join("\n");
 
     const languageInstruction = language && language !== "en"
-      ? `\nIMPORTANT: Respond entirely in ${language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language}. Translate all instructions.`
+      ? `\nIMPORTANT: Respond entirely in ${language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language}.`
       : "";
 
     const prompt = [
       roleInstruction,
       languageInstruction,
       "",
-      "--- Documentation Context ---",
+      "CONTEXT:",
       context,
-      "--- End Documentation Context ---",
       "",
-      `User question: ${userQuery}`,
+      `QUESTION:\n${userQuery}`,
       "",
-      "Answer:",
+      "ANSWER:",
     ].join("\n");
 
-    // 4. Call Ollama chat — keep_alive prevents model unloading between requests
+    // 4. Call Ollama chat â€” keep_alive prevents model unloading between requests
     const t2 = Date.now();
     const { data } = await axios.post(
       `${OLLAMA_URL}/api/chat`,
-      { model: GEN_MODEL, messages: [{ role: "user", content: prompt }], stream: false, keep_alive: "10m" },
+      {
+        model: GEN_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        stream: false,
+        keep_alive: "10m",
+        options: { num_ctx: 512, num_predict: 80, temperature: 0 },
+      },
       { timeout: 300_000 }
     );
     console.log(`[RAG] generate: ${Date.now() - t2} ms`);
@@ -117,7 +109,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
   try {
     const userId = req.user!.userId;
     const userRole = req.user!.role;
-    const { conversationId, content, language } = req.body;
+    const { conversationId, content, language, productContext } = req.body;
 
     if (!conversationId || !content?.trim()) {
       res.status(400).json({ error: "conversationId and content are required" });
@@ -154,8 +146,11 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       },
     });
 
-    // ── RAG-powered assistant reply ──────────────────────────────────
-    const assistantContent = await generateRAGResponse(content.trim(), userRole, language);
+    // â”€â”€ RAG-powered assistant reply â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // productContext (e.g. "VIBRO Stirrer") is prepended to the search query to
+    // improve vector search recall without changing what is stored in the DB.
+    const searchQuery = productContext ? `${productContext} ${content.trim()}` : content.trim();
+    const assistantContent = await generateRAGResponse(searchQuery, userRole, language);
 
     const assistantMessage = await prisma.message.create({
       data: {
@@ -181,7 +176,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
   }
 }
 
-// ── POST /api/conversations/:id/reply ────────────────────────────────
+// â”€â”€ POST /api/conversations/:id/reply â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Allows a service / admin agent to manually post an assistant message
 // into any conversation they have access to.
 //
@@ -211,7 +206,7 @@ export async function addManualReply(req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Resolved conversations are locked — no further replies allowed
+    // Resolved conversations are locked â€” no further replies allowed
     if (conversation.status === "resolved") {
       res.status(403).json({ error: "This conversation has been resolved and is now read-only" });
       return;
@@ -225,7 +220,7 @@ export async function addManualReply(req: Request, res: Response): Promise<void>
       },
     });
 
-    // Auto-advance status: open → in_progress on first manual reply
+    // Auto-advance status: open â†’ in_progress on first manual reply
     const newStatus = conversation.status === "open" ? "in_progress" : conversation.status;
 
     await prisma.conversation.update({
@@ -233,7 +228,7 @@ export async function addManualReply(req: Request, res: Response): Promise<void>
       data: { updatedAt: new Date(), status: newStatus },
     });
 
-    // suppress unused variable warning — userId kept for future audit logging
+    // suppress unused variable warning â€” userId kept for future audit logging
     void userId;
 
     res.status(201).json({ message });

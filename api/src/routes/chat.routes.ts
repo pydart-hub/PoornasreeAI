@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { protect } from "../middleware/auth";
+import { protect, authorize } from "../middleware/auth";
 import {
   createConversation,
   listConversations,
@@ -27,7 +27,7 @@ router.patch ("/conversations/:id/status",  updateStatus);
 router.post  ("/conversations/:id/escalate",escalateConversation);
 
 // ── Messages ───────────────────────────────────────────────────────────
-router.post  ("/messages",                  createMessage);
+router.post  ("/messages",                  authorize("admin", "service", "customer"), createMessage);
 
 // ── Service / Admin manual reply ───────────────────────────────────────
 router.post  ("/conversations/:id/reply",   addManualReply);

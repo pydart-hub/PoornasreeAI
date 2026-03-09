@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, FormEvent } from "react";
+import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Send,
@@ -23,10 +23,17 @@ import {
   VolumeX,
   Globe,
   Youtube,
+  Headphones,
+  HeadphoneOff,
+  X,
+  ChevronDown,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { getSocket, closeSocket } from "@/lib/socket-client";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -39,6 +46,22 @@ type Message = {
 
 interface ChatMessage extends Message {
   id: string;
+}
+
+interface SupportMessageItem {
+  id: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+  sender: { id: string; firstName: string; lastName?: string; role: string };
+}
+
+interface SupportRequestState {
+  id: string;
+  status: "pending" | "active" | "resolved";
+  problem: string;
+  machineName?: string;
+  engineer?: { id: string; firstName: string; lastName?: string } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,12 +145,12 @@ const PRODUCTS = [
 // AI API
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function sendMessageToAI(conversationId: string, content: string, language?: string): Promise<string> {
+async function sendMessageToAI(conversationId: string, content: string, language?: string, productContext?: string | null): Promise<string> {
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ conversationId, content, language }),
+    body: JSON.stringify({ conversationId, content, language, ...(productContext ? { productContext } : {}) }),
   });
   if (!res.ok) throw new Error("API error");
   const data = await res.json();
@@ -175,8 +198,24 @@ export default function CustomerChatPage() {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [youtubeResults, setYoutubeResults] = useState<Record<string, string>>({}); // msgId -> search query
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  // selectedProduct tracks which product chip was last clicked; prepended to
+  // the RAG search query to improve vector search recall.
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+
+  // ── Support / Human escalation state ─────────────────────────────────────
+  const [engineerOnline, setEngineerOnline] = useState(false);
+  const [showSupportPanel, setShowSupportPanel] = useState(false);
+  const [supportRequest, setSupportRequest] = useState<SupportRequestState | null>(null);
+  const [supportMessages, setSupportMessages] = useState<SupportMessageItem[]>([]);
+  const [supportInput, setSupportInput] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportFormProblem, setSupportFormProblem] = useState("");
+  const [supportFormMachine, setSupportFormMachine] = useState("");
+  const [supportSubmitting, setSupportSubmitting] = useState(false);
+
+  const endRef     = useRef<HTMLDivElement>(null);
+  const supportEndRef = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
 
   const createConversation = async () => {
     const res = await fetch("/api/conversations", {
@@ -201,9 +240,73 @@ export default function CustomerChatPage() {
     }
   }, [user, isLoading, router]);
 
+  // ── Socket.IO: engineer presence + support events ────────────────────────
+  useEffect(() => {
+    if (!user || user.role !== "customer") return;
+
+    const sock = getSocket({ userId: user.id, role: user.role, name: user.firstName });
+
+    sock.on("engineer:status", ({ isOnline }: { isOnline: boolean }) => {
+      setEngineerOnline(isOnline);
+    });
+
+    sock.on("request:accepted", ({ requestId, engineer }: { requestId: string; engineer: SupportRequestState["engineer"] }) => {
+      setSupportRequest((prev) =>
+        prev?.id === requestId ? { ...prev, status: "active", engineer } : prev
+      );
+      if (supportRequest?.id === requestId) {
+        sock.emit("support:join", requestId);
+        loadSupportMessages(requestId);
+      }
+    });
+
+    sock.on("chat:message", ({ requestId, message }: { requestId: string; message: SupportMessageItem }) => {
+      if (supportRequest?.id === requestId) {
+        setSupportMessages((prev) => [...prev, message]);
+      }
+    });
+
+    sock.on("request:resolved", ({ requestId }: { requestId: string }) => {
+      if (supportRequest?.id === requestId) {
+        setSupportRequest((prev) => prev ? { ...prev, status: "resolved" } : prev);
+      }
+    });
+
+    return () => {
+      sock.off("engineer:status");
+      sock.off("request:accepted");
+      sock.off("chat:message");
+      sock.off("request:resolved");
+      closeSocket();
+    };
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When support request becomes active, join its socket room
+  useEffect(() => {
+    if (supportRequest?.status === "active" && user) {
+      const sock = getSocket({ userId: user.id, role: user.role, name: user.firstName });
+      sock.emit("support:join", supportRequest.id);
+      loadSupportMessages(supportRequest.id);
+    }
+  }, [supportRequest?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadSupportMessages = useCallback(async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/support/requests/${requestId}/messages`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setSupportMessages(data.messages);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    supportEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [supportMessages]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -213,7 +316,7 @@ export default function CustomerChatPage() {
     setIsTyping(true);
     try {
       const convId = conversationId ?? await createConversation();
-      const answer = await sendMessageToAI(convId, text.trim(), language);
+      const answer = await sendMessageToAI(convId, text.trim(), language, selectedProduct);
       const botId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
@@ -243,8 +346,62 @@ export default function CustomerChatPage() {
       setConversationId(null);
       setYoutubeResults({});
       setSpeakingId(null);
+      setSelectedProduct(null);
+      setSupportRequest(null);
+      setSupportMessages([]);
+      setShowSupportPanel(false);
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       createConversation().catch(console.error);
+    }
+  };
+
+  // ── Support request creation ──────────────────────────────────────────────
+  const handleCreateSupportRequest = async () => {
+    if (!conversationId || !supportFormProblem.trim()) return;
+    setSupportSubmitting(true);
+    try {
+      const res = await fetch("/api/support/requests", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          conversationId,
+          problem:     supportFormProblem.trim(),
+          machineName: supportFormMachine.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSupportRequest({
+          id:          data.request.id,
+          status:      "pending",
+          problem:     data.request.problem,
+          machineName: data.request.machineName,
+          engineer:    null,
+        });
+        setSupportFormProblem("");
+        setSupportFormMachine("");
+      }
+    } finally {
+      setSupportSubmitting(false);
+    }
+  };
+
+  // ── Send message to engineer ──────────────────────────────────────────────
+  const handleSendSupportMessage = async () => {
+    if (!supportInput.trim() || !supportRequest || supportSending) return;
+    const text = supportInput.trim();
+    setSupportInput("");
+    setSupportSending(true);
+    try {
+      await fetch(`/api/support/requests/${supportRequest.id}/messages`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content: text }),
+      });
+    } finally {
+      setSupportSending(false);
     }
   };
 
@@ -285,10 +442,21 @@ export default function CustomerChatPage() {
           </span>
         </div>
 
-        {/* Status pill */}
+        {/* Status pill — AI online */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 ml-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">AI Online</span>
+        </div>
+
+        {/* Engineer online status (Feature 4) */}
+        <div className={cn(
+          "hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium",
+          engineerOnline
+            ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
+            : "bg-surface-tertiary dark:bg-surface-dark-tertiary border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary"
+        )}>
+          <span className={cn("h-1.5 w-1.5 rounded-full", engineerOnline ? "bg-blue-500 animate-pulse" : "bg-gray-400")} />
+          {engineerOnline ? "Support Online" : "Support Offline"}
         </div>
 
         <div className="flex-1" />
@@ -352,7 +520,7 @@ export default function CustomerChatPage() {
           {PRODUCTS.map((p) => (
             <button
               key={p.name}
-              onClick={() => handleQuickReply(p.name)}
+              onClick={() => { setSelectedProduct(p.name); handleQuickReply(p.name); }}
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 active:scale-100",
                 p.bg, p.border, p.color
@@ -438,9 +606,183 @@ export default function CustomerChatPage() {
             <Send className="w-4 h-4" />
           </button>
         </form>
-        <p className="text-center text-xs text-content-secondary dark:text-content-dark-secondary mt-2">
-          Poornasree AI · v1.0 · For support call <span className="font-medium">1800-XXX-XXXX</span>
-        </p>
+
+        {/* Contact Service Engineer button (Feature 1) */}
+        <div className="max-w-2xl mx-auto mt-2 flex items-center justify-between">
+          <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+            Poornasree AI · v1.0
+          </p>
+          {!supportRequest && (
+            <button
+              onClick={() => setShowSupportPanel((v) => !v)}
+              className={cn(
+                "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-colors",
+                showSupportPanel
+                  ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
+                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              Contact Service Engineer
+              <ChevronDown className={cn("w-3 h-3 transition-transform", showSupportPanel && "-rotate-180")} />
+            </button>
+          )}
+          {supportRequest && (
+            <button
+              onClick={() => setShowSupportPanel((v) => !v)}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-colors bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              Support Chat
+              {supportRequest.status === "pending" && <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse ml-1" />}
+              {supportRequest.status === "active" && <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse ml-1" />}
+              <ChevronDown className={cn("w-3 h-3 transition-transform", showSupportPanel && "-rotate-180")} />
+            </button>
+          )}
+        </div>
+
+        {/* ── Support Panel ───────────────────────────────────────────────── */}
+        {showSupportPanel && (
+          <div className="max-w-2xl mx-auto mt-3 rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/5 overflow-hidden">
+
+            {/* No request yet — form */}
+            {!supportRequest && (
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Headphones className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm font-semibold text-content dark:text-content-dark">Contact Service Engineer</span>
+                  </div>
+                  {!engineerOnline && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
+                      Engineers offline — will be queued
+                    </span>
+                  )}
+                  {engineerOnline && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                      Engineer Online
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  value={supportFormProblem}
+                  onChange={(e) => setSupportFormProblem(e.target.value)}
+                  placeholder="Describe your issue…"
+                  rows={2}
+                  className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <input
+                  value={supportFormMachine}
+                  onChange={(e) => setSupportFormMachine(e.target.value)}
+                  placeholder="Machine / product name (optional)"
+                  className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <button
+                  onClick={handleCreateSupportRequest}
+                  disabled={!supportFormProblem.trim() || supportSubmitting || !conversationId}
+                  className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {supportSubmitting ? "Submitting…" : "Submit Support Request"}
+                </button>
+              </div>
+            )}
+
+            {/* Pending — waiting for engineer */}
+            {supportRequest?.status === "pending" && (
+              <div className="p-4 flex flex-col items-center gap-3 text-center">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                  <Headphones className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-content dark:text-content-dark">Waiting for a service engineer…</p>
+                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
+                    Your request has been added to the queue.
+                    {!engineerOnline && " Engineers will respond when they come online."}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-line dark:border-line-dark p-3 text-left w-full bg-surface dark:bg-surface-dark">
+                  <p className="text-xs font-medium text-content dark:text-content-dark mb-0.5">Your issue:</p>
+                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{supportRequest.problem}</p>
+                  {supportRequest.machineName && (
+                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">Machine: {supportRequest.machineName}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Active — real-time chat */}
+            {supportRequest?.status === "active" && (
+              <div className="flex flex-col" style={{ maxHeight: 280 }}>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-blue-200 dark:border-blue-500/30 bg-blue-100/50 dark:bg-blue-500/10">
+                  <Avatar name={`${supportRequest.engineer?.firstName ?? "E"} ${supportRequest.engineer?.lastName ?? ""}`} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-content dark:text-content-dark truncate">
+                      {supportRequest.engineer?.firstName} {supportRequest.engineer?.lastName ?? ""} — Service Engineer
+                    </p>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Connected</p>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2" style={{ minHeight: 120, maxHeight: 160 }}>
+                  {supportMessages.length === 0 && (
+                    <p className="text-xs text-center text-content-secondary dark:text-content-dark-secondary py-4">
+                      Engineer connected. Start your conversation.
+                    </p>
+                  )}
+                  {supportMessages.map((m) => {
+                    const isMe = m.senderId === user?.id;
+                    return (
+                      <div key={m.id} className={cn("flex gap-2", isMe && "justify-end")}>
+                        {!isMe && <Avatar name={m.sender.firstName} size="sm" className="mt-0.5" />}
+                        <div className={cn(
+                          "max-w-[75%] px-3 py-1.5 rounded-xl text-xs leading-relaxed",
+                          isMe
+                            ? "bg-blue-600 text-white rounded-br-sm"
+                            : "bg-surface dark:bg-surface-dark text-content dark:text-content-dark border border-line dark:border-line-dark rounded-bl-sm"
+                        )}>
+                          {m.content}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={supportEndRef} />
+                </div>
+                <div className="flex gap-2 px-3 py-2 border-t border-blue-200 dark:border-blue-500/30">
+                  <input
+                    value={supportInput}
+                    onChange={(e) => setSupportInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendSupportMessage()}
+                    placeholder="Message engineer…"
+                    className="flex-1 text-xs rounded-xl px-3 py-1.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none"
+                  />
+                  <button
+                    onClick={handleSendSupportMessage}
+                    disabled={!supportInput.trim() || supportSending}
+                    className="p-1.5 rounded-xl bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700 transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Resolved */}
+            {supportRequest?.status === "resolved" && (
+              <div className="p-4 flex flex-col items-center gap-2 text-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                <p className="text-sm font-semibold text-content dark:text-content-dark">Issue Resolved</p>
+                <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                  Your support request has been marked as resolved by the engineer.
+                </p>
+                <button
+                  onClick={() => { setSupportRequest(null); setShowSupportPanel(false); setSupportMessages([]); }}
+                  className="text-xs px-3 py-1.5 rounded-xl border border-line dark:border-line-dark text-content-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </footer>
     </div>
   );

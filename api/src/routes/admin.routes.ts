@@ -14,6 +14,7 @@ import {
   listDocuments,
   deleteDocumentRecord,
 } from "../controllers/admin.controller";
+import { getAnalytics } from "../controllers/support.controller";
 
 const router = Router();
 
@@ -81,5 +82,8 @@ router.get("/users", listUsers);
 
 // DELETE /api/admin/users/:id  —  delete a user
 router.delete("/users/:id", deleteUser);
+
+// GET /api/admin/analytics  —  dashboard analytics (Feature 7)
+router.get("/analytics", getAnalytics);
 
 export default router;

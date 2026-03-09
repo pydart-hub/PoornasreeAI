@@ -6,9 +6,19 @@ const nextConfig = {
   // that could silently fall back to localhost inside the container.
   async rewrites() {
     return [
+      // API proxy — browser calls /api/* → Next.js → API container
       {
-        source: "/api/:path*",
+        source:      "/api/:path*",
         destination: "http://api:4000/api/:path*",
+      },
+      // Socket.IO proxy — polling + WebSocket upgrades
+      {
+        source:      "/socket.io",
+        destination: "http://api:4000/socket.io",
+      },
+      {
+        source:      "/socket.io/:path*",
+        destination: "http://api:4000/socket.io/:path*",
       },
     ];
   },

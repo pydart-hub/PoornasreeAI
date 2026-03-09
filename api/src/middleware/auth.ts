@@ -36,3 +36,16 @@ export function protect(req: Request, res: Response, next: NextFunction): void {
     res.status(401).json({ error: "Invalid or expired token" });
   }
 }
+
+// ── Authorize middleware ──────────────────────────────────────────────
+// Must be used after `protect`. Rejects with 403 if the authenticated
+// user's role is not in the allowed list.
+export function authorize(...roles: string[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      res.status(403).json({ error: "Forbidden: insufficient role" });
+      return;
+    }
+    next();
+  };
+}
