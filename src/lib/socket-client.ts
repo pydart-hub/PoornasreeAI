@@ -18,9 +18,10 @@ export function getSocket(user: SocketUser): Socket {
   if (_socket) { _socket.disconnect(); _socket = null; }
 
   _socket = io({
-    path:       "/socket.io",
-    query:      { userId: user.userId, role: user.role, name: user.name },
-    transports: ["polling", "websocket"],
+    path:            "/socket.io",
+    query:           { userId: user.userId, role: user.role, name: user.name },
+    transports:      ["websocket", "polling"],
+    withCredentials: true,
   });
 
   _socket.on("connect",        () => console.log("[socket] connected:", _socket!.id));

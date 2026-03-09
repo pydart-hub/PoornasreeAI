@@ -43,7 +43,7 @@ if ($KeyFile) { Write-Host " Key file : $KeyFile" }
 Write-Host ""
 
 Write-Host "[1/2] Triggering deployment on VPS..." -ForegroundColor Yellow
-Write-Host "       (VPS will: git pull -> docker compose down -> up --build -> prisma db push)" -ForegroundColor DarkGray
+Write-Host "       (VPS will: git pull -> docker compose down -> up --build -> prisma db push -> nginx sync)" -ForegroundColor DarkGray
 Write-Host ""
 
 Invoke-Ssh "cd '$RemoteDir' && bash deploy.sh"
