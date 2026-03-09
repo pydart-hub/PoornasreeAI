@@ -39,21 +39,18 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       return "I couldn't find this information in the documentation.";
     }
 
-    // ── Direct-response short-circuit (training.json intents) ──────────
-    // If the best hit is a pre-indexed training intent with score ≥ 0.60,
-    // return its stored response immediately — NO LLM call.
-    // EXCEPTION: skip this bypass when a non-English language is requested
-    // so the LLM can translate the response into the target language.
     const isTranslation = Boolean(language && language !== "en");
     const DIRECT_SCORE = 0.60;
     const topHit = relevantHits[0];
-    if (!isTranslation && topHit.payload.directResponse === true && topHit.score >= DIRECT_SCORE) {
-      console.log(`[RAG] direct-hit: "${topHit.payload.tag}" score=${topHit.score.toFixed(3)} — skipping LLM`);
-      return (topHit.payload.content as string) || "I couldn't find this information in the documentation.";
-    }
 
+    // ── Step 1: Get English answer (direct-hit or LLM) ──────────────────
+    let englishAnswer: string;
+
+    if (topHit.payload.directResponse === true && topHit.score >= DIRECT_SCORE) {
+      console.log(`[RAG] direct-hit: "${topHit.payload.tag}" score=${topHit.score.toFixed(3)} — skipping LLM`);
+      englishAnswer = (topHit.payload.content as string) || "I couldn't find this information in the documentation.";
+    } else {
     // 4. Build context — cap chunk at 600 chars (~150 tokens) and total at 1200 chars
-    // This keeps the full prompt under 512 tokens so num_ctx:512 fits without truncation.
     const MAX_CHUNK_CHARS = 600;
     const context = relevantHits
       .map((h, i) => {
@@ -81,23 +78,8 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
           "Provide up to 5 troubleshooting steps. Format: Step 1 -- <instruction>",
         ].join("\n");
 
-    const langName = language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language;
-    const languagePrefix = isTranslation
-      ? `CRITICAL INSTRUCTION: You MUST write your ENTIRE response in ${langName}. Do NOT use English. Every word must be in ${langName}.\n\n`
-      : "";
+    const prompt = [roleInstruction, "", "CONTEXT:", context, "", `QUESTION:\n${userQuery}`, "", "ANSWER:"].join("\n");
 
-    const prompt = [
-      languagePrefix + roleInstruction,
-      "",
-      "CONTEXT:",
-      context,
-      "",
-      `QUESTION:\n${userQuery}`,
-      "",
-      isTranslation ? `ANSWER (in ${langName}):` : "ANSWER:",
-    ].join("\n");
-
-    // 4. Call Ollama chat â€” keep_alive prevents model unloading between requests
     const t2 = Date.now();
     const { data } = await axios.post(
       `${OLLAMA_URL}/api/chat`,
@@ -106,13 +88,41 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
         messages: [{ role: "user", content: prompt }],
         stream: false,
         keep_alive: "10m",
-        options: { num_ctx: 512, num_predict: isTranslation ? 220 : 80, temperature: 0 },
+        options: { num_ctx: 512, num_predict: 80, temperature: 0 },
       },
       { timeout: 300_000 }
     );
     console.log(`[RAG] generate: ${Date.now() - t2} ms`);
+    englishAnswer = (data.message?.content as string)?.trim() || "Sorry, I wasn't able to generate a response.";
+    }
 
-    return (data.message?.content as string)?.trim() || "Sorry, I wasn't able to generate a response.";
+    // Step 2: Translate if non-English (focused second LLM call)
+    if (isTranslation) {
+      const langName = language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language;
+      const translationPrompt = `Translate the following text to ${langName}.\nOutput ONLY the ${langName} translation. Do not include any English.\n\nText:\n${englishAnswer}\n\n${langName}:`;
+      try {
+        const t3 = Date.now();
+        const { data: tData } = await axios.post(
+          `${OLLAMA_URL}/api/chat`,
+          {
+            model: GEN_MODEL,
+            messages: [{ role: "user", content: translationPrompt }],
+            stream: false,
+            keep_alive: "10m",
+            options: { num_ctx: 512, num_predict: 300, temperature: 0 },
+          },
+          { timeout: 120_000 }
+        );
+        console.log(`[RAG] translate ${langName}: ${Date.now() - t3} ms`);
+        const translated = (tData.message?.content as string)?.trim();
+        return translated || englishAnswer;
+      } catch (transErr: any) {
+        console.error("[RAG] translation error, falling back to English:", transErr?.message ?? transErr);
+        return englishAnswer;
+      }
+    }
+
+    return englishAnswer;
   } catch (err: any) {
     console.error("[RAG] generation error:", err?.message ?? err);
     return "I'm having trouble connecting to the AI service right now. Please try again shortly.";
