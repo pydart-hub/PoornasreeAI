@@ -85,6 +85,7 @@ services:
       OLLAMA_URL: http://ollama:11434
     volumes:
       - api_uploads:/app/uploads
+      - ./public/Doc/training.json:/app/data/training.json:ro
     ports:
       - "127.0.0.1:4000:4000"
     networks:

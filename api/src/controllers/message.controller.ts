@@ -28,8 +28,8 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     const hits = await searchVectors(queryEmbedding, 1, roleFilter);
     console.log(`[RAG] search: ${Date.now() - t1} ms`);
 
-    // Filter out chunks below minimum similarity threshold (cosine score 0â€“1).
-    // Anything below 0.40 is unlikely to be relevant â€” skip LLM entirely.
+    // Filter out chunks below minimum similarity threshold (cosine score 0–1).
+    // Anything below 0.40 is unlikely to be relevant — skip LLM entirely.
     const MIN_SCORE = 0.40;
     const relevantHits = hits.filter((h) => h.score >= MIN_SCORE);
     console.log(`[RAG] hits: ${hits.length} total, ${relevantHits.length} above threshold (${MIN_SCORE})`);
@@ -37,6 +37,17 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     if (relevantHits.length === 0) {
       console.warn(`[RAG] No documentation found above threshold for query: "${userQuery}"`);
       return "I couldn't find this information in the documentation.";
+    }
+
+    // ── Direct-response short-circuit (training.json intents) ──────────
+    // If the best hit is a pre-indexed training intent with score ≥ 0.60,
+    // return its stored response immediately — NO LLM call.
+    // This gives ChatGPT-like response speed for all known product issues.
+    const DIRECT_SCORE = 0.60;
+    const topHit = relevantHits[0];
+    if (topHit.payload.directResponse === true && topHit.score >= DIRECT_SCORE) {
+      console.log(`[RAG] direct-hit: "${topHit.payload.tag}" score=${topHit.score.toFixed(3)} — skipping LLM`);
+      return (topHit.payload.content as string) || "I couldn't find this information in the documentation.";
     }
 
     // 4. Build context — cap chunk at 600 chars (~150 tokens) and total at 1200 chars
