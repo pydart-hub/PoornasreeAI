@@ -24,11 +24,8 @@ import {
   Globe,
   Youtube,
   Headphones,
-  HeadphoneOff,
-  X,
   ChevronDown,
   CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
