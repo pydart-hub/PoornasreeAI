@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Eye, EyeOff, Mail, Lock, ArrowRight,
 } from "lucide-react";
-import { Logo } from "@/components/ui";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 /* ── tiny helpers ── */
@@ -66,10 +65,6 @@ export default function LoginPage() {
 
       {/* ── Brand header ── */}
       <div className="animate-fade-up delay-100 mb-7">
-        {/* Logo visible on mobile (desktop sees it in left panel) */}
-        <div className="mb-4 lg:hidden">
-          <Logo variant="full" size="md" />
-        </div>
         <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
           Welcome back
         </p>

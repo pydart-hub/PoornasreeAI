@@ -1,158 +1,109 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Logo } from "@/components/ui";
-
-const SLIDES = [
-  {
-    src: "/images/Gemini_Generated_Image_985s4l985s4l985s.webp",
-    eyebrow: "Smart Diagnostics",
-    heading: "Troubleshoot",
-    highlight: "instantly.",
-  },
-  {
-    src: "/images/Gemini_Generated_Image_g2f0nog2f0nog2f0.webp",
-    eyebrow: "24 / 7  Available",
-    heading: "Always on,",
-    highlight: "always accurate.",
-  },
-  {
-    src: "/images/Gemini_Generated_Image_onche6onche6onch.webp",
-    eyebrow: "Multi-Language Support",
-    heading: "Your language,",
-    highlight: "your way.",
-  },
-];
-
-const INTERVAL = 9000;
-const FADE_MS  = 1800;
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [current, setCurrent] = useState(0);
-  const [next, setNext] = useState<number | null>(null);
-  const [transitioning, setTransitioning] = useState(false);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const nextIdx = (current + 1) % SLIDES.length;
-      setNext(nextIdx);
-      setTransitioning(true);
-      setTimeout(() => {
-        setCurrent(nextIdx);
-        setNext(null);
-        setTransitioning(false);
-      }, FADE_MS);
-    }, INTERVAL);
-    return () => clearInterval(timer);
-  }, [current]);
-
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+    <div className="min-h-screen flex">
 
-      {/* ── Full-page background slideshow ── */}
-      <div
-        key={`curr-${current}`}
-        className="absolute inset-0 transition-opacity ease-in-out"
-        style={{ opacity: transitioning ? 0 : 1, transitionDuration: `${FADE_MS}ms` }}
-      >
-        <Image
-          src={SLIDES[current].src}
-          alt=""
-          fill
-          className="object-cover object-center animate-ken-burns"
-          priority
-        />
+      {/* ── Left: Static branding panel ── */}
+      <div className="hidden lg:flex flex-1 flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#0c2147] via-[#2B5F9E] to-[#163d12]">
+
+        {/* Flower — full-panel subtle tint */}
+        <div className="absolute inset-0 pointer-events-none select-none opacity-[0.07]">
+          <Image src="/flower.png" alt="" fill className="object-cover" />
+        </div>
+
+        {/* Flower — large decorative bottom-right */}
+        <div className="absolute -bottom-16 -right-16 w-80 h-80 pointer-events-none select-none opacity-[0.18]">
+          <Image src="/flower.png" alt="" fill className="object-contain" />
+        </div>
+
+        {/* Flower — small decorative top-left */}
+        <div className="absolute -top-10 -left-10 w-48 h-48 pointer-events-none select-none opacity-10 rotate-180">
+          <Image src="/flower.png" alt="" fill className="object-contain" />
+        </div>
+
+        {/* Main content */}
+        <div className="relative z-10 flex flex-col items-center gap-9 max-w-[380px] text-center px-8">
+
+          {/* Logo card */}
+          <div className="rounded-3xl bg-white/15 backdrop-blur-md border border-white/20 px-10 py-7">
+            <div className="relative w-56 h-16 xl:w-64 xl:h-20">
+              <Image
+                src="/fulllogo.png"
+                alt="Poornasree AI"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div className="flex items-center gap-3 w-full">
+            <div className="h-px flex-1 bg-white/25" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[#9CCB3B]" />
+            <div className="h-px flex-1 bg-white/25" />
+          </div>
+
+          {/* Tagline */}
+          <div className="space-y-4">
+            <p className="text-[10px] font-black tracking-[0.35em] uppercase text-[#9CCB3B]">
+              AI‑Powered Support Portal
+            </p>
+            <h2 className="text-3xl xl:text-4xl font-extrabold text-white leading-tight">
+              Smarter diagnostics,{" "}
+              <span className="italic text-[#9CCB3B] drop-shadow-[0_2px_12px_rgba(156,203,59,0.5)]">
+                faster solutions.
+              </span>
+            </h2>
+            <p className="text-sm text-white/60 leading-relaxed">
+              Built for Pydart field engineers. Instant troubleshooting
+              guidance powered by machine learning.
+            </p>
+          </div>
+
+          {/* Feature bullets */}
+          <div className="w-full space-y-3 text-left">
+            {[
+              "Instant AI diagnostics",
+              "Role‑based secure access",
+              "Live support chat",
+            ].map((f) => (
+              <div key={f} className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2.5 border border-white/10">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#9CCB3B] shrink-0" />
+                <span className="text-sm text-white/80 font-medium">{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-      {next !== null && (
-        <div
-          key={`next-${next}`}
-          className="absolute inset-0 transition-opacity ease-in-out"
-          style={{ opacity: transitioning ? 1 : 0, transitionDuration: `${FADE_MS}ms` }}
-        >
-          <Image
-            src={SLIDES[next].src}
-            alt=""
-            fill
-            className="object-cover object-center animate-ken-burns"
-            priority
-          />
-        </div>
-      )}
 
-      {/* Darkened vignette + bottom gradient for text legibility */}
-      <div className="absolute inset-0 bg-black/30" />
-      <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+      {/* ── Right: Auth form ── */}
+      <div className="w-full lg:w-[440px] xl:w-[480px] min-h-screen flex flex-col bg-white dark:bg-gray-950 shadow-2xl">
 
-      {/* ── Page layout ── */}
-      <div className="relative z-10 w-full min-h-screen flex flex-col lg:flex-row">
-
-        {/* ── Left: Branding — text fixed at bottom, synced with images ── */}
-        <div className="hidden lg:flex flex-1 flex-col justify-between p-10 xl:p-14">
-
-          {/* Top: Logo */}
-          <div className="inline-block p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 self-start">
-            <Logo variant="full" size="md" />
-          </div>
-
-          {/* Bottom: Per-slide text + dots */}
-          <div className="space-y-6">
-            {/* Text container — fixed height, crossfade in place */}
-            <div className="relative h-32">
-              {SLIDES.map((slide, i) => (
-                <div
-                  key={i}
-                  className={`absolute inset-0 flex flex-col gap-2 transition-all duration-[1000ms] ease-out ${
-                    i === current
-                      ? "opacity-100 translate-y-0"
-                      : "opacity-0 translate-y-5 pointer-events-none"
-                  }`}
-                >
-                  <p className="text-[10px] font-black tracking-[0.35em] uppercase text-[#9CCB3B] drop-shadow-sm">
-                    {slide.eyebrow}
-                  </p>
-                  <h2 className="text-4xl xl:text-5xl font-extrabold text-white leading-tight tracking-tight drop-shadow-lg">
-                    {slide.heading}{" "}
-                    <span className="italic text-[#9CCB3B] drop-shadow-[0_2px_12px_rgba(156,203,59,0.55)]">{slide.highlight}</span>
-                  </h2>
-                </div>
-              ))}
-            </div>
-
-            {/* Slide dots */}
-            <div className="flex gap-2 items-center">
-              {SLIDES.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrent(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`rounded-full transition-all duration-500 ${
-                    i === current
-                      ? "w-6 h-1.5 bg-white"
-                      : "w-1.5 h-1.5 bg-white/30 hover:bg-white/60"
-                  }`}
-                />
-              ))}
-            </div>
+        {/* Mobile logo */}
+        <div className="lg:hidden flex justify-center pt-10 pb-2">
+          <div className="relative w-48 h-14">
+            <Image src="/fulllogo.png" alt="Poornasree AI" fill className="object-contain" priority />
           </div>
         </div>
 
-        {/* ── Right: Auth form — full height, right-aligned ── */}
-        <div className="lg:w-[420px] xl:w-[460px] min-h-screen flex flex-col bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl lg:border-l border-white/15 dark:border-white/10 shadow-2xl">
-
-          {/* Form — vertically centered */}
-          <div className="flex-1 flex items-center justify-center px-8 sm:px-10">
-            <div className="w-full max-w-[380px]">
-              {children}
-            </div>
+        {/* Form — vertically centered */}
+        <div className="flex-1 flex items-center justify-center px-8 sm:px-10">
+          <div className="w-full max-w-[380px]">
+            {children}
           </div>
+        </div>
 
-          {/* Footer spacer */}
-          <div className="pb-8" />
+        {/* Footer */}
+        <div className="pb-6 text-center">
+          <p className="text-[10px] text-gray-400 tracking-wide">
+            © 2025 Pydart Intellicom Pvt. Ltd.
+          </p>
         </div>
       </div>
     </div>
