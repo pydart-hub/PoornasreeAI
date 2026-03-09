@@ -141,7 +141,6 @@ export default function ServiceDashboard() {
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [_escalated, setEscalated] = useState<Set<string>>(new Set());
 
   // ── Support Queue state (new) ──────────────────────────────────────
   const [mainView, setMainView] = useState<"chats" | "queue">("chats");
@@ -449,13 +448,6 @@ export default function ServiceDashboard() {
     if (!activeId) return;
     setStatuses((prev) => ({ ...prev, [activeId]: "resolved" }));
     addToast("Conversation marked as resolved.", "success");
-  };
-
-  const _handleEscalate = () => {
-    if (!activeId) return;
-    setEscalated((prev) => new Set(prev).add(activeId));
-    setStatuses((prev) => ({ ...prev, [activeId]: "in_progress" }));
-    addToast("Escalated to R&D team.", "info");
   };
 
   const handleLogout = async () => {
