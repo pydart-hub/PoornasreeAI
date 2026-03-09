@@ -26,6 +26,9 @@ import {
   Headphones,
   CheckCircle2,
   X,
+  History,
+  Plus,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
@@ -59,6 +62,13 @@ interface SupportRequestState {
   problem: string;
   machineName?: string;
   engineer?: { id: string; firstName: string; lastName?: string } | null;
+}
+
+interface ConversationHistoryItem {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+  messages: { id: string; role: string; content: string; createdAt: string }[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,6 +220,24 @@ export default function CustomerChatPage() {
   const [supportFormMachine, setSupportFormMachine] = useState("");
   const [supportSubmitting, setSupportSubmitting] = useState(false);
   const [unreadSupport, setUnreadSupport] = useState(0);
+
+  // ── Translation state ──────────────────────────────────────────────────────
+  const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState(false);
+  const translationCacheRef = useRef<Record<string, Record<string, string>>>({});
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const prevLangRef = useRef<string>('en');
+
+  // ── History sidebar ────────────────────────────────────────────────────────
+  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<ConversationHistoryItem[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // ── Draggable support widget ───────────────────────────────────────────────
+  const [supportPos, setSupportPos] = useState({ x: 0, y: 0 });
+  const supportDragData = useRef<{ origX: number; origY: number; mouseX: number; mouseY: number } | null>(null);
+  const isDraggingWidget = useRef(false);
+
   const showSupportPanelRef = useRef(false);
 
   const endRef     = useRef<HTMLDivElement>(null);
@@ -229,6 +257,16 @@ export default function CustomerChatPage() {
     return data.conversation.id as string;
   };
 
+  const loadConversationHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/conversations', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setConversationHistory(data.conversations || []);
+      }
+    } catch { /* non-fatal */ }
+  }, []); // eslint-disable-line
+
   // Redirect if not authenticated or not customer
   useEffect(() => {
     if (!isLoading) {
@@ -236,8 +274,9 @@ export default function CustomerChatPage() {
       if (user.role !== "customer") { router.replace("/"); return; }
       setMessages([makeWelcome(user.firstName)]);
       createConversation().catch(console.error);
+      loadConversationHistory().catch(console.error);
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, loadConversationHistory]); // eslint-disable-line
 
   // ── Socket.IO: engineer presence + support events ────────────────────────
   useEffect(() => {
@@ -297,6 +336,39 @@ export default function CustomerChatPage() {
     } catch { /* non-fatal */ }
   }, []);
 
+  // ── Translation function ──────────────────────────────────────────────────────
+  const translateText = useCallback(async (text: string, targetLang: string): Promise<string> => {
+    if (targetLang === 'en' || !text.trim()) return text;
+    if (translationCacheRef.current[targetLang]?.[text]) return translationCacheRef.current[targetLang][text];
+    try {
+      const chunks: string[] = [];
+      let rem = text;
+      while (rem.length > 0) { chunks.push(rem.slice(0, 490)); rem = rem.slice(490); }
+      const parts = await Promise.all(chunks.map(async (ch) => {
+        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=en|${targetLang}`);
+        const d = await res.json();
+        return (d.responseData?.translatedText as string) || ch;
+      }));
+      const result = parts.join('');
+      if (!translationCacheRef.current[targetLang]) translationCacheRef.current[targetLang] = {};
+      translationCacheRef.current[targetLang][text] = result;
+      return result;
+    } catch { return text; }
+  }, []); // eslint-disable-line
+
+  // ── Select conversation from history ───────────────────────────────────────────────
+  const selectConversation = useCallback((conv: ConversationHistoryItem) => {
+    const msgs: ChatMessage[] = conv.messages.map((m) => ({
+      id: m.id,
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+    setMessages(msgs.length > 0 ? msgs : [makeWelcome(user?.firstName ?? 'there')]);
+    setConversationId(conv.id);
+    setTranslatedContent({});
+    setHistorySidebarOpen(false);
+  }, []); // eslint-disable-line
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
@@ -353,8 +425,10 @@ export default function CustomerChatPage() {
       setSupportRequest(null);
       setSupportMessages([]);
       setShowSupportPanel(false);
+      setTranslatedContent({});
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       createConversation().catch(console.error);
+      loadConversationHistory().catch(console.error);
     }
   };
 
@@ -450,14 +524,131 @@ export default function CustomerChatPage() {
     synth.speak(utt);
   };
 
+  // Keep messages ref current for language translation effect
+  messagesRef.current = messages;
+
+  // ── Mobile detection ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // ── Language change → translate all existing assistant messages ─────────────────
+  useEffect(() => {
+    if (prevLangRef.current === language) return;
+    prevLangRef.current = language;
+    if (language === 'en') { setTranslatedContent({}); return; }
+    const toTranslate = messagesRef.current.filter((m) => m.role === 'assistant' && m.content);
+    if (!toTranslate.length) return;
+    setTranslating(true);
+    Promise.all(toTranslate.map(async (m) => {
+      const t = await translateText(m.content, language);
+      return [m.id, t] as [string, string];
+    })).then((pairs) => {
+      setTranslatedContent(Object.fromEntries(pairs));
+      setTranslating(false);
+    }).catch(() => setTranslating(false));
+  }, [language, translateText]); // eslint-disable-line
+
+  // ── Drag: attach global mouse/touch move listeners ────────────────────────────
+  useEffect(() => {
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!supportDragData.current) return;
+      const pt = 'touches' in e ? (e as TouchEvent).touches[0] : (e as MouseEvent);
+      const dx = pt.clientX - supportDragData.current.mouseX;
+      const dy = pt.clientY - supportDragData.current.mouseY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isDraggingWidget.current = true;
+      setSupportPos({ x: supportDragData.current.origX + dx, y: supportDragData.current.origY + dy });
+    };
+    const onUp = () => { supportDragData.current = null; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, []); // eslint-disable-line
+
   if (isLoading) return <LoadingScreen message="Loading your portal…" />;
   if (!user) return null;
 
   return (
-    <div className="h-screen flex flex-col bg-surface dark:bg-surface-dark overflow-hidden">
+    <div className="h-screen flex bg-surface dark:bg-surface-dark overflow-hidden">
+
+      {/* ── History Sidebar overlay (mobile) ── */}
+      {historySidebarOpen && isMobile && (
+        <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setHistorySidebarOpen(false)} />
+      )}
+
+      {/* ── History Sidebar ── */}
+      <aside className={cn(
+        "flex flex-col bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 z-40 overflow-hidden",
+        isMobile
+          ? cn("fixed inset-y-0 left-0 w-72 shadow-2xl", historySidebarOpen ? "translate-x-0" : "-translate-x-full")
+          : cn("relative shrink-0", historySidebarOpen ? "w-64" : "w-0")
+      )}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0" style={{ minWidth: "16rem" }}>
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
+            <span className="text-sm font-semibold text-content dark:text-content-dark">Chat History</span>
+          </div>
+          <button onClick={() => setHistorySidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+            <X className="w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
+          </button>
+        </div>
+        <div className="p-3 shrink-0" style={{ minWidth: "16rem" }}>
+          <button
+            onClick={() => { handleReset(); setHistorySidebarOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-line dark:border-line-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover text-content dark:text-content-dark text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Chat
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 py-1 scrollbar-thin" style={{ minWidth: "16rem" }}>
+          {conversationHistory.length === 0 ? (
+            <div className="flex flex-col items-center py-12 px-4 text-center gap-3">
+              <MessageSquare className="w-8 h-8 text-content-secondary/30 dark:text-content-dark-secondary/30" />
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">No previous chats yet</p>
+            </div>
+          ) : (
+            conversationHistory.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => selectConversation(conv)}
+                className={cn(
+                  "w-full text-left px-3 py-2.5 rounded-lg text-xs transition-colors mb-0.5 flex items-center gap-2",
+                  conversationId === conv.id
+                    ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300"
+                    : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                )}
+              >
+                <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                <span className="truncate flex-1">{conv.title || "Untitled Chat"}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* ── Main content area ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="shrink-0 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+        <button
+          onClick={() => setHistorySidebarOpen((v) => !v)}
+          className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
+          title="Chat History"
+        >
+          <History className="w-5 h-5" />
+        </button>
         <Logo variant="full" size="sm" className="hidden sm:flex" />
         <Logo variant="icon" size="sm" className="flex sm:hidden" />
 
@@ -498,7 +689,7 @@ export default function CustomerChatPage() {
           >
             <Globe className="w-3.5 h-3.5" />
             {LANGUAGES.find((l) => l.code === language)?.flag}{" "}
-            {LANGUAGES.find((l) => l.code === language)?.label}
+            {translating ? <span className="animate-pulse">…</span> : LANGUAGES.find((l) => l.code === language)?.label}
           </button>
           {langMenuOpen && (
             <>
@@ -576,6 +767,7 @@ export default function CustomerChatPage() {
               youtubeQuery={youtubeResults[msg.id]}
               speakingId={speakingId}
               onSpeak={handleSpeak}
+              translatedContent={translatedContent[msg.id]}
             />
           ))}
 
@@ -642,11 +834,15 @@ export default function CustomerChatPage() {
           </p>
         </div>
       </footer>
+      </div>{/* end main content */}
 
       {/* ── Floating Support Widget ─────────────────────────────────────────
           Fixed bottom-right — standard live-chat widget pattern.
           Launcher button always visible; panel opens above it.              */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div
+        className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 touch-none select-none"
+        style={{ transform: `translate(${supportPos.x}px, ${supportPos.y}px)` }}
+      >
 
         {/* ── Panel ────────────────────────────────────────────────────────── */}
         {showSupportPanel && (
@@ -833,12 +1029,20 @@ export default function CustomerChatPage() {
 
         {/* ── Launcher button ───────────────────────────────────────────────── */}
         <button
-          onClick={() => setShowSupportPanel((v) => !v)}
+          onClick={() => { if (!isDraggingWidget.current) setShowSupportPanel((v) => !v); }}
+          onMouseDown={(e) => {
+            isDraggingWidget.current = false;
+            supportDragData.current = { origX: supportPos.x, origY: supportPos.y, mouseX: e.clientX, mouseY: e.clientY };
+          }}
+          onTouchStart={(e) => {
+            isDraggingWidget.current = false;
+            supportDragData.current = { origX: supportPos.x, origY: supportPos.y, mouseX: e.touches[0].clientX, mouseY: e.touches[0].clientY };
+          }}
           className={cn(
-            "relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95",
+            "relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-colors duration-200 cursor-grab active:cursor-grabbing",
             showSupportPanel ? "bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
           )}
-          title={supportRequest ? "Open support chat" : "Contact service engineer"}
+          title="Drag to move · Click to open support"
         >
           <Headphones className="w-6 h-6 text-white" />
 
@@ -877,6 +1081,7 @@ function MessageBubble({
   youtubeQuery,
   speakingId,
   onSpeak,
+  translatedContent,
 }: {
   msg: ChatMessage;
   liked: boolean | null | undefined;
@@ -884,6 +1089,7 @@ function MessageBubble({
   youtubeQuery?: string;
   speakingId: string | null;
   onSpeak: (msgId: string, text: string) => void;
+  translatedContent?: string;
 }) {
   if (msg.role === "user") {
     return (
@@ -914,7 +1120,7 @@ function MessageBubble({
         {/* Main text bubble */}
         <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-sm">
           <p className="text-sm text-content dark:text-content-dark whitespace-pre-line leading-relaxed">
-            {msg.content.replace(/\*\*(.*?)\*\*/g, "$1")}
+            {(translatedContent || msg.content).replace(/\*\*(.*?)\*\*/g, "$1")}
           </p>
         </div>
 
@@ -970,7 +1176,7 @@ function MessageBubble({
           {/* Audio TTS button */}
           {msg.id !== "welcome" && (
             <button
-              onClick={() => onSpeak(msg.id, msg.content)}
+              onClick={() => onSpeak(msg.id, translatedContent || msg.content)}
               className={cn(
                 "p-1.5 rounded-lg transition-colors ml-1",
                 isSpeaking
