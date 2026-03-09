@@ -24,8 +24,8 @@ import {
   Globe,
   Youtube,
   Headphones,
-  ChevronDown,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
@@ -209,6 +209,8 @@ export default function CustomerChatPage() {
   const [supportFormProblem, setSupportFormProblem] = useState("");
   const [supportFormMachine, setSupportFormMachine] = useState("");
   const [supportSubmitting, setSupportSubmitting] = useState(false);
+  const [unreadSupport, setUnreadSupport] = useState(0);
+  const showSupportPanelRef = useRef(false);
 
   const endRef     = useRef<HTMLDivElement>(null);
   const supportEndRef = useRef<HTMLDivElement>(null);
@@ -251,16 +253,14 @@ export default function CustomerChatPage() {
       setSupportRequest((prev) =>
         prev?.id === requestId ? { ...prev, status: "active", engineer } : prev
       );
-      if (supportRequest?.id === requestId) {
-        sock.emit("support:join", requestId);
-        loadSupportMessages(requestId);
-      }
+      // Auto-open the chat panel so the customer knows they've been connected
+      setShowSupportPanel(true);
     });
 
-    sock.on("chat:message", ({ requestId, message }: { requestId: string; message: SupportMessageItem }) => {
-      if (supportRequest?.id === requestId) {
-        setSupportMessages((prev) => [...prev, message]);
-      }
+    sock.on("chat:message", ({ message }: { requestId: string; message: SupportMessageItem }) => {
+      // Server delivers only to this client's room — no requestId guard needed
+      setSupportMessages((prev) => [...prev, message]);
+      if (!showSupportPanelRef.current) setUnreadSupport((c) => c + 1);
     });
 
     sock.on("request:resolved", ({ requestId }: { requestId: string }) => {
@@ -304,6 +304,12 @@ export default function CustomerChatPage() {
   useEffect(() => {
     supportEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [supportMessages]);
+
+  // Keep ref in sync with state so socket handlers can read it without stale closure
+  useEffect(() => {
+    showSupportPanelRef.current = showSupportPanel;
+    if (showSupportPanel) setUnreadSupport(0);
+  }, [showSupportPanel]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -604,183 +610,232 @@ export default function CustomerChatPage() {
           </button>
         </form>
 
-        {/* Contact Service Engineer button (Feature 1) */}
-        <div className="max-w-2xl mx-auto mt-2 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto mt-2">
           <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
             Poornasree AI · v1.0
           </p>
-          {!supportRequest && (
-            <button
-              onClick={() => setShowSupportPanel((v) => !v)}
-              className={cn(
-                "flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-colors",
-                showSupportPanel
-                  ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
-                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Headphones className="w-3.5 h-3.5" />
-              Contact Service Engineer
-              <ChevronDown className={cn("w-3 h-3 transition-transform", showSupportPanel && "-rotate-180")} />
-            </button>
-          )}
-          {supportRequest && (
-            <button
-              onClick={() => setShowSupportPanel((v) => !v)}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-colors bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
-            >
-              <Headphones className="w-3.5 h-3.5" />
-              Support Chat
-              {supportRequest.status === "pending" && <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse ml-1" />}
-              {supportRequest.status === "active" && <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse ml-1" />}
-              <ChevronDown className={cn("w-3 h-3 transition-transform", showSupportPanel && "-rotate-180")} />
-            </button>
-          )}
         </div>
+      </footer>
 
-        {/* ── Support Panel ───────────────────────────────────────────────── */}
+      {/* ── Floating Support Widget ─────────────────────────────────────────
+          Fixed bottom-right — standard live-chat widget pattern.
+          Launcher button always visible; panel opens above it.              */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+
+        {/* ── Panel ────────────────────────────────────────────────────────── */}
         {showSupportPanel && (
-          <div className="max-w-2xl mx-auto mt-3 rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-blue-50/50 dark:bg-blue-500/5 overflow-hidden">
+          <div className="w-80 sm:w-96 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col" style={{ maxHeight: 520 }}>
 
-            {/* No request yet — form */}
-            {!supportRequest && (
-              <div className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Headphones className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-semibold text-content dark:text-content-dark">Contact Service Engineer</span>
-                  </div>
-                  {!engineerOnline && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
-                      Engineers offline — will be queued
-                    </span>
-                  )}
-                  {engineerOnline && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-                      Engineer Online
-                    </span>
-                  )}
-                </div>
-                <textarea
-                  value={supportFormProblem}
-                  onChange={(e) => setSupportFormProblem(e.target.value)}
-                  placeholder="Describe your issue…"
-                  rows={2}
-                  className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                />
-                <input
-                  value={supportFormMachine}
-                  onChange={(e) => setSupportFormMachine(e.target.value)}
-                  placeholder="Machine / product name (optional)"
-                  className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                />
-                <button
-                  onClick={handleCreateSupportRequest}
-                  disabled={!supportFormProblem.trim() || supportSubmitting || !conversationId}
-                  className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {supportSubmitting ? "Submitting…" : "Submit Support Request"}
-                </button>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-700 to-blue-500">
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <Headphones className="w-4 h-4 text-white" />
               </div>
-            )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white leading-tight truncate">
+                  {supportRequest?.status === "active" && supportRequest.engineer
+                    ? `${supportRequest.engineer.firstName}${supportRequest.engineer.lastName ? " " + supportRequest.engineer.lastName : ""}`
+                    : "Service Support"}
+                </p>
+                <p className="text-[11px] text-blue-100 leading-tight mt-0.5">
+                  {supportRequest?.status === "active"
+                    ? "Connected · Service Engineer"
+                    : supportRequest?.status === "pending"
+                    ? "Waiting for an engineer…"
+                    : engineerOnline
+                    ? "Engineers available now"
+                    : "Leave a message — we'll respond"}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSupportPanel(false)}
+                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors shrink-0"
+                title="Close"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
 
-            {/* Pending — waiting for engineer */}
-            {supportRequest?.status === "pending" && (
-              <div className="p-4 flex flex-col items-center gap-3 text-center">
-                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-                  <Headphones className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-content dark:text-content-dark">Waiting for a service engineer…</p>
-                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
-                    Your request has been added to the queue.
-                    {!engineerOnline && " Engineers will respond when they come online."}
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto">
+
+              {/* No request — submission form */}
+              {!supportRequest && (
+                <div className="p-4 space-y-3">
+                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                    Describe your issue and a service engineer will assist you.
                   </p>
-                </div>
-                <div className="rounded-xl border border-line dark:border-line-dark p-3 text-left w-full bg-surface dark:bg-surface-dark">
-                  <p className="text-xs font-medium text-content dark:text-content-dark mb-0.5">Your issue:</p>
-                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{supportRequest.problem}</p>
-                  {supportRequest.machineName && (
-                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">Machine: {supportRequest.machineName}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Active — real-time chat */}
-            {supportRequest?.status === "active" && (
-              <div className="flex flex-col" style={{ maxHeight: 280 }}>
-                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-blue-200 dark:border-blue-500/30 bg-blue-100/50 dark:bg-blue-500/10">
-                  <Avatar name={`${supportRequest.engineer?.firstName ?? "E"} ${supportRequest.engineer?.lastName ?? ""}`} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-content dark:text-content-dark truncate">
-                      {supportRequest.engineer?.firstName} {supportRequest.engineer?.lastName ?? ""} — Service Engineer
-                    </p>
-                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400">Connected</p>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2" style={{ minHeight: 120, maxHeight: 160 }}>
-                  {supportMessages.length === 0 && (
-                    <p className="text-xs text-center text-content-secondary dark:text-content-dark-secondary py-4">
-                      Engineer connected. Start your conversation.
-                    </p>
-                  )}
-                  {supportMessages.map((m) => {
-                    const isMe = m.senderId === user?.id;
-                    return (
-                      <div key={m.id} className={cn("flex gap-2", isMe && "justify-end")}>
-                        {!isMe && <Avatar name={m.sender.firstName} size="sm" className="mt-0.5" />}
-                        <div className={cn(
-                          "max-w-[75%] px-3 py-1.5 rounded-xl text-xs leading-relaxed",
-                          isMe
-                            ? "bg-blue-600 text-white rounded-br-sm"
-                            : "bg-surface dark:bg-surface-dark text-content dark:text-content-dark border border-line dark:border-line-dark rounded-bl-sm"
-                        )}>
-                          {m.content}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={supportEndRef} />
-                </div>
-                <div className="flex gap-2 px-3 py-2 border-t border-blue-200 dark:border-blue-500/30">
+                  <textarea
+                    value={supportFormProblem}
+                    onChange={(e) => setSupportFormProblem(e.target.value)}
+                    placeholder="Describe your issue…"
+                    rows={3}
+                    className="w-full text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  />
                   <input
-                    value={supportInput}
-                    onChange={(e) => setSupportInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendSupportMessage()}
-                    placeholder="Message engineer…"
-                    className="flex-1 text-xs rounded-xl px-3 py-1.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none"
+                    value={supportFormMachine}
+                    onChange={(e) => setSupportFormMachine(e.target.value)}
+                    placeholder="Machine / product name (optional)"
+                    className="w-full text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   />
                   <button
-                    onClick={handleSendSupportMessage}
-                    disabled={!supportInput.trim() || supportSending}
-                    className="p-1.5 rounded-xl bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700 transition-colors"
+                    onClick={handleCreateSupportRequest}
+                    disabled={!supportFormProblem.trim() || supportSubmitting || !conversationId}
+                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <Send className="w-3.5 h-3.5" />
+                    {supportSubmitting ? "Submitting…" : "Start Support Chat"}
                   </button>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Resolved */}
-            {supportRequest?.status === "resolved" && (
-              <div className="p-4 flex flex-col items-center gap-2 text-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                <p className="text-sm font-semibold text-content dark:text-content-dark">Issue Resolved</p>
-                <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                  Your support request has been marked as resolved by the engineer.
-                </p>
+              {/* Pending — waiting for engineer */}
+              {supportRequest?.status === "pending" && (
+                <div className="p-6 flex flex-col items-center gap-4 text-center">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                      <Headphones className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 border-2 border-surface-card dark:border-surface-dark-card animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-content dark:text-content-dark">
+                      Connecting you to an engineer…
+                    </p>
+                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
+                      {engineerOnline
+                        ? "An engineer will accept your request shortly."
+                        : "Engineers are currently offline — your request has been queued."}
+                    </p>
+                  </div>
+                  <div className="w-full rounded-xl border border-line dark:border-line-dark p-3 text-left bg-surface dark:bg-surface-dark space-y-1">
+                    <p className="text-[11px] font-semibold text-content dark:text-content-dark">Your request:</p>
+                    <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary leading-relaxed">
+                      {supportRequest.problem}
+                    </p>
+                    {supportRequest.machineName && (
+                      <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary">
+                        Machine: <span className="font-medium">{supportRequest.machineName}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Active — real-time chat messages */}
+              {supportRequest?.status === "active" && (
+                <div className="px-3 py-3 space-y-2.5 overflow-y-auto" style={{ maxHeight: 320 }}>
+                  {supportMessages.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-10 text-center">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                        Engineer connected. Start your conversation.
+                      </p>
+                    </div>
+                  ) : (
+                    supportMessages.map((m) => {
+                      const isMe = m.senderId === user?.id;
+                      return (
+                        <div key={m.id} className={cn("flex gap-2", isMe && "justify-end")}>
+                          {!isMe && (
+                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                {m.sender.firstName[0].toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className={cn(
+                            "max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed",
+                            isMe
+                              ? "bg-blue-600 text-white rounded-br-sm"
+                              : "bg-surface dark:bg-surface-dark text-content dark:text-content-dark border border-line dark:border-line-dark rounded-bl-sm"
+                          )}>
+                            {m.content}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={supportEndRef} />
+                </div>
+              )}
+
+              {/* Resolved */}
+              {supportRequest?.status === "resolved" && (
+                <div className="p-6 flex flex-col items-center gap-3 text-center">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-content dark:text-content-dark">Issue Resolved!</p>
+                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
+                      Your support session has ended.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setSupportRequest(null); setShowSupportPanel(false); setSupportMessages([]); }}
+                    className="text-xs px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Chat input — only when active */}
+            {supportRequest?.status === "active" && (
+              <div className="flex gap-2 px-3 py-3 border-t border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
+                <input
+                  value={supportInput}
+                  onChange={(e) => setSupportInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendSupportMessage()}
+                  placeholder="Message engineer…"
+                  className="flex-1 text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
                 <button
-                  onClick={() => { setSupportRequest(null); setShowSupportPanel(false); setSupportMessages([]); }}
-                  className="text-xs px-3 py-1.5 rounded-xl border border-line dark:border-line-dark text-content-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                  onClick={handleSendSupportMessage}
+                  disabled={!supportInput.trim() || supportSending}
+                  className="p-2.5 rounded-xl bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700 transition-colors"
                 >
-                  Dismiss
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
             )}
           </div>
         )}
-      </footer>
+
+        {/* ── Launcher button ───────────────────────────────────────────────── */}
+        <button
+          onClick={() => setShowSupportPanel((v) => !v)}
+          className={cn(
+            "relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95",
+            showSupportPanel ? "bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
+          )}
+          title={supportRequest ? "Open support chat" : "Contact service engineer"}
+        >
+          <Headphones className="w-6 h-6 text-white" />
+
+          {/* Status dot */}
+          <span className={cn(
+            "absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white",
+            supportRequest?.status === "active"
+              ? "bg-emerald-400 animate-pulse"
+              : supportRequest?.status === "pending"
+              ? "bg-amber-400 animate-pulse"
+              : engineerOnline
+              ? "bg-emerald-400"
+              : "bg-gray-400"
+          )} />
+
+          {/* Unread badge */}
+          {unreadSupport > 0 && !showSupportPanel && (
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+              {unreadSupport > 9 ? "9+" : unreadSupport}
+            </span>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
