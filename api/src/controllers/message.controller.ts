@@ -42,10 +42,12 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     // ── Direct-response short-circuit (training.json intents) ──────────
     // If the best hit is a pre-indexed training intent with score ≥ 0.60,
     // return its stored response immediately — NO LLM call.
-    // This gives ChatGPT-like response speed for all known product issues.
+    // EXCEPTION: skip this bypass when a non-English language is requested
+    // so the LLM can translate the response into the target language.
+    const isTranslation = Boolean(language && language !== "en");
     const DIRECT_SCORE = 0.60;
     const topHit = relevantHits[0];
-    if (topHit.payload.directResponse === true && topHit.score >= DIRECT_SCORE) {
+    if (!isTranslation && topHit.payload.directResponse === true && topHit.score >= DIRECT_SCORE) {
       console.log(`[RAG] direct-hit: "${topHit.payload.tag}" score=${topHit.score.toFixed(3)} — skipping LLM`);
       return (topHit.payload.content as string) || "I couldn't find this information in the documentation.";
     }
@@ -79,20 +81,20 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
           "Provide up to 5 troubleshooting steps. Format: Step 1 -- <instruction>",
         ].join("\n");
 
-    const languageInstruction = language && language !== "en"
-      ? `\nIMPORTANT: Respond entirely in ${language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language}.`
+    const langName = language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language;
+    const languagePrefix = isTranslation
+      ? `CRITICAL INSTRUCTION: You MUST write your ENTIRE response in ${langName}. Do NOT use English. Every word must be in ${langName}.\n\n`
       : "";
 
     const prompt = [
-      roleInstruction,
-      languageInstruction,
+      languagePrefix + roleInstruction,
       "",
       "CONTEXT:",
       context,
       "",
       `QUESTION:\n${userQuery}`,
       "",
-      "ANSWER:",
+      isTranslation ? `ANSWER (in ${langName}):` : "ANSWER:",
     ].join("\n");
 
     // 4. Call Ollama chat â€” keep_alive prevents model unloading between requests
@@ -104,7 +106,7 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
         messages: [{ role: "user", content: prompt }],
         stream: false,
         keep_alive: "10m",
-        options: { num_ctx: 512, num_predict: 80, temperature: 0 },
+        options: { num_ctx: 512, num_predict: isTranslation ? 220 : 80, temperature: 0 },
       },
       { timeout: 300_000 }
     );

@@ -408,22 +408,69 @@ export default function CustomerChatPage() {
     }
   };
 
-  const handleSpeak = (msgId: string, text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
+  // Cancel speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleSpeak = useCallback((msgId: string, text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+
+    // Toggle off if already speaking this message
     if (speakingId === msgId) {
-      window.speechSynthesis.cancel();
+      synth.cancel();
       setSpeakingId(null);
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.replace(/\*\*(.*?)\*\*/g, "$1"));
-    const langMap: Record<string, string> = { en: "en-US", ml: "ml-IN", hi: "hi-IN" };
-    utterance.lang = langMap[language] || "en-US";
-    utterance.onend = () => setSpeakingId(null);
-    utterance.onerror = () => setSpeakingId(null);
+
+    synth.cancel();
     setSpeakingId(msgId);
-    window.speechSynthesis.speak(utterance);
-  };
+
+    const langMap: Record<string, string> = { en: "en-US", ml: "ml-IN", hi: "hi-IN" };
+    const targetLang = langMap[language] || "en-US";
+    const cleanText = text
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\n+/g, ". ")
+      .trim();
+
+    const doSpeak = () => {
+      const utt = new SpeechSynthesisUtterance(cleanText);
+      utt.lang = targetLang;
+      utt.rate = 0.92;
+
+      // Pick best available voice — exact lang, then base lang, then any English
+      const voices = synth.getVoices();
+      const picked =
+        voices.find((v) => v.lang === targetLang) ??
+        voices.find((v) => v.lang.startsWith(targetLang.split("-")[0])) ??
+        voices.find((v) => v.lang.startsWith("en")) ??
+        null;
+      if (picked) utt.voice = picked;
+
+      utt.onend = () => setSpeakingId(null);
+      utt.onerror = () => setSpeakingId(null);
+      synth.speak(utt);
+    };
+
+    // Chrome loads voices asynchronously — wait if list is empty
+    const voices = synth.getVoices();
+    if (voices.length > 0) {
+      // Small delay so cancel() fully completes before speak()
+      setTimeout(doSpeak, 60);
+    } else {
+      const onVoicesChanged = () => {
+        synth.removeEventListener("voiceschanged", onVoicesChanged);
+        setTimeout(doSpeak, 60);
+      };
+      synth.addEventListener("voiceschanged", onVoicesChanged);
+    }
+  }, [language, speakingId]);
+
   if (isLoading) return <LoadingScreen message="Loading your portal…" />;
   if (!user) return null;
 

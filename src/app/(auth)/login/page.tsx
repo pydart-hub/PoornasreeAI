@@ -50,25 +50,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative w-full select-none">
+    <div className="relative w-full select-none overflow-hidden">
 
       {/* ── Animated background orbs ── */}
       <FloatingOrb
-        className="w-64 h-64 bg-blue-400 animate-float-a -top-16 -right-16"
+        className="w-32 h-32 sm:w-64 sm:h-64 bg-blue-400 animate-float-a -top-8 -right-8 sm:-top-16 sm:-right-16"
       />
       <FloatingOrb
-        className="w-48 h-48 bg-green-400 animate-float-b -bottom-8 -left-12"
+        className="w-24 h-24 sm:w-48 sm:h-48 bg-green-400 animate-float-b -bottom-4 -left-6 sm:-bottom-8 sm:-left-12"
       />
       <FloatingOrb
-        className="w-32 h-32 bg-purple-400 animate-float-c top-1/2 left-1/2 -translate-x-1/2"
+        className="w-20 h-20 sm:w-32 sm:h-32 bg-purple-400 animate-float-c top-1/2 left-1/2 -translate-x-1/2"
       />
 
       {/* ── Brand header ── */}
-      <div className="animate-fade-up delay-100 mb-7">
+      <div className="animate-fade-up delay-100 mb-5 sm:mb-7">
         <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
           Welcome back
         </p>
-        <h2 className="text-2xl font-extrabold text-gray-800 dark:text-white leading-tight">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-800 dark:text-white leading-tight">
           Sign in to{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2B5F9E] to-[#9CCB3B]">
             Poornasree AI
@@ -195,7 +195,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Trust badges ── */}
-      <div className="animate-fade-up delay-600 mt-4 flex justify-center gap-4">
+      <div className="animate-fade-up delay-600 mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
         {["End-to-end encrypted", "JWT auth", "Role-based access"].map((badge) => (
           <span
             key={badge}

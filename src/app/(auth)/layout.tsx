@@ -83,17 +83,18 @@ export default function AuthLayout({
       </div>
 
       {/* ── Right: Auth form ── */}
-      <div className="w-full lg:w-[440px] xl:w-[480px] min-h-screen flex flex-col bg-white dark:bg-gray-950 shadow-2xl">
+      <div className="w-full lg:w-[440px] xl:w-[480px] min-h-screen flex flex-col bg-white dark:bg-gray-950 shadow-2xl overflow-y-auto">
 
-        {/* Mobile logo */}
-        <div className="lg:hidden flex justify-center pt-10 pb-2">
-          <div className="relative w-48 h-14">
+        {/* Mobile logo — gradient header strip */}
+        <div className="lg:hidden flex flex-col items-center pt-8 pb-5 px-6 bg-gradient-to-b from-[#0c2147]/[0.06] to-transparent">
+          <div className="relative w-44 h-12 sm:w-52 sm:h-14">
             <Image src="/fulllogo.png" alt="Poornasree AI" fill className="object-contain" priority />
           </div>
+          <p className="mt-2 text-[9px] font-bold tracking-[0.3em] uppercase text-[#2B5F9E]/70">AI‑Powered Support Portal</p>
         </div>
 
         {/* Form — vertically centered */}
-        <div className="flex-1 flex items-center justify-center px-8 sm:px-10">
+        <div className="flex-1 flex items-center justify-center px-5 sm:px-8 lg:px-10 py-4">
           <div className="w-full max-w-[380px]">
             {children}
           </div>
