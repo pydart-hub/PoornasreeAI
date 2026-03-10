@@ -83,7 +83,7 @@ export default function AuthLayout({
       </div>
 
       {/* ── Right: Auth form ── */}
-      <div className="w-full lg:w-[440px] xl:w-[480px] min-h-screen flex flex-col bg-white dark:bg-gray-950 shadow-2xl overflow-y-auto">
+      <div className="w-full lg:w-[560px] xl:w-[620px] min-h-screen flex flex-col bg-white dark:bg-gray-950 shadow-2xl overflow-y-auto">
 
         {/* Mobile logo — gradient header strip */}
         <div className="lg:hidden flex flex-col items-center pt-8 pb-5 px-6 bg-gradient-to-b from-[#0c2147]/[0.06] to-transparent">
@@ -94,8 +94,8 @@ export default function AuthLayout({
         </div>
 
         {/* Form — vertically centered */}
-        <div className="flex-1 flex items-center justify-center px-5 sm:px-8 lg:px-10 py-4">
-          <div className="w-full">
+        <div className="flex-1 flex items-center justify-center px-6 sm:px-10 lg:px-12 py-4">
+          <div className="w-full max-w-[480px]">
             {children}
           </div>
         </div>
