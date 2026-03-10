@@ -218,6 +218,7 @@ export default function CustomerChatPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // ── Translation state ──────────────────────────────────────────────────────
   const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
@@ -484,31 +485,28 @@ export default function CustomerChatPage() {
   // Preload voices on mount so they're ready before the user clicks speak
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.getVoices();
-    const onReady = () => window.speechSynthesis.getVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", onReady);
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length) voicesRef.current = v;
+    };
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
     return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", onReady);
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
       window.speechSynthesis.cancel();
     };
   }, []);
 
-  // speak() — uses Google TTS audio for languages without a native browser voice
+  // speak() — uses our backend TTS proxy for Indian languages without native browser voices
   const handleSpeak = (msgId: string, text: string) => {
     if (typeof window === "undefined") return;
 
-    // Stop any currently playing HTML Audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    // Stop any currently playing audio
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
-    // Clicking the same message again stops playback
-    if (speakingId === msgId) {
-      setSpeakingId(null);
-      return;
-    }
+    // Toggle off if same message clicked again
+    if (speakingId === msgId) { setSpeakingId(null); return; }
 
     const cleanText = text
       .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -518,16 +516,20 @@ export default function CustomerChatPage() {
     if (!cleanText) return;
 
     const bcp47 = LANG_BCP47[language] || "en-US";
-    const isoLang = bcp47.split("-")[0]; // e.g. "mr", "bn", "te", "hi"
+    const isoLang = bcp47.split("-")[0]; // "mr", "bn", "te", "hi", "en"
 
-    // Check whether the browser has a native voice for this language
-    const voices = ("speechSynthesis" in window) ? window.speechSynthesis.getVoices() : [];
-    const nativeVoice = voices.find(v => v.lang.toLowerCase().startsWith(isoLang.toLowerCase()));
+    // Check if browser has a native voice for this language
+    const voices = voicesRef.current.length
+      ? voicesRef.current
+      : ("speechSynthesis" in window ? window.speechSynthesis.getVoices() : []);
+    const nativeVoice =
+      voices.find(v => v.lang === bcp47) ||
+      voices.find(v => v.lang.toLowerCase().startsWith(isoLang.toLowerCase()));
 
     if (!nativeVoice) {
-      // Fallback: Google Translate TTS audio (works for all Indian languages)
-      const chunk = cleanText.slice(0, 500); // TTS API limit
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${isoLang}&client=gtx`;
+      // Fallback: our backend TTS proxy (Google TTS server-side, avoids CORS)
+      const chunk = cleanText.slice(0, 500);
+      const url = `/api/tts?lang=${isoLang}&text=${encodeURIComponent(chunk)}`;
       const audio = new Audio(url);
       audioRef.current = audio;
       setSpeakingId(msgId);
