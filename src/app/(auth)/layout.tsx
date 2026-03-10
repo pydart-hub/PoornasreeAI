@@ -95,7 +95,7 @@ export default function AuthLayout({
 
         {/* Form — vertically centered */}
         <div className="flex-1 flex items-center justify-center px-5 sm:px-8 lg:px-10 py-4">
-          <div className="w-full max-w-[380px]">
+          <div className="w-full">
             {children}
           </div>
         </div>
