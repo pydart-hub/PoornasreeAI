@@ -334,7 +334,7 @@ export default function CustomerChatPage() {
     } catch { /* non-fatal */ }
   }, []);
 
-  // ── Translation function ──────────────────────────────────────────────────────
+  // ── Translation function (en→target) ─────────────────────────────────────────
   const translateText = useCallback(async (text: string, targetLang: string): Promise<string> => {
     if (targetLang === 'en' || !text.trim()) return text;
     if (translationCacheRef.current[targetLang]?.[text]) return translationCacheRef.current[targetLang][text];
@@ -351,6 +351,22 @@ export default function CustomerChatPage() {
       if (!translationCacheRef.current[targetLang]) translationCacheRef.current[targetLang] = {};
       translationCacheRef.current[targetLang][text] = result;
       return result;
+    } catch { return text; }
+  }, []); // eslint-disable-line
+
+  // ── Translate non-English text TO English (for AI query) ─────────────────────
+  const translateToEnglish = useCallback(async (text: string, sourceLang: string): Promise<string> => {
+    if (sourceLang === 'en' || !text.trim()) return text;
+    try {
+      const chunks: string[] = [];
+      let rem = text;
+      while (rem.length > 0) { chunks.push(rem.slice(0, 490)); rem = rem.slice(490); }
+      const parts = await Promise.all(chunks.map(async (ch) => {
+        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=${sourceLang}|en`);
+        const d = await res.json();
+        return (d.responseData?.translatedText as string) || ch;
+      }));
+      return parts.join('');
     } catch { return text; }
   }, []); // eslint-disable-line
 
@@ -389,14 +405,16 @@ export default function CustomerChatPage() {
     setIsTyping(true);
     try {
       const convId = conversationId ?? await createConversation();
-      const answer = await sendMessageToAI(convId, text.trim(), language, selectedProduct);
+      // Translate the query to English so the AI (trained on English docs) understands it
+      const englishQuery = language !== 'en' ? await translateToEnglish(text.trim(), language) : text.trim();
+      const answer = await sendMessageToAI(convId, englishQuery, language, selectedProduct);
       const botId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
         { id: botId, role: "assistant", content: answer },
       ]);
       // Store YouTube search query for this response
-      setYoutubeResults((prev) => ({ ...prev, [botId]: text.trim() }));
+      setYoutubeResults((prev) => ({ ...prev, [botId]: englishQuery }));
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -820,7 +838,10 @@ export default function CustomerChatPage() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               recog.onresult = (e: any) => {
                 const transcript = e.results[0]?.[0]?.transcript ?? "";
-                if (transcript) setInput((prev: string) => (prev ? prev + " " : "") + transcript);
+                if (transcript) {
+                  // Auto-submit: set input and send immediately
+                  sendMessage(transcript);
+                }
               };
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               recog.onerror = (e: any) => {

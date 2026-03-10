@@ -98,7 +98,10 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
 
     // Step 2: Translate if non-English (focused second LLM call)
     if (isTranslation) {
-      const langName = language === "ml" ? "Malayalam" : language === "hi" ? "Hindi" : language;
+      const langNames: Record<string, string> = {
+        hi: "Hindi", mr: "Marathi", bn: "Bengali", te: "Telugu", ml: "Malayalam",
+      };
+      const langName = langNames[language ?? ""] || language;
       const translationPrompt = `Translate the following text to ${langName}.\nOutput ONLY the ${langName} translation. Do not include any English.\n\nText:\n${englishAnswer}\n\n${langName}:`;
       try {
         const t3 = Date.now();
