@@ -33,7 +33,7 @@ export default function AuthLayout({
         </div>
 
         {/* Glass card containing the form */}
-        <div className="rounded-3xl bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl shadow-2xl border border-white/20 px-6 sm:px-8 py-8">
+        <div className="rounded-3xl bg-white/10 dark:bg-white/5 backdrop-blur-xl shadow-2xl border border-white/20 px-6 sm:px-8 py-8">
           {children}
         </div>
 

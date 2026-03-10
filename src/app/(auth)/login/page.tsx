@@ -68,13 +68,13 @@ export default function LoginPage() {
         <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
           Welcome back
         </p>
-        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-800 dark:text-white leading-tight">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight">
           Sign in to{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2B5F9E] to-[#9CCB3B]">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7eb8ff] to-[#9CCB3B]">
             Poornasree AI
           </span>
         </h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+        <p className="text-xs text-white/60 mt-0.5">
           Technical Support Assistant Portal
         </p>
       </div>
@@ -92,7 +92,7 @@ export default function LoginPage() {
 
         {/* Email field */}
         <div className="animate-fade-up delay-200 space-y-1.5">
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 tracking-wide">
+          <label className="block text-xs font-semibold text-white/80 tracking-wide">
             Email address
           </label>
           <div
@@ -107,16 +107,16 @@ export default function LoginPage() {
             </span>
             <input
               type="email"
-              placeholder="admin@poornasree.com"
+              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onFocus={() => setFocusedField("email")}
               onBlur={() => setFocusedField(null)}
               autoComplete="email"
               required
-              className="w-full py-3.5 px-3 text-sm bg-transparent text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none"
+              className="w-full py-3.5 px-3 text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
             />
-            {/* Active indicator dot */}
+            {/* Active indicator dot */
             {email && (
               <span className="mr-4 w-2 h-2 rounded-full bg-[#9CCB3B] animate-pulse-ring shrink-0" />
             )}
@@ -125,7 +125,7 @@ export default function LoginPage() {
 
         {/* Password field */}
         <div className="animate-fade-up delay-300 space-y-1.5">
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 tracking-wide">
+          <label className="block text-xs font-semibold text-white/80 tracking-wide">
             Password
           </label>
           <div
@@ -140,14 +140,14 @@ export default function LoginPage() {
             </span>
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setFocusedField("password")}
               onBlur={() => setFocusedField(null)}
               autoComplete="current-password"
               required
-              className="w-full py-3.5 px-3 text-sm bg-transparent text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none"
+              className="w-full py-3.5 px-3 text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
             />
             <button
               type="button"
@@ -187,25 +187,7 @@ export default function LoginPage() {
         </div>
       </form>
 
-      {/* ── Bottom divider ── */}
-      <div className="animate-fade-up delay-500 mt-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300/60 dark:via-white/10 to-transparent" />
-        <span className="text-[10px] font-medium text-gray-400 tracking-widest uppercase">Secure login</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300/60 dark:via-white/10 to-transparent" />
-      </div>
 
-      {/* ── Trust badges ── */}
-      <div className="animate-fade-up delay-600 mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
-        {["End-to-end encrypted", "JWT auth", "Role-based access"].map((badge) => (
-          <span
-            key={badge}
-            className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1"
-          >
-            <span className="w-1 h-1 rounded-full bg-[#9CCB3B]" />
-            {badge}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
