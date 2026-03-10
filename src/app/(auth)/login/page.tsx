@@ -116,7 +116,7 @@ export default function LoginPage() {
               required
               className="w-full py-3.5 px-3 text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
             />
-            {/* Active indicator dot */
+            {/* Active indicator dot */}
             {email && (
               <span className="mr-4 w-2 h-2 rounded-full bg-[#9CCB3B] animate-pulse-ring shrink-0" />
             )}
