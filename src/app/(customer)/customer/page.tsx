@@ -218,7 +218,6 @@ export default function CustomerChatPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // ── Translation state ──────────────────────────────────────────────────────
   const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
@@ -426,7 +425,6 @@ export default function CustomerChatPage() {
       setShowSupportPanel(false);
       setTranslatedContent({});
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       createConversation().catch(console.error);
       loadConversationHistory().catch(console.error);
     }
@@ -482,74 +480,37 @@ export default function CustomerChatPage() {
     }
   };
 
-  // Preload voices on mount so they're ready before the user clicks speak
+  // ── TTS: stop any audio if user unmounts ─────────────────────────────────
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const loadVoices = () => {
-      const v = window.speechSynthesis.getVoices();
-      if (v.length) voicesRef.current = v;
-    };
-    loadVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
-    return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
-      window.speechSynthesis.cancel();
-    };
+    return () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } };
   }, []);
 
-  // speak() — uses our backend TTS proxy for Indian languages without native browser voices
+  // speak() — ONE system: always uses the /api/tts backend proxy (node-gtts).
+  // Works for ALL Indian languages (en/hi/mr/bn/te) consistently across all browsers.
   const handleSpeak = (msgId: string, text: string) => {
     if (typeof window === "undefined") return;
 
-    // Stop any currently playing audio
+    // Stop current audio
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
-    // Toggle off if same message clicked again
+    // Toggle off if same message
     if (speakingId === msgId) { setSpeakingId(null); return; }
 
     const cleanText = text
       .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/[#`]/g, "")
+      .replace(/[#`*_~]/g, "")
       .replace(/\n+/g, ". ")
       .trim();
     if (!cleanText) return;
 
-    const bcp47 = LANG_BCP47[language] || "en-US";
-    const isoLang = bcp47.split("-")[0]; // "mr", "bn", "te", "hi", "en"
-
-    // Check if browser has a native voice for this language
-    const voices = voicesRef.current.length
-      ? voicesRef.current
-      : ("speechSynthesis" in window ? window.speechSynthesis.getVoices() : []);
-    const nativeVoice =
-      voices.find(v => v.lang === bcp47) ||
-      voices.find(v => v.lang.toLowerCase().startsWith(isoLang.toLowerCase()));
-
-    if (!nativeVoice) {
-      // Fallback: our backend TTS proxy (Google TTS server-side, avoids CORS)
-      const chunk = cleanText.slice(0, 500);
-      const url = `/api/tts?lang=${isoLang}&text=${encodeURIComponent(chunk)}`;
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      setSpeakingId(msgId);
-      audio.onended = () => { setSpeakingId(null); audioRef.current = null; };
-      audio.onerror = () => { setSpeakingId(null); audioRef.current = null; };
-      audio.play().catch(() => setSpeakingId(null));
-      return;
-    }
-
-    // Native Web Speech API
-    if (!("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
-    const utt = new SpeechSynthesisUtterance(cleanText);
-    utt.lang = bcp47;
-    utt.voice = nativeVoice;
-    utt.rate = 0.9;
-    utt.onend = () => setSpeakingId(null);
-    utt.onerror = () => setSpeakingId(null);
+    const isoLang = (LANG_BCP47[language] || "en-US").split("-")[0];
+    const url = `/api/tts?lang=${isoLang}&text=${encodeURIComponent(cleanText.slice(0, 500))}`;
+    const audio = new Audio(url);
+    audioRef.current = audio;
     setSpeakingId(msgId);
-    synth.speak(utt);
+    audio.onended = () => { setSpeakingId(null); audioRef.current = null; };
+    audio.onerror = () => { setSpeakingId(null); audioRef.current = null; };
+    audio.play().catch(() => setSpeakingId(null));
   };
 
   // Keep messages ref current for language translation effect
