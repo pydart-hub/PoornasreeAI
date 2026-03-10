@@ -217,6 +217,7 @@ export default function CustomerChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // ── Translation state ──────────────────────────────────────────────────────
   const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
@@ -423,6 +424,7 @@ export default function CustomerChatPage() {
       setSupportMessages([]);
       setShowSupportPanel(false);
       setTranslatedContent({});
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
       createConversation().catch(console.error);
       loadConversationHistory().catch(console.error);
@@ -491,32 +493,59 @@ export default function CustomerChatPage() {
     };
   }, []);
 
-  // speak() MUST be called synchronously inside the click handler (iOS Safari requirement)
+  // speak() — uses Google TTS audio for languages without a native browser voice
   const handleSpeak = (msgId: string, text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
+    if (typeof window === "undefined") return;
 
+    // Stop any currently playing HTML Audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+
+    // Clicking the same message again stops playback
     if (speakingId === msgId) {
-      synth.cancel();
       setSpeakingId(null);
       return;
     }
 
-    synth.cancel();
-
-    const langMap = LANG_BCP47;
     const cleanText = text
       .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/[#`]/g, "")
       .replace(/\n+/g, ". ")
       .trim();
     if (!cleanText) return;
 
+    const bcp47 = LANG_BCP47[language] || "en-US";
+    const isoLang = bcp47.split("-")[0]; // e.g. "mr", "bn", "te", "hi"
+
+    // Check whether the browser has a native voice for this language
+    const voices = ("speechSynthesis" in window) ? window.speechSynthesis.getVoices() : [];
+    const nativeVoice = voices.find(v => v.lang.toLowerCase().startsWith(isoLang.toLowerCase()));
+
+    if (!nativeVoice) {
+      // Fallback: Google Translate TTS audio (works for all Indian languages)
+      const chunk = cleanText.slice(0, 500); // TTS API limit
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${isoLang}&client=gtx`;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setSpeakingId(msgId);
+      audio.onended = () => { setSpeakingId(null); audioRef.current = null; };
+      audio.onerror = () => { setSpeakingId(null); audioRef.current = null; };
+      audio.play().catch(() => setSpeakingId(null));
+      return;
+    }
+
+    // Native Web Speech API
+    if (!("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
     const utt = new SpeechSynthesisUtterance(cleanText);
-    utt.lang = langMap[language] || "en-US";
+    utt.lang = bcp47;
+    utt.voice = nativeVoice;
     utt.rate = 0.9;
     utt.onend = () => setSpeakingId(null);
     utt.onerror = () => setSpeakingId(null);
-
     setSpeakingId(msgId);
     synth.speak(utt);
   };
@@ -830,7 +859,16 @@ export default function CustomerChatPage() {
                 const transcript = e.results[0]?.[0]?.transcript ?? "";
                 if (transcript) setInput((prev: string) => (prev ? prev + " " : "") + transcript);
               };
-              recog.onerror = () => setIsRecording(false);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              recog.onerror = (e: any) => {
+                setIsRecording(false);
+                if (e.error === "not-allowed" || e.error === "permission-denied") {
+                  alert("Microphone access denied. Please allow microphone permission in your browser settings.");
+                } else if (e.error === "network") {
+                  alert("Voice input requires a secure (HTTPS) connection.");
+                }
+                // no-speech / aborted are silent – user simply didn't speak
+              };
               recog.onend = () => setIsRecording(false);
               recognitionRef.current = recog;
               recog.start();
