@@ -472,23 +472,23 @@ export default function ServiceDashboard() {
     <div className="h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-gray-950 font-sans">
 
       {/* ── Top Nav ──────────────────────────────────────────────── */}
-      <header className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-slate-700 bg-slate-900 z-10">
-        <div className="flex items-center gap-3">
+      <header className="h-14 shrink-0 flex items-center justify-between px-3 sm:px-5 border-b border-slate-700 bg-slate-900 z-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Logo variant="icon" size="sm" />
-          <span className="font-semibold text-slate-100 tracking-tight">
-            Service Operations Panel
+          <span className="font-semibold text-slate-100 tracking-tight text-sm sm:text-base truncate">
+            Service Panel
           </span>
-          <Badge variant="info" dot>
+          <Badge variant="info" dot className="hidden sm:inline-flex">
             {user.role === "admin" ? "Admin View" : "Service View"}
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:block text-sm text-slate-400 mr-1">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <span className="hidden md:block text-sm text-slate-400 mr-1">
             {user.firstName} {user.lastName ?? ""}
           </span>
           <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" />
-          <ThemeToggle />
+          <div className="hidden sm:block"><ThemeToggle /></div>
           <button
             onClick={handleLogout}
             className="ml-1 p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"

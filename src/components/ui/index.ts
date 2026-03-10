@@ -7,3 +7,4 @@ export { LoadingScreen, LoadingSpinner } from "./Loading";
 export { Avatar } from "./Avatar";
 export { Badge } from "./Badge";
 export { Card } from "./Card";
+export { default as LanguageSelector } from "./LanguageSelector";

@@ -34,6 +34,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { getSocket, closeSocket } from "@/lib/socket-client";
+import { LANGUAGES, LANG_BCP47 } from "@/lib/languages";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -169,15 +170,6 @@ async function sendMessageToAI(conversationId: string, content: string, language
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LANGUAGE OPTIONS
-// ─────────────────────────────────────────────────────────────────────────────
-const LANGUAGES = [
-  { code: "en", label: "English", flag: "🇬🇧" },
-  { code: "ml", label: "Malayalam", flag: "🇮🇳" },
-  { code: "hi", label: "Hindi", flag: "🇮🇳" },
-] as const;
-
-// ─────────────────────────────────────────────────────────────────────────────
 // WELCOME MESSAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -220,6 +212,10 @@ export default function CustomerChatPage() {
   const [supportFormMachine, setSupportFormMachine] = useState("");
   const [supportSubmitting, setSupportSubmitting] = useState(false);
   const [unreadSupport, setUnreadSupport] = useState(0);
+
+  // ── Voice input state ─────────────────────────────────────────────────────
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // ── Translation state ──────────────────────────────────────────────────────
   const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
@@ -507,7 +503,7 @@ export default function CustomerChatPage() {
 
     synth.cancel();
 
-    const langMap: Record<string, string> = { en: "en-US", ml: "ml-IN", hi: "hi-IN" };
+    const langMap = LANG_BCP47;
     const cleanText = text
       .replace(/\*\*(.*?)\*\*/g, "$1")
       .replace(/\n+/g, ". ")
@@ -641,10 +637,10 @@ export default function CustomerChatPage() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark px-4 py-3 flex items-center gap-3 sticky top-0 z-20">
+      <header className="shrink-0 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark px-2 sm:px-4 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-3 sticky top-0 z-20">
         <button
           onClick={() => setHistorySidebarOpen((v) => !v)}
-          className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
+          className="p-1.5 sm:p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
           title="Chat History"
         >
           <History className="w-5 h-5" />
@@ -663,14 +659,14 @@ export default function CustomerChatPage() {
         </div>
 
         {/* Status pill — AI online */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 ml-1">
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 ml-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">AI Online</span>
         </div>
 
-        {/* Engineer online status (Feature 4) */}
+        {/* Engineer online status */}
         <div className={cn(
-          "hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium",
+          "hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium",
           engineerOnline
             ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
             : "bg-surface-tertiary dark:bg-surface-dark-tertiary border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary"
@@ -682,14 +678,14 @@ export default function CustomerChatPage() {
         <div className="flex-1" />
 
         {/* Language selector */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             onClick={() => setLangMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-line dark:border-line-dark text-xs font-medium text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl border border-line dark:border-line-dark text-xs font-medium text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
           >
             <Globe className="w-3.5 h-3.5" />
             {LANGUAGES.find((l) => l.code === language)?.flag}{" "}
-            {translating ? <span className="animate-pulse">…</span> : LANGUAGES.find((l) => l.code === language)?.label}
+            <span className="hidden sm:inline">{translating ? <span className="animate-pulse">…</span> : LANGUAGES.find((l) => l.code === language)?.label}</span>
           </button>
           {langMenuOpen && (
             <>
@@ -714,18 +710,18 @@ export default function CustomerChatPage() {
           )}
         </div>
 
-        <ThemeToggle />
+        <div className="hidden sm:block"><ThemeToggle /></div>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2">
           <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
-          <span className="text-sm font-medium text-content dark:text-content-dark hidden sm:block">
+          <span className="text-sm font-medium text-content dark:text-content-dark hidden md:block">
             {user.firstName}
           </span>
         </div>
 
         <button
           onClick={() => { logout(); router.replace("/customer-login"); }}
-          className="p-2 rounded-xl text-content-secondary dark:text-content-dark-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+          className="p-1.5 sm:p-2 rounded-xl text-content-secondary dark:text-content-dark-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
           title="Logout"
         >
           <LogOut className="w-4 h-4" />
@@ -814,8 +810,36 @@ export default function CustomerChatPage() {
           </div>
           <button
             type="button"
-            className="p-2.5 rounded-xl border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-            title="Voice input (coming soon)"
+            onClick={() => {
+              const SpeechRecognitionAPI = (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
+                || (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+              if (!SpeechRecognitionAPI) { alert("Speech recognition is not supported in this browser."); return; }
+              if (isRecording && recognitionRef.current) {
+                recognitionRef.current.stop();
+                setIsRecording(false);
+                return;
+              }
+              const recog = new SpeechRecognitionAPI();
+              recog.lang = LANG_BCP47[language] || "en-US";
+              recog.interimResults = false;
+              recog.maxAlternatives = 1;
+              recog.onresult = (e) => {
+                const transcript = e.results[0]?.[0]?.transcript ?? "";
+                if (transcript) setInput((prev) => (prev ? prev + " " : "") + transcript);
+              };
+              recog.onerror = () => setIsRecording(false);
+              recog.onend = () => setIsRecording(false);
+              recognitionRef.current = recog;
+              recog.start();
+              setIsRecording(true);
+            }}
+            className={cn(
+              "p-2.5 rounded-xl border transition-colors",
+              isRecording
+                ? "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-500 animate-pulse"
+                : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+            )}
+            title={isRecording ? "Stop recording" : "Voice input"}
           >
             <Mic className="w-4 h-4" />
           </button>
