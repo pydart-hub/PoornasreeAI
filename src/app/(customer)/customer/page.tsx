@@ -215,7 +215,8 @@ export default function CustomerChatPage() {
 
   // ── Voice input state ─────────────────────────────────────────────────────
   const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   // ── Translation state ──────────────────────────────────────────────────────
   const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
