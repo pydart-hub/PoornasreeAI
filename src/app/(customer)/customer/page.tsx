@@ -812,8 +812,9 @@ export default function CustomerChatPage() {
           <button
             type="button"
             onClick={() => {
-              const SpeechRecognitionAPI = (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition
-                || (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const w = window as any;
+              const SpeechRecognitionAPI = w.SpeechRecognition || w.webkitSpeechRecognition;
               if (!SpeechRecognitionAPI) { alert("Speech recognition is not supported in this browser."); return; }
               if (isRecording && recognitionRef.current) {
                 recognitionRef.current.stop();
@@ -824,9 +825,10 @@ export default function CustomerChatPage() {
               recog.lang = LANG_BCP47[language] || "en-US";
               recog.interimResults = false;
               recog.maxAlternatives = 1;
-              recog.onresult = (e) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              recog.onresult = (e: any) => {
                 const transcript = e.results[0]?.[0]?.transcript ?? "";
-                if (transcript) setInput((prev) => (prev ? prev + " " : "") + transcript);
+                if (transcript) setInput((prev: string) => (prev ? prev + " " : "") + transcript);
               };
               recog.onerror = () => setIsRecording(false);
               recog.onend = () => setIsRecording(false);
