@@ -46,7 +46,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
         createdAt: true,
         _count: { select: { conversations: true } },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json({ users });
@@ -113,7 +113,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!(await requireCustomerTarget(id, res))) return;
 
     const { firstName, lastName, email, newPassword } = req.body;
@@ -169,7 +169,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (id === req.user.userId) {
       res.status(400).json({ error: "You cannot delete your own account" });

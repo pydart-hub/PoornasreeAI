@@ -11,6 +11,7 @@ import {
   deleteUser,
   getAnalytics,
 } from "../controllers/sales.controller";
+import { getAnalyticsTimeline } from "../controllers/support.controller";
 
 const router = Router();
 
@@ -31,5 +32,8 @@ router.delete("/users/:id", deleteUser);
 
 // GET /api/sales/analytics  —  dashboard analytics summary
 router.get("/analytics", getAnalytics);
+
+// GET /api/sales/analytics/timeline  —  daily counts for charts
+router.get("/analytics/timeline", getAnalyticsTimeline);
 
 export default router;

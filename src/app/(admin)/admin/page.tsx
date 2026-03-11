@@ -31,7 +31,23 @@ import {
   Plus,
   Pencil,
   X,
+  Download,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -141,6 +157,7 @@ export default function AdminPage() {
     recentIssues: { id: string; problem: string; status: string; customer: { firstName: string; lastName: string | null }; createdAt: string }[];
   } | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [timeline, setTimeline] = useState<{ date: string; conversations: number; support: number }[]>([]);
 
   // ── Responsive ──────────────────────────────
   useEffect(() => {
@@ -188,9 +205,14 @@ export default function AdminPage() {
   const fetchAnalytics = useCallback(async () => {
     setAnalyticsLoading(true);
     try {
-      const res = await fetch("/api/admin/analytics", { credentials: "include" });
-      const data = await res.json();
-      if (res.ok) setAnalytics(data);
+      const [res, tlRes] = await Promise.all([
+        fetch("/api/admin/analytics",          { credentials: "include" }),
+        fetch("/api/admin/analytics/timeline", { credentials: "include" }),
+      ]);
+      const data   = await res.json();
+      const tlData = await tlRes.json();
+      if (res.ok)   setAnalytics(data);
+      if (tlRes.ok) setTimeline(tlData.timeline ?? []);
     } finally {
       setAnalyticsLoading(false);
     }
@@ -1067,13 +1089,32 @@ export default function AdminPage() {
                 <h2 className="text-base font-bold text-content dark:text-content-dark">
                   Analytics Overview
                 </h2>
-                <button
-                  onClick={() => { setAnalytics(null); fetchAnalytics(); }}
-                  className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-                  title="Refresh"
-                >
-                  <RefreshCw className={cn("w-4 h-4", analyticsLoading && "animate-spin")} />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* CSV Export buttons */}
+                  <a
+                    href="/api/admin/export/chats"
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Chats CSV
+                  </a>
+                  <a
+                    href="/api/admin/export/support"
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Support CSV
+                  </a>
+                  <button
+                    onClick={() => { setAnalytics(null); fetchAnalytics(); }}
+                    className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                    title="Refresh"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", analyticsLoading && "animate-spin")} />
+                  </button>
+                </div>
               </div>
 
               {analyticsLoading ? (
@@ -1119,79 +1160,111 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  {/* Support Request Status */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-center">
-                      <p className="text-2xl font-bold text-amber-500">{analytics.pendingCount}</p>
-                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Pending</p>
+                  {/* Line Chart — Activity over last 30 days */}
+                  {timeline.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                      <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Activity — Last 30 Days</h3>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={timeline} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} />
+                          <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }}
+                            tickFormatter={(v: string) => v.slice(5)}
+                            interval={Math.floor(timeline.length / 6)}
+                          />
+                          <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
+                          <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                          <Legend formatter={(v: string) => v === "conversations" ? "Conversations" : "Support Tickets"} wrapperStyle={{ fontSize: 11 }} />
+                          <Line type="monotone" dataKey="conversations" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="support"       stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
-                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-center">
-                      <p className="text-2xl font-bold text-blue-500">{analytics.activeCount}</p>
-                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Active</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-center">
-                      <p className="text-2xl font-bold text-emerald-500">{analytics.resolvedCount}</p>
-                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Resolved</p>
-                    </div>
-                  </div>
+                  )}
 
+                  {/* Bar + Pie row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Top Machines */}
+
+                    {/* Bar Chart — Top Machines */}
                     {analytics.topMachines.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Top Reported Machines</h3>
-                        <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-                          {analytics.topMachines.map((m, i) => (
-                            <div
-                              key={m.name}
-                              className={cn(
-                                "flex items-center justify-between px-4 py-3",
-                                i < analytics.topMachines.length - 1 && "border-b border-line dark:border-line-dark"
-                              )}
-                            >
-                              <span className="text-sm text-content dark:text-content-dark truncate">{m.name}</span>
-                              <span className="text-sm font-semibold text-primary dark:text-primary-300 shrink-0 ml-3">{m.count}</span>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Top Reported Machines</h3>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <BarChart data={analytics.topMachines} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} horizontal={false} />
+                            <XAxis type="number" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.7 }} width={90} />
+                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                            <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
                     )}
 
-                    {/* Recent Issues */}
-                    {analytics.recentIssues.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Recent Issues</h3>
-                        <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-                          {analytics.recentIssues.map((issue, i) => (
-                            <div
-                              key={issue.id}
-                              className={cn(
-                                "px-4 py-3",
-                                i < analytics.recentIssues.length - 1 && "border-b border-line dark:border-line-dark"
-                              )}
+                    {/* Pie Chart — Support Status */}
+                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                      <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Support Request Status</h3>
+                      {(analytics.pendingCount + analytics.activeCount + analytics.resolvedCount) === 0 ? (
+                        <div className="flex items-center justify-center h-[200px] text-sm text-content-secondary dark:text-content-dark-secondary">No support requests yet</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={200}>
+                          <PieChart>
+                            <Pie
+                              data={[
+                                { name: "Pending",  value: analytics.pendingCount  },
+                                { name: "Active",   value: analytics.activeCount   },
+                                { name: "Resolved", value: analytics.resolvedCount },
+                              ]}
+                              cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                              paddingAngle={3} dataKey="value"
                             >
-                              <p className="text-sm text-content dark:text-content-dark truncate">{issue.problem}</p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                                  {issue.customer.firstName} {issue.customer.lastName ?? ""}
-                                </span>
-                                <span className={cn(
-                                  "text-xs font-medium px-1.5 py-0.5 rounded-full",
-                                  issue.status === "resolved"
-                                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                    : issue.status === "active"
-                                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                    : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                )}>
-                                  {issue.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                              <Cell fill="#f59e0b" />
+                              <Cell fill="#3b82f6" />
+                              <Cell fill="#10b981" />
+                            </Pie>
+                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Recent Issues table */}
+                  {analytics.recentIssues.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Recent Issues</h3>
+                      <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+                        {analytics.recentIssues.map((issue, i) => (
+                          <div
+                            key={issue.id}
+                            className={cn(
+                              "px-4 py-3",
+                              i < analytics.recentIssues.length - 1 && "border-b border-line dark:border-line-dark"
+                            )}
+                          >
+                            <p className="text-sm text-content dark:text-content-dark truncate">{issue.problem}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                                {issue.customer.firstName} {issue.customer.lastName ?? ""}
+                              </span>
+                              <span className={cn(
+                                "text-xs font-medium px-1.5 py-0.5 rounded-full",
+                                issue.status === "resolved"
+                                  ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : issue.status === "active"
+                                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                  : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              )}>
+                                {issue.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </section>

@@ -15,7 +15,8 @@ import {
   listDocuments,
   deleteDocumentRecord,
 } from "../controllers/admin.controller";
-import { getAnalytics } from "../controllers/support.controller";
+import { getAnalytics, getAnalyticsTimeline } from "../controllers/support.controller";
+import { exportChats, exportSupport } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 
 const router = Router();
@@ -90,6 +91,15 @@ router.delete("/users/:id", deleteUser);
 
 // GET /api/admin/analytics  —  dashboard analytics (Feature 7)
 router.get("/analytics", getAnalytics);
+
+// GET /api/admin/analytics/timeline  —  daily counts for charts
+router.get("/analytics/timeline", getAnalyticsTimeline);
+
+// GET /api/admin/export/chats    —  CSV download of all chat logs
+router.get("/export/chats", exportChats);
+
+// GET /api/admin/export/support  —  CSV download of all support tickets
+router.get("/export/support", exportSupport);
 
 // Video recommendation resources (admin CRUD)
 router.get("/videos", listVideos);

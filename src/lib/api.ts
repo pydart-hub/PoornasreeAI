@@ -120,6 +120,11 @@ export async function getSalesAnalytics(): Promise<SalesAnalytics> {
   return apiFetch<SalesAnalytics>("/api/sales/analytics");
 }
 
+export async function getSalesAnalyticsTimeline(): Promise<{ date: string; conversations: number; support: number }[]> {
+  const data = await apiFetch<{ timeline: { date: string; conversations: number; support: number }[] }>("/api/sales/analytics/timeline");
+  return data.timeline;
+}
+
 export interface SalesAnalytics {
   totalConversations: number;
   totalSupportRequests: number;

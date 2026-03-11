@@ -78,7 +78,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
         createdAt: true,
         _count: { select: { conversations: true } },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json({ users });
@@ -125,7 +125,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { firstName, lastName, email, newPassword } = req.body;
 
     if (!firstName && !lastName && !email && !newPassword) {

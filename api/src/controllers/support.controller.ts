@@ -261,8 +261,8 @@ export async function getAiInsight(req: Request, res: Response): Promise<void> {
 // Feature 7: Admin analytics dashboard data
 export async function getAnalytics(req: Request, res: Response): Promise<void> {
   try {
-    if (req.user?.role !== "admin") {
-      res.status(403).json({ error: "Admins only" });
+    if (!["admin", "sales"].includes(req.user?.role ?? "")) {
+      res.status(403).json({ error: "Admins and sales only" });
       return;
     }
 
@@ -318,6 +318,56 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
     });
   } catch (err) {
     console.error("getAnalytics:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── GET /api/admin/analytics/timeline ───────────────────────────────────
+// Returns daily conversation + support counts for the past 30 days.
+export async function getAnalyticsTimeline(req: Request, res: Response): Promise<void> {
+  try {
+    if (!["admin", "sales"].includes(req.user?.role ?? "")) {
+      res.status(403).json({ error: "Admins and sales only" });
+      return;
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 29); // last 30 days inclusive
+    since.setHours(0, 0, 0, 0);
+
+    const [conversations, supportRequests] = await Promise.all([
+      prisma.conversation.findMany({
+        where:  { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      prisma.supportRequest.findMany({
+        where:  { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    // Build date buckets for the past 30 days
+    const buckets: Record<string, { date: string; conversations: number; support: number }> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(since);
+      d.setDate(since.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { date: key, conversations: 0, support: 0 };
+    }
+
+    conversations.forEach((c: { createdAt: Date }) => {
+      const key = c.createdAt.toISOString().slice(0, 10);
+      if (buckets[key]) buckets[key].conversations += 1;
+    });
+
+    supportRequests.forEach((s: { createdAt: Date }) => {
+      const key = s.createdAt.toISOString().slice(0, 10);
+      if (buckets[key]) buckets[key].support += 1;
+    });
+
+    res.json({ timeline: Object.values(buckets) });
+  } catch (err) {
+    console.error("getAnalyticsTimeline:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }
