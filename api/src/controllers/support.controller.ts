@@ -371,3 +371,198 @@ export async function getAnalyticsTimeline(req: Request, res: Response): Promise
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ── Helper: extract top keywords from an array of texts ─────────────────
+function extractTopKeywords(texts: string[], topN = 12): { keyword: string; count: number }[] {
+  const stopWords = new Set([
+    "the", "a", "an", "is", "it", "in", "on", "at", "to", "for", "of", "and", "or", "but",
+    "my", "i", "we", "you", "he", "she", "they", "this", "that", "with", "not", "can",
+    "are", "was", "were", "be", "been", "have", "has", "had", "do", "does", "did", "will",
+    "would", "could", "should", "may", "might", "shall", "its", "our", "your", "their",
+    "from", "by", "as", "up", "about", "into", "through", "during", "before", "after",
+    "how", "what", "when", "where", "why", "which", "who", "so", "if", "then", "than",
+    "no", "yes", "all", "any", "some", "such", "also", "just", "like", "please", "hi",
+    "hello", "hey", "need", "want", "get", "got", "getting", "me", "tell", "know",
+    "use", "using", "used", "make", "made", "making", "help", "show", "give", "hei",
+  ]);
+  const freq: Record<string, number> = {};
+  for (const text of texts) {
+    const words = text.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
+    for (const word of words) {
+      if (!stopWords.has(word)) freq[word] = (freq[word] ?? 0) + 1;
+    }
+  }
+  return Object.entries(freq)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, topN)
+    .map(([keyword, count]) => ({ keyword, count }));
+}
+
+// ── GET /api/admin/analytics/customer ────────────────────────────────────
+export async function getCustomerAnalytics(req: Request, res: Response): Promise<void> {
+  try {
+    if (!["admin", "sales"].includes(req.user?.role ?? "")) {
+      res.status(403).json({ error: "Admins and sales only" });
+      return;
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 29);
+    since.setHours(0, 0, 0, 0);
+
+    const [
+      totalConversations,
+      totalSupportRequests,
+      supportByStatus,
+      supportProblems,
+      recentCustomerMessages,
+      recentIssues,
+      convTimeline,
+      supportTimeline,
+    ] = await Promise.all([
+      prisma.conversation.count({ where: { user: { role: "customer" } } }),
+      prisma.supportRequest.count(),
+      prisma.supportRequest.groupBy({ by: ["status"], _count: { status: true } }),
+      prisma.supportRequest.findMany({
+        select: { problem: true },
+        take: 300,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.message.findMany({
+        where: { role: "user", conversation: { user: { role: "customer" } } },
+        select: { content: true },
+        take: 500,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.supportRequest.findMany({
+        take: 8,
+        orderBy: { createdAt: "desc" },
+        include: { customer: { select: { firstName: true, lastName: true } } },
+      }),
+      prisma.conversation.findMany({
+        where: { user: { role: "customer" }, createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      prisma.supportRequest.findMany({
+        where: { createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const statusMap = supportByStatus.reduce<Record<string, number>>(
+      (acc: Record<string, number>, s: { status: string; _count: { status: number } }) =>
+        ({ ...acc, [s.status]: s._count.status }), {}
+    );
+
+    // Build timeline buckets for last 30 days
+    const buckets: Record<string, { date: string; conversations: number; support: number }> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(since);
+      d.setDate(since.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { date: key, conversations: 0, support: 0 };
+    }
+    convTimeline.forEach((c: { createdAt: Date }) => {
+      const key = c.createdAt.toISOString().slice(0, 10);
+      if (buckets[key]) buckets[key].conversations += 1;
+    });
+    supportTimeline.forEach((s: { createdAt: Date }) => {
+      const key = s.createdAt.toISOString().slice(0, 10);
+      if (buckets[key]) buckets[key].support += 1;
+    });
+
+    res.json({
+      totalConversations,
+      totalSupportRequests,
+      resolvedCount: statusMap["resolved"] ?? 0,
+      pendingCount:  statusMap["pending"]  ?? 0,
+      activeCount:   statusMap["active"]   ?? 0,
+      topComplaints: extractTopKeywords(supportProblems.map((s: { problem: string }) => s.problem)),
+      topQuestions:  extractTopKeywords(recentCustomerMessages.map((m: { content: string }) => m.content)),
+      recentIssues,
+      timeline: Object.values(buckets),
+    });
+  } catch (err) {
+    console.error("getCustomerAnalytics:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── GET /api/admin/analytics/service ─────────────────────────────────────
+export async function getServiceAnalytics(req: Request, res: Response): Promise<void> {
+  try {
+    if (!["admin", "sales"].includes(req.user?.role ?? "")) {
+      res.status(403).json({ error: "Admins and sales only" });
+      return;
+    }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 29);
+    since.setHours(0, 0, 0, 0);
+
+    const [
+      totalConversations,
+      topMachines,
+      recentServiceMessages,
+      supportByStatus,
+      convTimeline,
+    ] = await Promise.all([
+      prisma.conversation.count({ where: { user: { role: "service" } } }),
+      prisma.supportRequest.groupBy({
+        by:      ["machineName"],
+        _count:  { machineName: true },
+        orderBy: { _count: { machineName: "desc" } },
+        take:    8,
+        where:   { machineName: { not: null } },
+      }),
+      prisma.message.findMany({
+        where: { role: "user", conversation: { user: { role: "service" } } },
+        select: { content: true },
+        take: 500,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.supportRequest.groupBy({ by: ["status"], _count: { status: true } }),
+      prisma.conversation.findMany({
+        where: { user: { role: "service" }, createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const statusMap = supportByStatus.reduce<Record<string, number>>(
+      (acc: Record<string, number>, s: { status: string; _count: { status: number } }) =>
+        ({ ...acc, [s.status]: s._count.status }), {}
+    );
+
+    // Build timeline buckets for last 30 days
+    const buckets: Record<string, { date: string; conversations: number }> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(since);
+      d.setDate(since.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { date: key, conversations: 0 };
+    }
+    convTimeline.forEach((c: { createdAt: Date }) => {
+      const key = c.createdAt.toISOString().slice(0, 10);
+      if (buckets[key]) buckets[key].conversations += 1;
+    });
+
+    res.json({
+      totalConversations,
+      topMachines: topMachines.map((m: { machineName: string | null; _count: { machineName: number } }) => ({
+        name:  m.machineName!,
+        count: m._count.machineName,
+      })),
+      topTopics:     extractTopKeywords(recentServiceMessages.map((m: { content: string }) => m.content)),
+      resolvedCount: statusMap["resolved"] ?? 0,
+      pendingCount:  statusMap["pending"]  ?? 0,
+      activeCount:   statusMap["active"]   ?? 0,
+      timeline:      Object.values(buckets),
+    });
+  } catch (err) {
+    console.error("getServiceAnalytics:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

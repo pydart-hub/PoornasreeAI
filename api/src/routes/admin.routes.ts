@@ -15,7 +15,7 @@ import {
   listDocuments,
   deleteDocumentRecord,
 } from "../controllers/admin.controller";
-import { getAnalytics, getAnalyticsTimeline } from "../controllers/support.controller";
+import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
 import { exportChats, exportSupport } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 
@@ -94,6 +94,12 @@ router.get("/analytics", getAnalytics);
 
 // GET /api/admin/analytics/timeline  —  daily counts for charts
 router.get("/analytics/timeline", getAnalyticsTimeline);
+
+// GET /api/admin/analytics/customer  —  customer-specific analytics
+router.get("/analytics/customer", getCustomerAnalytics);
+
+// GET /api/admin/analytics/service  —  service-specific analytics
+router.get("/analytics/service", getServiceAnalytics);
 
 // GET /api/admin/export/chats    —  CSV download of all chat logs
 router.get("/export/chats", exportChats);
