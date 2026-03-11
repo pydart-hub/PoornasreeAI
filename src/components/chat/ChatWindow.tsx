@@ -17,7 +17,7 @@ import {
 import { useState } from "react";
 import { Logo, Avatar } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { Conversation, Message, VideoResource } from "@/types/chat";
+import type { Conversation, Message } from "@/types/chat";
 
 interface ChatWindowProps {
   conversation: Conversation | undefined;
