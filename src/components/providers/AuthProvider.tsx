@@ -44,6 +44,14 @@ const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     "documents.read": true,
     "profile.edit": true,
   },
+  sales: {
+    "users.read": true,
+    "users.create": true,
+    "users.update": true,
+    "users.delete": true,
+    "analytics.view": true,
+    "profile.edit": true,
+  },
   customer: { chat: true, "profile.edit": true },
 };
 

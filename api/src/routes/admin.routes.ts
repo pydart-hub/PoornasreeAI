@@ -11,10 +11,12 @@ import {
   createUser,
   listUsers,
   deleteUser,
+  updateUser,
   listDocuments,
   deleteDocumentRecord,
 } from "../controllers/admin.controller";
 import { getAnalytics } from "../controllers/support.controller";
+import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 
 const router = Router();
 
@@ -80,10 +82,19 @@ router.post("/users", createUser);
 // GET  /api/admin/users  —  list all users
 router.get("/users", listUsers);
 
+// PATCH /api/admin/users/:id  —  update a user
+router.patch("/users/:id", updateUser);
+
 // DELETE /api/admin/users/:id  —  delete a user
 router.delete("/users/:id", deleteUser);
 
 // GET /api/admin/analytics  —  dashboard analytics (Feature 7)
 router.get("/analytics", getAnalytics);
+
+// Video recommendation resources (admin CRUD)
+router.get("/videos", listVideos);
+router.post("/videos", createVideo);
+router.patch("/videos/:id", updateVideo);
+router.delete("/videos/:id", deleteVideo);
 
 export default router;

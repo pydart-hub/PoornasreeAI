@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes";
 import chatRoutes from "./routes/chat.routes";
 import adminRoutes from "./routes/admin.routes";
 import supportRoutes from "./routes/support.routes";
+import salesRoutes from "./routes/sales.routes";
 import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
@@ -28,6 +29,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", chatRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/sales", salesRoutes);
 
 // ── TTS proxy ─────────────────────────────────────
 // Uses node-gtts (Google TTS via server-side request) — works for all Indian

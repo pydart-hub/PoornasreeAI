@@ -85,6 +85,21 @@ model DocumentChunk {
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
 
+// ── Video Recommendation Resources ─────────────────────────────────────────
+// Admin-curated YouTube videos linked to product/topic keywords.
+// When a customer or service engineer asks a question, the backend searches
+// these videos by keyword overlap and returns matching ones alongside the
+// AI answer.
+model VideoResource {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  youtubeUrl  String
+  keywords    String   @db.Text  // comma-separated lowercase e.g. "vibro,stirrer,calibration"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // ── Support Request Queue ───────────────────────────────────────────────────
 // Customer escalates to human service engineer via this model.
 model SupportRequest {

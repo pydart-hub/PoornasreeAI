@@ -27,6 +27,10 @@ import {
   TrendingUp,
   Activity,
   AlertTriangle,
+  Youtube,
+  Plus,
+  Pencil,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
@@ -55,6 +59,15 @@ interface ApiDocument {
   status: "trained" | "pending";
 }
 
+interface ApiVideo {
+  id: string;
+  title: string;
+  description?: string | null;
+  youtubeUrl: string;
+  keywords: string;
+  createdAt: string;
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -62,6 +75,7 @@ function getRoleBadge(role: string) {
   const map: Record<string, { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }> = {
     admin:    { label: "Administrator",    variant: "default" },
     service:  { label: "Service Engineer", variant: "info" },
+    sales:    { label: "Sales",            variant: "success" },
     customer: { label: "Customer",         variant: "accent" },
   };
   return map[role] ?? { label: role, variant: "default" as const };
@@ -88,7 +102,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -104,6 +118,15 @@ export default function AdminPage() {
   const [uploadMessage, setUploadMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const [uploadDocType, setUploadDocType] = useState<"service" | "customer">("service");
+
+  // Videos state
+  const [videos, setVideos] = useState<ApiVideo[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [videoForm, setVideoForm] = useState<{ title: string; description: string; youtubeUrl: string; keywords: string }>({ title: "", description: "", youtubeUrl: "", keywords: "" });
+  const [videoFormError, setVideoFormError] = useState("");
+  const [savingVideo, setSavingVideo] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<ApiVideo | null>(null);
+  const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
 
   // Analytics state
   const [analytics, setAnalytics] = useState<{
@@ -173,12 +196,25 @@ export default function AdminPage() {
     }
   }, []);
 
+  // ── Fetch videos ──────────────────────────────
+  const fetchVideos = useCallback(async () => {
+    setVideosLoading(true);
+    try {
+      const res = await fetch("/api/admin/videos", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok) setVideos(data.videos);
+    } finally {
+      setVideosLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchUsers();
       fetchDocuments();
+      fetchVideos();
     }
-  }, [user, fetchUsers, fetchDocuments]);
+  }, [user, fetchUsers, fetchDocuments, fetchVideos]);
 
   // Fetch analytics when tab becomes active
   useEffect(() => {
@@ -186,6 +222,58 @@ export default function AdminPage() {
       fetchAnalytics();
     }
   }, [activeTab, user, analytics, analyticsLoading, fetchAnalytics]);
+
+  // ── Video CRUD ───────────────────────────────
+  const handleSaveVideo = useCallback(async () => {
+    setVideoFormError("");
+    const { title, youtubeUrl, keywords } = videoForm;
+    if (!title.trim() || !youtubeUrl.trim() || !keywords.trim()) {
+      setVideoFormError("Title, YouTube URL, and keywords are required.");
+      return;
+    }
+    setSavingVideo(true);
+    try {
+      const url = editingVideo ? `/api/admin/videos/${editingVideo.id}` : "/api/admin/videos";
+      const method = editingVideo ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(videoForm),
+      });
+      const data = await res.json();
+      if (!res.ok) { setVideoFormError(data.error ?? "Save failed"); return; }
+      await fetchVideos();
+      setEditingVideo(null);
+      setVideoForm({ title: "", description: "", youtubeUrl: "", keywords: "" });
+    } finally {
+      setSavingVideo(false);
+    }
+  }, [videoForm, editingVideo, fetchVideos]);
+
+  const startEditVideo = useCallback((v: ApiVideo) => {
+    setEditingVideo(v);
+    setVideoForm({ title: v.title, description: v.description ?? "", youtubeUrl: v.youtubeUrl, keywords: v.keywords });
+    setVideoFormError("");
+  }, []);
+
+  const cancelEditVideo = useCallback(() => {
+    setEditingVideo(null);
+    setVideoForm({ title: "", description: "", youtubeUrl: "", keywords: "" });
+    setVideoFormError("");
+  }, []);
+
+  const handleDeleteVideo = useCallback(async (id: string) => {
+    if (!confirm("Delete this video? This cannot be undone.")) return;
+    setDeletingVideoId(id);
+    try {
+      await fetch(`/api/admin/videos/${id}`, { method: "DELETE", credentials: "include" });
+      setVideos((prev) => prev.filter((v) => v.id !== id));
+      if (editingVideo?.id === id) cancelEditVideo();
+    } finally {
+      setDeletingVideoId(null);
+    }
+  }, [editingVideo, cancelEditVideo]);
 
   // ── Upload PDF ───────────────────────────────
   const handleFiles = useCallback(async (files: FileList | File[]) => {
@@ -353,6 +441,21 @@ export default function AdminPage() {
                 {users.length}
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab("videos")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "videos"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Youtube className="w-3.5 h-3.5" />
+              Videos
+              <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
+                {videos.length}
+              </span>
+            </button>
           </div>
         </nav>
 
@@ -479,7 +582,7 @@ export default function AdminPage() {
 
           {/* Tab switcher */}
           <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
-            {(["documents", "users", "analytics"] as const).map((tab) => (
+            {(["documents", "users", "analytics", "videos"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -490,8 +593,8 @@ export default function AdminPage() {
                     : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
                 )}
               >
-                {tab === "documents" ? <FileUp className="w-3.5 h-3.5" /> : tab === "users" ? <Users className="w-3.5 h-3.5" /> : <BarChart2 className="w-3.5 h-3.5" />}
-                {tab === "documents" ? "Documents" : tab === "users" ? "Users" : "Analytics"}
+                {tab === "documents" ? <FileUp className="w-3.5 h-3.5" /> : tab === "users" ? <Users className="w-3.5 h-3.5" /> : tab === "analytics" ? <BarChart2 className="w-3.5 h-3.5" /> : <Youtube className="w-3.5 h-3.5" />}
+                {tab === "documents" ? "Documents" : tab === "users" ? "Users" : tab === "analytics" ? "Analytics" : "Videos"}
               </button>
             ))}
           </div>
@@ -775,6 +878,183 @@ export default function AdminPage() {
                       );
                     })
                   )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ── Videos Tab ── */}
+          {activeTab === "videos" && (
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-content dark:text-content-dark">
+                  Video Recommendations ({videos.length})
+                </h2>
+                <button
+                  onClick={fetchVideos}
+                  className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw className={cn("w-4 h-4", videosLoading && "animate-spin")} />
+                </button>
+              </div>
+
+              <p className="text-sm text-content-secondary dark:text-content-dark-secondary -mt-4">
+                Add YouTube videos here. They will be automatically shown to users in chat when their question matches the keywords you provide.
+              </p>
+
+              {/* Add / Edit form */}
+              <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-content dark:text-content-dark">
+                  {editingVideo ? "Edit Video" : "Add New Video"}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Title *</label>
+                    <input
+                      value={videoForm.title}
+                      onChange={(e) => setVideoForm((f) => ({ ...f, title: e.target.value }))}
+                      placeholder="e.g. How to calibrate VIBRO milk analyzer"
+                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">YouTube URL *</label>
+                    <input
+                      value={videoForm.youtubeUrl}
+                      onChange={(e) => setVideoForm((f) => ({ ...f, youtubeUrl: e.target.value }))}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Keywords * <span className="font-normal">(comma-separated)</span></label>
+                    <input
+                      value={videoForm.keywords}
+                      onChange={(e) => setVideoForm((f) => ({ ...f, keywords: e.target.value }))}
+                      placeholder="e.g. vibro,calibration,fat,snf,milk"
+                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Description <span className="font-normal">(optional)</span></label>
+                    <input
+                      value={videoForm.description}
+                      onChange={(e) => setVideoForm((f) => ({ ...f, description: e.target.value }))}
+                      placeholder="Short description shown under the title"
+                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+
+                {videoFormError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {videoFormError}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSaveVideo}
+                    disabled={savingVideo}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-700 text-white text-sm font-medium transition-colors disabled:opacity-60"
+                  >
+                    {savingVideo ? <Loader2 className="w-4 h-4 animate-spin" /> : editingVideo ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {editingVideo ? "Save Changes" : "Add Video"}
+                  </button>
+                  {editingVideo && (
+                    <button
+                      onClick={cancelEditVideo}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-line dark:border-line-dark text-sm text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Video list */}
+              {videosLoading && videos.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
+                </div>
+              ) : videos.length === 0 ? (
+                <div className="text-center py-12 rounded-2xl border border-dashed border-line dark:border-line-dark">
+                  <Youtube className="w-10 h-10 text-content-secondary dark:text-content-dark-secondary mx-auto mb-3 opacity-40" />
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No videos added yet</p>
+                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Add YouTube videos above — they will appear in chat responses</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+                  {videos.map((v, i) => {
+                    const videoId = (() => {
+                      try {
+                        const u = new URL(v.youtubeUrl);
+                        if (u.hostname === "youtu.be") return u.pathname.slice(1);
+                        return u.searchParams.get("v") ?? "";
+                      } catch { return ""; }
+                    })();
+                    const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
+                    return (
+                      <div
+                        key={v.id}
+                        className={cn(
+                          "flex items-center gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors",
+                          i < videos.length - 1 && "border-b border-line dark:border-line-dark"
+                        )}
+                      >
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt={v.title} className="w-20 h-14 object-cover rounded-xl shrink-0 bg-surface-tertiary dark:bg-surface-dark-tertiary" />
+                        ) : (
+                          <div className="w-20 h-14 rounded-xl shrink-0 bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
+                            <Youtube className="w-6 h-6 text-red-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-content dark:text-content-dark truncate">{v.title}</p>
+                          {v.description && (
+                            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate mt-0.5">{v.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {v.keywords.split(",").filter(Boolean).map((kw) => (
+                              <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium">
+                                {kw.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          <a
+                            href={v.youtubeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                            title="Open on YouTube"
+                          >
+                            <Youtube className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => startEditVideo(v)}
+                            className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 dark:hover:bg-primary-400/10 transition-colors"
+                            title="Edit video"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVideo(v.id)}
+                            disabled={deletingVideoId === v.id}
+                            className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                            title="Delete video"
+                          >
+                            {deletingVideoId === v.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>

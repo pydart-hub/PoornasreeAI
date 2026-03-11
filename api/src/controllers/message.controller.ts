@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { embedText, searchVectors } from "../services/vector.service";
+import { findVideosForQuery } from "./video.controller";
 import axios from "axios";
 
 const OLLAMA_URL  = process.env.OLLAMA_URL || "http://localhost:11434";
@@ -192,9 +193,15 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       data: { updatedAt: new Date() },
     });
 
+    // ── Video recommendations ──────────────────────────────────────────────
+    // Look up curated YouTube videos relevant to the user's question.
+    // Uses keyword overlap — returns empty array when no matches or DB empty.
+    const videos = await findVideosForQuery(content.trim(), 3);
+
     res.status(201).json({
       userMessage,
       assistantMessage,
+      videos,
     });
   } catch (err) {
     console.error("createMessage error:", err);

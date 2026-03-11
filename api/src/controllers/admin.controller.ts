@@ -7,7 +7,7 @@ import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
 
 const SALT_ROUNDS = 12;
-const VALID_ROLES = ["admin", "customer", "service"];
+const VALID_ROLES = ["admin", "customer", "service", "sales"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
 export async function createUser(req: Request, res: Response): Promise<void> {
@@ -113,6 +113,64 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
     res.json({ message: "User deleted" });
   } catch (err) {
     console.error("deleteUser error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── PATCH /api/admin/users/:id ──────────────────────────────────────────
+export async function updateUser(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const { id } = req.params;
+    const { firstName, lastName, email, newPassword } = req.body;
+
+    if (!firstName && !lastName && !email && !newPassword) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (!target) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    // Build update payload
+    const data: Record<string, unknown> = {};
+    if (firstName) data.firstName = firstName.trim();
+    if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const conflict = await prisma.user.findFirst({
+        where: { email: normalizedEmail, NOT: { id } },
+      });
+      if (conflict) {
+        res.status(409).json({ error: "Email already in use" });
+        return;
+      }
+      data.email = normalizedEmail;
+    }
+    if (newPassword) {
+      if (newPassword.length < 8) {
+        res.status(400).json({ error: "Password must be at least 8 characters" });
+        return;
+      }
+      data.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data,
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
+    });
+
+    res.json({ user: updated });
+  } catch (err) {
+    console.error("updateUser error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }

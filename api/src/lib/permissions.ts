@@ -1,5 +1,5 @@
 // ── Role definitions ──────────────────────────────────────────────────
-export type UserRole = "customer" | "service" | "admin";
+export type UserRole = "customer" | "service" | "admin" | "sales";
 
 // Roles that can see every conversation (not just their own).
 const ROLES_WITH_FULL_READ: UserRole[] = ["admin", "service"];

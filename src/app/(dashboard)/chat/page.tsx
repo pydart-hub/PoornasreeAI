@@ -6,8 +6,8 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { LoadingScreen } from "@/components/ui";
-import type { Message, Conversation } from "@/types/chat";
-export type { Message, Conversation };
+import type { Message, Conversation, VideoResource } from "@/types/chat";
+export type { Message, Conversation, VideoResource };
 
 // Normalises API date strings (ISO) → Date objects used by UI components.
 function normaliseConversation(raw: {
@@ -169,7 +169,11 @@ export default function ChatPage() {
           body: JSON.stringify({ conversationId: convId, content: text.trim() }),
         });
         if (!msgRes.ok) { setStreaming(false); return; }
-        const { userMessage, assistantMessage } = await msgRes.json();
+        const { userMessage, assistantMessage, videos } = await msgRes.json() as {
+          userMessage: { id: string; createdAt: string };
+          assistantMessage: { id: string; content: string; createdAt: string };
+          videos: VideoResource[];
+        };
 
         // 5. Replace temp user bubble with persisted record
         setConversations((prev) =>
@@ -182,6 +186,7 @@ export default function ChatPage() {
 
         // 6. Stream assistant reply character by character from DB response
         const fullReply: string = assistantMessage.content;
+        const recommendedVideos: VideoResource[] = videos ?? [];
         for (let i = 0; i <= fullReply.length; i++) {
           await new Promise((r) => setTimeout(r, 12));
           setConversations((prev) =>
@@ -192,7 +197,7 @@ export default function ChatPage() {
                 messages: c.messages.map((m) =>
                   m.id === tempBotId
                     ? i === fullReply.length
-                      ? { ...m, id: assistantMessage.id, content: fullReply, timestamp: new Date(assistantMessage.createdAt) }
+                      ? { ...m, id: assistantMessage.id, content: fullReply, timestamp: new Date(assistantMessage.createdAt), videos: recommendedVideos }
                       : { ...m, content: fullReply.slice(0, i) }
                     : m
                 ),
