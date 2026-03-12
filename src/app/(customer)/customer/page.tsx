@@ -6,13 +6,6 @@ import {
   Send,
   Mic,
   LogOut,
-  Waves,
-  Zap,
-  Plug,
-  Battery,
-  CircuitBoard,
-  Cpu,
-  Wrench,
   Sparkles,
   RotateCcw,
   ThumbsUp,
@@ -73,81 +66,10 @@ interface ConversationHistoryItem {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRODUCT CATALOGUE
+// SUGGESTION TYPE
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PRODUCTS = [
-  {
-    name: "VIBRO Stirrer",
-    short: "VIBRO",
-    keywords: ["vibro", "stirrer", "vibration", "stir"],
-    icon: <Waves className="w-4 h-4" />,
-    color: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-50 dark:bg-blue-500/10",
-    border: "border-blue-200 dark:border-blue-500/30",
-    complaints: ["Not working – LED off", "LED on but not vibrating", "Continuous/low vibration"],
-  },
-  {
-    name: "Solar Charger Board",
-    short: "Solar Charger",
-    keywords: ["solar", "charger", "charging", "solar charger"],
-    icon: <Zap className="w-4 h-4" />,
-    color: "text-amber-600 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-500/10",
-    border: "border-amber-200 dark:border-amber-500/30",
-    complaints: ["Battery not charging", "LED issues", "Voltage cutoff problems"],
-  },
-  {
-    name: "Compact Adapter",
-    short: "Adapter",
-    keywords: ["compact adapter", "adapter", "lse", "eco v"],
-    icon: <Plug className="w-4 h-4" />,
-    color: "text-emerald-600 dark:text-emerald-400",
-    bg: "bg-emerald-50 dark:bg-emerald-500/10",
-    border: "border-emerald-200 dark:border-emerald-500/30",
-    complaints: ["Zero output voltage", "Voltage fluctuation"],
-  },
-  {
-    name: "ECOD-DPST Board",
-    short: "ECOD-DPST",
-    keywords: ["ecod", "dpst", "display", "keypad", "wifi", "gsm", "printer"],
-    icon: <CircuitBoard className="w-4 h-4" />,
-    color: "text-violet-600 dark:text-violet-400",
-    bg: "bg-violet-50 dark:bg-violet-500/10",
-    border: "border-violet-200 dark:border-violet-500/30",
-    complaints: ["Please wait loop", "Display not working", "Keypad fault", "WiFi/GSM issues"],
-  },
-  {
-    name: "Pump",
-    short: "Pump",
-    keywords: ["pump", "motor"],
-    icon: <Cpu className="w-4 h-4" />,
-    color: "text-cyan-600 dark:text-cyan-400",
-    bg: "bg-cyan-50 dark:bg-cyan-500/10",
-    border: "border-cyan-200 dark:border-cyan-500/30",
-    complaints: ["Pump not working", "Wrong direction", "Sensing errors"],
-  },
-  {
-    name: "Analyzer Mainboard",
-    short: "Mainboard",
-    keywords: ["mainboard", "analyzer", "calibration", "sensor", "t2", "temperature", "lcd"],
-    icon: <Wrench className="w-4 h-4" />,
-    color: "text-rose-600 dark:text-rose-400",
-    bg: "bg-rose-50 dark:bg-rose-500/10",
-    border: "border-rose-200 dark:border-rose-500/30",
-    complaints: ["T2/Temperature errors", "Sensor issues", "Calibration failures", "LCD fault"],
-  },
-  {
-    name: "Battery",
-    short: "Battery",
-    keywords: ["battery", "ecod battery", "ecosv", "lses"],
-    icon: <Battery className="w-4 h-4" />,
-    color: "text-lime-600 dark:text-lime-400",
-    bg: "bg-lime-50 dark:bg-lime-500/10",
-    border: "border-lime-200 dark:border-lime-500/30",
-    complaints: ["Low battery error", "Battery not charging fully"],
-  },
-];
+interface Suggestion { id: string; title: string; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AI API
@@ -177,7 +99,7 @@ function makeWelcome(name: string): ChatMessage {
   return {
     id: "welcome",
     role: "assistant",
-    content: `Hello ${name}! 👋 I'm **Poornasree AI**, your personal product assistant.\n\nI can provide step-by-step troubleshooting for all milk analyzer products. Select a product above or describe your issue — I'll guide you through it.`,
+    content: `Hello ${name}! 👋 I'm **Poornasree AI**, your personal product assistant.\n\nI can provide step-by-step troubleshooting for all milk analyzer products. Pick a topic above or describe your issue — I'll guide you through it.`,
   };
 }
 
@@ -197,9 +119,8 @@ export default function CustomerChatPage() {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [youtubeResults, setYoutubeResults] = useState<Record<string, string>>({}); // msgId -> search query
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  // selectedProduct tracks which product chip was last clicked; prepended to
-  // the RAG search query to improve vector search recall.
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  // Dynamic suggestions fetched from admin-uploaded customer documents
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
   // ── Support / Human escalation state ─────────────────────────────────────
   const [engineerOnline, setEngineerOnline] = useState(false);
@@ -273,6 +194,11 @@ export default function CustomerChatPage() {
       setMessages([makeWelcome(user.firstName)]);
       createConversation().catch(console.error);
       loadConversationHistory().catch(console.error);
+      // Fetch dynamic suggestions from admin-uploaded customer documents
+      fetch("/api/suggestions", { credentials: "include" })
+        .then((r) => r.ok ? r.json() : { suggestions: [] })
+        .then((d) => setSuggestions(d.suggestions || []))
+        .catch(() => {});
     }
   }, [user, isLoading, router, loadConversationHistory]); // eslint-disable-line
 
@@ -407,7 +333,7 @@ export default function CustomerChatPage() {
       const convId = conversationId ?? await createConversation();
       // Translate the query to English so the AI (trained on English docs) understands it
       const englishQuery = language !== 'en' ? await translateToEnglish(text.trim(), language) : text.trim();
-      const answer = await sendMessageToAI(convId, englishQuery, language, selectedProduct);
+      const answer = await sendMessageToAI(convId, englishQuery, language);
       const botId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
@@ -437,7 +363,6 @@ export default function CustomerChatPage() {
       setConversationId(null);
       setYoutubeResults({});
       setSpeakingId(null);
-      setSelectedProduct(null);
       setSupportRequest(null);
       setSupportMessages([]);
       setShowSupportPanel(false);
@@ -742,18 +667,15 @@ export default function CustomerChatPage() {
       {/* ── Messages ──────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 scrollbar-thin">
 
-        {/* Product chips (always visible above messages) */}
+        {/* Suggestion chips (auto-generated from admin-uploaded documents) */}
         <div className="flex flex-wrap gap-2 pb-2 border-b border-line dark:border-line-dark">
-          {PRODUCTS.map((p) => (
+          {suggestions.map((s) => (
             <button
-              key={p.name}
-              onClick={() => { setSelectedProduct(p.name); handleQuickReply(p.name); }}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 active:scale-100",
-                p.bg, p.border, p.color
-              )}
+              key={s.id}
+              onClick={() => handleQuickReply(`Tell me about ${s.title}`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 active:scale-100 bg-primary/5 dark:bg-primary-400/5 border-primary/20 dark:border-primary-400/20 text-primary dark:text-primary-300"
             >
-              {p.icon} {p.short}
+              <Sparkles className="w-3.5 h-3.5" /> {s.title}
             </button>
           ))}
           <button

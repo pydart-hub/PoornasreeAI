@@ -72,3 +72,21 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+/**
+ * GET /api/suggestions
+ * Returns document titles for customer-type documents (used as suggestion chips).
+ */
+export async function getSuggestions(req: Request, res: Response): Promise<void> {
+  try {
+    const documents = await prisma.document.findMany({
+      where: { documentType: "customer" },
+      select: { id: true, title: true },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ suggestions: documents });
+  } catch (err) {
+    console.error("getSuggestions error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

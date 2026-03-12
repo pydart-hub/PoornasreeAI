@@ -53,6 +53,12 @@ const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     "profile.edit": true,
   },
   customer: { chat: true, "profile.edit": true },
+  customer_service: {
+    chat: true,
+    "support.queue": true,
+    "analytics.view": true,
+    "profile.edit": true,
+  },
 };
 
 function enrichUser(raw: Omit<User, "permissions" | "languagePref" | "themePref">): User {

@@ -191,3 +191,28 @@ export async function updateVideo(id: string, payload: Partial<VideoPayload>): P
 export async function deleteVideo(id: string): Promise<void> {
   await apiFetch(`/api/admin/videos/${id}`, { method: "DELETE" });
 }
+
+// ── Customer Service Analytics ───────────────────────────────────────────
+
+export interface CustomerAnalytics {
+  totalConversations: number;
+  totalSupportRequests: number;
+  resolvedCount: number;
+  pendingCount: number;
+  activeCount: number;
+  topComplaints: { keyword: string; count: number }[];
+  topQuestions: { keyword: string; count: number }[];
+  recentIssues: {
+    id: string;
+    problem: string;
+    status: string;
+    customer: { firstName: string; lastName: string | null };
+    createdAt: string;
+  }[];
+  timeline: { date: string; conversations: number; support: number }[];
+}
+
+/** Fetch customer analytics (customer_service / admin / sales). */
+export async function getCustomerAnalytics(): Promise<CustomerAnalytics> {
+  return apiFetch<CustomerAnalytics>("/api/admin/analytics/customer");
+}

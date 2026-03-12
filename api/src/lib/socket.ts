@@ -55,8 +55,8 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
     // Every user joins their personal room for direct events
     socket.join(`user:${userId}`);
 
-    // Service / admin engineers join the shared "engineers" room
-    if (role === "service" || role === "admin") {
+    // Service / admin / customer_service join the shared "engineers" room
+    if (role === "service" || role === "admin" || role === "customer_service") {
       engineerPresence.set(socket.id, { userId, name, socketId: socket.id });
       socket.join("engineers");
       broadcastEngineerStatus();

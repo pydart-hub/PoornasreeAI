@@ -92,7 +92,7 @@ export async function acceptSupportRequest(req: Request, res: Response): Promise
     const role       = req.user!.role;
     const engineerId = req.user!.userId;
 
-    if (!["service", "admin"].includes(role)) {
+    if (!["service", "admin", "customer_service"].includes(role)) {
       res.status(403).json({ error: "Service engineers only" });
       return;
     }
@@ -132,7 +132,7 @@ export async function acceptSupportRequest(req: Request, res: Response): Promise
 // ── PATCH /api/support/requests/:id/resolve ─────────────────────────────
 export async function resolveSupportRequest(req: Request, res: Response): Promise<void> {
   try {
-    if (!["service", "admin"].includes(req.user!.role)) {
+    if (!["service", "admin", "customer_service"].includes(req.user!.role)) {
       res.status(403).json({ error: "Service engineers only" });
       return;
     }
@@ -168,7 +168,7 @@ export async function getSupportMessages(req: Request, res: Response): Promise<v
     const canAccess =
       request.customerId === userId ||
       request.engineerId === userId ||
-      ["service", "admin"].includes(role);
+      ["service", "admin", "customer_service"].includes(role);
     if (!canAccess) { res.status(403).json({ error: "Access denied" }); return; }
 
     const messages = await prisma.supportMessage.findMany({
@@ -222,7 +222,7 @@ export async function sendSupportMessage(req: Request, res: Response): Promise<v
 // Feature 6: AI diagnosis for engineers — vector search on customer problem
 export async function getAiInsight(req: Request, res: Response): Promise<void> {
   try {
-    if (!["service", "admin"].includes(req.user!.role)) {
+    if (!["service", "admin", "customer_service"].includes(req.user!.role)) {
       res.status(403).json({ error: "Service engineers only" });
       return;
     }
@@ -404,8 +404,8 @@ function extractTopKeywords(texts: string[], topN = 12): { keyword: string; coun
 // ── GET /api/admin/analytics/customer ────────────────────────────────────
 export async function getCustomerAnalytics(req: Request, res: Response): Promise<void> {
   try {
-    if (!["admin", "sales"].includes(req.user?.role ?? "")) {
-      res.status(403).json({ error: "Admins and sales only" });
+    if (!["admin", "sales", "customer_service"].includes(req.user?.role ?? "")) {
+      res.status(403).json({ error: "Admins, sales and customer service only" });
       return;
     }
 

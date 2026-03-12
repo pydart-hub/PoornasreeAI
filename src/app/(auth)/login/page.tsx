@@ -42,6 +42,7 @@ export default function LoginPage() {
       else if (role === "admin")     router.replace("/admin");
       else if (role === "service")   router.replace("/service");
       else if (role === "sales")     router.replace("/sales");
+      else if (role === "customer_service") router.replace("/customer-service");
       else                           router.replace("/chat");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");

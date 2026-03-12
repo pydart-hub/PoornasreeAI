@@ -7,7 +7,7 @@ import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
 
 const SALT_ROUNDS = 12;
-const VALID_ROLES = ["admin", "customer", "service", "sales"];
+const VALID_ROLES = ["admin", "customer", "service", "sales", "customer_service"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
 export async function createUser(req: Request, res: Response): Promise<void> {

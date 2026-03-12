@@ -35,6 +35,7 @@ const ROLES = [
   { value: "customer",  label: "Customer" },
   { value: "service",   label: "Service Engineer" },
   { value: "sales",     label: "Sales" },
+  { value: "customer_service", label: "Customer Service" },
   { value: "admin",     label: "Administrator" },
 ] as const;
 
@@ -46,6 +47,7 @@ const ROLE_BADGE: Record<
   admin:    { label: "Administrator",      variant: "default" },
   sales:    { label: "Sales",              variant: "success" },
   customer: { label: "Customer",           variant: "accent" },
+  customer_service: { label: "Customer Service", variant: "warning" },
 };
 
 function getRoleBadge(role: string) {

@@ -10,6 +10,7 @@ import {
 } from "../controllers/conversation.controller";
 import { createMessage, addManualReply } from "../controllers/message.controller";
 import { addFeedback } from "../controllers/feedback.controller";
+import { getSuggestions } from "../controllers/document.controller";
 
 const router = Router();
 
@@ -27,12 +28,15 @@ router.patch ("/conversations/:id/status",  updateStatus);
 router.post  ("/conversations/:id/escalate",escalateConversation);
 
 // ── Messages ───────────────────────────────────────────────────────────
-router.post  ("/messages",                  authorize("admin", "service", "customer"), createMessage);
+router.post  ("/messages",                  authorize("admin", "service", "customer", "customer_service"), createMessage);
 
 // ── Service / Admin manual reply ───────────────────────────────────────
 router.post  ("/conversations/:id/reply",   addManualReply);
 
 // ── Training feedback (service / admin) ───────────────────────────────
 router.post  ("/conversations/:id/feedback",addFeedback);
+
+// ── Suggestions for customer chat (from uploaded documents) ───────────
+router.get   ("/suggestions",               getSuggestions);
 
 export default router;
