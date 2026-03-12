@@ -26,6 +26,7 @@ import {
   Zap,
   Lightbulb,
   Loader2,
+  Bot,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ export default function ServiceDashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
 
   // Top-level tab — Support Queue is default (primary role)
-  const [tab, setTab] = useState<"queue" | "chats">("queue");
+  const [tab, setTab] = useState<"queue" | "chats" | "assistant">("queue");
 
   // ── Support Queue state ────────────────────────────────────────────
   const [supportRequests, setSupportRequests] = useState<SupportRequestItem[]>([]);
@@ -100,11 +101,18 @@ export default function ServiceDashboard() {
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
 
+  // ── KB Assistant state ─────────────────────────────────────────────
+  const [kbMessages, setKbMessages] = useState<{ id: string; role: "user" | "assistant"; content: string; timestamp: Date }[]>([]);
+  const [kbConvId, setKbConvId] = useState<string | null>(null);
+  const [kbInput, setKbInput] = useState("");
+  const [kbStreaming, setKbStreaming] = useState(false);
+
   // ── Toasts ─────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
   const supportEndRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const kbEndRef = useRef<HTMLDivElement>(null);
 
   // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -178,6 +186,7 @@ export default function ServiceDashboard() {
   useEffect(() => { if (activeSupportId) fetchSupportMessages(activeSupportId); }, [activeSupportId, fetchSupportMessages]);
   useEffect(() => { supportEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [supportMessages]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [activeId, conversations]);
+  useEffect(() => { kbEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [kbMessages]);
 
   // ── Derived ────────────────────────────────────────────────────────
   const filteredQueue = supportRequests.filter((r) => queueFilter === "all" || r.status === queueFilter);
@@ -276,6 +285,56 @@ export default function ServiceDashboard() {
     if (activeId) { setStatuses((p) => ({ ...p, [activeId]: "resolved" })); addToast("Marked resolved", "success"); }
   };
 
+  // ── KB Assistant actions ───────────────────────────────────────────
+  const handleKbSend = async () => {
+    if (!kbInput.trim() || kbStreaming) return;
+    setKbStreaming(true);
+    const text = kbInput.trim();
+    setKbInput("");
+    const userMsgId = `kb-user-${Date.now()}`;
+    setKbMessages((p) => [...p, { id: userMsgId, role: "user" as const, content: text, timestamp: new Date() }]);
+    const botMsgId = `kb-bot-${Date.now()}`;
+    setKbMessages((p) => [...p, { id: botMsgId, role: "assistant" as const, content: "", timestamp: new Date() }]);
+    try {
+      let convId = kbConvId;
+      if (!convId) {
+        const r = await fetch("/api/conversations", {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: text.slice(0, 50) }),
+        });
+        if (!r.ok) throw new Error();
+        const d = await r.json();
+        convId = d.conversation.id as string;
+        setKbConvId(convId);
+      }
+      const r = await fetch("/api/messages", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: convId, content: text }),
+      });
+      if (!r.ok) throw new Error();
+      const { assistantMessage } = await r.json();
+      const fullReply: string = assistantMessage.content;
+      for (let i = 0; i <= fullReply.length; i++) {
+        await new Promise((res) => setTimeout(res, 12));
+        setKbMessages((p) =>
+          p.map((m) =>
+            m.id === botMsgId
+              ? i === fullReply.length
+                ? { ...m, id: assistantMessage.id, content: fullReply, timestamp: new Date(assistantMessage.createdAt) }
+                : { ...m, content: fullReply.slice(0, i) }
+              : m
+          )
+        );
+      }
+    } catch {
+      setKbMessages((p) => p.filter((m) => m.id !== botMsgId));
+      setKbInput(text);
+      addToast("Failed to get AI response", "warning");
+    } finally { setKbStreaming(false); }
+  };
+
   // ── Keyboard ───────────────────────────────────────────────────────
   const onKeySupport = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSendSupportMessage(); }
@@ -349,6 +408,18 @@ export default function ServiceDashboard() {
           <MessageSquare className="h-3.5 w-3.5" />
           AI Chats
           <span className="text-[10px] opacity-60">({conversations.length})</span>
+        </button>
+        <button
+          onClick={() => setTab("assistant")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+            tab === "assistant"
+              ? "text-emerald-400 border-b-2 border-emerald-400 bg-emerald-500/5"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <Bot className="h-3.5 w-3.5" />
+          KB Assistant
         </button>
       </div>
 
@@ -901,7 +972,117 @@ export default function ServiceDashboard() {
             </div>
           </>
         )}
-      </div>
+        {/* ════════════════════════════════════════════════════════ */}
+        {/* KB ASSISTANT TAB                                        */}
+        {/* ════════════════════════════════════════════════════════ */}
+        {tab === "assistant" && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Top bar */}
+            <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight">KB Assistant</p>
+                  <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary">Based on service documentation trained by admin</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setKbMessages([]); setKbConvId(null); }}
+                disabled={kbMessages.length === 0 || kbStreaming}
+                className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-30"
+              >
+                <RefreshCw className="h-3 w-3" /> New chat
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-slate-50 dark:bg-gray-950">
+              {kbMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                    <Bot className="h-8 w-8 text-emerald-400 opacity-70" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-content dark:text-content-dark">Service Knowledge Base</p>
+                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary mt-1 max-w-xs">
+                      Ask anything about troubleshooting, maintenance, or technical procedures. Replies are based only on documents your admin has uploaded for service engineers.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 max-w-sm">
+                    {["How to calibrate the machine?", "Error code E02", "Cleaning procedure", "Daily maintenance steps"].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setKbInput(s)}
+                        className="text-[11px] px-3 py-1.5 rounded-full border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                kbMessages.map((msg) => {
+                  const isUser = msg.role === "user";
+                  return (
+                    <div key={msg.id} className={cn("flex gap-2.5", isUser ? "justify-end" : "justify-start")}>
+                      {!isUser && (
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                          <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                        </div>
+                      )}
+                      <div className={cn("max-w-[85%] sm:max-w-[75%] space-y-0.5", isUser && "items-end flex flex-col")}>
+                        <div className={cn(
+                          "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+                          isUser
+                            ? "bg-primary text-white rounded-tr-sm"
+                            : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark rounded-tl-sm"
+                        )}>
+                          {msg.content || (
+                            <span className="flex items-center gap-2 text-content-secondary">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" /> Thinking…
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
+                          {isUser ? "You" : "KB Assistant"} · {formatRelativeTime(msg.timestamp)}
+                        </p>
+                      </div>
+                      {isUser && <Avatar name={user.firstName} size="sm" className="mt-0.5 shrink-0" />}
+                    </div>
+                  );
+                })
+              )}
+              <div ref={kbEndRef} />
+            </div>
+
+            {/* Composer */}
+            <div className="shrink-0 border-t border-line dark:border-line-dark px-4 py-3 bg-surface dark:bg-surface-dark">
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={kbInput}
+                  onChange={(e) => setKbInput(e.target.value)}
+                  onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleKbSend(); } }}
+                  disabled={kbStreaming}
+                  placeholder="Ask about troubleshooting, error codes, maintenance… (Ctrl+Enter to send)"
+                  rows={2}
+                  className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark placeholder:text-content-tertiary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors disabled:opacity-50"
+                />
+                <Button
+                  variant="primary"
+                  size="md"
+                  loading={kbStreaming}
+                  disabled={!kbInput.trim()}
+                  onClick={handleKbSend}
+                  icon={!kbStreaming ? <Send className="h-4 w-4" /> : undefined}
+                >
+                  Send
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}      </div>
 
       {/* ── Toasts ─────────────────────────────────────────────── */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
