@@ -80,7 +80,7 @@ export async function indexTrainingData(): Promise<void> {
         content: intent.responses[0],
         directResponse: true,   // ← controller checks this to skip LLM
         tag: intent.tag,
-        role: "customer",
+        role: "service",
         source: "training",
       });
       ok++;
