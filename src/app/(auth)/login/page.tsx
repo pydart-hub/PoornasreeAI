@@ -67,7 +67,7 @@ export default function LoginPage() {
 
       {/* ── Brand header ── */}
       <div className="animate-fade-up delay-100 mb-5 sm:mb-7">
-        <p className="text-[10px] font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
+        <p className="text-xs font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
           Welcome back
         </p>
         <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight">
@@ -116,7 +116,7 @@ export default function LoginPage() {
               onBlur={() => setFocusedField(null)}
               autoComplete="email"
               required
-              className="w-full py-3.5 px-3 text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
+              className="w-full py-3.5 px-3 text-base sm:text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
             />
             {/* Active indicator dot */}
             {email && (
@@ -149,7 +149,7 @@ export default function LoginPage() {
               onBlur={() => setFocusedField(null)}
               autoComplete="current-password"
               required
-              className="w-full py-3.5 px-3 text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
+              className="w-full py-3.5 px-3 text-base sm:text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
             />
             <button
               type="button"

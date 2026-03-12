@@ -377,7 +377,7 @@ function MessageBubble({
                       {v.title}
                     </p>
                     {v.description && (
-                      <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 line-clamp-1">{v.description}</p>
+                      <p className="text-[11px] sm:text-[10px] text-red-500 dark:text-red-400 mt-0.5 line-clamp-1">{v.description}</p>
                     )}
                   </div>
                   <Youtube className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 opacity-70 group-hover/vid:opacity-100" />

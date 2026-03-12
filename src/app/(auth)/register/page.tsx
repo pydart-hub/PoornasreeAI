@@ -150,7 +150,7 @@ export default function RegisterPage() {
             <select
               value={form.department}
               onChange={(e) => update("department", e.target.value)}
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-line dark:border-line-dark bg-surface-input dark:bg-surface-dark-input text-content dark:text-content-dark text-sm appearance-none cursor-pointer focus-ring transition-colors"
+              className="w-full h-11 pl-10 pr-4 rounded-xl border border-line dark:border-line-dark bg-surface-input dark:bg-surface-dark-input text-content dark:text-content-dark text-base sm:text-sm appearance-none cursor-pointer focus-ring transition-colors"
             >
               <option value="">Select department</option>
               {DEPARTMENTS.map((d) => (

@@ -12,10 +12,10 @@ export default function AuthLayout({
       <div className="absolute inset-0 pointer-events-none select-none opacity-[0.07]">
         <Image src="/flower.png" alt="" fill className="object-cover" />
       </div>
-      <div className="absolute -bottom-16 -right-16 w-80 h-80 pointer-events-none select-none opacity-[0.12]">
+      <div className="absolute -bottom-16 -right-16 w-40 h-40 sm:w-80 sm:h-80 pointer-events-none select-none opacity-[0.12]">
         <Image src="/flower.png" alt="" fill className="object-contain" />
       </div>
-      <div className="absolute -top-10 -left-10 w-48 h-48 pointer-events-none select-none opacity-10 rotate-180">
+      <div className="absolute -top-10 -left-10 w-24 h-24 sm:w-48 sm:h-48 pointer-events-none select-none opacity-10 rotate-180">
         <Image src="/flower.png" alt="" fill className="object-contain" />
       </div>
 

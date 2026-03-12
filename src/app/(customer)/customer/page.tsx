@@ -668,12 +668,12 @@ export default function CustomerChatPage() {
       <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 scrollbar-thin">
 
         {/* Suggestion chips (auto-generated from admin-uploaded documents) */}
-        <div className="flex flex-wrap gap-2 pb-2 border-b border-line dark:border-line-dark">
+        <div className="flex gap-2 pb-2 border-b border-line dark:border-line-dark overflow-x-auto scrollbar-thin">
           {suggestions.map((s) => (
             <button
               key={s.id}
               onClick={() => handleQuickReply(`Tell me about ${s.title}`)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 active:scale-100 bg-primary/5 dark:bg-primary-400/5 border-primary/20 dark:border-primary-400/20 text-primary dark:text-primary-300"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 active:scale-100 bg-primary/5 dark:bg-primary-400/5 border-primary/20 dark:border-primary-400/20 text-primary dark:text-primary-300 shrink-0 whitespace-nowrap"
             >
               <Sparkles className="w-3.5 h-3.5" /> {s.title}
             </button>
@@ -738,7 +738,7 @@ export default function CustomerChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about a product or describe your issue…"
-              className="flex-1 bg-transparent text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary outline-none"
+              className="flex-1 bg-transparent text-base sm:text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary outline-none"
             />
           </div>
           <button
@@ -811,13 +811,13 @@ export default function CustomerChatPage() {
           Fixed bottom-right — standard live-chat widget pattern.
           Launcher button always visible; panel opens above it.              */}
       <div
-        className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 touch-none select-none"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3 touch-none select-none"
         style={{ transform: `translate(${supportPos.x}px, ${supportPos.y}px)` }}
       >
 
         {/* ── Panel ────────────────────────────────────────────────────────── */}
         {showSupportPanel && (
-          <div className="w-80 sm:w-96 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col" style={{ maxHeight: 520 }}>
+          <div className="w-[calc(100vw-2rem)] sm:w-96 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70vh] sm:max-h-[520px]">
 
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-700 to-blue-500">
@@ -863,13 +863,13 @@ export default function CustomerChatPage() {
                     onChange={(e) => setSupportFormProblem(e.target.value)}
                     placeholder="Describe your issue…"
                     rows={3}
-                    className="w-full text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full text-base sm:text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   />
                   <input
                     value={supportFormMachine}
                     onChange={(e) => setSupportFormMachine(e.target.value)}
                     placeholder="Machine / product name (optional)"
-                    className="w-full text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    className="w-full text-base sm:text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   />
                   <button
                     onClick={handleCreateSupportRequest}
@@ -984,7 +984,7 @@ export default function CustomerChatPage() {
                   onChange={(e) => setSupportInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSendSupportMessage()}
                   placeholder="Message engineer…"
-                  className="flex-1 text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="flex-1 text-base sm:text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
                 <button
                   onClick={handleSendSupportMessage}

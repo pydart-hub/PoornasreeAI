@@ -80,7 +80,7 @@ export default function MessageBubble({
               <p className="text-xs font-semibold text-red-700 dark:text-red-300">
                 Watch related videos on YouTube
               </p>
-              <p className="text-[10px] text-red-500 dark:text-red-400 truncate">
+              <p className="text-[11px] sm:text-[10px] text-red-500 dark:text-red-400 truncate">
                 Search: {youtubeQuery}
               </p>
             </div>

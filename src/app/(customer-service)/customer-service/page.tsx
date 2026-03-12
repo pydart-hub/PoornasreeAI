@@ -54,13 +54,6 @@ interface SupportChatMessage {
 interface Toast { id: number; message: string; type: "success" | "info" | "warning"; }
 
 // ── Helpers ────────────────────────────────────────────────────────────
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 const Q_STATUSES = ["all", "pending", "active", "resolved"] as const;
 
 const NAV_ITEMS = [
@@ -274,7 +267,7 @@ export default function CustomerServiceDashboard() {
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary px-2 mb-2">
+          <p className="text-[11px] sm:text-[10px] font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary px-2 mb-2">
             Workspace
           </p>
           {NAV_ITEMS.map(({ id, icon: Icon, label }) => {
@@ -352,8 +345,7 @@ export default function CustomerServiceDashboard() {
             <h1 className="text-sm font-semibold text-content dark:text-content-dark truncate">
               {tab === "queue" ? "Support Queue" : "Customer Analytics"}
             </h1>
-            <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary">
-              {getGreeting()}, {user.firstName}
+            <p className="text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary">
             </p>
           </div>
           <Badge variant="warning" dot>Customer Service</Badge>
@@ -378,7 +370,7 @@ export default function CustomerServiceDashboard() {
                       key={s}
                       onClick={() => setQueueFilter(s)}
                       className={cn(
-                        "px-2.5 py-1 rounded-full text-[10px] font-semibold capitalize transition-colors",
+                        "px-2.5 py-1 rounded-full text-[11px] sm:text-[10px] font-semibold capitalize transition-colors",
                         queueFilter === s
                           ? s === "pending" ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300"
                             : s === "active" ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
@@ -449,7 +441,7 @@ export default function CustomerServiceDashboard() {
                           </div>
                           <p className="text-xs text-content-secondary dark:text-content-dark-secondary line-clamp-2 ml-9">{req.problem}</p>
                           <div className="flex items-center justify-between mt-1.5 ml-9">
-                            <p className="text-[10px] text-content-tertiary dark:text-content-dark-secondary flex items-center gap-1">
+                            <p className="text-[11px] sm:text-[10px] text-content-tertiary dark:text-content-dark-secondary flex items-center gap-1">
                               <Clock className="h-2.5 w-2.5" />
                               {formatRelativeTime(new Date(req.createdAt))}
                             </p>
@@ -457,7 +449,7 @@ export default function CustomerServiceDashboard() {
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleAcceptRequest(req.id); }}
                                 disabled={acceptingId === req.id}
-                                className="text-[10px] px-2 py-0.5 rounded-lg bg-primary hover:bg-primary-600 text-white font-semibold transition-colors disabled:opacity-50"
+                                className="text-[11px] sm:text-[10px] px-2 py-0.5 rounded-lg bg-primary hover:bg-primary-600 text-white font-semibold transition-colors disabled:opacity-50"
                               >
                                 {acceptingId === req.id ? <Loader2 className="h-3 w-3 animate-spin inline" /> : "Accept"}
                               </button>
@@ -510,7 +502,7 @@ export default function CustomerServiceDashboard() {
                             {activeReq.customer.firstName} {activeReq.customer.lastName ?? ""}
                           </p>
                           {activeReq.machineName && (
-                            <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary truncate flex items-center gap-1">
+                            <p className="text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary truncate flex items-center gap-1">
                               <Wrench className="h-2.5 w-2.5" /> {activeReq.machineName}
                             </p>
                           )}
@@ -564,7 +556,7 @@ export default function CustomerServiceDashboard() {
                                 )}>
                                   {msg.content}
                                 </div>
-                                <p className="text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
+                                <p className="text-[11px] sm:text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
                                   {isEng ? "You" : activeReq.customer.firstName} · {formatRelativeTime(new Date(msg.createdAt))}
                                 </p>
                               </div>
@@ -589,7 +581,7 @@ export default function CustomerServiceDashboard() {
                           disabled={supportSending || activeReq.status !== "active"}
                           placeholder="Type a reply… (Ctrl+Enter to send)"
                           rows={2}
-                          className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:opacity-50"
+                          className="flex-1 resize-none rounded-xl px-3 py-2 text-base sm:text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:opacity-50"
                         />
                         <Button variant="primary" size="md" loading={supportSending} disabled={!supportReplyText.trim() || activeReq.status !== "active"} onClick={handleSendSupportMessage} icon={!supportSending ? <Send className="h-4 w-4" /> : undefined}>
                           Send
@@ -733,7 +725,7 @@ export default function CustomerServiceDashboard() {
                         );
                       })}
                     </div>
-                    <div className="flex items-center justify-between mt-2 text-[10px] text-content-secondary dark:text-content-dark-secondary">
+                    <div className="flex items-center justify-between mt-2 text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary">
                       <span>{analytics.timeline[0]?.date ?? ""}</span>
                       <span>{analytics.timeline[analytics.timeline.length - 1]?.date ?? ""}</span>
                     </div>
@@ -753,8 +745,7 @@ export default function CustomerServiceDashboard() {
                           <div key={issue.id} className="flex items-center justify-between gap-3 py-2 border-b border-line dark:border-line-dark last:border-b-0">
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-medium text-content dark:text-content-dark truncate">{issue.problem}</p>
-                              <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary">
-                                {issue.customer.firstName} {issue.customer.lastName ?? ""} · {formatRelativeTime(new Date(issue.createdAt))}
+                              <p className="text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary"> {issue.customer.lastName ?? ""} · {formatRelativeTime(new Date(issue.createdAt))}
                               </p>
                             </div>
                             <span className={cn(
@@ -779,7 +770,7 @@ export default function CustomerServiceDashboard() {
       </main>
 
       {/* ── Toasts ─────────────────────────────────────────────── */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
+      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}

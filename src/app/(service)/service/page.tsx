@@ -158,7 +158,7 @@ export default function ServiceDashboard() {
             </div>
             <div>
               <p className="text-sm font-semibold text-content dark:text-content-dark">KB Assistant</p>
-              <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary">Service documentation</p>
+              <p className="text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary">Service documentation</p>
             </div>
           </div>
         </div>
@@ -215,7 +215,7 @@ export default function ServiceDashboard() {
             <h1 className="text-sm font-semibold text-content dark:text-content-dark truncate">
               KB Assistant
             </h1>
-            <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary">
+            <p className="text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary">
               {getGreeting()}, {user.firstName}
             </p>
           </div>
@@ -234,7 +234,7 @@ export default function ServiceDashboard() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-content dark:text-content-dark">Knowledge Base</p>
-                <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary">Answers from service documentation</p>
+                <p className="text-[11px] sm:text-[10px] text-content-secondary dark:text-content-dark-secondary">Answers from service documentation</p>
               </div>
             </div>
             <button
@@ -294,7 +294,7 @@ export default function ServiceDashboard() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
+                      <p className="text-[11px] sm:text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
                         {isUser ? "You" : "KB Assistant"} · {formatRelativeTime(msg.timestamp)}
                       </p>
                     </div>
@@ -316,7 +316,7 @@ export default function ServiceDashboard() {
                 disabled={kbStreaming}
                 placeholder="Ask about troubleshooting, error codes, maintenance… (Ctrl+Enter to send)"
                 rows={2}
-                className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors disabled:opacity-50"
+                className="flex-1 resize-none rounded-xl px-3 py-2 text-base sm:text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors disabled:opacity-50"
               />
               <Button variant="primary" size="md" loading={kbStreaming} disabled={!kbInput.trim()} onClick={handleKbSend} icon={!kbStreaming ? <Send className="h-4 w-4" /> : undefined}>
                 Send

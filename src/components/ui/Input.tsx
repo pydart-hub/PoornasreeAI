@@ -40,7 +40,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={cn(
               "w-full h-11 rounded-xl border bg-surface-tertiary dark:bg-surface-dark-tertiary",
-              "text-content dark:text-content-dark text-sm",
+              "text-content dark:text-content-dark text-base sm:text-sm",
               "placeholder:text-content-tertiary dark:placeholder:text-content-dark-secondary",
               "transition-all duration-200",
               "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:focus:ring-primary-400/30 dark:focus:border-primary-400",
