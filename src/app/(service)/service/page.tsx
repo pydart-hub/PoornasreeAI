@@ -15,10 +15,12 @@ import {
   LogOut,
   RefreshCw,
   ChevronDown,
+  ChevronLeft,
   Send,
   CheckCircle2,
   Info,
   MessageSquare,
+  Menu,
   Users,
   SlidersHorizontal,
   AlertTriangle,
@@ -157,6 +159,9 @@ export default function ServiceDashboard() {
   const [showInsight, setShowInsight] = useState(false);
   const [aiInsight, setAiInsight] = useState<AiInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+
+  // ── Mobile sidebar drawer ─────────────────────────────────────────
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const toastId          = useRef(0);
   const messagesEndRef   = useRef<HTMLDivElement>(null);
@@ -484,6 +489,14 @@ export default function ServiceDashboard() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Mobile sidebar toggle */}
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="sm:hidden p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition-colors"
+            title="Toggle sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <span className="hidden md:block text-sm text-slate-400 mr-1">
             {user.firstName} {user.lastName ?? ""}
           </span>
@@ -502,8 +515,21 @@ export default function ServiceDashboard() {
       {/* ── Body ─────────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
 
+        {/* Mobile backdrop */}
+        {sidebarOpen && (
+          <div
+            className="sm:hidden fixed top-14 inset-x-0 bottom-0 z-30 bg-black/60"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* ═══ Left Sidebar ════════════════════════════════════════ */}
-        <aside className="w-80 shrink-0 flex flex-col border-r border-slate-700 bg-slate-900 overflow-hidden">
+        <aside className={cn(
+          "flex flex-col border-r border-slate-700 bg-slate-900 overflow-hidden",
+          "fixed top-14 bottom-0 left-0 z-40 w-[280px] transition-transform duration-200",
+          "sm:relative sm:top-auto sm:bottom-auto sm:left-auto sm:z-auto sm:w-80 sm:shrink-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
+        )}>
 
           {/* Tab switcher */}
           <div className="flex border-b border-slate-700">
@@ -606,7 +632,7 @@ export default function ServiceDashboard() {
                     return (
                       <button
                         key={conv.id}
-                        onClick={() => setActiveId(conv.id)}
+                        onClick={() => { setActiveId(conv.id); setSidebarOpen(false); }}
                         className={cn(
                           "w-full text-left px-4 py-3 border-b border-slate-700/60 transition-colors",
                           isActive
@@ -695,7 +721,7 @@ export default function ServiceDashboard() {
                       return (
                         <button
                           key={req.id}
-                          onClick={() => { setActiveSupportId(req.id); setShowInsight(false); setAiInsight(null); }}
+                          onClick={() => { setActiveSupportId(req.id); setShowInsight(false); setAiInsight(null); setSidebarOpen(false); }}
                           className={cn(
                             "w-full text-left px-4 py-3 border-b border-slate-700/60 transition-colors",
                             isActive
@@ -770,7 +796,15 @@ export default function ServiceDashboard() {
                 <>
                   {/* Panel header */}
                   <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      {/* Back to list on mobile */}
+                      <button
+                        onClick={() => setSidebarOpen(true)}
+                        className="sm:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                        title="Back to list"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
                       <Avatar name={displayName(activeConv.user)} size="sm" />
                       <div>
                         <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight">
@@ -901,7 +935,15 @@ export default function ServiceDashboard() {
                     <>
                       {/* Support chat header */}
                       <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {/* Back to list on mobile */}
+                          <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="sm:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                            title="Back to list"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
                           <Avatar name={`${activeReq.customer.firstName} ${activeReq.customer.lastName ?? ""}`} size="sm" />
                           <div>
                             <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight">
