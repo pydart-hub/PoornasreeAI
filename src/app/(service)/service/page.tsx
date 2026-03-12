@@ -20,9 +20,6 @@ import {
   CheckCircle2,
   Info,
   MessageSquare,
-  Menu,
-  Users,
-  SlidersHorizontal,
   AlertTriangle,
   X,
   Inbox,
@@ -31,121 +28,54 @@ import {
   Loader2,
 } from "lucide-react";
 
+// ── Types ─────────────────────────────────────────────────────────────
 type Status = "open" | "in_progress" | "resolved";
 
-interface ConversationUser {
-  email: string;
-  firstName: string;
-  lastName: string | null;
-}
-
-interface ApiMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: string;
-}
-
-interface ApiConversation {
-  id: string;
-  title: string | null;
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
-  user: ConversationUser;
-  messages: ApiMessage[];
-}
-
-interface SupportCustomer {
-  id: string;
-  firstName: string;
-  lastName?: string | null;
-  email: string;
-}
-
-interface SupportRequestItem {
-  id: string;
-  customerId: string;
-  engineerId: string | null;
-  problem: string;
-  machineName: string | null;
-  status: "pending" | "active" | "resolved";
-  createdAt: string;
-  customer: SupportCustomer;
-  engineer: { id: string; firstName: string; lastName?: string } | null;
-  _count: { chatMessages: number };
-}
-
-interface SupportChatMessage {
-  id: string;
-  senderId: string;
-  content: string;
-  createdAt: string;
-  sender: { id: string; firstName: string; lastName?: string; role: string };
-}
-
-interface AiInsight {
-  insights: { rank: number; score: number; snippet: string; documentId: string }[];
-  confidence: "high" | "medium" | "low";
-  suggestedChecks: string[];
-}
-
-function confidenceColor(c: AiInsight["confidence"]) {
-  return c === "high" ? "bg-emerald-500/20 text-emerald-400"
-    : c === "medium" ? "bg-amber-500/20 text-amber-400"
-    : "bg-red-500/20 text-red-400";
-}
-
-// ── Status config ─────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<Status, { label: string; variant: "warning" | "info" | "success"; dot: boolean }> = {
-  open:        { label: "Open",        variant: "warning", dot: true },
-  in_progress: { label: "In Progress", variant: "info",    dot: true },
-  resolved:    { label: "Resolved",    variant: "success", dot: false },
-};
-
-const FILTER_OPTIONS: { value: "all" | Status; label: string }[] = [
-  { value: "all",         label: "All Conversations" },
-  { value: "open",        label: "Open" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "resolved",    label: "Resolved" },
-];
+interface ConversationUser { email: string; firstName: string; lastName: string | null; }
+interface ApiMessage { id: string; role: "user" | "assistant"; content: string; createdAt: string; }
+interface ApiConversation { id: string; title: string | null; userId: string; createdAt: string; updatedAt: string; user: ConversationUser; messages: ApiMessage[]; }
+interface SupportCustomer { id: string; firstName: string; lastName?: string | null; email: string; }
+interface SupportRequestItem { id: string; customerId: string; engineerId: string | null; problem: string; machineName: string | null; status: "pending" | "active" | "resolved"; createdAt: string; customer: SupportCustomer; engineer: { id: string; firstName: string; lastName?: string } | null; _count: { chatMessages: number }; }
+interface SupportChatMessage { id: string; senderId: string; content: string; createdAt: string; sender: { id: string; firstName: string; lastName?: string; role: string }; }
+interface AiInsight { insights: { rank: number; score: number; snippet: string; documentId: string }[]; confidence: "high" | "medium" | "low"; suggestedChecks: string[]; }
+interface Toast { id: number; message: string; type: "success" | "info" | "warning"; }
 
 // ── Helpers ───────────────────────────────────────────────────────────
-function displayName(u: ConversationUser): string {
+function displayName(u: ConversationUser) {
   return u.lastName ? `${u.firstName} ${u.lastName}` : u.firstName;
 }
-
-function lastMessage(conv: ApiConversation): string {
-  if (conv.messages.length === 0) return "No messages yet";
-  const last = conv.messages[conv.messages.length - 1];
-  return truncate(last.content, 60);
+function lastMessage(conv: ApiConversation) {
+  if (!conv.messages.length) return "No messages yet";
+  return truncate(conv.messages[conv.messages.length - 1].content, 60);
+}
+function confidenceColor(c: AiInsight["confidence"]) {
+  return c === "high" ? "bg-emerald-500/20 text-emerald-400" : c === "medium" ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400";
 }
 
-// ── Toast notification (lightweight, no external lib) ─────────────────
-interface Toast {
-  id: number;
-  message: string;
-  type: "success" | "info" | "warning";
-}
+const STATUS_CFG: Record<Status, { label: string; variant: "warning" | "info" | "success"; dot: boolean }> = {
+  open: { label: "Open", variant: "warning", dot: true },
+  in_progress: { label: "In Progress", variant: "info", dot: true },
+  resolved: { label: "Resolved", variant: "success", dot: false },
+};
+
+const CHAT_FILTERS: { value: "all" | Status; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+];
+
+const Q_STATUSES = ["all", "pending", "active", "resolved"] as const;
 
 // ═════════════════════════════════════════════════════════════════════
 export default function ServiceDashboard() {
   const router = useRouter();
   const { user, isLoading: authLoading, logout } = useAuth();
 
-  // ── AI Conversations state (existing) ─────────────────────────────
-  const [conversations, setConversations] = useState<ApiConversation[]>([]);
-  const [statuses, setStatuses] = useState<Record<string, Status>>({});
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | Status>("all");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [replyText, setReplyText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  // Top-level tab — Support Queue is default (primary role)
+  const [tab, setTab] = useState<"queue" | "chats">("queue");
 
-  // ── Support Queue state (new) ──────────────────────────────────────
-  const [mainView, setMainView] = useState<"chats" | "queue">("chats");
+  // ── Support Queue state ────────────────────────────────────────────
   const [supportRequests, setSupportRequests] = useState<SupportRequestItem[]>([]);
   const [queueFilter, setQueueFilter] = useState<"all" | "pending" | "active" | "resolved">("all");
   const [activeSupportId, setActiveSupportId] = useState<string | null>(null);
@@ -155,64 +85,56 @@ export default function ServiceDashboard() {
   const [queueLoading, setQueueLoading] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
-  // ── AI Insight panel (Feature 6) ──────────────────────────────────
+  // ── AI Insight (inline) ────────────────────────────────────────────
   const [showInsight, setShowInsight] = useState(false);
   const [aiInsight, setAiInsight] = useState<AiInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
-  // ── Mobile sidebar drawer ─────────────────────────────────────────
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // ── AI Conversations state ─────────────────────────────────────────
+  const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [statuses, setStatuses] = useState<Record<string, Status>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [chatFilter, setChatFilter] = useState<"all" | Status>("all");
+  const [chatFilterOpen, setChatFilterOpen] = useState(false);
+  const [chatLoading, setChatLoading] = useState(true);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const toastId          = useRef(0);
-  const messagesEndRef   = useRef<HTMLDivElement>(null);
-  const supportEndRef    = useRef<HTMLDivElement>(null);
-  const textareaRef      = useRef<HTMLTextAreaElement>(null);
+  // ── Toasts ─────────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastId = useRef(0);
+  const supportEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Auth guard ────────────────────────────────────────────────────
+  // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/login");
-    } else if (!authLoading && user && !["service", "admin"].includes(user.role)) {
-      router.replace("/");
-    }
+    if (!authLoading && !user) router.replace("/login");
+    else if (!authLoading && user && !["service", "admin"].includes(user.role)) router.replace("/");
   }, [user, authLoading, router]);
 
-  // ── Toast helper ──────────────────────────────────────────────────
   const addToast = useCallback((message: string, type: Toast["type"] = "success") => {
     const id = ++toastId.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+    setToasts((p) => [...p, { id, message, type }]);
+    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 3500);
   }, []);
 
-  // ── Socket.IO: track support queue in real-time ───────────────────
+  // ── Socket.IO ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user || !["service", "admin"].includes(user.role)) return;
     const sock = getSocket({ userId: user.id, role: user.role, name: user.firstName });
-
     sock.on("request:new", (req: SupportRequestItem) => {
-      setSupportRequests((prev) => [req, ...prev]);
+      setSupportRequests((p) => [req, ...p]);
       addToast(`New support request from ${req.customer.firstName}`, "info");
     });
     sock.on("request:updated", (req: SupportRequestItem) => {
-      setSupportRequests((prev) =>
-        prev.map((r) => r.id === req.id ? req : r)
-      );
+      setSupportRequests((p) => p.map((r) => (r.id === req.id ? req : r)));
     });
     sock.on("chat:message", ({ requestId, message }: { requestId: string; message: SupportChatMessage }) => {
-      if (activeSupportId === requestId) {
-        setSupportMessages((prev) => [...prev, message]);
-      }
+      if (activeSupportId === requestId) setSupportMessages((p) => [...p, message]);
     });
-
-    return () => {
-      sock.off("request:new");
-      sock.off("request:updated");
-      sock.off("chat:message");
-      closeSocket();
-    };
+    return () => { sock.off("request:new"); sock.off("request:updated"); sock.off("chat:message"); closeSocket(); };
   }, [user, addToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Join support request socket room when selected ────────────────
   useEffect(() => {
     if (!activeSupportId || !user) return;
     const sock = getSocket({ userId: user.id, role: user.role, name: user.firstName });
@@ -220,119 +142,74 @@ export default function ServiceDashboard() {
     return () => { sock.emit("support:leave", activeSupportId); };
   }, [activeSupportId, user]);
 
-  // ── Load AI conversations ─────────────────────────────────────────
-  const fetchConversations = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/conversations", { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      const convs: ApiConversation[] = data.conversations;
-      setConversations(convs);
-      setStatuses((prev) => {
-        const updated = { ...prev };
-        convs.forEach((c) => { if (!updated[c.id]) updated[c.id] = "open"; });
-        return updated;
-      });
-      if (convs.length > 0 && !activeId) setActiveId(convs[0].id);
-    } catch (err) {
-      console.error("Failed to fetch conversations:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeId]);
-
-  // ── Load support requests ─────────────────────────────────────────
+  // ── Data fetching ──────────────────────────────────────────────────
   const fetchSupportRequests = useCallback(async () => {
     setQueueLoading(true);
     try {
-      const res = await fetch("/api/support/requests", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setSupportRequests(data.requests);
-      }
-    } finally {
-      setQueueLoading(false);
-    }
+      const r = await fetch("/api/support/requests", { credentials: "include" });
+      if (r.ok) { const d = await r.json(); setSupportRequests(d.requests); }
+    } finally { setQueueLoading(false); }
   }, []);
 
-  // ── Load support chat messages ────────────────────────────────────
-  const fetchSupportMessages = useCallback(async (requestId: string) => {
+  const fetchSupportMessages = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/support/requests/${requestId}/messages`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setSupportMessages(data.messages);
-      }
+      const r = await fetch(`/api/support/requests/${id}/messages`, { credentials: "include" });
+      if (r.ok) { const d = await r.json(); setSupportMessages(d.messages); }
     } catch { /* non-fatal */ }
   }, []);
 
+  const fetchConversations = useCallback(async () => {
+    setChatLoading(true);
+    try {
+      const r = await fetch("/api/conversations", { credentials: "include" });
+      if (!r.ok) return;
+      const d = await r.json();
+      const convs: ApiConversation[] = d.conversations;
+      setConversations(convs);
+      setStatuses((p) => { const u = { ...p }; convs.forEach((c) => { if (!u[c.id]) u[c.id] = "open"; }); return u; });
+    } catch (e) { console.error("fetchConversations:", e); }
+    finally { setChatLoading(false); }
+  }, []);
+
   useEffect(() => {
-    if (user && ["service", "admin"].includes(user.role)) {
-      fetchConversations();
-      fetchSupportRequests();
-    }
+    if (user && ["service", "admin"].includes(user.role)) { fetchSupportRequests(); fetchConversations(); }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (activeSupportId) fetchSupportMessages(activeSupportId);
-  }, [activeSupportId, fetchSupportMessages]);
-
-  // ── Auto-scroll ───────────────────────────────────────────────────
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [activeId, conversations]);
+  useEffect(() => { if (activeSupportId) fetchSupportMessages(activeSupportId); }, [activeSupportId, fetchSupportMessages]);
   useEffect(() => { supportEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [supportMessages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [activeId, conversations]);
 
-  // ── Derived state ─────────────────────────────────────────────────
-  const filtered = conversations.filter((c) => {
-    if (filter === "all") return true;
-    return (statuses[c.id] ?? "open") === filter;
-  });
-
+  // ── Derived ────────────────────────────────────────────────────────
+  const filteredQueue = supportRequests.filter((r) => queueFilter === "all" || r.status === queueFilter);
+  const filteredChats = conversations.filter((c) => chatFilter === "all" || (statuses[c.id] ?? "open") === chatFilter);
+  const activeReq = supportRequests.find((r) => r.id === activeSupportId) ?? null;
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
   const activeStatus = activeId ? (statuses[activeId] ?? "open") : null;
+  const pendingCount = supportRequests.filter((r) => r.status === "pending").length;
 
-  // ── Support queue actions ─────────────────────────────────────────
+  // ── Support actions ────────────────────────────────────────────────
   const handleAcceptRequest = async (requestId: string) => {
     setAcceptingId(requestId);
     try {
-      const res = await fetch(`/api/support/requests/${requestId}/accept`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to accept");
-      const data = await res.json();
-      setSupportRequests((prev) =>
-        prev.map((r) => r.id === requestId ? data.request : r)
-      );
+      const r = await fetch(`/api/support/requests/${requestId}/accept`, { method: "PATCH", credentials: "include" });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setSupportRequests((p) => p.map((x) => (x.id === requestId ? d.request : x)));
       setActiveSupportId(requestId);
-      setMainView("queue");
       addToast("Support request accepted", "success");
-    } catch {
-      addToast("Failed to accept request", "warning");
-    } finally {
-      setAcceptingId(null);
-    }
+    } catch { addToast("Failed to accept request", "warning"); }
+    finally { setAcceptingId(null); }
   };
 
   const handleResolveSupport = async (requestId: string) => {
     try {
-      const res = await fetch(`/api/support/requests/${requestId}/resolve`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setSupportRequests((prev) =>
-        prev.map((r) => r.id === requestId ? data.request : r)
-      );
-      setActiveSupportId(null);
-      setSupportMessages([]);
-      setShowInsight(false);
-      setAiInsight(null);
+      const r = await fetch(`/api/support/requests/${requestId}/resolve`, { method: "PATCH", credentials: "include" });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setSupportRequests((p) => p.map((x) => (x.id === requestId ? d.request : x)));
+      setActiveSupportId(null); setSupportMessages([]); setShowInsight(false); setAiInsight(null);
       addToast("Support request resolved", "success");
-    } catch {
-      addToast("Failed to resolve request", "warning");
-    }
+    } catch { addToast("Failed to resolve request", "warning"); }
   };
 
   const handleSendSupportMessage = async () => {
@@ -341,170 +218,99 @@ export default function ServiceDashboard() {
     const text = supportReplyText.trim();
     setSupportReplyText("");
     try {
-      const res = await fetch(`/api/support/requests/${activeSupportId}/messages`, {
-        method: "POST",
-        credentials: "include",
+      const r = await fetch(`/api/support/requests/${activeSupportId}/messages`, {
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text }),
       });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setSupportMessages((prev) => [...prev, data.message]);
-    } catch {
-      setSupportReplyText(text);
-      addToast("Failed to send message", "warning");
-    } finally {
-      setSupportSending(false);
-    }
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      setSupportMessages((p) => [...p, d.message]);
+    } catch { setSupportReplyText(text); addToast("Failed to send message", "warning"); }
+    finally { setSupportSending(false); }
   };
 
   const handleGetAiInsight = async (problem: string, machineName?: string) => {
-    setInsightLoading(true);
-    setShowInsight(true);
+    setInsightLoading(true); setShowInsight(true);
     try {
-      const res = await fetch("/api/support/ai-insight", {
-        method: "POST",
-        credentials: "include",
+      const r = await fetch("/api/support/ai-insight", {
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ problem, machineName }),
       });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setAiInsight(data);
-    } catch {
-      addToast("AI insight unavailable", "warning");
-      setShowInsight(false);
-    } finally {
-      setInsightLoading(false);
-    }
+      if (!r.ok) throw new Error();
+      setAiInsight(await r.json());
+    } catch { addToast("AI insight unavailable", "warning"); setShowInsight(false); }
+    finally { setInsightLoading(false); }
   };
 
-  const handleSupportKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault();
-      handleSendSupportMessage();
-    }
-  };
-
-  // ── Actions ───────────────────────────────────────────────────────
+  // ── AI Chat actions ────────────────────────────────────────────────
   const handleSendReply = async () => {
     if (!replyText.trim() || !activeId || sending) return;
     setSending(true);
-
-    // Optimistic update
     const tempId = `temp-${Date.now()}`;
-    const tempMsg: ApiMessage = {
-      id: tempId,
-      role: "assistant",
-      content: replyText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeId ? { ...c, messages: [...c.messages, tempMsg] } : c
-      )
-    );
+    const tempMsg: ApiMessage = { id: tempId, role: "assistant", content: replyText.trim(), createdAt: new Date().toISOString() };
+    setConversations((p) => p.map((c) => (c.id === activeId ? { ...c, messages: [...c.messages, tempMsg] } : c)));
     const sentText = replyText.trim();
     setReplyText("");
-
     try {
-      const res = await fetch(`/api/conversations/${activeId}/reply`, {
-        method: "POST",
-        credentials: "include",
+      const r = await fetch(`/api/conversations/${activeId}/reply`, {
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: sentText }),
       });
-      if (!res.ok) throw new Error("Failed to send");
-      const { message } = await res.json();
-      // Replace temp with persisted
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id !== activeId
-            ? c
-            : {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === tempId ? { ...m, id: message.id, createdAt: message.createdAt } : m
-                ),
-              }
-        )
-      );
-      // Auto-advance status to in_progress
-      if (statuses[activeId] === "open") {
-        setStatuses((prev) => ({ ...prev, [activeId]: "in_progress" }));
-      }
+      if (!r.ok) throw new Error();
+      const { message } = await r.json();
+      setConversations((p) => p.map((c) =>
+        c.id !== activeId ? c : { ...c, messages: c.messages.map((m) => (m.id === tempId ? { ...m, id: message.id, createdAt: message.createdAt } : m)) }
+      ));
+      if (statuses[activeId] === "open") setStatuses((p) => ({ ...p, [activeId]: "in_progress" }));
     } catch {
-      // Rollback
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeId
-            ? { ...c, messages: c.messages.filter((m) => m.id !== tempId) }
-            : c
-        )
-      );
+      setConversations((p) => p.map((c) => (c.id === activeId ? { ...c, messages: c.messages.filter((m) => m.id !== tempId) } : c)));
       setReplyText(sentText);
-      addToast("Failed to send reply. Please try again.", "warning");
-    } finally {
-      setSending(false);
-    }
+      addToast("Failed to send reply", "warning");
+    } finally { setSending(false); }
   };
 
   const handleMarkResolved = () => {
-    if (!activeId) return;
-    setStatuses((prev) => ({ ...prev, [activeId]: "resolved" }));
-    addToast("Conversation marked as resolved.", "success");
+    if (activeId) { setStatuses((p) => ({ ...p, [activeId]: "resolved" })); addToast("Marked resolved", "success"); }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
+  // ── Keyboard ───────────────────────────────────────────────────────
+  const onKeySupport = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSendSupportMessage(); }
+  };
+  const onKeyReply = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); handleSendReply(); }
   };
 
-  // ── Keyboard: Ctrl+Enter to send ─────────────────────────────────
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault();
-      handleSendReply();
-    }
-  };
-
-  // ── Render guards ─────────────────────────────────────────────────
+  // ── Render guards ──────────────────────────────────────────────────
   if (authLoading) return <LoadingScreen message="Loading..." />;
   if (!user) return null;
 
-  // ══════════════════════════════════════════════════════════════════
+  // Mobile: if an item is selected, show full-screen detail
+  const showQueueDetail = tab === "queue" && activeSupportId !== null;
+  const showChatDetail = tab === "chats" && activeId !== null;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-gray-950 font-sans">
 
-      {/* ── Top Nav ──────────────────────────────────────────────── */}
-      <header className="h-14 shrink-0 flex items-center justify-between px-3 sm:px-5 border-b border-slate-700 bg-slate-900 z-10">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <header className="h-12 shrink-0 flex items-center justify-between px-3 sm:px-5 border-b border-slate-700 bg-slate-900 z-10">
+        <div className="flex items-center gap-2 min-w-0">
           <Logo variant="icon" size="sm" />
-          <span className="font-semibold text-slate-100 tracking-tight text-sm sm:text-base truncate">
-            Service Panel
-          </span>
-          <Badge variant="info" dot className="hidden sm:inline-flex">
-            {user.role === "admin" ? "Admin View" : "Service View"}
+          <span className="font-semibold text-slate-100 tracking-tight text-sm truncate">Service Panel</span>
+          <Badge variant="info" dot className="hidden sm:inline-flex text-[10px]">
+            {user.role === "admin" ? "Admin" : "Service"}
           </Badge>
         </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Mobile sidebar toggle */}
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="sm:hidden p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition-colors"
-            title="Toggle sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <span className="hidden md:block text-sm text-slate-400 mr-1">
-            {user.firstName} {user.lastName ?? ""}
-          </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="hidden md:block text-xs text-slate-400">{user.firstName}</span>
           <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" />
           <div className="hidden sm:block"><ThemeToggle /></div>
           <button
-            onClick={handleLogout}
-            className="ml-1 p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            onClick={async () => { await logout(); router.replace("/login"); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
             title="Sign out"
           >
             <LogOut className="h-4 w-4" />
@@ -512,329 +318,520 @@ export default function ServiceDashboard() {
         </div>
       </header>
 
-      {/* ── Body ─────────────────────────────────────────────────── */}
+      {/* ── Tab Bar ─────────────────────────────────────────────── */}
+      <div className="shrink-0 flex border-b border-slate-700 bg-slate-900">
+        <button
+          onClick={() => { setTab("queue"); fetchSupportRequests(); }}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+            tab === "queue"
+              ? "text-amber-400 border-b-2 border-amber-400 bg-amber-500/5"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <Inbox className="h-3.5 w-3.5" />
+          Support Queue
+          {pendingCount > 0 && (
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-bold">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => { setTab("chats"); fetchConversations(); }}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+            tab === "chats"
+              ? "text-indigo-400 border-b-2 border-indigo-400 bg-indigo-500/5"
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          AI Chats
+          <span className="text-[10px] opacity-60">({conversations.length})</span>
+        </button>
+      </div>
+
+      {/* ── Content ─────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Mobile backdrop */}
-        {sidebarOpen && (
-          <div
-            className="sm:hidden fixed top-14 inset-x-0 bottom-0 z-30 bg-black/60"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* ═══ Left Sidebar ════════════════════════════════════════ */}
-        <aside className={cn(
-          "flex flex-col border-r border-slate-700 bg-slate-900 overflow-hidden",
-          "fixed top-14 bottom-0 left-0 z-40 w-[280px] transition-transform duration-200",
-          "sm:relative sm:top-auto sm:bottom-auto sm:left-auto sm:z-auto sm:w-80 sm:shrink-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"
-        )}>
-
-          {/* Tab switcher */}
-          <div className="flex border-b border-slate-700">
-            <button
-              onClick={() => setMainView("chats")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-medium transition-colors",
-                mainView === "chats"
-                  ? "text-indigo-400 border-b-2 border-indigo-400 bg-indigo-500/5"
-                  : "text-slate-400 hover:text-slate-200"
-              )}
-            >
-              <MessageSquare className="h-3.5 w-3.5" /> AI Chats
-              <span className="text-[10px] opacity-60">({filtered.length})</span>
-            </button>
-            <button
-              onClick={() => { setMainView("queue"); fetchSupportRequests(); }}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-medium transition-colors",
-                mainView === "queue"
-                  ? "text-amber-400 border-b-2 border-amber-400 bg-amber-500/5"
-                  : "text-slate-400 hover:text-slate-200"
-              )}
-            >
-              <Inbox className="h-3.5 w-3.5" /> Support Queue
-              {supportRequests.filter((r) => r.status === "pending").length > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-bold">
-                  {supportRequests.filter((r) => r.status === "pending").length}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {mainView === "chats" ? (
-            <>
-              {/* Chat filter header */}
-              <div className="px-4 py-3 border-b border-slate-700">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <Users className="h-3.5 w-3.5 text-indigo-400" />
-                    Conversations
-                  </div>
+        {/* ════════════════════════════════════════════════════════ */}
+        {/* SUPPORT QUEUE TAB                                       */}
+        {/* ════════════════════════════════════════════════════════ */}
+        {tab === "queue" && (
+          <>
+            {/* List column (hidden on mobile when detail open) */}
+            <div className={cn(
+              "w-full sm:w-72 md:w-80 shrink-0 flex flex-col border-r border-slate-700 bg-slate-900 overflow-hidden",
+              showQueueDetail ? "hidden sm:flex" : "flex"
+            )}>
+              {/* Filter pills + refresh */}
+              <div className="px-3 py-2.5 border-b border-slate-700 flex items-center gap-2 flex-wrap">
+                {Q_STATUSES.map((s) => (
                   <button
-                    onClick={fetchConversations}
-                    disabled={loading}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors disabled:opacity-40"
-                    title="Refresh"
+                    key={s}
+                    onClick={() => setQueueFilter(s)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-[11px] font-medium capitalize transition-colors",
+                      queueFilter === s
+                        ? s === "pending" ? "bg-amber-500/20 text-amber-300"
+                          : s === "active" ? "bg-emerald-500/20 text-emerald-300"
+                          : s === "resolved" ? "bg-slate-500/20 text-slate-300"
+                          : "bg-indigo-500/20 text-indigo-300"
+                        : "text-slate-500 hover:text-slate-300"
+                    )}
                   >
-                    <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                    {s}
                   </button>
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={() => setFilterOpen((v) => !v)}
-                    className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-slate-200 hover:border-indigo-400/60 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <SlidersHorizontal className="h-3 w-3" />
-                      {FILTER_OPTIONS.find((f) => f.value === filter)?.label}
-                    </span>
-                    <ChevronDown className={cn("h-3 w-3 transition-transform", filterOpen && "rotate-180")} />
-                  </button>
-                  {filterOpen && (
-                    <div className="absolute top-full mt-1 left-0 w-full z-20 rounded-xl border border-slate-600 bg-slate-800 shadow-lg shadow-black/40 overflow-hidden">
-                      {FILTER_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => { setFilter(opt.value); setFilterOpen(false); }}
-                          className={cn(
-                            "w-full text-left text-xs px-3 py-2 transition-colors",
-                            filter === opt.value
-                              ? "bg-indigo-500/20 text-indigo-300 font-medium"
-                              : "text-slate-300 hover:bg-slate-700"
-                          )}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                ))}
+                <button
+                  onClick={fetchSupportRequests}
+                  disabled={queueLoading}
+                  className="ml-auto p-1 rounded-lg text-slate-500 hover:text-amber-400 transition-colors disabled:opacity-40"
+                  title="Refresh"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", queueLoading && "animate-spin")} />
+                </button>
               </div>
 
-              {/* Conversation list */}
+              {/* Request cards */}
               <div className="flex-1 overflow-y-auto">
-                {loading ? (
+                {queueLoading && supportRequests.length === 0 ? (
                   <div className="flex items-center justify-center h-32 text-sm text-slate-500">
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2 text-indigo-400" /> Loading…
+                    <Loader2 className="h-4 w-4 animate-spin mr-2 text-amber-400" /> Loading…
                   </div>
-                ) : filtered.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 gap-2 text-center px-6">
-                    <MessageSquare className="h-8 w-8 text-slate-600 opacity-70" />
-                    <p className="text-sm text-slate-500">No conversations</p>
+                ) : filteredQueue.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-center px-6">
+                    <Inbox className="h-8 w-8 text-slate-600 opacity-40" />
+                    <p className="text-sm text-slate-500">
+                      {queueFilter !== "all" ? `No ${queueFilter} requests` : "Queue is empty"}
+                    </p>
                   </div>
                 ) : (
-                  filtered.map((conv) => {
-                    const status: Status = statuses[conv.id] ?? "open";
-                    const cfg = STATUS_CONFIG[status];
-                    const isActive = conv.id === activeId;
+                  filteredQueue.map((req) => {
+                    const isActive = req.id === activeSupportId;
                     return (
                       <button
-                        key={conv.id}
-                        onClick={() => { setActiveId(conv.id); setSidebarOpen(false); }}
+                        key={req.id}
+                        onClick={() => { setActiveSupportId(req.id); setShowInsight(false); setAiInsight(null); }}
                         className={cn(
-                          "w-full text-left px-4 py-3 border-b border-slate-700/60 transition-colors",
+                          "w-full text-left px-3 py-3 border-b border-slate-800 transition-colors",
                           isActive
-                            ? "bg-indigo-500/10 border-l-2 border-l-indigo-400"
-                            : "hover:bg-slate-800 border-l-2 border-l-transparent"
+                            ? "bg-amber-500/10 border-l-2 border-l-amber-400"
+                            : "hover:bg-slate-800/60 border-l-2 border-l-transparent"
                         )}
                       >
-                        <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
                           <div className="flex items-center gap-2 min-w-0">
-                            <Avatar name={displayName(conv.user)} size="sm" />
+                            <Avatar name={`${req.customer.firstName} ${req.customer.lastName ?? ""}`} size="sm" />
                             <div className="min-w-0">
-                              <p className="text-xs font-medium text-slate-200 truncate max-w-[120px]">
-                                {displayName(conv.user)}
+                              <p className="text-xs font-medium text-slate-200 truncate">
+                                {req.customer.firstName} {req.customer.lastName ?? ""}
                               </p>
-                              <p className="text-[10px] text-slate-500 truncate max-w-[130px]">
-                                {conv.user.email}
-                              </p>
+                              {req.machineName && (
+                                <p className="text-[10px] text-slate-500 truncate">{req.machineName}</p>
+                              )}
                             </div>
                           </div>
-                          <Badge variant={cfg.variant} dot={cfg.dot} size="sm">{cfg.label}</Badge>
+                          <span className={cn(
+                            "text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0",
+                            req.status === "pending" ? "bg-amber-500/20 text-amber-300"
+                              : req.status === "active" ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-slate-600/40 text-slate-400"
+                          )}>
+                            {req.status}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-500 line-clamp-2 mt-1 ml-10">
-                          {lastMessage(conv)}
-                        </p>
-                        <p className="text-[10px] text-slate-600 mt-1.5 ml-10">
-                          {formatRelativeTime(new Date(conv.updatedAt))}
-                        </p>
+                        <p className="text-xs text-slate-400 line-clamp-2 ml-9">{req.problem}</p>
+                        <div className="flex items-center justify-between mt-1.5 ml-9">
+                          <p className="text-[10px] text-slate-600">
+                            {formatRelativeTime(new Date(req.createdAt))}
+                          </p>
+                          {req.status === "pending" && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleAcceptRequest(req.id); }}
+                              disabled={acceptingId === req.id}
+                              className="text-[10px] px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition-colors disabled:opacity-50"
+                            >
+                              {acceptingId === req.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin inline" />
+                              ) : "Accept"}
+                            </button>
+                          )}
+                        </div>
                       </button>
                     );
                   })
                 )}
               </div>
-            </>
-          ) : (
-            <>
-              {/* Queue filter */}
-              <div className="px-4 py-3 border-b border-slate-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-slate-400">Filter by status</span>
-                  <button
-                    onClick={fetchSupportRequests}
-                    disabled={queueLoading}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-40"
-                    title="Refresh"
-                  >
-                    <RefreshCw className={cn("h-3.5 w-3.5", queueLoading && "animate-spin")} />
-                  </button>
-                </div>
-                <div className="flex gap-1 flex-wrap">
-                  {(["all", "pending", "active", "resolved"] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setQueueFilter(s)}
-                      className={cn(
-                        "px-2 py-1 rounded-md text-[10px] font-medium transition-colors capitalize",
-                        queueFilter === s
-                          ? s === "pending" ? "bg-amber-500/20 text-amber-300"
-                            : s === "active" ? "bg-emerald-500/20 text-emerald-300"
-                            : s === "resolved" ? "bg-slate-500/20 text-slate-300"
-                            : "bg-indigo-500/20 text-indigo-300"
-                          : "bg-slate-800 text-slate-500 hover:text-slate-300"
-                      )}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            </div>
 
-              {/* Support request list */}
-              <div className="flex-1 overflow-y-auto">
-                {queueLoading ? (
-                  <div className="flex items-center justify-center h-32 text-sm text-slate-500">
-                    <RefreshCw className="h-4 w-4 animate-spin mr-2 text-amber-400" /> Loading…
-                  </div>
-                ) : supportRequests.filter((r) => queueFilter === "all" || r.status === queueFilter).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-32 gap-2 text-center px-6">
-                    <Inbox className="h-8 w-8 text-slate-600 opacity-70" />
-                    <p className="text-sm text-slate-500">No {queueFilter !== "all" ? queueFilter : ""} requests</p>
-                  </div>
-                ) : (
-                  supportRequests
-                    .filter((r) => queueFilter === "all" || r.status === queueFilter)
-                    .map((req) => {
-                      const isActive = req.id === activeSupportId;
-                      return (
-                        <button
-                          key={req.id}
-                          onClick={() => { setActiveSupportId(req.id); setShowInsight(false); setAiInsight(null); setSidebarOpen(false); }}
-                          className={cn(
-                            "w-full text-left px-4 py-3 border-b border-slate-700/60 transition-colors",
-                            isActive
-                              ? "bg-amber-500/10 border-l-2 border-l-amber-400"
-                              : "hover:bg-slate-800 border-l-2 border-l-transparent"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Avatar name={`${req.customer.firstName} ${req.customer.lastName ?? ""}`} size="sm" />
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium text-slate-200 truncate max-w-[110px]">
-                                  {req.customer.firstName} {req.customer.lastName ?? ""}
-                                </p>
-                                {req.machineName && (
-                                  <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
-                                    {req.machineName}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <span className={cn(
-                              "text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0",
-                              req.status === "pending" ? "bg-amber-500/20 text-amber-300"
-                                : req.status === "active" ? "bg-emerald-500/20 text-emerald-300"
-                                : "bg-slate-600/40 text-slate-400"
-                            )}>
-                              {req.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-400 line-clamp-2 mt-1 ml-10">{req.problem}</p>
-                          <div className="flex items-center justify-between mt-2 ml-10">
-                            <p className="text-[10px] text-slate-600">
-                              {formatRelativeTime(new Date(req.createdAt))}
-                            </p>
-                            {req.status === "pending" && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleAcceptRequest(req.id); }}
-                                disabled={acceptingId === req.id}
-                                className="text-[10px] px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium transition-colors disabled:opacity-50"
-                              >
-                                {acceptingId === req.id ? <Loader2 className="h-3 w-3 animate-spin inline" /> : "Accept"}
-                              </button>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })
-                )}
-              </div>
-            </>
-          )}
-        </aside>
-
-        {/* ═══ Main Panel ══════════════════════════════════════════ */}
-        <main className="flex-1 flex overflow-hidden">
-
-          {/* ── AI Chat view ── */}
-          {mainView === "chats" && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {!activeConv ? (
+            {/* Detail column (full-width on mobile when active) */}
+            <div className={cn(
+              "flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-gray-950",
+              showQueueDetail ? "flex" : "hidden sm:flex"
+            )}>
+              {!activeReq ? (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-1">
-                    <MessageSquare className="h-7 w-7 text-indigo-400 opacity-70" />
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                    <Inbox className="h-7 w-7 text-amber-400 opacity-60" />
                   </div>
-                  <p className="text-base font-medium text-content dark:text-content-dark">No conversation selected</p>
+                  <p className="text-base font-medium text-content dark:text-content-dark">No request selected</p>
                   <p className="text-sm text-content-secondary dark:text-content-dark-secondary max-w-xs">
-                    Choose a customer conversation from the panel on the left.
+                    Accept a pending request or select an active one.
                   </p>
                 </div>
               ) : (
                 <>
-                  {/* Panel header */}
-                  <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
-                    <div className="flex items-center gap-2">
-                      {/* Back to list on mobile */}
+                  {/* Chat header */}
+                  <div className="h-12 shrink-0 flex items-center justify-between px-3 sm:px-4 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
+                    <div className="flex items-center gap-2 min-w-0">
                       <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="sm:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
-                        title="Back to list"
+                        onClick={() => setActiveSupportId(null)}
+                        className="sm:hidden p-1 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
+                        title="Back"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <Avatar name={`${activeReq.customer.firstName} ${activeReq.customer.lastName ?? ""}`} size="sm" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight truncate">
+                          {activeReq.customer.firstName} {activeReq.customer.lastName ?? ""}
+                        </p>
+                        {activeReq.machineName && (
+                          <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary truncate">
+                            {activeReq.machineName}
+                          </p>
+                        )}
+                      </div>
+                      <span className={cn(
+                        "hidden sm:inline text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
+                        activeReq.status === "active" ? "bg-emerald-500/20 text-emerald-400"
+                          : activeReq.status === "resolved" ? "bg-slate-500/20 text-slate-400"
+                          : "bg-amber-500/20 text-amber-400"
+                      )}>
+                        {activeReq.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() =>
+                          showInsight
+                            ? (setShowInsight(false), setAiInsight(null))
+                            : handleGetAiInsight(activeReq.problem, activeReq.machineName ?? undefined)
+                        }
+                        disabled={insightLoading}
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors",
+                          showInsight
+                            ? "bg-amber-500/20 text-amber-300"
+                            : "text-slate-400 hover:text-amber-400 hover:bg-amber-500/10"
+                        )}
+                      >
+                        <Lightbulb className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">AI Insight</span>
+                      </button>
+                      {activeReq.status === "active" && (
+                        <Button
+                          variant="accent"
+                          size="sm"
+                          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                          onClick={() => handleResolveSupport(activeReq.id)}
+                        >
+                          <span className="hidden sm:inline">Resolve</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Problem banner */}
+                  <div className="px-3 sm:px-4 py-2 bg-amber-500/5 border-b border-amber-500/20 text-xs text-amber-300 leading-relaxed">
+                    <span className="font-semibold">Problem: </span>{activeReq.problem}
+                  </div>
+
+                  {/* AI Insight accordion (inline — no 3rd column) */}
+                  {showInsight && (
+                    <div className="px-3 sm:px-4 py-3 border-b border-line dark:border-line-dark bg-slate-50 dark:bg-gray-900/50">
+                      {insightLoading ? (
+                        <div className="flex items-center gap-2 text-xs text-content-secondary">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /> Analyzing problem…
+                        </div>
+                      ) : aiInsight ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold text-content dark:text-content-dark flex items-center gap-1.5">
+                              <Lightbulb className="h-3.5 w-3.5 text-amber-400" /> AI Insight
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize",
+                                confidenceColor(aiInsight.confidence)
+                              )}>
+                                {aiInsight.confidence}
+                              </span>
+                              <button
+                                onClick={() => { setShowInsight(false); setAiInsight(null); }}
+                                className="text-slate-500 hover:text-slate-300"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                          {aiInsight.suggestedChecks.length > 0 && (
+                            <ul className="space-y-1">
+                              {aiInsight.suggestedChecks.map((c, i) => (
+                                <li key={i} className="flex items-start gap-1.5 text-xs text-content-secondary dark:text-content-dark-secondary">
+                                  <Zap className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />{c}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {aiInsight.insights.length > 0 && (
+                            <div className="space-y-1">
+                              {aiInsight.insights.map((ins) => (
+                                <p
+                                  key={ins.rank}
+                                  className="text-[11px] bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-lg p-2 text-content-secondary dark:text-content-dark-secondary leading-relaxed line-clamp-2"
+                                >
+                                  {ins.snippet}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-content-secondary">No insight available.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3">
+                    {supportMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+                        <MessageSquare className="h-8 w-8 text-content-tertiary opacity-30" />
+                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                          {activeReq.status === "pending" ? "Accept this request to start chatting." : "No messages yet."}
+                        </p>
+                      </div>
+                    ) : (
+                      supportMessages.map((msg) => {
+                        const isEng = msg.senderId !== activeReq.customerId;
+                        return (
+                          <div key={msg.id} className={cn("flex gap-2", isEng ? "justify-end" : "justify-start")}>
+                            {!isEng && (
+                              <Avatar
+                                name={`${activeReq.customer.firstName} ${activeReq.customer.lastName ?? ""}`}
+                                size="sm"
+                                className="mt-0.5 shrink-0"
+                              />
+                            )}
+                            <div className={cn("max-w-[80%] sm:max-w-[70%] space-y-0.5", isEng && "items-end flex flex-col")}>
+                              <div className={cn(
+                                "rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                                isEng
+                                  ? "bg-primary text-white rounded-tr-sm"
+                                  : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark rounded-tl-sm"
+                              )}>
+                                {msg.content}
+                              </div>
+                              <p className="text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
+                                {isEng ? "You" : activeReq.customer.firstName} · {formatRelativeTime(new Date(msg.createdAt))}
+                              </p>
+                            </div>
+                            {isEng && <Avatar name={user.firstName} size="sm" className="mt-0.5 shrink-0" />}
+                          </div>
+                        );
+                      })
+                    )}
+                    <div ref={supportEndRef} />
+                  </div>
+
+                  {/* Composer */}
+                  <div className={cn(
+                    "shrink-0 border-t border-line dark:border-line-dark px-3 sm:px-4 py-2.5 bg-surface dark:bg-surface-dark",
+                    activeReq.status !== "active" && "opacity-50 pointer-events-none"
+                  )}>
+                    <div className="flex items-end gap-2">
+                      <textarea
+                        value={supportReplyText}
+                        onChange={(e) => setSupportReplyText(e.target.value)}
+                        onKeyDown={onKeySupport}
+                        disabled={supportSending || activeReq.status !== "active"}
+                        placeholder="Type a reply... (Ctrl+Enter to send)"
+                        rows={2}
+                        className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark placeholder:text-content-tertiary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:opacity-50"
+                      />
+                      <Button
+                        variant="primary"
+                        size="md"
+                        loading={supportSending}
+                        disabled={!supportReplyText.trim() || activeReq.status !== "active"}
+                        onClick={handleSendSupportMessage}
+                        icon={!supportSending ? <Send className="h-4 w-4" /> : undefined}
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ════════════════════════════════════════════════════════ */}
+        {/* AI CHATS TAB                                            */}
+        {/* ════════════════════════════════════════════════════════ */}
+        {tab === "chats" && (
+          <>
+            {/* List column */}
+            <div className={cn(
+              "w-full sm:w-72 md:w-80 shrink-0 flex flex-col border-r border-slate-700 bg-slate-900 overflow-hidden",
+              showChatDetail ? "hidden sm:flex" : "flex"
+            )}>
+              {/* Filter + refresh */}
+              <div className="px-3 py-2.5 border-b border-slate-700 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <button
+                    onClick={() => setChatFilterOpen((v) => !v)}
+                    className="w-full flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-lg border border-slate-600 bg-slate-800 text-slate-200 hover:border-indigo-400/60 transition-colors"
+                  >
+                    {CHAT_FILTERS.find((f) => f.value === chatFilter)?.label ?? "All"}
+                    <ChevronDown className={cn("h-3 w-3 transition-transform", chatFilterOpen && "rotate-180")} />
+                  </button>
+                  {chatFilterOpen && (
+                    <div className="absolute top-full mt-1 left-0 w-full z-20 rounded-lg border border-slate-600 bg-slate-800 shadow-lg overflow-hidden">
+                      {CHAT_FILTERS.map((f) => (
+                        <button
+                          key={f.value}
+                          onClick={() => { setChatFilter(f.value); setChatFilterOpen(false); }}
+                          className={cn(
+                            "w-full text-left text-[11px] px-2.5 py-1.5 transition-colors",
+                            chatFilter === f.value
+                              ? "bg-indigo-500/20 text-indigo-300 font-medium"
+                              : "text-slate-300 hover:bg-slate-700"
+                          )}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={fetchConversations}
+                  disabled={chatLoading}
+                  className="p-1 rounded-lg text-slate-500 hover:text-indigo-400 transition-colors disabled:opacity-40"
+                  title="Refresh"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", chatLoading && "animate-spin")} />
+                </button>
+              </div>
+
+              {/* Conversation list */}
+              <div className="flex-1 overflow-y-auto">
+                {chatLoading && conversations.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2 text-indigo-400" /> Loading…
+                  </div>
+                ) : filteredChats.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 gap-2 text-center px-6">
+                    <MessageSquare className="h-8 w-8 text-slate-600 opacity-40" />
+                    <p className="text-sm text-slate-500">No conversations</p>
+                  </div>
+                ) : (
+                  filteredChats.map((conv) => {
+                    const st = statuses[conv.id] ?? "open";
+                    const cfg = STATUS_CFG[st];
+                    const isActive = conv.id === activeId;
+                    return (
+                      <button
+                        key={conv.id}
+                        onClick={() => setActiveId(conv.id)}
+                        className={cn(
+                          "w-full text-left px-3 py-3 border-b border-slate-800 transition-colors",
+                          isActive
+                            ? "bg-indigo-500/10 border-l-2 border-l-indigo-400"
+                            : "hover:bg-slate-800/60 border-l-2 border-l-transparent"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Avatar name={displayName(conv.user)} size="sm" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-slate-200 truncate">{displayName(conv.user)}</p>
+                              <p className="text-[10px] text-slate-500 truncate">{conv.user.email}</p>
+                            </div>
+                          </div>
+                          <Badge variant={cfg.variant} dot={cfg.dot} size="sm">{cfg.label}</Badge>
+                        </div>
+                        <p className="text-xs text-slate-500 line-clamp-2 ml-9">{lastMessage(conv)}</p>
+                        <p className="text-[10px] text-slate-600 mt-1 ml-9">{formatRelativeTime(new Date(conv.updatedAt))}</p>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Detail column */}
+            <div className={cn(
+              "flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-gray-950",
+              showChatDetail ? "flex" : "hidden sm:flex"
+            )}>
+              {!activeConv ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
+                    <MessageSquare className="h-7 w-7 text-indigo-400 opacity-60" />
+                  </div>
+                  <p className="text-base font-medium text-content dark:text-content-dark">No conversation selected</p>
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary max-w-xs">
+                    Choose a customer conversation from the list.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Header */}
+                  <div className="h-12 shrink-0 flex items-center justify-between px-3 sm:px-4 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <button
+                        onClick={() => setActiveId(null)}
+                        className="sm:hidden p-1 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
+                        title="Back"
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                       <Avatar name={displayName(activeConv.user)} size="sm" />
-                      <div>
-                        <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight truncate">
                           {displayName(activeConv.user)}
                         </p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                        <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary truncate">
                           {activeConv.user.email}
                         </p>
                       </div>
                       {activeStatus && (
-                        <Badge variant={STATUS_CONFIG[activeStatus].variant} dot={STATUS_CONFIG[activeStatus].dot}>
-                          {STATUS_CONFIG[activeStatus].label}
+                        <Badge variant={STATUS_CFG[activeStatus].variant} dot={STATUS_CFG[activeStatus].dot} size="sm" className="hidden sm:inline-flex">
+                          {STATUS_CFG[activeStatus].label}
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant={activeStatus === "resolved" ? "secondary" : "accent"}
-                        size="sm"
-                        icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-                        onClick={handleMarkResolved}
-                        disabled={activeStatus === "resolved"}
-                      >
+                    <Button
+                      variant={activeStatus === "resolved" ? "secondary" : "accent"}
+                      size="sm"
+                      icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                      onClick={handleMarkResolved}
+                      disabled={activeStatus === "resolved"}
+                    >
+                      <span className="hidden sm:inline">
                         {activeStatus === "resolved" ? "Resolved" : "Mark Resolved"}
-                      </Button>
-                    </div>
+                      </span>
+                    </Button>
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                  <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3">
                     {activeConv.messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
                         <MessageSquare className="h-8 w-8 text-content-tertiary opacity-30" />
@@ -844,11 +841,11 @@ export default function ServiceDashboard() {
                       activeConv.messages.map((msg) => {
                         const isUser = msg.role === "user";
                         return (
-                          <div key={msg.id} className={cn("flex gap-3", isUser ? "justify-start" : "justify-end")}>
-                            {isUser && <Avatar name={displayName(activeConv.user)} size="sm" className="mt-0.5" />}
-                            <div className={cn("max-w-[70%] space-y-1", !isUser && "items-end flex flex-col")}>
+                          <div key={msg.id} className={cn("flex gap-2", isUser ? "justify-start" : "justify-end")}>
+                            {isUser && <Avatar name={displayName(activeConv.user)} size="sm" className="mt-0.5 shrink-0" />}
+                            <div className={cn("max-w-[80%] sm:max-w-[70%] space-y-0.5", !isUser && "items-end flex flex-col")}>
                               <div className={cn(
-                                "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                                "rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
                                 isUser
                                   ? "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark rounded-tl-sm"
                                   : "bg-primary text-white rounded-tr-sm"
@@ -859,7 +856,7 @@ export default function ServiceDashboard() {
                                 {isUser ? activeConv.user.firstName : "You"} · {formatRelativeTime(new Date(msg.createdAt))}
                               </p>
                             </div>
-                            {!isUser && <Avatar name={user.firstName} size="sm" className="mt-0.5" />}
+                            {!isUser && <Avatar name={user.firstName} size="sm" className="mt-0.5 shrink-0" />}
                           </div>
                         );
                       })
@@ -869,33 +866,23 @@ export default function ServiceDashboard() {
 
                   {/* Reply composer */}
                   <div className={cn(
-                    "shrink-0 border-t border-line dark:border-line-dark px-4 py-3 bg-surface dark:bg-surface-dark",
-                    activeStatus === "resolved" && "opacity-60 pointer-events-none"
+                    "shrink-0 border-t border-line dark:border-line-dark px-3 sm:px-4 py-2.5 bg-surface dark:bg-surface-dark",
+                    activeStatus === "resolved" && "opacity-50 pointer-events-none"
                   )}>
                     {activeStatus === "resolved" && (
                       <div className="flex items-center gap-2 mb-2 text-xs text-content-secondary dark:text-content-dark-secondary">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                        This conversation has been resolved.
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Conversation resolved.
                       </div>
                     )}
-                    <div className="flex items-end gap-3">
+                    <div className="flex items-end gap-2">
                       <textarea
-                        ref={textareaRef}
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
-                        onKeyDown={handleKeyDown}
+                        onKeyDown={onKeyReply}
                         disabled={sending || activeStatus === "resolved"}
-                        placeholder="Type a reply… (Ctrl+Enter to send)"
-                        rows={3}
-                        className={cn(
-                          "flex-1 resize-none rounded-xl px-4 py-2.5 text-sm",
-                          "bg-surface-tertiary dark:bg-surface-dark-tertiary",
-                          "text-content dark:text-content-dark",
-                          "placeholder:text-content-tertiary dark:placeholder:text-content-dark-secondary",
-                          "border border-line dark:border-line-dark",
-                          "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary dark:focus:border-primary-400",
-                          "transition-colors disabled:opacity-50"
-                        )}
+                        placeholder="Type a reply... (Ctrl+Enter to send)"
+                        rows={2}
+                        className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark placeholder:text-content-tertiary border border-line dark:border-line-dark focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:opacity-50"
                       />
                       <Button
                         variant="primary"
@@ -912,255 +899,31 @@ export default function ServiceDashboard() {
                 </>
               )}
             </div>
-          )}
-
-          {/* ── Support Queue view ── */}
-          {mainView === "queue" && (
-            <div className="flex-1 flex overflow-hidden">
-              {/* Support chat column */}
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {!activeSupportId ? (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-8">
-                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-1">
-                      <Inbox className="h-7 w-7 text-amber-400 opacity-70" />
-                    </div>
-                    <p className="text-base font-medium text-content dark:text-content-dark">No request selected</p>
-                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary max-w-xs">
-                      Accept a pending request or select an active one from the queue.
-                    </p>
-                  </div>
-                ) : (() => {
-                  const activeReq = supportRequests.find((r) => r.id === activeSupportId);
-                  return activeReq ? (
-                    <>
-                      {/* Support chat header */}
-                      <div className="h-14 shrink-0 flex items-center justify-between px-5 border-b border-line dark:border-line-dark bg-white dark:bg-gray-900">
-                        <div className="flex items-center gap-2">
-                          {/* Back to list on mobile */}
-                          <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="sm:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors"
-                            title="Back to list"
-                          >
-                            <ChevronLeft className="h-5 w-5" />
-                          </button>
-                          <Avatar name={`${activeReq.customer.firstName} ${activeReq.customer.lastName ?? ""}`} size="sm" />
-                          <div>
-                            <p className="text-sm font-semibold text-content dark:text-content-dark leading-tight">
-                              {activeReq.customer.firstName} {activeReq.customer.lastName ?? ""}
-                            </p>
-                            {activeReq.machineName && (
-                              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                                Machine: {activeReq.machineName}
-                              </p>
-                            )}
-                          </div>
-                          <span className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
-                            activeReq.status === "active" ? "bg-emerald-500/20 text-emerald-400"
-                              : activeReq.status === "resolved" ? "bg-slate-500/20 text-slate-400"
-                              : "bg-amber-500/20 text-amber-400"
-                          )}>
-                            {activeReq.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={<Lightbulb className="h-3.5 w-3.5" />}
-                            onClick={() => handleGetAiInsight(activeReq.problem, activeReq.machineName ?? undefined)}
-                            disabled={insightLoading}
-                          >
-                            AI Insight
-                          </Button>
-                          {activeReq.status === "active" && (
-                            <Button
-                              variant="accent"
-                              size="sm"
-                              icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-                              onClick={() => handleResolveSupport(activeReq.id)}
-                            >
-                              Resolve
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Problem banner */}
-                      <div className="px-5 py-2.5 bg-amber-500/5 border-b border-amber-500/20 text-xs text-amber-300">
-                        <span className="font-semibold">Problem: </span>{activeReq.problem}
-                      </div>
-
-                      {/* Messages */}
-                      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-                        {supportMessages.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
-                            <MessageSquare className="h-8 w-8 text-content-tertiary opacity-30" />
-                            <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                              {activeReq.status === "pending" ? "Accept this request to start chatting." : "No messages yet."}
-                            </p>
-                          </div>
-                        ) : (
-                          supportMessages.map((msg) => {
-                            const isEngineer = msg.senderId !== activeReq.customerId;
-                            return (
-                              <div key={msg.id} className={cn("flex gap-3", isEngineer ? "justify-end" : "justify-start")}>
-                                {!isEngineer && (
-                                  <Avatar name={`${activeReq.customer.firstName} ${activeReq.customer.lastName ?? ""}`} size="sm" className="mt-0.5" />
-                                )}
-                                <div className={cn("max-w-[70%] space-y-1", isEngineer && "items-end flex flex-col")}>
-                                  <div className={cn(
-                                    "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-                                    isEngineer
-                                      ? "bg-primary text-white rounded-tr-sm"
-                                      : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content dark:text-content-dark rounded-tl-sm"
-                                  )}>
-                                    {msg.content}
-                                  </div>
-                                  <p className="text-[10px] text-content-tertiary dark:text-content-dark-secondary px-1">
-                                    {isEngineer ? "You" : activeReq.customer.firstName} · {formatRelativeTime(new Date(msg.createdAt))}
-                                  </p>
-                                </div>
-                                {isEngineer && <Avatar name={user.firstName} size="sm" className="mt-0.5" />}
-                              </div>
-                            );
-                          })
-                        )}
-                        <div ref={supportEndRef} />
-                      </div>
-
-                      {/* Reply composer */}
-                      <div className={cn(
-                        "shrink-0 border-t border-line dark:border-line-dark px-4 py-3 bg-surface dark:bg-surface-dark",
-                        activeReq.status !== "active" && "opacity-50 pointer-events-none"
-                      )}>
-                        <div className="flex items-end gap-3">
-                          <textarea
-                            value={supportReplyText}
-                            onChange={(e) => setSupportReplyText(e.target.value)}
-                            onKeyDown={handleSupportKeyDown}
-                            disabled={supportSending || activeReq.status !== "active"}
-                            placeholder="Reply to customer… (Ctrl+Enter to send)"
-                            rows={2}
-                            className={cn(
-                              "flex-1 resize-none rounded-xl px-4 py-2.5 text-sm",
-                              "bg-surface-tertiary dark:bg-surface-dark-tertiary",
-                              "text-content dark:text-content-dark",
-                              "placeholder:text-content-tertiary dark:placeholder:text-content-dark-secondary",
-                              "border border-line dark:border-line-dark",
-                              "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
-                              "transition-colors disabled:opacity-50"
-                            )}
-                          />
-                          <Button
-                            variant="primary"
-                            size="md"
-                            loading={supportSending}
-                            disabled={!supportReplyText.trim() || activeReq.status !== "active"}
-                            onClick={handleSendSupportMessage}
-                            icon={!supportSending ? <Send className="h-4 w-4" /> : undefined}
-                          >
-                            Send
-                          </Button>
-                        </div>
-                      </div>
-                    </>
-                  ) : null;
-                })()}
-              </div>
-
-              {/* AI Insight panel (collapsible right column) */}
-              {showInsight && (
-                <div className="w-80 shrink-0 flex flex-col border-l border-line dark:border-line-dark bg-surface dark:bg-surface-dark overflow-hidden">
-                  <div className="h-14 flex items-center justify-between px-4 border-b border-line dark:border-line-dark">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-content dark:text-content-dark">
-                      <Lightbulb className="h-4 w-4 text-amber-400" />
-                      AI Insight
-                    </div>
-                    <button
-                      onClick={() => { setShowInsight(false); setAiInsight(null); }}
-                      className="p-1.5 rounded-lg text-content-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-tertiary dark:hover:bg-surface-dark-tertiary transition-colors"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-4">
-                    {insightLoading ? (
-                      <div className="flex items-center justify-center h-32 gap-2 text-sm text-content-secondary">
-                        <Loader2 className="h-4 w-4 animate-spin text-amber-400" /> Analyzing…
-                      </div>
-                    ) : aiInsight ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Confidence</span>
-                          <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full capitalize", confidenceColor(aiInsight.confidence))}>
-                            {aiInsight.confidence}
-                          </span>
-                        </div>
-
-                        {aiInsight.suggestedChecks.length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-content dark:text-content-dark mb-1.5">Suggested Checks</p>
-                            <ul className="space-y-1">
-                              {aiInsight.suggestedChecks.map((check, i) => (
-                                <li key={i} className="flex items-start gap-2 text-xs text-content-secondary dark:text-content-dark-secondary">
-                                  <Zap className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
-                                  {check}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {aiInsight.insights.length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-content dark:text-content-dark mb-1.5">Relevant Snippets</p>
-                            <ul className="space-y-1.5">
-                              {aiInsight.insights.map((ins) => (
-                                <li key={ins.rank} className="text-xs bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-lg p-2.5 text-content-secondary dark:text-content-dark-secondary leading-relaxed line-clamp-3">
-                                  {ins.snippet}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-content-secondary dark:text-content-dark-secondary text-center mt-8">
-                        No insight available.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
+          </>
+        )}
       </div>
 
-      {/* ── Toast notifications ───────────────────────────────────── */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end pointer-events-none">
+      {/* ── Toasts ─────────────────────────────────────────────── */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
             className={cn(
-              "flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium pointer-events-auto",
-              "border animate-in slide-in-from-right-4 fade-in duration-200",
+              "flex items-center gap-2 px-3 py-2 rounded-xl shadow-lg text-xs font-medium pointer-events-auto border animate-in slide-in-from-right-4 fade-in duration-200",
               t.type === "success" && "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700/50",
-              t.type === "info"    && "bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700/50",
+              t.type === "info" && "bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700/50",
               t.type === "warning" && "bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-700/50"
             )}
           >
-            {t.type === "success" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
-            {t.type === "info"    && <Info  className="h-4 w-4 shrink-0" />}
-            {t.type === "warning" && <AlertTriangle className="h-4 w-4 shrink-0" />}
+            {t.type === "success" && <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
+            {t.type === "info" && <Info className="h-3.5 w-3.5 shrink-0" />}
+            {t.type === "warning" && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
             {t.message}
             <button
-              onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+              onClick={() => setToasts((p) => p.filter((x) => x.id !== t.id))}
               className="ml-1 opacity-60 hover:opacity-100"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </button>
           </div>
         ))}
