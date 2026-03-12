@@ -109,7 +109,29 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    await prisma.user.delete({ where: { id } });
+    // Delete in a transaction, manually removing related records that lack
+    // onDelete: Cascade in the schema to avoid FK constraint violations.
+    await prisma.$transaction(async (tx) => {
+      // Unassign engineer from any support requests (engineerId is nullable)
+      await tx.supportRequest.updateMany({
+        where: { engineerId: id },
+        data: { engineerId: null },
+      });
+
+      // Delete support messages sent by this user
+      await tx.supportMessage.deleteMany({ where: { senderId: id } });
+
+      // Delete training feedback authored by this user
+      await tx.trainingFeedback.deleteMany({ where: { createdById: id } });
+
+      // Delete documents uploaded by this user (chunks cascade automatically)
+      await tx.document.deleteMany({ where: { uploadedById: id } });
+
+      // Delete the user — conversations, messages, customerRequests, and
+      // their nested records cascade via existing onDelete: Cascade directives.
+      await tx.user.delete({ where: { id } });
+    });
+
     res.json({ message: "User deleted" });
   } catch (err) {
     console.error("deleteUser error:", err);
