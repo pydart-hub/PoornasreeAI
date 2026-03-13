@@ -10,13 +10,13 @@ const GEN_MODEL   = "phi3:mini";
 // â”€â”€ RAG helper: build context + call Ollama generate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateRAGResponse(userQuery: string, userRole: string, language?: string): Promise<string> {
   try {    // ── Pre-check: ensure admin has uploaded training documents ────────
-    // For customers, only "customer"-type docs are visible.
-    // For service, both "service" and "customer" docs apply.
+    // Strict isolation: each role only sees documents uploaded for that role.
+    // customer → only "customer" docs,  service → only "service" docs.
     // If no relevant docs exist in the DB, return early with a helpful message.
     const roleTypes = userRole === "customer"
       ? ["customer"]
       : userRole === "service"
-        ? ["service", "customer"]
+        ? ["service"]
         : undefined; // admin sees all
 
     if (roleTypes) {
@@ -40,18 +40,18 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     const queryEmbedding = await embedText(userQuery);
     console.log(`[RAG] embed: ${Date.now() - t0} ms`);
 
-    // 2. Determine role filter for vector search
+    // 2. Determine role filter for vector search (strict per-role isolation)
     let roleFilter: string[] | undefined;
     if (userRole === "customer") {
       roleFilter = ["customer"];
     } else if (userRole === "service") {
-      roleFilter = ["service", "customer"];
+      roleFilter = ["service"];
     }
     // admin: no filter (retrieve all)
 
-    // 3. Search Qdrant for top-1 most relevant document chunk (topK=1 for speed)
+    // 3. Search Qdrant for top-3 most relevant document chunks
     const t1 = Date.now();
-    const hits = await searchVectors(queryEmbedding, 1, roleFilter);
+    const hits = await searchVectors(queryEmbedding, 3, roleFilter);
     console.log(`[RAG] search: ${Date.now() - t1} ms`);
 
     // Filter out chunks below minimum similarity threshold (cosine score 0–1).
@@ -76,15 +76,15 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       console.log(`[RAG] direct-hit: "${topHit.payload.tag}" score=${topHit.score.toFixed(3)} — skipping LLM`);
       englishAnswer = (topHit.payload.content as string) || "I couldn't find this information in the documentation.";
     } else {
-    // 4. Build context — cap chunk at 600 chars (~150 tokens) and total at 1200 chars
-    const MAX_CHUNK_CHARS = 600;
+    // 4. Build context from relevant chunks
+    const MAX_CHUNK_CHARS = 800;
     const context = relevantHits
       .map((h, i) => {
         const content = (h.payload.content as string).slice(0, MAX_CHUNK_CHARS);
         return `[${i + 1}] ${content}`;
       })
       .join("\n\n")
-      .slice(0, 1200);
+      .slice(0, 3000);
     console.log(`[RAG] chunks: ${relevantHits.length}, context size: ${context.length} chars`);
 
     // 5. Build prompt
@@ -114,7 +114,7 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
         messages: [{ role: "user", content: prompt }],
         stream: false,
         keep_alive: "10m",
-        options: { num_ctx: 512, num_predict: 80, temperature: 0 },
+        options: { num_ctx: 2048, num_predict: 256, temperature: 0 },
       },
       { timeout: 300_000 }
     );

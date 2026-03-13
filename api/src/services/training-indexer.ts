@@ -15,6 +15,7 @@ interface Intent {
   tag: string;
   patterns: string[];
   responses: string[];
+  role?: string;  // "customer" | "service" — defaults to "service"
 }
 
 /**
@@ -75,12 +76,13 @@ export async function indexTrainingData(): Promise<void> {
       // Embed all patterns joined — gives the best semantic coverage per intent
       const searchText = intent.patterns.join(" | ");
       const embedding = await embedText(searchText);
+      const intentRole = intent.role === "customer" ? "customer" : "service";
 
       await upsertVector(tagToUUID(intent.tag), embedding, {
         content: intent.responses[0],
         directResponse: true,   // ← controller checks this to skip LLM
         tag: intent.tag,
-        role: "service",
+        role: intentRole,
         source: "training",
       });
       ok++;
