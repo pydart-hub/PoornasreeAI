@@ -25,7 +25,7 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       });
       if (docCount === 0) {
         console.warn(`[RAG] No training documents found for role "${userRole}" — skipping RAG pipeline`);
-        return "This service is not available at the moment. Please try again later.";
+        return "__NO_DOCS__ Our AI assistant is currently being configured. In the meantime, you can reach our customer support team by starting a new conversation — a service engineer will assist you shortly.";
       }
     } else {
       // admin: check if any documents exist at all
@@ -219,9 +219,18 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
     });
 
     // ── Video recommendations ──────────────────────────────────────────────
-    // Look up curated YouTube videos relevant to the user's question.
-    // Uses keyword overlap — returns empty array when no matches or DB empty.
-    const videos = await findVideosForQuery(content.trim(), 3);
+    // Skip video suggestions when no training documents are available.
+    const isNoDocs = assistantContent.startsWith("__NO_DOCS__");
+    const videos = isNoDocs ? [] : await findVideosForQuery(content.trim(), 3);
+
+    // Strip the internal marker before sending to client
+    if (isNoDocs) {
+      assistantMessage.content = assistantContent.replace("__NO_DOCS__ ", "");
+      await prisma.message.update({
+        where: { id: assistantMessage.id },
+        data: { content: assistantMessage.content },
+      });
+    }
 
     res.status(201).json({
       userMessage,
