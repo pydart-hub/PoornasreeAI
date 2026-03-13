@@ -19,6 +19,10 @@ import {
   PanelLeftClose,
   PanelLeft,
   Menu,
+  Plus,
+  MessageSquare,
+  Trash2,
+  History,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -52,6 +56,51 @@ export default function ServiceDashboard() {
   const [kbStreaming, setKbStreaming] = useState(false);
   const kbEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Conversation history ──────────────────────────────────────────
+  interface ConvHistoryItem { id: string; title: string | null; createdAt: string; updatedAt: string }
+  const [convHistory, setConvHistory] = useState<ConvHistoryItem[]>([]);
+
+  const loadConvHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/conversations", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setConvHistory(data.conversations || []);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
+  const selectConv = useCallback(async (conv: ConvHistoryItem) => {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(conv.id)}`, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs: KbMessage[] = (data.conversation?.messages || []).map((m: { id: string; role: string; content: string; createdAt: string }) => ({
+        id: m.id,
+        role: m.role as "user" | "assistant",
+        content: m.content,
+        timestamp: new Date(m.createdAt),
+      }));
+      setKbConvId(conv.id);
+      setKbMessages(msgs);
+    } catch { /* non-fatal */ }
+  }, []);
+
+  const deleteConv = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) {
+        setConvHistory((prev) => prev.filter((c) => c.id !== id));
+        if (kbConvId === id) { setKbMessages([]); setKbConvId(null); }
+      }
+    } catch { /* non-fatal */ }
+  }, [kbConvId]);
+
+  const handleNewChat = useCallback(() => {
+    setKbMessages([]);
+    setKbConvId(null);
+  }, []);
+
   // ── Responsive ─────────────────────────────────────────────────────
   useEffect(() => {
     const check = () => {
@@ -68,7 +117,8 @@ export default function ServiceDashboard() {
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
     else if (!authLoading && user && !["service", "admin"].includes(user.role)) router.replace("/");
-  }, [user, authLoading, router]);
+    else if (!authLoading && user) loadConvHistory();
+  }, [user, authLoading, router, loadConvHistory]);
 
   useEffect(() => { kbEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [kbMessages]);
 
@@ -94,6 +144,7 @@ export default function ServiceDashboard() {
         const d = await r.json();
         convId = d.conversation.id as string;
         setKbConvId(convId);
+        loadConvHistory();
       }
       const r = await fetch("/api/messages", {
         method: "POST", credentials: "include",
@@ -119,7 +170,7 @@ export default function ServiceDashboard() {
       setKbMessages((p) => p.filter((m) => m.id !== botMsgId));
       setKbInput(text);
     } finally { setKbStreaming(false); }
-  }, [kbInput, kbStreaming, kbConvId]);
+  }, [kbInput, kbStreaming, kbConvId, loadConvHistory]);
 
   // ── Render guards ──────────────────────────────────────────────────
   if (authLoading) return <LoadingScreen message="Loading..." />;
@@ -163,8 +214,50 @@ export default function ServiceDashboard() {
           </div>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+        {/* New chat button */}
+        <div className="px-3 py-3 border-b border-line dark:border-line-dark">
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-line dark:border-line-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover text-content dark:text-content-dark text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Chat
+          </button>
+        </div>
+
+        {/* Chat history */}
+        <div className="flex-1 overflow-y-auto px-2 py-2 scrollbar-thin">
+          {convHistory.length === 0 ? (
+            <div className="flex flex-col items-center py-8 px-3 text-center gap-2">
+              <History className="w-6 h-6 text-content-secondary/30 dark:text-content-dark-secondary/30" />
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">No previous chats</p>
+            </div>
+          ) : (
+            convHistory.map((conv) => (
+              <div
+                key={conv.id}
+                className={cn(
+                  "w-full text-left px-3 py-2 rounded-lg text-xs transition-colors mb-0.5 flex items-center gap-2 group",
+                  kbConvId === conv.id
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                )}
+              >
+                <button onClick={() => selectConv(conv)} className="flex items-center gap-2 flex-1 min-w-0">
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                  <span className="truncate flex-1">{conv.title || "Untitled"}</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteConv(conv.id); }}
+                  className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  title="Delete chat"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
 
         {/* User profile */}
         <div className="shrink-0 border-t border-line dark:border-line-dark p-3 space-y-2">
@@ -238,7 +331,7 @@ export default function ServiceDashboard() {
               </div>
             </div>
             <button
-              onClick={() => { setKbMessages([]); setKbConvId(null); }}
+              onClick={handleNewChat}
               disabled={kbMessages.length === 0 || kbStreaming}
               className="flex items-center gap-1.5 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark transition-colors disabled:opacity-30 px-2.5 py-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
             >

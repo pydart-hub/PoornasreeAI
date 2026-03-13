@@ -10,6 +10,7 @@ import {
   updateUser,
   deleteUser,
   getAnalytics,
+  getCustomerFeedback,
 } from "../controllers/sales.controller";
 import { getAnalyticsTimeline } from "../controllers/support.controller";
 
@@ -35,5 +36,8 @@ router.get("/analytics", getAnalytics);
 
 // GET /api/sales/analytics/timeline  —  daily counts for charts
 router.get("/analytics/timeline", getAnalyticsTimeline);
+
+// GET /api/sales/feedback  —  recent customer feedback
+router.get("/feedback", getCustomerFeedback);
 
 export default router;

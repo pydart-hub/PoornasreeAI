@@ -22,6 +22,7 @@ import {
   History,
   Plus,
   MessageSquare,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
@@ -185,6 +186,16 @@ export default function CustomerChatPage() {
       }
     } catch { /* non-fatal */ }
   }, []); // eslint-disable-line
+
+  const deleteConversation = async (id: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        setConversationHistory((prev) => prev.filter((c) => c.id !== id));
+        if (conversationId === id) handleReset();
+      }
+    } catch { /* non-fatal */ }
+  };
 
   // Redirect if not authenticated or not customer
   useEffect(() => {
@@ -554,19 +565,30 @@ export default function CustomerChatPage() {
             </div>
           ) : (
             conversationHistory.map((conv) => (
-              <button
+              <div
                 key={conv.id}
-                onClick={() => selectConversation(conv)}
                 className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-lg text-xs transition-colors mb-0.5 flex items-center gap-2",
+                  "w-full text-left px-3 py-2.5 rounded-lg text-xs transition-colors mb-0.5 flex items-center gap-2 group",
                   conversationId === conv.id
                     ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300"
                     : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
                 )}
               >
-                <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-40" />
-                <span className="truncate flex-1">{conv.title || "Untitled Chat"}</span>
-              </button>
+                <button
+                  onClick={() => selectConversation(conv)}
+                  className="flex items-center gap-2 flex-1 min-w-0"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                  <span className="truncate flex-1">{conv.title || "Untitled Chat"}</span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                  className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  title="Delete chat"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -835,7 +857,7 @@ export default function CustomerChatPage() {
                 </p>
                 <p className="text-[11px] text-blue-100 leading-tight mt-0.5">
                   {supportRequest?.status === "active"
-                    ? "Connected · Service Engineer"
+                    ? "Connected · Customer Service"
                     : supportRequest?.status === "pending"
                     ? "Waiting for an engineer…"
                     : engineerOnline
@@ -859,7 +881,7 @@ export default function CustomerChatPage() {
               {!supportRequest && (
                 <div className="p-4 space-y-3">
                   <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                    Describe your issue and a service engineer will assist you.
+                    Describe your issue and our customer service team will assist you.
                   </p>
                   <textarea
                     value={supportFormProblem}

@@ -27,8 +27,7 @@ async function requireCustomerTarget(
 }
 
 // ── GET /api/sales/users ─────────────────────────────────────────────────
-// Sales can see all users (all roles) in the list for context,
-// but can only edit/delete customers.
+// Sales can see only customer accounts.
 export async function listUsers(req: Request, res: Response): Promise<void> {
   try {
     if (req.user?.role !== "sales") {
@@ -37,6 +36,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
     }
 
     const users = await prisma.user.findMany({
+      where: { role: "customer" },
       select: {
         id: true,
         email: true,
@@ -189,3 +189,34 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
 // ── GET /api/sales/analytics ─────────────────────────────────────────────
 // Re-export the shared analytics handler (already implemented in support.controller).
 export { _getAnalytics as getAnalytics };
+
+// ── GET /api/sales/feedback ──────────────────────────────────────────────
+// Return recent training feedback entries for customer conversations.
+export async function getCustomerFeedback(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "sales") {
+      res.status(403).json({ error: "Sales only" });
+      return;
+    }
+
+    const feedback = await prisma.trainingFeedback.findMany({
+      include: {
+        conversation: {
+          select: {
+            id: true,
+            title: true,
+            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+        },
+        createdBy: { select: { id: true, firstName: true, lastName: true, role: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    res.json({ feedback });
+  } catch (err) {
+    console.error("sales.getCustomerFeedback error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

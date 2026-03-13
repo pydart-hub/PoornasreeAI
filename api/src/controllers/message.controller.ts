@@ -221,7 +221,19 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
     // ── Video recommendations ──────────────────────────────────────────────
     // Skip video suggestions when no training documents are available.
     const isNoDocs = assistantContent.startsWith("__NO_DOCS__");
-    const videos = isNoDocs ? [] : await findVideosForQuery(content.trim(), 3);
+    let videos = isNoDocs ? [] : await findVideosForQuery(content.trim(), 3);
+
+    // Fallback: if no admin-uploaded videos match, generate a YouTube search link
+    if (!isNoDocs && videos.length === 0) {
+      const searchQuery = encodeURIComponent(content.trim().slice(0, 100));
+      videos = [{
+        id: "yt-search",
+        title: "Search YouTube for related videos",
+        description: null,
+        youtubeUrl: `https://www.youtube.com/results?search_query=${searchQuery}`,
+        keywords: "",
+      }];
+    }
 
     // Strip the internal marker before sending to client
     if (isNoDocs) {

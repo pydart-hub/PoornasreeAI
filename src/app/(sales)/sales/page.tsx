@@ -116,7 +116,7 @@ export default function SalesPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"users" | "analytics">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "feedback">("users");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -127,6 +127,18 @@ export default function SalesPage() {
   const [analytics, setAnalytics] = useState<SalesAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [timeline, setTimeline] = useState<{ date: string; conversations: number; support: number }[]>([]);
+
+  // Feedback state
+  interface FeedbackItem {
+    id: string;
+    correctedAnswer: string;
+    messageId: string | null;
+    createdAt: string;
+    conversation: { id: string; title: string | null; user: { firstName: string; lastName: string | null; email: string } };
+    createdBy: { firstName: string; lastName: string | null; role: string };
+  }
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   // Create modal state
   const [createOpen, setCreateOpen] = useState(false);
@@ -194,17 +206,38 @@ export default function SalesPage() {
     }
   }, []);
 
+  // ── Fetch feedback ────────────────────────────
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const res = await fetch("/api/sales/feedback", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackItems(data.feedback || []);
+      }
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (user?.role === "sales") {
       fetchUsers();
+      fetchFeedback();
     }
-  }, [user, fetchUsers]);
+  }, [user, fetchUsers, fetchFeedback]);
 
   useEffect(() => {
     if (activeTab === "analytics" && user?.role === "sales" && !analytics && !analyticsLoading) {
       fetchAnalytics();
     }
   }, [activeTab, user, analytics, analyticsLoading, fetchAnalytics]);
+
+  useEffect(() => {
+    if (activeTab === "feedback" && user?.role === "sales" && feedbackItems.length === 0 && !feedbackLoading) {
+      fetchFeedback();
+    }
+  }, [activeTab, user, feedbackItems.length, feedbackLoading, fetchFeedback]);
 
   // ── Validate create form ─────────────────────
   function validateCreate(f: CreateForm): Partial<Record<keyof CreateForm, string>> {
@@ -317,7 +350,6 @@ export default function SalesPage() {
     );
   });
 
-  const customerCount = users.filter((u) => u.role === "customer").length;
   const roleBadge = getRoleBadge(user?.role ?? "sales");
 
   if (isLoading) return <LoadingScreen message="Loading sales panel..." />;
@@ -370,7 +402,7 @@ export default function SalesPage() {
               <Users className="w-3.5 h-3.5" />
               Customers
               <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
-                {customerCount}
+                {users.length}
               </span>
             </button>
             <button
@@ -384,6 +416,18 @@ export default function SalesPage() {
             >
               <BarChart2 className="w-3.5 h-3.5" />
               Analytics
+            </button>
+            <button
+              onClick={() => setActiveTab("feedback")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "feedback"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              Feedback
             </button>
           </div>
         </nav>
@@ -457,13 +501,6 @@ export default function SalesPage() {
                 <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
               </div>
               <p className="text-xl font-bold text-content dark:text-content-dark">{users.length}</p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Users</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-              <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <p className="text-xl font-bold text-content dark:text-content-dark">{customerCount}</p>
               <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Customers</p>
             </div>
             <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
@@ -473,7 +510,14 @@ export default function SalesPage() {
               <p className="text-xl font-bold text-content dark:text-content-dark">
                 {users.reduce((sum, u) => sum + (u._count?.conversations ?? 0), 0)}
               </p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Conversations</p>
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Customer Conversations</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+              <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <p className="text-xl font-bold text-content dark:text-content-dark">{feedbackItems.length}</p>
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Feedback Entries</p>
             </div>
           </section>
 
@@ -493,7 +537,7 @@ export default function SalesPage() {
 
           {/* Tab switcher */}
           <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
-            {(["users", "analytics"] as const).map((tab) => (
+            {(["users", "analytics", "feedback"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -504,8 +548,8 @@ export default function SalesPage() {
                     : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
                 )}
               >
-                {tab === "users" ? <Users className="w-3.5 h-3.5" /> : <BarChart2 className="w-3.5 h-3.5" />}
-                {tab === "users" ? "Customers" : "Analytics"}
+                {tab === "users" ? <Users className="w-3.5 h-3.5" /> : tab === "analytics" ? <BarChart2 className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                {tab === "users" ? "Customers" : tab === "analytics" ? "Analytics" : "Feedback"}
               </button>
             ))}
           </div>
@@ -515,7 +559,7 @@ export default function SalesPage() {
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h2 className="text-base font-bold text-content dark:text-content-dark">
-                  All Users ({users.length})
+                  Customers ({users.length})
                 </h2>
                 <div className="flex items-center gap-2">
                   <div className="relative">
@@ -810,6 +854,61 @@ export default function SalesPage() {
                     </div>
                   )}
                 </>
+              )}
+            </section>
+          )}
+
+          {/* ── Feedback Tab ── */}
+          {activeTab === "feedback" && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-content dark:text-content-dark">
+                  Customer Feedback ({feedbackItems.length})
+                </h2>
+                <button
+                  onClick={() => { setFeedbackItems([]); fetchFeedback(); }}
+                  className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw className={cn("w-4 h-4", feedbackLoading && "animate-spin")} />
+                </button>
+              </div>
+
+              {feedbackLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
+                </div>
+              ) : feedbackItems.length === 0 ? (
+                <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
+                  <MessageSquare className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-40" />
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No feedback entries yet</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+                  {feedbackItems.map((fb, i) => (
+                    <div
+                      key={fb.id}
+                      className={cn(
+                        "px-5 py-4",
+                        i < feedbackItems.length - 1 && "border-b border-line dark:border-line-dark"
+                      )}
+                    >
+                      <p className="text-sm text-content dark:text-content-dark whitespace-pre-wrap">{fb.correctedAnswer}</p>
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                          Customer: {fb.conversation.user.firstName} {fb.conversation.user.lastName ?? ""}
+                        </span>
+                        <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                          By: {fb.createdBy.firstName} {fb.createdBy.lastName ?? ""} ({fb.createdBy.role})
+                        </span>
+                        <span className="text-xs text-content-secondary dark:text-content-dark-secondary ml-auto">
+                          <Clock className="w-3 h-3 inline mr-0.5" />
+                          {new Date(fb.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </section>
           )}

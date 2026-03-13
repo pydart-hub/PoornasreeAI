@@ -201,7 +201,7 @@ export default function AdminPage() {
   // ── Auth guard ───────────────────────────────
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
-    if (!isLoading && user && user.role !== "admin") router.replace("/chat");
+    if (!isLoading && user && user.role !== "admin") router.replace("/login");
   }, [user, isLoading, router]);
 
   // ── Fetch users ──────────────────────────────
@@ -482,13 +482,6 @@ export default function AdminPage() {
           >
             <LayoutDashboard className="w-4 h-4 opacity-70" />
             Admin Panel
-          </a>
-          <a
-            href="/chat"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <MessageSquare className="w-4 h-4 opacity-70" />
-            AI Chat
           </a>
 
           <div className="pt-3 pb-1 px-2">
