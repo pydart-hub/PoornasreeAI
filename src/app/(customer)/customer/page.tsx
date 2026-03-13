@@ -339,8 +339,11 @@ export default function CustomerChatPage() {
         ...prev,
         { id: botId, role: "assistant", content: answer },
       ]);
-      // Store YouTube search query for this response
-      setYoutubeResults((prev) => ({ ...prev, [botId]: englishQuery }));
+      // Store YouTube search query for this response (skip for no-docs fallback)
+      const isNoDocs = answer.startsWith("Our AI assistant is currently being configured");
+      if (!isNoDocs) {
+        setYoutubeResults((prev) => ({ ...prev, [botId]: englishQuery }));
+      }
     } catch {
       setMessages((prev) => [
         ...prev,

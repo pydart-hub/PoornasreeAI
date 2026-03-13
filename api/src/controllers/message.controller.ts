@@ -25,7 +25,7 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       });
       if (docCount === 0) {
         console.warn(`[RAG] No training documents found for role "${userRole}" — skipping RAG pipeline`);
-        return "__NO_DOCS__ Our AI assistant is currently being configured. In the meantime, you can reach our customer support team by starting a new conversation — a service engineer will assist you shortly.";
+        return "__NO_DOCS__ Our AI assistant is currently being configured. In the meantime, you can reach our customer service team by starting a new conversation — our team will assist you shortly.";
       }
     } else {
       // admin: check if any documents exist at all
