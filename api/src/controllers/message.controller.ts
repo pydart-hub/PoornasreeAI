@@ -9,7 +9,32 @@ const GEN_MODEL   = "phi3:mini";
 
 // â”€â”€ RAG helper: build context + call Ollama generate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateRAGResponse(userQuery: string, userRole: string, language?: string): Promise<string> {
-  try {
+  try {    // ── Pre-check: ensure admin has uploaded training documents ────────
+    // For customers, only "customer"-type docs are visible.
+    // For service, both "service" and "customer" docs apply.
+    // If no relevant docs exist in the DB, return early with a helpful message.
+    const roleTypes = userRole === "customer"
+      ? ["customer"]
+      : userRole === "service"
+        ? ["service", "customer"]
+        : undefined; // admin sees all
+
+    if (roleTypes) {
+      const docCount = await prisma.document.count({
+        where: { documentType: { in: roleTypes } },
+      });
+      if (docCount === 0) {
+        console.warn(`[RAG] No training documents found for role "${userRole}" — skipping RAG pipeline`);
+        return "This service is not available at the moment. Please try again later.";
+      }
+    } else {
+      // admin: check if any documents exist at all
+      const docCount = await prisma.document.count();
+      if (docCount === 0) {
+        console.warn(`[RAG] No training documents found — skipping RAG pipeline`);
+        return "No training documents have been uploaded yet. Please upload documents from the admin panel to enable AI-powered responses.";
+      }
+    }
     // 1. Embed the user query
     const t0 = Date.now();
     const queryEmbedding = await embedText(userQuery);
