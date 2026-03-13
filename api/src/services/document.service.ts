@@ -32,7 +32,7 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   throw new Error("pdf-parse: no usable export found");
 }
 
-// ── Text extraction by MIME type ──────────────────────────────────────
+// ── Text extraction for non-JSON files ───────────────────────────────
 
 async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
   switch (mimetype) {
@@ -43,13 +43,6 @@ async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
         console.error("[doc] PDF parsing failed:", err);
         throw new Error("Failed to parse PDF document");
       }
-    }
-    case "application/json": {
-      const parsed = JSON.parse(buffer.toString("utf-8"));
-      // Try to flatten structured JSON into readable text chunks
-      const flattened = flattenStructuredJSON(parsed);
-      if (flattened) return flattened;
-      return JSON.stringify(parsed, null, 2);
     }
     case "text/csv":
     case "text/plain":
@@ -63,70 +56,10 @@ async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
   }
 }
 
-/**
- * Flatten structured JSON (problems/intents) into human-readable text.
- * Each entry becomes a separate paragraph (separated by \n\n) so that
- * chunkText() produces one meaningful chunk per problem/intent.
- */
-function flattenStructuredJSON(data: any): string | null {
-  // Format: { "problems": [ { title, problem, possible_causes, solutions } ] }
-  if (Array.isArray(data?.problems)) {
-    return data.problems
-      .map((p: any) => {
-        const lines: string[] = [];
-        if (p.title) lines.push(`Problem: ${p.title}`);
-        if (p.problem) lines.push(`Description: ${p.problem}`);
-        if (Array.isArray(p.possible_causes) && p.possible_causes.length > 0) {
-          lines.push(`Possible causes: ${p.possible_causes.join(", ")}`);
-        }
-        if (Array.isArray(p.solutions) && p.solutions.length > 0) {
-          lines.push(`Solutions: ${p.solutions.map((s: string, i: number) => `${i + 1}. ${s}`).join(" ")}`);
-        }
-        return lines.join("\n");
-      })
-      .join("\n\n");
-  }
-
-  // Format: { "intents": [ { tag, patterns, responses } ] }
-  if (Array.isArray(data?.intents)) {
-    return data.intents
-      .map((intent: any) => {
-        const lines: string[] = [];
-        if (intent.tag) lines.push(`Topic: ${intent.tag.replace(/_/g, " ")}`);
-        if (Array.isArray(intent.patterns) && intent.patterns.length > 0) {
-          lines.push(`Questions: ${intent.patterns.join(" | ")}`);
-        }
-        if (Array.isArray(intent.responses) && intent.responses.length > 0) {
-          lines.push(`Answer: ${intent.responses[0]}`);
-        }
-        return lines.join("\n");
-      })
-      .join("\n\n");
-  }
-
-  // Format: array of objects at top level
-  if (Array.isArray(data)) {
-    const items = data.map((item: any) => {
-      if (typeof item === "string") return item;
-      // Generic object: flatten key-value pairs
-      return Object.entries(item)
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
-        .join("\n");
-    });
-    return items.join("\n\n");
-  }
-
-  return null; // Not a recognized structure — fall back to raw JSON
-}
-
 // ── Chunking helpers ──────────────────────────────────────────────────
 
-const MAX_CHUNK = 500; // characters
+const MAX_CHUNK = 500;
 
-/**
- * Split text by paragraph boundaries first, then fall back to
- * fixed-length slicing when a single paragraph exceeds MAX_CHUNK.
- */
 function chunkText(text: string): string[] {
   const paragraphs = text
     .split(/\n{2,}/)
@@ -138,7 +71,6 @@ function chunkText(text: string): string[] {
     if (para.length <= MAX_CHUNK) {
       chunks.push(para);
     } else {
-      // Fixed-length fallback
       for (let i = 0; i < para.length; i += MAX_CHUNK) {
         chunks.push(para.slice(i, i + MAX_CHUNK).trim());
       }
@@ -158,10 +90,13 @@ export interface ProcessResult {
 /**
  * Full pipeline: read file → extract text → chunk → embed → Qdrant + DB.
  *
- * @param documentId  The Document record id (already persisted)
- * @param filePath    Absolute (or relative) path to the file on disk
- * @param mimetype    MIME type of the uploaded file
- * @param documentType  "service" | "customer" — stored as role metadata in Qdrant
+ * JSON files with a recognised structure (problems / intents arrays) are
+ * processed via a "direct-response" path: each entry is embedded using its
+ * search-friendly text, but what is stored as the answer is already the
+ * formatted step-by-step response — so the LLM is bypassed entirely.
+ *
+ * PDF / DOCX / CSV / TXT go through the normal text-chunking path and the
+ * LLM is called at query time to synthesise an answer.
  */
 export async function processDocument(
   documentId: string,
@@ -169,17 +104,131 @@ export async function processDocument(
   mimetype: string = "application/pdf",
   documentType: string = "service"
 ): Promise<ProcessResult> {
-  // 1. Extract text based on file type
   const buffer = fs.readFileSync(filePath);
+
+  // ── Structured JSON: direct-response path (no LLM at query time) ─────
+  if (mimetype === "application/json") {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(buffer.toString("utf-8"));
+    } catch {
+      throw new Error("Failed to parse JSON document");
+    }
+
+    // { "problems": [...] }
+    if (Array.isArray(parsed?.problems)) {
+      return embedStructuredEntries(
+        documentId,
+        documentType,
+        parsed.problems.map((p: any) => {
+          // searchText: what the user's question will match against
+          const searchText = [
+            p.title ?? "",
+            p.problem ?? "",
+            ...(Array.isArray(p.possible_causes) ? p.possible_causes : []),
+          ].filter(Boolean).join(" ");
+
+          // answerText: pre-formatted step-by-step answer returned directly to user
+          const steps = Array.isArray(p.solutions) ? p.solutions : [];
+          const answerText = steps.length > 0
+            ? steps.map((s: string, i: number) => `Step ${i + 1} -- ${s}`).join("\n")
+            : (p.problem ?? p.title ?? "");
+
+          return { searchText, answerText, tag: p.title ?? "" };
+        })
+      );
+    }
+
+    // { "intents": [...] }
+    if (Array.isArray(parsed?.intents)) {
+      return embedStructuredEntries(
+        documentId,
+        documentType,
+        parsed.intents.map((intent: any) => {
+          const searchText = Array.isArray(intent.patterns)
+            ? intent.patterns.join(" | ")
+            : intent.tag ?? "";
+          const answerText = Array.isArray(intent.responses) && intent.responses[0]
+            ? intent.responses[0]
+            : "";
+          return { searchText, answerText, tag: intent.tag ?? "" };
+        })
+      );
+    }
+
+    // Generic JSON array or object — fall through to text-chunking
+    const flat = JSON.stringify(parsed, null, 2);
+    return embedTextChunks(documentId, documentType, chunkText(flat));
+  }
+
+  // ── Unstructured file: text-chunking path (LLM synthesises answer) ───
   const text = await extractText(buffer, mimetype);
+  return embedTextChunks(documentId, documentType, chunkText(text));
+}
 
-  // 2. Chunk
-  const chunks = chunkText(text);
+// ── Shared embedding helpers ──────────────────────────────────────────
 
+interface StructuredEntry {
+  searchText: string;
+  answerText: string;
+  tag:        string;
+}
+
+/**
+ * Embed each structured entry.
+ * The vector is built from searchText (what users ask), but the payload
+ * content is answerText (the pre-formatted answer).
+ * directResponse: true → controller returns answerText without calling LLM.
+ */
+async function embedStructuredEntries(
+  documentId: string,
+  documentType: string,
+  entries: StructuredEntry[]
+): Promise<ProcessResult> {
   let embedded = 0;
   let failed   = 0;
 
-  // 3. Embed + store each chunk
+  for (const { searchText, answerText, tag } of entries) {
+    if (!searchText.trim() || !answerText.trim()) continue;
+    const vectorId = randomUUID();
+    try {
+      const embedding = await embedText(searchText);
+
+      await upsertVector(vectorId, embedding, {
+        documentId,
+        content:        answerText,
+        role:           documentType,
+        directResponse: true,   // ← skips LLM at query time
+        tag,
+        source:         "document",
+      });
+
+      await prisma.documentChunk.create({
+        data: { documentId, content: answerText, vectorId },
+      });
+
+      embedded++;
+    } catch (err) {
+      console.error(`[doc] Failed to embed entry "${tag}" (doc ${documentId}):`, err);
+      failed++;
+    }
+  }
+
+  return { totalChunks: entries.length, embedded, failed };
+}
+
+/**
+ * Embed plain text chunks (PDF/DOCX/CSV/TXT).
+ * No directResponse — LLM is called at query time to synthesise answer.
+ */
+async function embedTextChunks(
+  documentId: string,
+  documentType: string,
+  chunks: string[]
+): Promise<ProcessResult> {
+  let embedded = 0;
+  let failed   = 0;
+
   for (const content of chunks) {
     const vectorId = randomUUID();
     try {
@@ -199,7 +248,6 @@ export async function processDocument(
     } catch (err) {
       console.error(`[doc] Failed to embed chunk (doc ${documentId}):`, err);
       failed++;
-      // Continue with remaining chunks — don't block entire upload.
     }
   }
 

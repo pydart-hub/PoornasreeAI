@@ -116,7 +116,7 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
         messages: [{ role: "user", content: prompt }],
         stream: false,
         keep_alive: "10m",
-        options: { num_ctx: 2048, num_predict: 256, temperature: 0 },
+        options: { num_ctx: 1024, num_predict: 200, temperature: 0 },
       },
       { timeout: 300_000 }
     );
