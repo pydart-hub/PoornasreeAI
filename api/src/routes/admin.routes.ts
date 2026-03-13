@@ -14,6 +14,7 @@ import {
   updateUser,
   listDocuments,
   deleteDocumentRecord,
+  reindexDocuments,
 } from "../controllers/admin.controller";
 import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
 import { exportChats, exportSupport } from "../controllers/export.controller";
@@ -76,6 +77,9 @@ router.get("/documents", listDocuments);
 
 // DELETE /api/admin/documents/:id  —  delete a document + file
 router.delete("/documents/:id", deleteDocumentRecord);
+
+// POST /api/admin/documents/reindex  —  re-process all documents with improved chunking
+router.post("/documents/reindex", reindexDocuments);
 
 // POST /api/admin/users  —  create a user with a specific role
 router.post("/users", createUser);

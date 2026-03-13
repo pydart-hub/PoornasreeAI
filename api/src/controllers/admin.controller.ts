@@ -5,6 +5,8 @@ import { Request, Response } from "express";
 import fs from "fs";
 import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
+import { processDocument } from "../services/document.service";
+import { deleteVectorsByDocumentId } from "../services/vector.service";
 
 const SALT_ROUNDS = 12;
 const VALID_ROLES = ["admin", "customer", "service", "sales", "customer_service"];
@@ -261,6 +263,69 @@ export async function deleteDocumentRecord(
     res.json({ message: "Document deleted" });
   } catch (err) {
     console.error("deleteDocument error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * POST /api/admin/documents/reindex
+ * Re-processes all existing documents: deletes old chunks/vectors and
+ * re-runs the embedding pipeline with improved chunking.
+ */
+export async function reindexDocuments(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const documents = await prisma.document.findMany();
+    if (documents.length === 0) {
+      res.json({ message: "No documents to reindex", results: [] });
+      return;
+    }
+
+    const results: Array<{ id: string; title: string; status: string; detail?: any }> = [];
+
+    for (const doc of documents) {
+      try {
+        // 1. Delete old vectors from Qdrant
+        await deleteVectorsByDocumentId(doc.id);
+
+        // 2. Delete old chunks from DB
+        await prisma.documentChunk.deleteMany({ where: { documentId: doc.id } });
+
+        // 3. Determine mimetype from file extension
+        const ext = doc.filePath.split(".").pop()?.toLowerCase();
+        const mimeMap: Record<string, string> = {
+          pdf: "application/pdf",
+          json: "application/json",
+          csv: "text/csv",
+          txt: "text/plain",
+          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        };
+        const mimetype = mimeMap[ext ?? ""] || "application/pdf";
+
+        // 4. Re-process with improved chunking
+        if (!fs.existsSync(doc.filePath)) {
+          results.push({ id: doc.id, title: doc.title, status: "skipped", detail: "File not found on disk" });
+          continue;
+        }
+
+        const result = await processDocument(doc.id, doc.filePath, mimetype, doc.documentType);
+        results.push({ id: doc.id, title: doc.title, status: "ok", detail: result });
+      } catch (err: any) {
+        console.error(`[reindex] Failed for doc ${doc.id}:`, err?.message);
+        results.push({ id: doc.id, title: doc.title, status: "error", detail: err?.message });
+      }
+    }
+
+    res.json({ message: `Reindexed ${results.filter(r => r.status === "ok").length}/${documents.length} documents`, results });
+  } catch (err) {
+    console.error("reindexDocuments error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }

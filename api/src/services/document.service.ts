@@ -46,6 +46,9 @@ async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
     }
     case "application/json": {
       const parsed = JSON.parse(buffer.toString("utf-8"));
+      // Try to flatten structured JSON into readable text chunks
+      const flattened = flattenStructuredJSON(parsed);
+      if (flattened) return flattened;
       return JSON.stringify(parsed, null, 2);
     }
     case "text/csv":
@@ -58,6 +61,62 @@ async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
     default:
       throw new Error("Unsupported document format");
   }
+}
+
+/**
+ * Flatten structured JSON (problems/intents) into human-readable text.
+ * Each entry becomes a separate paragraph (separated by \n\n) so that
+ * chunkText() produces one meaningful chunk per problem/intent.
+ */
+function flattenStructuredJSON(data: any): string | null {
+  // Format: { "problems": [ { title, problem, possible_causes, solutions } ] }
+  if (Array.isArray(data?.problems)) {
+    return data.problems
+      .map((p: any) => {
+        const lines: string[] = [];
+        if (p.title) lines.push(`Problem: ${p.title}`);
+        if (p.problem) lines.push(`Description: ${p.problem}`);
+        if (Array.isArray(p.possible_causes) && p.possible_causes.length > 0) {
+          lines.push(`Possible causes: ${p.possible_causes.join(", ")}`);
+        }
+        if (Array.isArray(p.solutions) && p.solutions.length > 0) {
+          lines.push(`Solutions: ${p.solutions.map((s: string, i: number) => `${i + 1}. ${s}`).join(" ")}`);
+        }
+        return lines.join("\n");
+      })
+      .join("\n\n");
+  }
+
+  // Format: { "intents": [ { tag, patterns, responses } ] }
+  if (Array.isArray(data?.intents)) {
+    return data.intents
+      .map((intent: any) => {
+        const lines: string[] = [];
+        if (intent.tag) lines.push(`Topic: ${intent.tag.replace(/_/g, " ")}`);
+        if (Array.isArray(intent.patterns) && intent.patterns.length > 0) {
+          lines.push(`Questions: ${intent.patterns.join(" | ")}`);
+        }
+        if (Array.isArray(intent.responses) && intent.responses.length > 0) {
+          lines.push(`Answer: ${intent.responses[0]}`);
+        }
+        return lines.join("\n");
+      })
+      .join("\n\n");
+  }
+
+  // Format: array of objects at top level
+  if (Array.isArray(data)) {
+    const items = data.map((item: any) => {
+      if (typeof item === "string") return item;
+      // Generic object: flatten key-value pairs
+      return Object.entries(item)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+        .join("\n");
+    });
+    return items.join("\n\n");
+  }
+
+  return null; // Not a recognized structure — fall back to raw JSON
 }
 
 // ── Chunking helpers ──────────────────────────────────────────────────

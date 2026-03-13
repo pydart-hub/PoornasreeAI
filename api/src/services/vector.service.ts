@@ -96,3 +96,15 @@ export async function searchVectors(
     payload: (r.payload ?? {}) as Record<string, unknown>,
   }));
 }
+
+/**
+ * Delete all vectors associated with a specific document from Qdrant.
+ */
+export async function deleteVectorsByDocumentId(documentId: string): Promise<void> {
+  await qdrant.delete(COLLECTION, {
+    wait: true,
+    filter: {
+      must: [{ key: "documentId", match: { value: documentId } }],
+    },
+  });
+}

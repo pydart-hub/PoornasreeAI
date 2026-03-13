@@ -92,19 +92,21 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       ? [
           "SYSTEM:",
           "You are PoornasreeAI, a product support assistant for Poornasree milk analyzer equipment.",
-          "Answer ONLY using the documentation context below. Use clear, simple language.",
-          "If the answer is not in the context, respond exactly: \"I couldn't find this information in the documentation.\"",
-          "Provide up to 5 steps. Format: Step 1 -- <instruction>",
+          "You MUST answer ONLY using the CONTEXT below. Do NOT use your own knowledge.",
+          "If the answer is not in the CONTEXT, respond exactly: \"I couldn't find this information in the documentation.\"",
+          "Copy the solutions from the CONTEXT. Do not invent new steps.",
+          "Format each step as: Step 1 -- <instruction from context>",
         ].join("\n")
       : [
           "SYSTEM:",
           "You are PoornasreeAI, a technical support assistant for Poornasree milk analyzer equipment.",
-          "Answer ONLY using the documentation context below. Use precise technical language.",
-          "If the answer is not in the context, respond exactly: \"I couldn't find this information in the documentation.\"",
-          "Provide up to 5 troubleshooting steps. Format: Step 1 -- <instruction>",
+          "You MUST answer ONLY using the CONTEXT below. Do NOT use your own knowledge.",
+          "If the answer is not in the CONTEXT, respond exactly: \"I couldn't find this information in the documentation.\"",
+          "Copy the troubleshooting steps from the CONTEXT. Do not invent new steps.",
+          "Format each step as: Step 1 -- <instruction from context>",
         ].join("\n");
 
-    const prompt = [roleInstruction, "", "CONTEXT:", context, "", `QUESTION:\n${userQuery}`, "", "ANSWER:"].join("\n");
+    const prompt = [roleInstruction, "", "CONTEXT:", context, "", `QUESTION:\n${userQuery}`, "", "ANSWER (use ONLY the context above):"].join("\n");
 
     const t2 = Date.now();
     const { data } = await axios.post(
