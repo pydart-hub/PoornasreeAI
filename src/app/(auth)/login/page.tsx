@@ -2,32 +2,18 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Eye, EyeOff, Mail, Lock, ArrowRight,
-} from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
-
-/* ── tiny helpers ── */
-function FloatingOrb({
-  className, style,
-}: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <div
-      className={`absolute rounded-full pointer-events-none blur-3xl opacity-30 ${className}`}
-      style={style}
-    />
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
 
-  const [email, setEmail]             = useState("");
-  const [password, setPassword]       = useState("");
+  const [email, setEmail]               = useState("");
+  const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError]             = useState("");
-  const [loading, setLoading]         = useState(false);
+  const [error, setError]               = useState("");
+  const [loading, setLoading]           = useState(false);
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -38,12 +24,12 @@ export default function LoginPage() {
     try {
       const user = await login(email, password);
       const role = user.role;
-      if (role === "customer")       router.replace("/customer");
-      else if (role === "admin")     router.replace("/admin");
-      else if (role === "service")   router.replace("/service");
-      else if (role === "sales")     router.replace("/sales");
+      if (role === "customer")              router.replace("/customer");
+      else if (role === "admin")            router.replace("/admin");
+      else if (role === "service")          router.replace("/service");
+      else if (role === "sales")            router.replace("/sales");
       else if (role === "customer_service") router.replace("/customer-service");
-      else                           router.replace("/chat");
+      else                                  router.replace("/chat");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
@@ -52,144 +38,131 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative w-full select-none overflow-hidden">
+    <div className="relative w-full select-none">
 
-      {/* ── Animated background orbs ── */}
-      <FloatingOrb
-        className="w-32 h-32 sm:w-64 sm:h-64 bg-blue-400 animate-float-a -top-8 -right-8 sm:-top-16 sm:-right-16"
-      />
-      <FloatingOrb
-        className="w-24 h-24 sm:w-48 sm:h-48 bg-green-400 animate-float-b -bottom-4 -left-6 sm:-bottom-8 sm:-left-12"
-      />
-      <FloatingOrb
-        className="w-20 h-20 sm:w-32 sm:h-32 bg-purple-400 animate-float-c top-1/2 left-1/2 -translate-x-1/2"
-      />
-
-      {/* ── Brand header ── */}
-      <div className="animate-fade-up delay-100 mb-5 sm:mb-7">
-        <p className="text-xs font-black tracking-[0.3em] uppercase text-[#9CCB3B] mb-1">
+      {/* ── Header ── */}
+      <div className="mb-8 text-center">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2B5F9E] to-[#9CCB3B] mb-4 shadow-lg shadow-[#2B5F9E]/30">
+          <ShieldCheck className="w-6 h-6 text-white" />
+        </div>
+        <h2 className="text-2xl font-extrabold text-white tracking-tight">
           Welcome back
-        </p>
-        <h2 className="text-xl sm:text-2xl font-extrabold text-white leading-tight">
-          Sign in to{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7eb8ff] to-[#9CCB3B]">
-            Poornasree AI
-          </span>
         </h2>
-        <p className="text-xs text-white/60 mt-0.5">
-          Technical Support Assistant Portal
+        <p className="text-sm text-white/50 mt-1">
+          Sign in to your account to continue
         </p>
       </div>
 
       {/* ── Form ── */}
-      <form onSubmit={handleSubmit} className="relative space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
 
         {/* Error banner */}
         {error && (
-          <div className="animate-fade-up p-3 rounded-xl bg-red-50/80 dark:bg-red-950/40 border border-red-200/70 dark:border-red-800/50 backdrop-blur-sm text-red-600 dark:text-red-400 text-xs flex items-start gap-2">
-            <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>
+          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs">
+            <span className="shrink-0 mt-0.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>
             {error}
           </div>
         )}
 
         {/* Email field */}
-        <div className="animate-fade-up delay-200 space-y-1.5">
-          <label className="block text-xs font-semibold text-white/80 tracking-wide">
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-white/60 tracking-widest uppercase">
             Email address
           </label>
           <div
-            className={`relative flex items-center rounded-2xl border transition-all duration-300 ${
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-all duration-200 ${
               focusedField === "email"
-                ? "border-[#2B5F9E] shadow-[0_0_0_3px_rgba(43,95,158,0.12)] bg-white dark:bg-white/10"
-                : "border-white/40 dark:border-white/10 bg-white/50 dark:bg-white/5"
+                ? "border-[#9CCB3B]/70 bg-white/10 shadow-[0_0_0_3px_rgba(156,203,59,0.12)]"
+                : "border-white/15 bg-white/5 hover:border-white/30"
             }`}
           >
-            <span className={`pl-4 transition-colors duration-200 ${focusedField === "email" ? "text-[#2B5F9E]" : "text-gray-400"}`}>
-              <Mail className="w-4 h-4" />
-            </span>
+            <Mail className={`w-4 h-4 shrink-0 transition-colors duration-200 ${focusedField === "email" ? "text-[#9CCB3B]" : "text-white/30"}`} />
             <input
               type="email"
-              placeholder="Email"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onFocus={() => setFocusedField("email")}
               onBlur={() => setFocusedField(null)}
               autoComplete="email"
               required
-              className="w-full py-3.5 px-3 text-base sm:text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
+              className="flex-1 bg-transparent text-white text-sm placeholder:text-white/25 focus:outline-none caret-[#9CCB3B]"
             />
-            {/* Active indicator dot */}
             {email && (
-              <span className="mr-4 w-2 h-2 rounded-full bg-[#9CCB3B] animate-pulse-ring shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#9CCB3B] shrink-0" />
             )}
           </div>
         </div>
 
         {/* Password field */}
-        <div className="animate-fade-up delay-300 space-y-1.5">
-          <label className="block text-xs font-semibold text-white/80 tracking-wide">
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-white/60 tracking-widest uppercase">
             Password
           </label>
           <div
-            className={`relative flex items-center rounded-2xl border transition-all duration-300 ${
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-all duration-200 ${
               focusedField === "password"
-                ? "border-[#2B5F9E] shadow-[0_0_0_3px_rgba(43,95,158,0.12)] bg-white dark:bg-white/10"
-                : "border-white/40 dark:border-white/10 bg-white/50 dark:bg-white/5"
+                ? "border-[#9CCB3B]/70 bg-white/10 shadow-[0_0_0_3px_rgba(156,203,59,0.12)]"
+                : "border-white/15 bg-white/5 hover:border-white/30"
             }`}
           >
-            <span className={`pl-4 transition-colors duration-200 ${focusedField === "password" ? "text-[#2B5F9E]" : "text-gray-400"}`}>
-              <Lock className="w-4 h-4" />
-            </span>
+            <Lock className={`w-4 h-4 shrink-0 transition-colors duration-200 ${focusedField === "password" ? "text-[#9CCB3B]" : "text-white/30"}`} />
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => setFocusedField("password")}
               onBlur={() => setFocusedField(null)}
               autoComplete="current-password"
               required
-              className="w-full py-3.5 px-3 text-base sm:text-sm bg-transparent text-white placeholder:text-white/50 focus:outline-none"
+              className="flex-1 bg-transparent text-white text-sm placeholder:text-white/25 focus:outline-none caret-[#9CCB3B]"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               tabIndex={-1}
-              className="mr-4 text-gray-400 hover:text-[#2B5F9E] dark:hover:text-[#9CCB3B] transition-colors"
+              className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
 
-        {/* Submit button */}
-        <div className="animate-fade-up delay-400 pt-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="relative w-full overflow-hidden rounded-2xl py-3.5 font-semibold text-sm text-white transition-all duration-300 hover:shadow-lg hover:shadow-[#2B5F9E]/30 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed shimmer-btn group"
-          >
-            <span className="relative flex items-center justify-center gap-2">
-              {loading ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Signing in…
-                </>
-              ) : (
-                <>
-                  Sign in
-                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                </>
-              )}
-            </span>
-          </button>
+        {/* Divider */}
+        <div className="pt-1">
+          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
+
+        {/* Submit button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="relative w-full overflow-hidden rounded-xl py-3.5 font-semibold text-sm text-white bg-gradient-to-r from-[#2B5F9E] to-[#1a4a7d] hover:from-[#3570b5] hover:to-[#2B5F9E] border border-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-[#2B5F9E]/40 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed group"
+        >
+          <span className="flex items-center justify-center gap-2">
+            {loading ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Signing in…
+              </>
+            ) : (
+              <>
+                Sign in
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </>
+            )}
+          </span>
+        </button>
+
+        {/* Bottom note */}
+        <p className="text-center text-[11px] text-white/25 pt-1">
+          Poornasree AI · Technical Support Portal
+        </p>
       </form>
-
-
     </div>
   );
 }
