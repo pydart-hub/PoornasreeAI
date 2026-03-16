@@ -211,8 +211,27 @@ export default function CustomerChatPage() {
       if (!user) { router.replace("/customer-login"); return; }
       if (user.role !== "customer") { router.replace("/"); return; }
       setMessages([makeWelcome(user.firstName)]);
-      createConversation().catch(console.error);
-      loadConversationHistory().catch(console.error);
+      // Restore the most recent conversation instead of always creating a new one.
+      // A new conversation is only created lazily when the user sends their first message.
+      fetch('/api/conversations', { credentials: 'include' })
+        .then((r) => r.ok ? r.json() : { conversations: [] })
+        .then((d) => {
+          const history: ConversationHistoryItem[] = d.conversations || [];
+          setConversationHistory(history);
+          if (history.length > 0) {
+            const latest = history[0];
+            const msgs: ChatMessage[] = latest.messages.map((m) => ({
+              id: m.id,
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            }));
+            if (msgs.length > 0) {
+              setMessages(msgs);
+              setConversationId(latest.id);
+            }
+          }
+        })
+        .catch(console.error);
       // Fetch dynamic suggestions from admin-uploaded customer documents
       fetch("/api/suggestions", { credentials: "include" })
         .then((r) => r.ok ? r.json() : { suggestions: [] })
@@ -384,7 +403,7 @@ export default function CustomerChatPage() {
       setShowSupportPanel(false);
       setTranslatedContent({});
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      createConversation().catch(console.error);
+      // Conversation created lazily on first message — no need to pre-create here
       loadConversationHistory().catch(console.error);
     }
   };
