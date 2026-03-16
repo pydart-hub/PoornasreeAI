@@ -43,12 +43,12 @@ const config: Config = {
         },
         // Surfaces
         surface: {
-          DEFAULT: "#FFFFFF",
-          secondary: "#F9FAFB",
-          tertiary: "#F3F4F6",
-          sidebar: "#F9FAFB",
-          input: "#F3F4F6",
-          hover: "#F3F4F6",
+          DEFAULT: "#F1F5FA",
+          secondary: "#E8EFF9",
+          tertiary: "#DCE6F4",
+          sidebar: "#FFFFFF",
+          input: "#EDF1F8",
+          hover: "#EBF0F7",
           card: "#FFFFFF",
           dark: {
             DEFAULT: "#111827",
@@ -62,9 +62,9 @@ const config: Config = {
         },
         // Text
         content: {
-          DEFAULT: "#1F2937",
-          secondary: "#7A7A7A",
-          tertiary: "#9CA3AF",
+          DEFAULT: "#0F172A",
+          secondary: "#475569",
+          tertiary: "#94A3B8",
           inverse: "#FFFFFF",
           dark: {
             DEFAULT: "#F9FAFB",
@@ -75,7 +75,7 @@ const config: Config = {
         // Chat bubbles
         bubble: {
           user: "#2B5F9E",
-          bot: "#F4F7FB",
+          bot: "#EDF2FB",
           dark: {
             user: "#2B5F9E",
             bot: "#1E293B",
@@ -83,7 +83,7 @@ const config: Config = {
         },
         // Borders
         line: {
-          DEFAULT: "#E5E7EB",
+          DEFAULT: "#C8D5E8",
           dark: "#374151",
         },
         // Status

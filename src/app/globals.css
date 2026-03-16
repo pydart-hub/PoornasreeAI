@@ -5,23 +5,23 @@
 @layer base {
   /* ── Light Theme (default) ── */
   :root {
-    --background: #FFFFFF;
-    --foreground: #1F2937;
-    --surface-secondary: #F9FAFB;
-    --surface-tertiary: #F3F4F6;
-    --border-color: #E5E7EB;
+    --background: #F1F5FA;
+    --foreground: #0F172A;
+    --surface-secondary: #E8EFF9;
+    --surface-tertiary: #DCE6F4;
+    --border-color: #C8D5E8;
     --primary: #2B5F9E;
     --primary-hover: #234D80;
     --accent: #9CCB3B;
     --accent-hover: #88B432;
-    --text-secondary: #7A7A7A;
-    --text-tertiary: #9CA3AF;
+    --text-secondary: #475569;
+    --text-tertiary: #94A3B8;
     --bubble-user: #2B5F9E;
-    --bubble-bot: #F4F7FB;
-    --sidebar-bg: #F9FAFB;
-    --input-bg: #F3F4F6;
+    --bubble-bot: #EDF2FB;
+    --sidebar-bg: #FFFFFF;
+    --input-bg: #EDF1F8;
     --card-bg: #FFFFFF;
-    --shadow-color: rgba(0, 0, 0, 0.06);
+    --shadow-color: rgba(43, 95, 158, 0.08);
   }
 
   /* ── Dark Theme ── */
@@ -53,11 +53,12 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
+    font-size: 17px;
   }
 
   body {
     @apply bg-surface text-content dark:bg-surface-dark dark:text-content-dark antialiased;
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-family: var(--font-inter), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow-x: hidden;
     touch-action: manipulation;
   }
