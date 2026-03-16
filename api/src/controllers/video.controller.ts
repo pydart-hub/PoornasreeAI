@@ -50,20 +50,16 @@ export async function findVideosForQuery(
 
     if (queryWords.length === 0) return [];
 
-    // Score each video by keyword overlap
+    // Score each video by how many query words appear anywhere in its keywords text.
+    // This handles both comma-separated ("milk,analyzer,clean") and
+    // phrase-style ("how to clean milk analyzer") keyword entries.
     const scored = allVideos
       .map((v) => {
-        const vKeywords = v.keywords
-          .toLowerCase()
-          .split(",")
-          .map((k: string) => k.trim())
-          .filter(Boolean);
-        const score = vKeywords.filter((k: string) =>
-          queryWords.some((qw) => k.includes(qw) || qw.includes(k))
-        ).length;
+        const keywordText = v.keywords.toLowerCase();
+        const score = queryWords.filter((qw) => keywordText.includes(qw)).length;
         return { video: v, score };
       })
-      // Require at least 2 matching keyword tokens to avoid weak/noisy matches
+      // Require at least 2 meaningful query words to match to avoid noise
       .filter((s: { score: number }) => s.score >= 2)
       .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
