@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center relative overflow-hidden px-4 py-6 sm:py-8">
+    <div className="dark min-h-[100dvh] flex items-center justify-center relative overflow-hidden bg-[#020a18] px-4 py-6 sm:py-8" style={{ colorScheme: "dark" }}>
 
       {/* Full-screen flower background */}
       <div className="absolute inset-0">
