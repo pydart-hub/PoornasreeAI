@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   Send,
   Mic,
+  MicOff,
   LogOut,
   Sparkles,
-  RotateCcw,
+  Square,
   ThumbsUp,
   ThumbsDown,
   User,
@@ -145,9 +146,11 @@ export default function CustomerChatPage() {
 
   // ── Voice input state ─────────────────────────────────────────────────────
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // ── Translation state ──────────────────────────────────────────────────────
   const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
@@ -172,12 +175,12 @@ export default function CustomerChatPage() {
   const supportEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLInputElement>(null);
 
-  const createConversation = async () => {
+  const createConversation = async (title?: string) => {
     const res = await fetch("/api/conversations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ title: "Customer Chat" }),
+      body: JSON.stringify({ title: title?.trim().slice(0, 60) || "New Chat" }),
     });
     if (!res.ok) throw new Error("Failed to create conversation");
     const data = await res.json();
@@ -362,22 +365,31 @@ export default function CustomerChatPage() {
   }, [showSupportPanel]);
 
   const sendMessage = async (text: string) => {
-    if (!text.trim()) return;
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: text.trim() };
+    if (!text.trim() || isTyping) return;
+    const trimmed = text.trim();
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setVoiceTranscript("");
     setIsTyping(true);
+    const abort = new AbortController();
+    abortRef.current = abort;
     try {
-      const convId = conversationId ?? await createConversation();
+      // Use first user message as conversation title
+      const convId = conversationId ?? await createConversation(trimmed);
       // Translate the query to English so the AI (trained on English docs) understands it
-      const englishQuery = language !== 'en' ? await translateToEnglish(text.trim(), language) : text.trim();
+      const englishQuery = language !== 'en' ? await translateToEnglish(trimmed, language) : trimmed;
+      if (abort.signal.aborted) return;
       const { content: answer, videos } = await sendMessageToAI(convId, englishQuery, language);
+      if (abort.signal.aborted) return;
       const botId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
         { id: botId, role: "assistant", content: answer, videos: videos.length > 0 ? videos : undefined },
       ]);
+      loadConversationHistory().catch(console.error);
     } catch {
+      if (abort.signal.aborted) return;
       setMessages((prev) => [
         ...prev,
         {
@@ -388,7 +400,16 @@ export default function CustomerChatPage() {
       ]);
     } finally {
       setIsTyping(false);
+      abortRef.current = null;
     }
+  };
+
+  const stopGeneration = () => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setIsTyping(false);
   };
 
   const handleSubmit = (e: FormEvent) => { e.preventDefault(); sendMessage(input); };
@@ -713,25 +734,6 @@ export default function CustomerChatPage() {
       {/* ── Messages ──────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 scrollbar-thin">
 
-        {/* Suggestion chips (auto-generated from admin-uploaded documents) */}
-        <div className="flex gap-2 pb-2 border-b border-line dark:border-line-dark overflow-x-auto scrollbar-thin">
-          {suggestions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => handleQuickReply(`Tell me about ${s.title}`)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all hover:scale-105 active:scale-100 bg-primary/5 dark:bg-primary-400/5 border-primary/20 dark:border-primary-400/20 text-primary dark:text-primary-300 shrink-0 whitespace-nowrap"
-            >
-              <Sparkles className="w-3.5 h-3.5" /> {s.title}
-            </button>
-          ))}
-          <button
-            onClick={handleReset}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" /> Reset
-          </button>
-        </div>
-
         <div className="max-w-2xl mx-auto w-full space-y-4">
           {messages.map((msg) => (
             <MessageBubble
@@ -746,23 +748,31 @@ export default function CustomerChatPage() {
             />
           ))}
 
-          {/* Typing indicator */}
+          {/* Typing indicator + stop button */}
           {isTyping && (
-            <div className="flex items-end gap-2">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary-400/10 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary dark:text-primary-300" />
-              </div>
-              <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                <div className="flex items-center gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="block w-2 h-2 rounded-full bg-primary/60 dark:bg-primary-400/60 animate-bounce"
-                      style={{ animationDelay: `${i * 150}ms` }}
-                    />
-                  ))}
+            <div className="flex items-center gap-3">
+              <div className="flex items-end gap-2">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary-400/10 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-primary dark:text-primary-300" />
+                </div>
+                <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        className="block w-2 h-2 rounded-full bg-primary/60 dark:bg-primary-400/60 animate-bounce"
+                        style={{ animationDelay: `${i * 150}ms` }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={stopGeneration}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium transition-colors"
+              >
+                <Square className="w-3 h-3 fill-current" /> Stop
+              </button>
             </div>
           )}
 
@@ -772,6 +782,21 @@ export default function CustomerChatPage() {
 
       {/* ── Input ─────────────────────────────────────────────────────────── */}
       <footer className="shrink-0 border-t border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card px-3 sm:px-6 py-3">
+        {/* Voice recording banner */}
+        {isRecording && (
+          <div className="max-w-2xl mx-auto mb-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+            <span className="text-xs font-medium text-red-600 dark:text-red-400 shrink-0">Listening...</span>
+            <span className="text-xs text-content dark:text-content-dark truncate flex-1">{voiceTranscript || "Speak now…"}</span>
+            <button
+              type="button"
+              onClick={() => { if (recognitionRef.current) recognitionRef.current.stop(); }}
+              className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 shrink-0"
+            >
+              Stop & Send
+            </button>
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           className="max-w-2xl mx-auto flex items-center gap-2"
@@ -787,6 +812,7 @@ export default function CustomerChatPage() {
               className="flex-1 bg-transparent text-base sm:text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary outline-none"
             />
           </div>
+          {/* Voice input — WhatsApp / ChatGPT style: tap to start, tap to stop + send */}
           <button
             type="button"
             onClick={() => {
@@ -795,46 +821,62 @@ export default function CustomerChatPage() {
               const SpeechRecognitionAPI = w.SpeechRecognition || w.webkitSpeechRecognition;
               if (!SpeechRecognitionAPI) { alert("Speech recognition is not supported in this browser."); return; }
               if (isRecording && recognitionRef.current) {
+                // Stop recording: recognition.onend will fire and auto-send
                 recognitionRef.current.stop();
-                setIsRecording(false);
                 return;
               }
               const recog = new SpeechRecognitionAPI();
               recog.lang = LANG_BCP47[language] || "en-US";
-              recog.interimResults = false;
+              recog.continuous = true;
+              recog.interimResults = true;
               recog.maxAlternatives = 1;
+              let finalTranscript = "";
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               recog.onresult = (e: any) => {
-                const transcript = e.results[0]?.[0]?.transcript ?? "";
-                if (transcript) {
-                  // Auto-submit: set input and send immediately
-                  sendMessage(transcript);
+                let interim = "";
+                for (let i = e.resultIndex; i < e.results.length; i++) {
+                  const t = e.results[i][0].transcript;
+                  if (e.results[i].isFinal) { finalTranscript += t; } else { interim += t; }
                 }
+                const shown = (finalTranscript + interim).trim();
+                setVoiceTranscript(shown);
+                setInput(shown);
               };
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               recog.onerror = (e: any) => {
                 setIsRecording(false);
+                setVoiceTranscript("");
                 if (e.error === "not-allowed" || e.error === "permission-denied") {
                   alert("Microphone access denied. Please allow microphone permission in your browser settings.");
                 } else if (e.error === "network") {
                   alert("Voice input requires a secure (HTTPS) connection.");
                 }
-                // no-speech / aborted are silent – user simply didn't speak
               };
-              recog.onend = () => setIsRecording(false);
+              recog.onend = () => {
+                setIsRecording(false);
+                recognitionRef.current = null;
+                // Auto-send the final transcript
+                const toSend = finalTranscript.trim();
+                if (toSend) {
+                  setInput("");
+                  setVoiceTranscript("");
+                  sendMessage(toSend);
+                }
+              };
               recognitionRef.current = recog;
+              setVoiceTranscript("");
               recog.start();
               setIsRecording(true);
             }}
             className={cn(
-              "p-2.5 rounded-xl border transition-colors",
+              "p-2.5 rounded-xl border transition-all",
               isRecording
-                ? "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-500 animate-pulse"
+                ? "border-red-400 bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110"
                 : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
             )}
-            title={isRecording ? "Stop recording" : "Voice input"}
+            title={isRecording ? "Tap to stop & send" : "Voice input"}
           >
-            <Mic className="w-4 h-4" />
+            {isRecording ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
           </button>
           <button
             type="submit"
