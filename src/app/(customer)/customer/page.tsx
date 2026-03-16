@@ -1089,6 +1089,8 @@ function MessageBubble({
   onSpeak: (msgId: string, text: string) => void;
   translatedContent?: string;
 }) {
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+
   if (msg.role === "user") {
     return (
       <div className="flex justify-end gap-2 items-end">
@@ -1103,7 +1105,6 @@ function MessageBubble({
   }
 
   const isSpeaking = speakingId === msg.id;
-  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   // Assistant message
   return (
