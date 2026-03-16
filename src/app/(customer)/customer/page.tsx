@@ -77,12 +77,6 @@ interface ConversationHistoryItem {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUGGESTION TYPE
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface Suggestion { id: string; title: string; }
-
-// ─────────────────────────────────────────────────────────────────────────────
 // AI API
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -129,8 +123,6 @@ export default function CustomerChatPage() {
   const [language, setLanguage] = useState<string>("en");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  // Dynamic suggestions fetched from admin-uploaded customer documents
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
   // ── Support / Human escalation state ─────────────────────────────────────
   const [engineerOnline, setEngineerOnline] = useState(false);
@@ -235,11 +227,6 @@ export default function CustomerChatPage() {
           }
         })
         .catch(console.error);
-      // Fetch dynamic suggestions from admin-uploaded customer documents
-      fetch("/api/suggestions", { credentials: "include" })
-        .then((r) => r.ok ? r.json() : { suggestions: [] })
-        .then((d) => setSuggestions(d.suggestions || []))
-        .catch(() => {});
     }
   }, [user, isLoading, router, loadConversationHistory]); // eslint-disable-line
 
@@ -413,7 +400,6 @@ export default function CustomerChatPage() {
   };
 
   const handleSubmit = (e: FormEvent) => { e.preventDefault(); sendMessage(input); };
-  const handleQuickReply = (text: string) => sendMessage(text);
   const handleReset = () => {
     if (user) {
       setMessages([makeWelcome(user.firstName)]);
