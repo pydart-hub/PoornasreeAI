@@ -32,12 +32,21 @@ export async function findVideosForQuery(
     const allVideos = await prisma.videoResource.findMany();
     if (allVideos.length === 0) return [];
 
-    // Tokenise query — keep words longer than 2 chars
+    // Common stop words — excluded from matching to avoid noise
+    const STOP_WORDS = new Set([
+      "the", "and", "for", "are", "not", "how", "why", "what", "when",
+      "where", "which", "can", "this", "that", "its", "was", "with",
+      "have", "has", "from", "but", "our", "your", "my", "his", "her",
+      "they", "them", "also", "any", "all", "get", "got", "did", "does",
+      "will", "been", "who", "you", "too", "use", "used", "via",
+    ]);
+
+    // Tokenise query — keep words longer than 2 chars and not stop words
     const queryWords = query
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
-      .filter((w) => w.length > 2);
+      .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 
     if (queryWords.length === 0) return [];
 
@@ -54,7 +63,8 @@ export async function findVideosForQuery(
         ).length;
         return { video: v, score };
       })
-      .filter((s: { score: number }) => s.score > 0)
+      // Require at least 2 matching keyword tokens to avoid weak/noisy matches
+      .filter((s: { score: number }) => s.score >= 2)
       .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
     return scored.slice(0, limit).map((s) => ({

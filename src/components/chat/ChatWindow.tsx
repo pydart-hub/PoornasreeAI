@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo, FormEvent, KeyboardEvent } from "react";
+import { useRef, useEffect, useMemo, useState, FormEvent, KeyboardEvent } from "react";
 import {
   Send,
   PanelLeft,
@@ -14,7 +14,6 @@ import {
   BookOpen,
   Youtube,
 } from "lucide-react";
-import { useState } from "react";
 import { Logo, Avatar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { Conversation, Message } from "@/types/chat";
@@ -279,6 +278,7 @@ function MessageBubble({
   isStreaming: boolean;
 }) {
   const isUser = message.role === "user";
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   return (
     <div
@@ -352,36 +352,56 @@ function MessageBubble({
                 } catch { return ""; }
               })();
               const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
+              const isPlaying = playingVideoId === v.id;
               return (
-                <a
-                  key={v.id}
-                  href={v.youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors group/vid"
-                >
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumb}
-                      alt={v.title}
-                      className="w-16 h-11 object-cover rounded-lg shrink-0 bg-red-100 dark:bg-red-500/20"
-                    />
-                  ) : (
-                    <div className="w-16 h-11 rounded-lg shrink-0 bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
-                      <Youtube className="w-5 h-5 text-red-500" />
+                <div key={v.id} className="rounded-xl border border-red-200 dark:border-red-500/30 overflow-hidden">
+                  {isPlaying && videoId ? (
+                    <div className="w-full aspect-video">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                        title={v.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full"
+                      />
                     </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPlayingVideoId(v.id)}
+                      className="flex items-center gap-3 p-2.5 w-full text-left bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors group/vid"
+                    >
+                      <div className="relative shrink-0">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={thumb}
+                            alt={v.title}
+                            className="w-16 h-11 object-cover rounded-lg bg-red-100 dark:bg-red-500/20"
+                          />
+                        ) : (
+                          <div className="w-16 h-11 rounded-lg bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                            <Youtube className="w-5 h-5 text-red-500" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-red-600/90 flex items-center justify-center shadow">
+                            <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5 pl-0.5"><path d="M8 5v14l11-7z"/></svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-red-700 dark:text-red-300 line-clamp-2 leading-tight">
+                          {v.title}
+                        </p>
+                        {v.description && (
+                          <p className="text-[11px] sm:text-[10px] text-red-500 dark:text-red-400 mt-0.5 line-clamp-1">{v.description}</p>
+                        )}
+                      </div>
+                      <Youtube className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 opacity-70 group-hover/vid:opacity-100" />
+                    </button>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-red-700 dark:text-red-300 line-clamp-2 leading-tight">
-                      {v.title}
-                    </p>
-                    {v.description && (
-                      <p className="text-[11px] sm:text-[10px] text-red-500 dark:text-red-400 mt-0.5 line-clamp-1">{v.description}</p>
-                    )}
-                  </div>
-                  <Youtube className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 opacity-70 group-hover/vid:opacity-100" />
-                </a>
+                </div>
               );
             })}
           </div>
