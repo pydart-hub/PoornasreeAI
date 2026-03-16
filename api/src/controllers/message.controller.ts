@@ -225,18 +225,6 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
     const isNoDocs = assistantContent.startsWith("__NO_DOCS__");
     let videos = isNoDocs ? [] : await findVideosForQuery(content.trim(), 3);
 
-    // Fallback: if no admin-uploaded videos match, generate a YouTube search link
-    if (!isNoDocs && videos.length === 0) {
-      const searchQuery = encodeURIComponent(content.trim().slice(0, 100));
-      videos = [{
-        id: "yt-search",
-        title: "Search YouTube for related videos",
-        description: null,
-        youtubeUrl: `https://www.youtube.com/results?search_query=${searchQuery}`,
-        keywords: "",
-      }];
-    }
-
     // Strip the internal marker before sending to client
     if (isNoDocs) {
       assistantMessage.content = assistantContent.replace("__NO_DOCS__ ", "");
