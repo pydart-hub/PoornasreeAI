@@ -39,8 +39,17 @@ type Message = {
   content: string;
 };
 
+interface VideoResource {
+  id: string;
+  title: string;
+  description?: string | null;
+  youtubeUrl: string;
+  keywords: string;
+}
+
 interface ChatMessage extends Message {
   id: string;
+  videos?: VideoResource[];
 }
 
 interface SupportMessageItem {
@@ -76,7 +85,7 @@ interface Suggestion { id: string; title: string; }
 // AI API
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function sendMessageToAI(conversationId: string, content: string, language?: string, productContext?: string | null): Promise<string> {
+async function sendMessageToAI(conversationId: string, content: string, language?: string, productContext?: string | null): Promise<{ content: string; videos: VideoResource[] }> {
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -85,7 +94,7 @@ async function sendMessageToAI(conversationId: string, content: string, language
   });
   if (!res.ok) throw new Error("API error");
   const data = await res.json();
-  return data.assistantMessage.content;
+  return { content: data.assistantMessage.content, videos: data.videos ?? [] };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,7 +127,6 @@ export default function CustomerChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [language, setLanguage] = useState<string>("en");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [youtubeResults, setYoutubeResults] = useState<Record<string, string>>({}); // msgId -> search query
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   // Dynamic suggestions fetched from admin-uploaded customer documents
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -344,17 +352,12 @@ export default function CustomerChatPage() {
       const convId = conversationId ?? await createConversation();
       // Translate the query to English so the AI (trained on English docs) understands it
       const englishQuery = language !== 'en' ? await translateToEnglish(text.trim(), language) : text.trim();
-      const answer = await sendMessageToAI(convId, englishQuery, language);
+      const { content: answer, videos } = await sendMessageToAI(convId, englishQuery, language);
       const botId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
-        { id: botId, role: "assistant", content: answer },
+        { id: botId, role: "assistant", content: answer, videos: videos.length > 0 ? videos : undefined },
       ]);
-      // Store YouTube search query for this response (skip for no-docs fallback)
-      const isNoDocs = answer.startsWith("Our AI assistant is currently being configured");
-      if (!isNoDocs) {
-        setYoutubeResults((prev) => ({ ...prev, [botId]: englishQuery }));
-      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -375,7 +378,6 @@ export default function CustomerChatPage() {
     if (user) {
       setMessages([makeWelcome(user.firstName)]);
       setConversationId(null);
-      setYoutubeResults({});
       setSpeakingId(null);
       setSupportRequest(null);
       setSupportMessages([]);
@@ -718,7 +720,7 @@ export default function CustomerChatPage() {
               msg={msg}
               liked={liked[msg.id]}
               onLike={(v) => setLiked((prev) => ({ ...prev, [msg.id]: v }))}
-              youtubeQuery={youtubeResults[msg.id]}
+              videos={msg.videos}
               speakingId={speakingId}
               onSpeak={handleSpeak}
               translatedContent={translatedContent[msg.id]}
@@ -1074,7 +1076,7 @@ function MessageBubble({
   msg,
   liked,
   onLike,
-  youtubeQuery,
+  videos,
   speakingId,
   onSpeak,
   translatedContent,
@@ -1082,7 +1084,7 @@ function MessageBubble({
   msg: ChatMessage;
   liked: boolean | null | undefined;
   onLike: (v: boolean) => void;
-  youtubeQuery?: string;
+  videos?: VideoResource[];
   speakingId: string | null;
   onSpeak: (msgId: string, text: string) => void;
   translatedContent?: string;
@@ -1101,9 +1103,7 @@ function MessageBubble({
   }
 
   const isSpeaking = speakingId === msg.id;
-  const ytSearchUrl = youtubeQuery
-    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeQuery + " troubleshooting repair")}`
-    : null;
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   // Assistant message
   return (
@@ -1120,27 +1120,64 @@ function MessageBubble({
           </p>
         </div>
 
-        {/* YouTube suggestion */}
-        {ytSearchUrl && msg.id !== "welcome" && (
-          <a
-            href={ytSearchUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors group"
-          >
-            <div className="shrink-0 p-1.5 rounded-lg bg-red-100 dark:bg-red-500/20">
-              <Youtube className="w-4 h-4 text-red-600 dark:text-red-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-red-700 dark:text-red-300">
-                Watch related videos on YouTube
-              </p>
-              <p className="text-[10px] text-red-500 dark:text-red-400 truncate">
-                Search: {youtubeQuery}
-              </p>
-            </div>
-            <span className="text-xs text-red-400 group-hover:text-red-500 dark:group-hover:text-red-300">→</span>
-          </a>
+        {/* Admin-uploaded video recommendations */}
+        {videos && videos.length > 0 && msg.id !== "welcome" && (
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider pl-1">Related Videos</p>
+            {videos.map((v) => {
+              const videoId = (() => {
+                try {
+                  const u = new URL(v.youtubeUrl);
+                  if (u.hostname === "youtu.be") return u.pathname.slice(1);
+                  return u.searchParams.get("v") ?? "";
+                } catch { return ""; }
+              })();
+              const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
+              const isPlaying = playingVideoId === v.id;
+              return (
+                <div key={v.id} className="rounded-xl border border-red-200 dark:border-red-500/30 overflow-hidden">
+                  {isPlaying && videoId ? (
+                    <div className="w-full aspect-video">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                        title={v.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPlayingVideoId(v.id)}
+                      className="flex items-center gap-2.5 p-2.5 w-full text-left bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors group/vid"
+                    >
+                      <div className="relative shrink-0">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt={v.title} className="w-16 h-11 object-cover rounded-lg bg-red-100 dark:bg-red-500/20" />
+                        ) : (
+                          <div className="w-16 h-11 rounded-lg bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                            <Youtube className="w-5 h-5 text-red-500" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-full bg-red-600/90 flex items-center justify-center shadow">
+                            <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5 pl-0.5"><path d="M8 5v14l11-7z"/></svg>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-red-700 dark:text-red-300 line-clamp-2 leading-tight">{v.title}</p>
+                        {v.description && <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 line-clamp-1">{v.description}</p>}
+                      </div>
+                      <Youtube className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 opacity-70 group-hover/vid:opacity-100" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {/* Feedback + Audio */}
