@@ -14,14 +14,27 @@ model User {
   passwordHash     String
   firstName        String
   lastName         String?
+  // Roles: customer | service | service_engineer | service_manager | dealer | admin | sales
   role             String             @default("customer")
   createdAt        DateTime           @default(now())
+
+  // Pincode assignment (for engineers and dealers)
+  pincodeId        String?
+  pincode          Pincode?           @relation(fields: [pincodeId], references: [id])
+
+  // Legacy relations (kept — not removed yet)
   conversations    Conversation[]
   feedback         TrainingFeedback[]
   documents        Document[]
   customerRequests SupportRequest[]   @relation("CustomerRequests")
   engineerRequests SupportRequest[]   @relation("EngineerRequests")
   supportMessages  SupportMessage[]
+
+  // Ticket relations
+  customerTickets  Ticket[]           @relation("CustomerTickets")
+  dealerTickets    Ticket[]           @relation("DealerTickets")
+  managerTickets   Ticket[]           @relation("ManagerTickets")
+  engineerTickets  Ticket[]           @relation("EngineerTickets")
 }
 
 model Conversation {
@@ -129,4 +142,122 @@ model SupportMessage {
 
   supportRequest   SupportRequest @relation(fields: [supportRequestId], references: [id], onDelete: Cascade)
   sender           User           @relation(fields: [senderId], references: [id])
+}
+
+// ── Pincode (geographic routing zone) ─────────────────────────────────────
+model Pincode {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  regionName String
+  createdAt  DateTime @default(now())
+
+  users      User[]
+  tickets    Ticket[]
+}
+
+// ── Ticket (core entity — replaces SupportRequest) ────────────────────────
+// Status flow: OPEN → ASSIGNED → IN_PROGRESS → PENDING_OTP → CLOSED
+model Ticket {
+  id                 String    @id @default(uuid())
+  ticketNumber       String    @unique  // e.g. TKT-20260317-001
+
+  // Parties
+  customerId         String
+  dealerId           String?   // null if customer raised directly
+  assignedManagerId  String?
+  assignedEngineerId String?
+
+  // Routing
+  pincodeId          String?
+
+  // Problem
+  problemDescription String    @db.Text
+  machineName        String?
+
+  // Lifecycle
+  status             String    @default("OPEN")  // OPEN | ASSIGNED | IN_PROGRESS | PENDING_OTP | CLOSED
+
+  // OTP closure
+  otpCodeHash        String?
+  otpExpiresAt       DateTime?
+  otpVerified        Boolean   @default(false)
+  otpAttempts        Int       @default(0)
+
+  // Media (WhatsApp video URLs stored as JSON array)
+  mediaUrls          Json      @default("[]")
+
+  // Feedback
+  feedbackRating     Int?      // 1–5
+  feedbackSubmittedAt DateTime?
+
+  // Timestamps
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  firstEngineeredAt  DateTime?
+  closedAt           DateTime?
+
+  // Relations
+  customer           User      @relation("CustomerTickets",  fields: [customerId],          references: [id], onDelete: Cascade)
+  dealer             User?     @relation("DealerTickets",    fields: [dealerId],             references: [id])
+  assignedManager    User?     @relation("ManagerTickets",   fields: [assignedManagerId],    references: [id])
+  assignedEngineer   User?     @relation("EngineerTickets",  fields: [assignedEngineerId],   references: [id])
+  pincode            Pincode?  @relation(fields: [pincodeId],            references: [id])
+}
+
+// ── Troubleshooting Template ─────────────────────────────────────────────
+// Admin-defined step-by-step resolution guides keyed by problemType.
+model TroubleshootingTemplate {
+  id          String   @id @default(uuid())
+  problemType String   @unique             // e.g. "power_issue", "no_display"
+  title       String
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps       TroubleshootingStep[]
+}
+
+// ── Troubleshooting Step ─────────────────────────────────────────────────
+// Ordered steps within a template.
+model TroubleshootingStep {
+  id          String @id @default(uuid())
+  templateId  String
+  stepNumber  Int
+  stepContent String @db.Text
+
+  template    TroubleshootingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, stepNumber])
+}
+
+// ── Troubleshooting Session ──────────────────────────────────────────────
+// Tracks a user walking through a troubleshooting template.
+// Only ONE active session per (phoneNumber + serialNumber).
+model TroubleshootingSession {
+  id           String   @id @default(uuid())
+  phoneNumber  String
+  serialNumber String
+  problemType  String
+  currentStep  Int      @default(1)
+  status       String   @default("ACTIVE")  // ACTIVE | COMPLETED | ESCALATED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([phoneNumber, serialNumber, status], name: "idx_session_lookup")
+}
+
+// ── Conversation Session (WhatsApp simulation gatekeeper) ────────────────
+// Outer state machine per phone number. Enforces registration before any
+// feature access. One ACTIVE session per phoneNumber at a time.
+model ConversationSession {
+  id             String   @id @default(uuid())
+  phoneNumber    String
+  state          String   @default("NEW_USER")  // NEW_USER | AWAITING_MOBILE | REGISTERED
+  isRegistered   Boolean  @default(false)
+  providedMobile String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([phoneNumber, state], name: "idx_convo_session_lookup")
 }

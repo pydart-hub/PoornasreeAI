@@ -75,7 +75,7 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
     }
 
     const token = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, role: user.role, pincodeId: user.pincodeId ?? null },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
     );

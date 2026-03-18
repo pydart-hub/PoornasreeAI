@@ -1,5 +1,12 @@
 // ── Role definitions ──────────────────────────────────────────────────
-export type UserRole = "customer" | "service" | "admin" | "sales";
+export type UserRole =
+  | "customer"
+  | "service"           // legacy — kept for backward compat
+  | "service_engineer"  // Phase 1 rename of "service"
+  | "service_manager"   // NEW: assigns tickets by pincode
+  | "dealer"            // NEW: raises tickets on behalf of customers
+  | "admin"
+  | "sales";
 
 // Roles that can see every conversation (not just their own).
 const ROLES_WITH_FULL_READ: UserRole[] = ["admin", "service"];

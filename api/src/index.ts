@@ -10,6 +10,9 @@ import chatRoutes from "./routes/chat.routes";
 import adminRoutes from "./routes/admin.routes";
 import supportRoutes from "./routes/support.routes";
 import salesRoutes from "./routes/sales.routes";
+import ticketRoutes from "./routes/ticket.routes";
+import troubleshootingRoutes from "./routes/troubleshooting.routes";
+import simulateRoutes from "./routes/simulate.routes";
 import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
@@ -25,11 +28,14 @@ app.use(express.json());
 app.use(cookieParser());
 
 // ── Routes ───────────────────────────────────────
-app.use("/api/auth", authRoutes);
-app.use("/api", chatRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/auth",    authRoutes);
+app.use("/api",         chatRoutes);
+app.use("/api/admin",   adminRoutes);
 app.use("/api/support", supportRoutes);
-app.use("/api/sales", salesRoutes);
+app.use("/api/sales",   salesRoutes);
+app.use("/api/tickets", ticketRoutes);
+app.use("/api/troubleshooting", troubleshootingRoutes);
+app.use("/api/simulate", simulateRoutes);
 
 // ── TTS proxy ─────────────────────────────────────
 // Uses node-gtts (Google TTS via server-side request) — works for all Indian

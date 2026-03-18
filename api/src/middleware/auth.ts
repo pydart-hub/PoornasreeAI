@@ -8,6 +8,7 @@ declare module "express-serve-static-core" {
     user?: {
       userId: string;
       role: string;
+      pincodeId?: string | null;
     };
   }
 }
@@ -15,6 +16,7 @@ declare module "express-serve-static-core" {
 export interface JwtPayload {
   userId: string;
   role: string;
+  pincodeId?: string | null;
 }
 
 // ── Protect middleware ────────────────────────────────────────────────
@@ -30,7 +32,7 @@ export function protect(req: Request, res: Response, next: NextFunction): void {
 
   try {
     const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
-    req.user = { userId: payload.userId, role: payload.role };
+    req.user = { userId: payload.userId, role: payload.role, pincodeId: payload.pincodeId ?? null };
     next();
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });
@@ -49,3 +51,9 @@ export function authorize(...roles: string[]) {
     next();
   };
 }
+
+/** Alias for protect — used where requirement docs say "requireAuth". */
+export const requireAuth = protect;
+
+/** Alias for authorize — used where requirement docs say "requireRole". */
+export const requireRole = authorize;
