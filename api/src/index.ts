@@ -29,13 +29,18 @@ app.use(cookieParser());
 
 // ── Routes ───────────────────────────────────────
 app.use("/api/auth",    authRoutes);
-app.use("/api",         chatRoutes);
+
+// ── Public endpoints (no auth) — must be registered BEFORE the broad chatRoutes
+// mount below, which runs `protect` on ALL /api/* requests.
+app.use("/api/simulate",        simulateRoutes);
+app.use("/api/tickets",         ticketRoutes);
+app.use("/api/troubleshooting", troubleshootingRoutes);
+
+// ── Authenticated routes ──────────────────────────────────────────────────
+app.use("/api",         chatRoutes);    // broad mount — runs protect on every /api/* that reaches here
 app.use("/api/admin",   adminRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/sales",   salesRoutes);
-app.use("/api/tickets", ticketRoutes);
-app.use("/api/troubleshooting", troubleshootingRoutes);
-app.use("/api/simulate", simulateRoutes);
 
 // ── TTS proxy ─────────────────────────────────────
 // Uses node-gtts (Google TTS via server-side request) — works for all Indian
