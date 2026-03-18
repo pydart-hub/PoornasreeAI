@@ -29,7 +29,8 @@ export default function TestChatPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/simulate/message", {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const res = await fetch(`${baseUrl}/api/simulate/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber, message: text }),

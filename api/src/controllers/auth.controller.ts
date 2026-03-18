@@ -118,6 +118,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
     const { passwordHash: _, ...safeUser } = user;
     res.json({ user: safeUser });
   } catch (err) {
+    console.error("Auth /me error:", err);
     res.status(401).json({ error: "Invalid or expired token" });
   }
 }

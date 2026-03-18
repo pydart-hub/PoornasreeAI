@@ -1,24 +1,26 @@
 /** @type {import('next').NextConfig} */
+
+// In Docker the API is reachable via the service name "api".
+// Locally, point to localhost:4000 by setting API_INTERNAL_URL in .env.local.
+const API_HOST = process.env.API_INTERNAL_URL || "http://api:4000";
+
 const nextConfig = {
   // ── API proxy rewrites ──────────────────────────────────────────────────
-  // Browser calls /api/* → Next.js server → API container (server-to-server).
-  // Static destination uses the Docker service name "api" — no env var logic
-  // that could silently fall back to localhost inside the container.
   async rewrites() {
     return [
-      // API proxy — browser calls /api/* → Next.js → API container
+      // API proxy — browser calls /api/* → Next.js server → API
       {
         source:      "/api/:path*",
-        destination: "http://api:4000/api/:path*",
+        destination: `${API_HOST}/api/:path*`,
       },
       // Socket.IO proxy — polling + WebSocket upgrades
       {
         source:      "/socket.io",
-        destination: "http://api:4000/socket.io",
+        destination: `${API_HOST}/socket.io`,
       },
       {
         source:      "/socket.io/:path*",
-        destination: "http://api:4000/socket.io/:path*",
+        destination: `${API_HOST}/socket.io/:path*`,
       },
     ];
   },

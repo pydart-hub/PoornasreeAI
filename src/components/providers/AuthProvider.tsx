@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 // ── Types ──
 export interface User {
@@ -72,15 +73,25 @@ function enrichUser(raw: Omit<User, "permissions" | "languagePref" | "themePref"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Public routes that operate without authentication (e.g. WhatsApp-style simulate chat)
+const PUBLIC_ROUTES = ["/test-chat"];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [state, setState] = useState<AuthState>({
     user: null,
     isAuthenticated: false,
     isLoading: true,
   });
 
-  // Check for existing session on mount via /api/auth/me
+  // Check for existing session on mount via /api/auth/me.
+  // Skipped on public routes that don't use authentication.
   useEffect(() => {
+    if (PUBLIC_ROUTES.some((r) => pathname.startsWith(r))) {
+      setState((s) => ({ ...s, isLoading: false }));
+      return;
+    }
+
     fetch("/api/auth/me", { credentials: "include" })
       .then(async (res) => {
         if (res.ok) {
@@ -97,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         setState((s) => ({ ...s, isLoading: false }));
       });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch("/api/auth/login", {

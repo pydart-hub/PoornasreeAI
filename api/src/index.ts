@@ -81,6 +81,7 @@ app.get("/", (_req, res) => {
 
 // ── eslint-disable-next-line @typescript-eslint/no-explicit-any
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("🔥 Backend Error:", err);
   const status: number = err.status ?? err.statusCode ?? 500;
   const message: string = err.message ?? "Internal server error";
   res.status(status).json({ error: message });
