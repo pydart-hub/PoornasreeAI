@@ -2,10 +2,13 @@
 // State-machine gatekeeper that enforces registration before any feature.
 // States: NEW_USER → AWAITING_MOBILE → REGISTERED
 //
-// Once REGISTERED the user gets a welcome message. Future stages will
-// route registered users into the troubleshooting engine or menu system.
+// Once REGISTERED, incoming messages route through:
+//   1. Active troubleshooting session → forward to troubleshooting engine
+//   2. No active session → detect problem type → start troubleshooting
+//   3. Unrecognised problem → ask user to describe more clearly
 
 import prisma from "../lib/prisma";
+import * as TroubleshootingService from "./troubleshooting.service";
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -17,7 +20,32 @@ const REGISTRATION_PROMPT =
 
 const WELCOME_MESSAGE = "Welcome! Please describe your issue.";
 
+const DESCRIBE_ISSUE_MESSAGE =
+  "Please describe your issue clearly (e.g., machine not turning on, no display, vibration issue).";
+
+const RESOLVED_MESSAGE = "✅ Glad your issue is resolved.";
+
+const ESCALATED_MESSAGE = "🚧 Service request created. Our engineer will contact you.";
+
 const MOBILE_RE = /^\d{10}$/;
+
+// ── Problem detection (keyword-based, no AI) ──────────────────────────────
+
+const PROBLEM_KEYWORDS: { keywords: string[]; problemType: string }[] = [
+  { keywords: ["not turning on", "no power", "not starting"], problemType: "power_issue" },
+  { keywords: ["no display", "blank screen"],                 problemType: "no_display" },
+  { keywords: ["vibration", "shaking"],                       problemType: "vibration_issue" },
+];
+
+function detectProblemType(message: string): string | null {
+  const lower = message.toLowerCase();
+  for (const entry of PROBLEM_KEYWORDS) {
+    for (const kw of entry.keywords) {
+      if (lower.includes(kw)) return entry.problemType;
+    }
+  }
+  return null;
+}
 
 // ── handleMessage ─────────────────────────────────────────────────────────
 // Single entry point — every incoming "WhatsApp" message flows through here.
@@ -30,13 +58,76 @@ export async function handleMessage(phoneNumber: string, message: string) {
     return gatekeeper(session, message);
   }
 
-  // ── Post-registration: user is registered ────────────────────────────
-  return {
-    message: WELCOME_MESSAGE,
-    state: session.state,
-    sessionId: session.id,
-    isRegistered: session.isRegistered,
-  };
+  // ── Post-registration: route into troubleshooting ────────────────────
+  return handleRegisteredUser(session, phoneNumber, message);
+}
+
+// ── Registered-user handler ───────────────────────────────────────────────
+
+async function handleRegisteredUser(
+  convoSession: { id: string; state: string; isRegistered: boolean },
+  phoneNumber: string,
+  message: string,
+) {
+  const reply = (msg: string) => ({
+    message: msg,
+    state: convoSession.state,
+    sessionId: convoSession.id,
+    isRegistered: convoSession.isRegistered,
+  });
+
+  // Check for an ACTIVE troubleshooting session for this phone number
+  const activeTs = await prisma.troubleshootingSession.findFirst({
+    where: { phoneNumber, status: "ACTIVE" },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  // ── CASE 2: Active troubleshooting session exists ────────────────────
+  if (activeTs) {
+    const result = await TroubleshootingService.handleResponse(activeTs.id, message);
+
+    // Map troubleshooting-service responses to strict output format
+    if (result.done) {
+      const tsSession = result.session as { status: string };
+      if (tsSession.status === "COMPLETED") {
+        return reply(RESOLVED_MESSAGE);
+      }
+      // ESCALATED (either via HELP or last-step auto-escalation)
+      return reply(ESCALATED_MESSAGE);
+    }
+
+    // Ongoing step or invalid-input re-prompt
+    return reply(result.message);
+  }
+
+  // ── CASE 1: No active troubleshooting session ───────────────────────
+
+  // Special: if user types HELP without an active session → immediate escalation
+  if (message.trim().toUpperCase() === "HELP") {
+    return reply("No active troubleshooting session. " + DESCRIBE_ISSUE_MESSAGE);
+  }
+
+  const problemType = detectProblemType(message);
+
+  if (!problemType) {
+    // Could not identify problem from keywords
+    return reply(DESCRIBE_ISSUE_MESSAGE);
+  }
+
+  // Verify that a template exists for this problem type
+  const template = await prisma.troubleshootingTemplate.findUnique({
+    where: { problemType },
+  });
+
+  if (!template || !template.isActive) {
+    return reply("We could not identify the issue. Reply HELP to create a service request.");
+  }
+
+  // Start a new troubleshooting session
+  // serialNumber is not yet collected — use phoneNumber as placeholder
+  const tsResult = await TroubleshootingService.startSession(phoneNumber, phoneNumber, problemType);
+
+  return reply(tsResult.message);
 }
 
 // ── Gatekeeper logic ──────────────────────────────────────────────────────
