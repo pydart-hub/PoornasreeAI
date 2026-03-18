@@ -9,6 +9,7 @@
 
 import prisma from "../lib/prisma";
 import * as TroubleshootingService from "./troubleshooting.service";
+import * as TicketService from "./ticket.service";
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -23,18 +24,34 @@ const WELCOME_MESSAGE = "Welcome! Please describe your issue.";
 const DESCRIBE_ISSUE_MESSAGE =
   "Please describe your issue clearly (e.g., machine not turning on, no display, vibration issue).";
 
+const NO_ISSUE_DETECTED_MESSAGE =
+  "We could not identify the issue.\n\n" +
+  "Please describe your problem (e.g., machine not turning on, no display, vibration issue).\n\n" +
+  "Or reply HELP to create a service request.";
+
+const INVALID_RESPONSE_MESSAGE = "Please reply YES, NO, or HELP";
+
 const RESOLVED_MESSAGE = "✅ Glad your issue is resolved.";
 
-const ESCALATED_MESSAGE = "🚧 Service request created. Our engineer will contact you.";
+const ESCALATED_MESSAGE = "🚧 Service request created.\n\nOur engineer will contact you shortly.";
 
 const MOBILE_RE = /^\d{10}$/;
 
 // ── Problem detection (keyword-based, no AI) ──────────────────────────────
 
 const PROBLEM_KEYWORDS: { keywords: string[]; problemType: string }[] = [
-  { keywords: ["not turning on", "no power", "not starting"], problemType: "power_issue" },
-  { keywords: ["no display", "blank screen"],                 problemType: "no_display" },
-  { keywords: ["vibration", "shaking"],                       problemType: "vibration_issue" },
+  {
+    keywords: ["power", "start", "starting", "turn", "not working", "not turning", "dead"],
+    problemType: "power_issue",
+  },
+  {
+    keywords: ["display", "screen", "blank"],
+    problemType: "no_display",
+  },
+  {
+    keywords: ["vibr", "vibration", "vibro", "shaking"],
+    problemType: "vibration_issue",
+  },
 ];
 
 function detectProblemType(message: string): string | null {
@@ -51,6 +68,17 @@ function detectProblemType(message: string): string | null {
 // Single entry point — every incoming "WhatsApp" message flows through here.
 
 export async function handleMessage(phoneNumber: string, message: string) {
+  // ── GLOBAL HELP: highest priority — works regardless of state ────────
+  if (message.trim().toLowerCase() === "help") {
+    await createHelpTicket(phoneNumber);
+    return {
+      message: ESCALATED_MESSAGE,
+      state: "GLOBAL",
+      sessionId: null,
+      isRegistered: false,
+    };
+  }
+
   const session = await loadOrCreateSession(phoneNumber);
 
   // ── Gatekeeper: block everything until REGISTERED ────────────────────
@@ -82,8 +110,17 @@ async function handleRegisteredUser(
     orderBy: { updatedAt: "desc" },
   });
 
-  // ── CASE 2: Active troubleshooting session exists ────────────────────
+  // ── CASE A: Active troubleshooting session exists ─────────────────────
   if (activeTs) {
+    const normalized = message.trim().toUpperCase();
+
+    // STEP 5: Reject anything that is not YES / NO / HELP immediately
+    if (normalized !== "YES" && normalized !== "Y" &&
+        normalized !== "NO"  && normalized !== "N"  &&
+        normalized !== "HELP" && normalized !== "ESCALATE") {
+      return reply(INVALID_RESPONSE_MESSAGE);
+    }
+
     const result = await TroubleshootingService.handleResponse(activeTs.id, message);
 
     // Map troubleshooting-service responses to strict output format
@@ -92,26 +129,21 @@ async function handleRegisteredUser(
       if (tsSession.status === "COMPLETED") {
         return reply(RESOLVED_MESSAGE);
       }
-      // ESCALATED (either via HELP or last-step auto-escalation)
+      // ESCALATED (via HELP or last-step auto-escalation)
       return reply(ESCALATED_MESSAGE);
     }
 
-    // Ongoing step or invalid-input re-prompt
-    return reply(result.message);
+    // Ongoing step — standardize format (STEP 4)
+    return reply(reformatStepMessage(result.message));
   }
 
-  // ── CASE 1: No active troubleshooting session ───────────────────────
-
-  // Special: if user types HELP without an active session → immediate escalation
-  if (message.trim().toUpperCase() === "HELP") {
-    return reply("No active troubleshooting session. " + DESCRIBE_ISSUE_MESSAGE);
-  }
+  // ── CASE B: No active troubleshooting session ─────────────────────────
 
   const problemType = detectProblemType(message);
 
   if (!problemType) {
-    // Could not identify problem from keywords
-    return reply(DESCRIBE_ISSUE_MESSAGE);
+    // STEP 3: No dead-end — always guide user with clear options
+    return reply(NO_ISSUE_DETECTED_MESSAGE);
   }
 
   // Verify that a template exists for this problem type
@@ -120,14 +152,38 @@ async function handleRegisteredUser(
   });
 
   if (!template || !template.isActive) {
-    return reply("We could not identify the issue. Reply HELP to create a service request.");
+    return reply(NO_ISSUE_DETECTED_MESSAGE);
   }
 
   // Start a new troubleshooting session
   // serialNumber is not yet collected — use phoneNumber as placeholder
   const tsResult = await TroubleshootingService.startSession(phoneNumber, phoneNumber, problemType);
 
-  return reply(tsResult.message);
+  // STEP 4: Standardize step format
+  return reply(reformatStepMessage(tsResult.message));
+}
+
+// ── Helper: reformat step messages to standard format (STEP 4) ───────────
+// Converts   "Step N of T: content\nIs the issue resolved? Reply YES or NO."
+// to         "Step N of T: content\n\nIs the issue resolved?\nReply YES, NO, or HELP"
+function reformatStepMessage(msg: string): string {
+  return msg
+    .replace(/\nIs the issue resolved\? Reply YES or NO\.?/i,
+      "\n\nIs the issue resolved?\nReply YES, NO, or HELP");
+}
+
+// ── Helper: create a help ticket using admin as fallback customer ──────────
+async function createHelpTicket(phoneNumber: string): Promise<void> {
+  try {
+    const adminUser = await prisma.user.findFirst({ where: { role: "admin" } });
+    if (!adminUser) return;
+    await TicketService.createTicket({
+      customerId: adminUser.id,
+      problemDescription: `Help request from ${phoneNumber}`,
+    });
+  } catch {
+    // Non-blocking — log silently so the response still goes through
+  }
 }
 
 // ── Gatekeeper logic ──────────────────────────────────────────────────────
