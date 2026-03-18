@@ -70,14 +70,7 @@ const SEED_USERS: {
     role: "dealer",
     pincodeCode: "600001",
   },
-  // Legacy customer (kept for backward compat)
-  {
-    email: "customer@example.com",
-    password: "Customer@123",
-    firstName: "Vijay",
-    lastName: "Raj",
-    role: "customer",
-  },
+  // Note: Customers use WhatsApp only — no login needed per plan.md
 ];
 
 async function main() {
