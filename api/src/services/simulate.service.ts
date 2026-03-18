@@ -90,6 +90,8 @@ export async function handleMessage(phoneNumber: string, message: string) {
     return gatekeeper(session, message);
   }
 
+  console.log("User is REGISTERED");
+
   // ── Post-registration: route into troubleshooting ────────────────────
   return handleRegisteredUser(session, phoneNumber, message);
 }
@@ -109,13 +111,16 @@ async function handleRegisteredUser(
   });
 
   // Check for an ACTIVE troubleshooting session for this phone number
+  console.log("Checking for active troubleshooting session...");
   const activeTs = await prisma.troubleshootingSession.findFirst({
     where: { phoneNumber, status: "ACTIVE" },
     orderBy: { updatedAt: "desc" },
   });
+  console.log("Active session:", activeTs);
 
   // ── CASE A: Active troubleshooting session exists ─────────────────────
   if (activeTs) {
+    console.log("Entering handleResponse branch");
     const normalized = message.trim().toUpperCase();
 
     // STEP 5: Reject anything that is not YES / NO / HELP immediately
@@ -143,6 +148,7 @@ async function handleRegisteredUser(
 
   // ── CASE B: No active troubleshooting session ─────────────────────────
 
+  console.log("No active session → should detect problem");
   console.log("Calling detectProblemType...");
   const problemType = detectProblemType(message);
   console.log("Detected problemType:", problemType);
