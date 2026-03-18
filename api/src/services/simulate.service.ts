@@ -55,6 +55,7 @@ const PROBLEM_KEYWORDS: { keywords: string[]; problemType: string }[] = [
 ];
 
 function detectProblemType(message: string): string | null {
+  console.log("Inside detectProblemType, message:", message);
   const lower = message.toLowerCase();
   for (const entry of PROBLEM_KEYWORDS) {
     for (const kw of entry.keywords) {
@@ -68,6 +69,8 @@ function detectProblemType(message: string): string | null {
 // Single entry point — every incoming "WhatsApp" message flows through here.
 
 export async function handleMessage(phoneNumber: string, message: string) {
+  console.log("Incoming message:", message);
+
   // ── GLOBAL HELP: highest priority — works regardless of state ────────
   if (message.trim().toLowerCase() === "help") {
     await createHelpTicket(phoneNumber);
@@ -80,6 +83,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
   }
 
   const session = await loadOrCreateSession(phoneNumber);
+  console.log("Session state:", session.state);
 
   // ── Gatekeeper: block everything until REGISTERED ────────────────────
   if (session.state !== "REGISTERED") {
@@ -139,7 +143,9 @@ async function handleRegisteredUser(
 
   // ── CASE B: No active troubleshooting session ─────────────────────────
 
+  console.log("Calling detectProblemType...");
   const problemType = detectProblemType(message);
+  console.log("Detected problemType:", problemType);
 
   if (!problemType) {
     // STEP 3: No dead-end — always guide user with clear options
