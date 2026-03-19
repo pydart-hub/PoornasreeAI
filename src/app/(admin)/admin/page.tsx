@@ -389,10 +389,16 @@ export default function AdminPage() {
           credentials: "include",
           body: formData,
         });
-        if (res.ok) successCount++;
-        else errorCount++;
-      } catch {
+        if (res.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+          const body = await res.json().catch(() => ({}));
+          console.error("[upload] HTTP", res.status, body);
+        }
+      } catch (uploadErr) {
         errorCount++;
+        console.error("[upload] network error", uploadErr);
       }
     }
 

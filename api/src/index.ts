@@ -49,10 +49,13 @@ app.get("/api/branding", getBranding);
 app.get("/api/rd-videos", protect, listRdVideos);
 
 // ── Authenticated routes ──────────────────────────────────────────────────
-app.use("/api",         chatRoutes);    // broad mount — runs protect on every /api/* that reaches here
+// IMPORTANT: specific prefixes MUST be mounted before the broad "/api" mount,
+// otherwise chatRoutes' protect middleware intercepts admin/support/sales
+// requests first and can cause duplicate auth checks or unexpected 401s.
 app.use("/api/admin",   adminRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/sales",   salesRoutes);
+app.use("/api",         chatRoutes);    // broad mount — catch-all for /api/conversations, /api/messages, etc.
 
 // ── TTS proxy ─────────────────────────────────────
 // Uses node-gtts (Google TTS via server-side request) — works for all Indian
