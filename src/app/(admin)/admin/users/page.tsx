@@ -32,7 +32,6 @@ import {
 
 // ── Constants ────────────────────────────────────────────────────────────
 const ROLES = [
-  { value: "customer",  label: "Customer" },
   { value: "service",   label: "Service Engineer" },
   { value: "sales",     label: "Sales" },
   { value: "customer_service", label: "Customer Service" },
@@ -60,7 +59,7 @@ const EMPTY_FORM = (): CreateUserPayload => ({
   password: "",
   firstName: "",
   lastName: "",
-  role: "customer",
+  role: "service",
 });
 
 // ── Validation ───────────────────────────────────────────────────────────
