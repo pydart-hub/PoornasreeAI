@@ -23,7 +23,6 @@ export default function TestChatPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const knownCountRef = useRef(0); // track how many DB messages we know about
 
@@ -44,15 +43,13 @@ export default function TestChatPage() {
       }));
       setMessages(dbMessages);
       knownCountRef.current = dbMessages.length;
-      setHistoryLoaded(true);
     } catch {
-      setHistoryLoaded(true); // don't block UI on failure
+      // don't block UI on failure
     }
   }, []);
 
   useEffect(() => {
     if (phoneNumber.trim()) {
-      setHistoryLoaded(false);
       loadHistory(phoneNumber.trim());
     }
   }, [phoneNumber, loadHistory]);
