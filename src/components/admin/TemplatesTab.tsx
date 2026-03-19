@@ -67,8 +67,8 @@ export default function TemplatesTab() {
       });
       setForm({ problemType: "", title: "", description: "", steps: [""] });
       fetchTemplates();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
     }
     setSaving(false);
   };

@@ -57,8 +57,8 @@ export default function MachinesTab() {
       });
       setForm({ serialNumber: "", modelName: "", specs: "" });
       fetchMachines();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
     }
     setSaving(false);
   };

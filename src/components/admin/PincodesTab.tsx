@@ -69,8 +69,8 @@ export default function PincodesTab() {
       await apiFetch("/api/admin/pincodes", { method: "POST", body: JSON.stringify(form) });
       setForm({ code: "", regionName: "" });
       fetchPincodes();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError((e as Error).message);
     }
     setSaving(false);
   };

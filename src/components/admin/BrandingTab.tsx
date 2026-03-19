@@ -59,8 +59,8 @@ export default function BrandingTab() {
       });
       setBranding(data.branding);
       setMessage({ text: "Branding updated successfully", type: "success" });
-    } catch (e: any) {
-      setMessage({ text: e.message, type: "error" });
+    } catch (e) {
+      setMessage({ text: (e as Error).message, type: "error" });
     }
     setSaving(false);
   };
@@ -102,6 +102,7 @@ export default function BrandingTab() {
         {/* Logo preview */}
         {branding?.logoUrl && (
           <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={branding.logoUrl} alt="Logo" className="w-16 h-16 object-contain rounded-xl border border-line dark:border-line-dark" />
             <span className="text-xs text-content-secondary">Current logo</span>
           </div>
