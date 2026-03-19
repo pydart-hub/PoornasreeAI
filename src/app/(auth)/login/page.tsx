@@ -2,9 +2,44 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Monitor, Users, BarChart3, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
+
+// ── Feature list shown on the left hero panel ─────────────────────────
+const FEATURES = [
+  {
+    icon: <Monitor className="w-4 h-4 text-emerald-300" />,
+    title: "Live Machine Monitoring",
+    desc: "Track all equipment in real-time",
+  },
+  {
+    icon: <Users className="w-4 h-4 text-emerald-300" />,
+    title: "Multi-tier Hierarchy",
+    desc: "Admin → Manager → Engineer → Dealer",
+  },
+  {
+    icon: <BarChart3 className="w-4 h-4 text-emerald-300" />,
+    title: "Pulse Analytics",
+    desc: "Section-based operational insights",
+  },
+];
+
+// ── Role → route map ──────────────────────────────────────────────────
+function roleRoute(role: string): string {
+  switch (role) {
+    case "admin":            return "/admin";
+    case "service":
+    case "service_engineer": return "/service";
+    case "service_manager":  return "/service-manager";
+    case "dealer":           return "/dealer";
+    case "customer":         return "/customer";
+    case "sales":            return "/sales";
+    case "customer_service": return "/customer-service";
+    default:                 return "/chat";
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,17 +54,11 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email || !password) { setError("Please fill in all fields."); return; }
+    if (!email.trim() || !password) { setError("Please fill in all fields."); return; }
     setLoading(true);
     try {
-      const user = await login(email, password);
-      const role = user.role;
-      if (role === "customer")              router.replace("/customer");
-      else if (role === "admin")            router.replace("/admin");
-      else if (role === "service")          router.replace("/service");
-      else if (role === "sales")            router.replace("/sales");
-      else if (role === "customer_service") router.replace("/customer-service");
-      else                                  router.replace("/chat");
+      const user = await login(email.trim(), password);
+      router.replace(roleRoute(user.role));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
@@ -38,140 +67,163 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      {/* ══════════════════════════════════════
-          DESKTOP: side-by-side split panel
-      ══════════════════════════════════════ */}
-      <div className="hidden md:grid md:grid-cols-2 h-full min-h-[calc(100dvh-48px)]">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row">
 
-        {/* Left hero */}
-        <div className="relative flex flex-col items-center justify-center overflow-hidden h-full">
-          <Image src="/flower.png" alt="" fill className="object-cover" priority />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, rgba(43,95,158,0.88) 0%, rgba(22,61,110,0.92) 50%, rgba(10,30,60,0.95) 100%)" }} />
-          <div className="relative z-10 flex flex-col items-center text-center px-10 py-12">
-            <div className="relative w-56 h-16 mb-8">
-              <Image src="/fulllogo.png" alt="Poornasree AI" fill className="object-contain brightness-0 invert" priority />
-            </div>
-            <h2 className="text-3xl font-extrabold text-white mb-3 tracking-tight">Hey! Welcome</h2>
-            <p className="text-white/70 text-sm max-w-[260px] leading-relaxed">
-              AI-Powered Technical Support Portal for Poornasree Constructions
-            </p>
+      {/* ════════════════════════════════════════════════════════
+          LEFT – dark green hero panel
+          On mobile: compact header strip (~40vh)
+          On desktop: fixed-width side panel
+      ════════════════════════════════════════════════════════ */}
+      <div
+        className="relative flex flex-col justify-between px-8 py-8 md:px-12 md:py-14
+                   md:w-[44%] lg:w-[42%] xl:w-[40%] shrink-0 overflow-hidden
+                   min-h-[44vh] md:min-h-0"
+        style={{ background: "linear-gradient(160deg, #0d2e1b 0%, #0a2416 50%, #071c10 100%)" }}
+      >
+        {/* Subtle radial glow */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(34,197,94,0.10) 0%, transparent 70%)" }}
+        />
+
+        {/* Top content */}
+        <div className="relative z-10 flex flex-col gap-5">
+          {/* Live badge */}
+          <div className="flex items-center gap-2 w-fit px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs text-emerald-300 font-medium">Live at poornasree.pydart.com</span>
+          </div>
+
+          {/* Headline */}
+          <div className="mt-1">
+            <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-white">
+              Smart Dairy
+            </h1>
+            <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-emerald-400">
+              Management
+            </h1>
+          </div>
+
+          {/* Subtitle — hidden on tiny mobile to save vertical space */}
+          <p className="hidden sm:block text-sm text-white/50 leading-relaxed max-w-xs">
+            Real-time equipment monitoring, multi-tier operations and complete lifecycle management for dairy businesses.
+          </p>
+
+          {/* Feature cards — only on desktop */}
+          <div className="hidden md:flex flex-col gap-3 mt-1">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="flex items-start gap-3 p-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}
+              >
+                <div className="w-7 h-7 rounded-lg bg-emerald-900/60 flex items-center justify-center shrink-0 mt-0.5">
+                  {f.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{f.title}</p>
+                  <p className="text-xs text-white/40 mt-0.5">{f.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right form */}
-        <div className="flex flex-col justify-center h-full px-12 py-14 border-l border-white/[0.06]" style={{ background: "#0b1a2d" }}>
-          <h1 className="text-3xl font-extrabold text-white mb-8">Log in</h1>
-          {error && (
-            <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-red-500/10 text-red-400 text-sm">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs font-bold">!</span>
-              {error}
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex items-center gap-3 border border-white/10 rounded-xl px-4 py-3.5 focus-within:border-[#2B5F9E] transition-colors bg-white/5">
-              <svg className="w-4 h-4 shrink-0 text-white/40" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none" />
-            </div>
-            <div className="flex items-center gap-3 border border-white/10 rounded-xl px-4 py-3.5 focus-within:border-[#2B5F9E] transition-colors bg-white/5">
-              <svg className="w-4 h-4 shrink-0 text-white/40" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <input type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none" />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} tabIndex={-1} className="shrink-0 text-white/30 hover:text-white/60 transition-colors">
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" checked={showPassword} onChange={() => setShowPassword(!showPassword)} className="w-4 h-4 rounded border-white/20 accent-[#2B5F9E]" />
-              <span className="text-sm text-white/50">Show my Password</span>
-            </label>
-            <button type="submit" disabled={loading} className="w-full rounded-xl py-3.5 font-bold text-sm text-white hover:opacity-90 active:scale-[0.99] disabled:opacity-50 transition-all" style={{ background: "linear-gradient(135deg, #2B5F9E 0%, #1e4f8a 50%, #163d6e 100%)" }}>
-              {loading ? "Signing in..." : "Log in"}
-            </button>
-          </form>
-          <p className="text-center text-xs text-white/20 mt-8">Poornasree AI &middot; Technical Support Portal</p>
+        {/* Bottom: copyright — desktop only */}
+        <div className="relative z-10 hidden md:block mt-10">
+          <p className="text-xs text-white/20">© 2025 Pydart Intellicom Pvt. Ltd.</p>
         </div>
       </div>
 
-      {/* ══════════════════════════════════════
-          MOBILE: Spotify-style
-      ══════════════════════════════════════ */}
-      <div className="md:hidden flex flex-col min-h-[100dvh]" style={{ background: "#04101e" }}>
+      {/* ════════════════════════════════════════════════════════
+          RIGHT – white form panel
+      ════════════════════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col items-center justify-center bg-white px-6 py-10 md:px-14 lg:px-20">
+        <div className="w-full max-w-md">
 
-        {/* Top glow blob */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[340px] h-[340px] pointer-events-none" style={{ background: "radial-gradient(circle, rgba(43,95,158,0.3) 0%, transparent 70%)", filter: "blur(60px)" }} />
-
-        {/* Scrollable content */}
-        <div className="relative z-10 flex flex-col flex-1 px-8 pt-20 pb-12">
-
-          {/* Logo block */}
-          <div className="flex flex-col items-center mb-12">
-            <div className="relative w-52 h-[58px]">
-              <Image src="/fulllogo.png" alt="Poornasree AI" fill className="object-contain" priority />
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-7">
+            <div className="relative w-11 h-11 mb-2.5">
+              <Image src="/flower.png" alt="Poornasree" fill className="object-contain" priority />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-bold text-gray-800 leading-none">Poornasree®</p>
+              <p className="text-[10px] tracking-[0.2em] text-gray-400 uppercase mt-0.5">Equipments</p>
             </div>
           </div>
 
           {/* Heading */}
-          <h1 className="text-[2rem] font-black text-white tracking-tight mb-1">
-            Log in
-          </h1>
-          <p className="text-white/40 text-sm mb-10">
-            Use your Poornasree account
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-1">Welcome back</h2>
+          <p className="text-sm text-gray-400 text-center mb-7">Sign in to your account to continue</p>
 
           {/* Error */}
           {error && (
-            <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl bg-red-500/10 text-red-400 text-sm">
-              <span className="shrink-0 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>
+            <div className="flex items-center gap-2 mb-5 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+              <span className="shrink-0 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>
               {error}
             </div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Email label + input */}
+            {/* Email */}
             <div>
-              <label className="block text-xs font-bold text-white/60 uppercase tracking-widest mb-2">Email address</label>
-              <input
-                type="email"
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-                className="w-full rounded-full px-5 py-4 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#2B5F9E] transition-all"
-                style={{ background: "rgba(255,255,255,0.07)" }}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email or Username
+              </label>
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
+                <Mail className="w-4 h-4 text-gray-300 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="you@example.com or username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                  className="flex-1 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none bg-transparent"
+                />
+              </div>
             </div>
 
-            {/* Password label + input */}
+            {/* Password */}
             <div>
-              <label className="block text-xs font-bold text-white/60 uppercase tracking-widest mb-2">Password</label>
-              <div
-                className="flex items-center rounded-full px-5 py-4 focus-within:ring-2 focus-within:ring-[#2B5F9E] transition-all"
-                style={{ background: "rgba(255,255,255,0.07)" }}
-              >
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Password
+              </label>
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
+                <Lock className="w-4 h-4 text-gray-300 shrink-0" />
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Your password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
-                  className="flex-1 bg-transparent text-sm text-white placeholder:text-white/25 focus:outline-none"
+                  className="flex-1 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none bg-transparent"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} tabIndex={-1} className="ml-2 text-white/30 hover:text-white/70 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  tabIndex={-1}
+                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="flex justify-end mt-1.5">
+                <button type="button" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors">
+                  Forgot password?
                 </button>
               </div>
             </div>
 
-            {/* Submit — big pill */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-full py-4 mt-2 font-black text-base tracking-wide text-white disabled:opacity-50 active:scale-95 transition-all duration-200"
-              style={{ background: "linear-gradient(135deg, #2B5F9E 0%, #9CCB3B 100%)" }}
+              className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60"
+              style={{ background: loading ? "#9ca3af" : "linear-gradient(135deg, #16a34a 0%, #15803d 100%)" }}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -179,25 +231,24 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  Signing in...
+                  Signing in…
                 </span>
-              ) : "Log in"}
+              ) : "Sign In"}
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-8">
-            <div className="flex-1 h-[1px] bg-white/10" />
-            <span className="text-xs text-white/30 font-medium">Poornasree AI</span>
-            <div className="flex-1 h-[1px] bg-white/10" />
+          {/* Back to home */}
+          <div className="flex justify-center mt-8">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <ArrowLeft className="w-3 h-3" />
+              Back to Home
+            </Link>
           </div>
-
-          {/* Footer */}
-          <p className="text-center text-xs text-white/20">
-            &copy; 2025 Pydart Intellicom Pvt. Ltd.
-          </p>
         </div>
       </div>
-    </>
+    </div>
   );
 }
