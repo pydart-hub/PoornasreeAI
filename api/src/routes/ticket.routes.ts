@@ -20,13 +20,13 @@ const router = Router();
 router.use(protect);
 
 // ── Core CRUD ─────────────────────────────────────────────────────────────
-// CREATE TICKET: dealer, admin only
-router.post("/", authorize("dealer", "admin"), createTicket);
+// CREATE TICKET: dealer, customer, or admin
+router.post("/", authorize("dealer", "admin", "customer"), createTicket);
 
 // VIEW TICKETS: all ticket-related roles (role-scoped filtering in controller)
 router.get("/engineers", authorize("service_manager", "admin"), listEngineers);
-router.get("/", authorize("admin", "service_manager", "service_engineer", "service", "dealer"), listTickets);
-router.get("/:id", authorize("admin", "service_manager", "service_engineer", "service", "dealer"), getTicket);
+router.get("/", authorize("admin", "service_manager", "service_engineer", "service", "dealer", "customer"), listTickets);
+router.get("/:id", authorize("admin", "service_manager", "service_engineer", "service", "dealer", "customer"), getTicket);
 
 // ── Assignment ────────────────────────────────────────────────────────────
 // ASSIGN MANAGER: admin only

@@ -54,16 +54,25 @@ export async function createTicket(data: {
 
 // ── listTickets ───────────────────────────────────────────────────────────
 export async function listTickets(filters: {
-  status?:     string;
-  pincodeId?:  string;
-  customerId?: string;
-  dealerId?:   string;
-  engineerId?: string;
-  managerId?:  string;
+  status?:          string;
+  pincodeId?:       string;
+  pincodeIdOrNull?: string; // match this pincode OR tickets with no pincode (unrouted customer submissions)
+  customerId?:      string;
+  dealerId?:        string;
+  engineerId?:      string;
+  managerId?:       string;
 }) {
   const where: Record<string, unknown> = {};
-  if (filters.status)     where.status             = filters.status;
-  if (filters.pincodeId)  where.pincodeId          = filters.pincodeId;
+  if (filters.status)          where.status             = filters.status;
+  if (filters.pincodeIdOrNull) {
+    // Show pincode-matched tickets AND unrouted tickets so managers can claim them
+    where.OR = [
+      { pincodeId: filters.pincodeIdOrNull },
+      { pincodeId: null },
+    ];
+  } else if (filters.pincodeId) {
+    where.pincodeId = filters.pincodeId;
+  }
   if (filters.customerId) where.customerId         = filters.customerId;
   if (filters.dealerId)   where.dealerId           = filters.dealerId;
   if (filters.engineerId) where.assignedEngineerId = filters.engineerId;

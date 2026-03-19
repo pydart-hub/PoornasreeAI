@@ -64,9 +64,9 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     else if (role === "dealer")                                  filters.dealerId   = userId;
     else if (role === "service_engineer" || role === "service")  filters.engineerId = userId;
     else if (role === "service_manager") {
-      // Manager sees only tickets routed to their pincode
+      // Manager sees tickets in their pincode AND unrouted tickets (pincodeId=null from customer submissions)
       const managerPincodeId = req.user!.pincodeId;
-      if (managerPincodeId) filters.pincodeId = managerPincodeId;
+      if (managerPincodeId) filters.pincodeIdOrNull = managerPincodeId;
     }
     // admin: no filter — sees all tickets
 
