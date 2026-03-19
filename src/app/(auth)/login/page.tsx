@@ -11,18 +11,18 @@ import { useAuth } from "@/components/providers/AuthProvider";
 const FEATURES = [
   {
     icon: <Monitor className="w-4 h-4 text-emerald-300" />,
-    title: "Live Machine Monitoring",
-    desc: "Track all equipment in real-time",
+    title: "AI-Powered Support",
+    desc: "Instant answers from trained service documents",
   },
   {
     icon: <Users className="w-4 h-4 text-emerald-300" />,
-    title: "Multi-tier Hierarchy",
+    title: "Multi-tier Access",
     desc: "Admin → Manager → Engineer → Dealer",
   },
   {
     icon: <BarChart3 className="w-4 h-4 text-emerald-300" />,
-    title: "Pulse Analytics",
-    desc: "Section-based operational insights",
+    title: "Real-time Ticket Tracking",
+    desc: "End-to-end service lifecycle management",
   },
 ];
 
@@ -97,16 +97,16 @@ export default function LoginPage() {
           {/* Headline */}
           <div className="mt-1">
             <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-white">
-              Smart Dairy
+              AI-Powered
             </h1>
             <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-emerald-400">
-              Management
+              Service Platform
             </h1>
           </div>
 
           {/* Subtitle — hidden on tiny mobile to save vertical space */}
           <p className="hidden sm:block text-sm text-white/50 leading-relaxed max-w-xs">
-            Real-time equipment monitoring, multi-tier operations and complete lifecycle management for dairy businesses.
+            Smart equipment ticketing, AI chat support, and complete service lifecycle management for Poornasree Equipments.
           </p>
 
           {/* Feature cards — only on desktop */}
@@ -131,7 +131,7 @@ export default function LoginPage() {
 
         {/* Bottom: copyright — desktop only */}
         <div className="relative z-10 hidden md:block mt-10">
-          <p className="text-xs text-white/20">© 2025 Pydart Intellicom Pvt. Ltd.</p>
+          <p className="text-xs text-white/20">© 2026 Pydart Intellicom Pvt. Ltd.</p>
         </div>
       </div>
 
