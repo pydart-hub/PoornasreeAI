@@ -165,9 +165,6 @@ export default function CustomerChatPage() {
   const [conversationHistory, setConversationHistory] = useState<ConversationHistoryItem[]>([]);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Load customer's own tickets on mount
-  useEffect(() => { if (user) fetchMyTickets(); }, [user, fetchMyTickets]);
-
   // ── Draggable support widget ───────────────────────────────────────────────
   const [supportPos, setSupportPos] = useState({ x: 0, y: 0 });
   const supportDragData = useRef<{ origX: number; origY: number; mouseX: number; mouseY: number } | null>(null);
@@ -437,6 +434,9 @@ export default function CustomerChatPage() {
       }
     } catch { /* non-fatal */ }
   }, []);
+
+  // Load customer’s own service tickets on mount
+  useEffect(() => { if (user) fetchMyTickets(); }, [user, fetchMyTickets]);
 
   const handleCreateServiceTicket = async () => {
     if (!serviceForm.problem.trim()) return;
