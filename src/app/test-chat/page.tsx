@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, KeyboardEvent } from "react";
 
 interface VideoSuggestion {
   id: string;
@@ -10,22 +10,77 @@ interface VideoSuggestion {
 }
 
 interface Message {
-  role: "user" | "bot";
+  role: "user" | "bot" | "system";
   text: string;
   videos?: VideoSuggestion[];
 }
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const POLL_INTERVAL = 5000; // 5 seconds
 
 export default function TestChatPage() {
   const [phoneNumber, setPhoneNumber] = useState("919876543210");
   const [inputMessage, setInputMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const knownCountRef = useRef(0); // track how many DB messages we know about
 
   // Auto-scroll to latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // ── Load chat history from server on mount & when phoneNumber changes ──
+  const loadHistory = useCallback(async (phone: string) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/simulate/history/${encodeURIComponent(phone)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const dbMessages: Message[] = (data.messages || []).map((m: { role: string; content: string }) => ({
+        role: m.role as Message["role"],
+        text: m.content,
+      }));
+      setMessages(dbMessages);
+      knownCountRef.current = dbMessages.length;
+      setHistoryLoaded(true);
+    } catch {
+      setHistoryLoaded(true); // don't block UI on failure
+    }
+  }, []);
+
+  useEffect(() => {
+    if (phoneNumber.trim()) {
+      setHistoryLoaded(false);
+      loadHistory(phoneNumber.trim());
+    }
+  }, [phoneNumber, loadHistory]);
+
+  // ── Poll for new messages (picks up OTP pushed by engineer) ────────────
+  useEffect(() => {
+    if (!phoneNumber.trim()) return;
+    const phone = phoneNumber.trim();
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/simulate/history/${encodeURIComponent(phone)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const dbMessages: Message[] = (data.messages || []).map((m: { role: string; content: string }) => ({
+          role: m.role as Message["role"],
+          text: m.content,
+        }));
+        // Only update if server has MORE messages (new push from OTP etc.)
+        if (dbMessages.length > knownCountRef.current) {
+          setMessages(dbMessages);
+          knownCountRef.current = dbMessages.length;
+        }
+      } catch { /* silent */ }
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [phoneNumber]);
 
   async function sendMessage() {
     const text = inputMessage.trim();
@@ -37,8 +92,7 @@ export default function TestChatPage() {
     setLoading(true);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      const res = await fetch(`${baseUrl}/api/simulate/message`, {
+      const res = await fetch(`${BASE_URL}/api/simulate/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber, message: text }),
@@ -51,6 +105,7 @@ export default function TestChatPage() {
         videos: res.ok && Array.isArray(data.videos) ? data.videos : undefined,
       };
       setMessages((prev) => [...prev, botMsg]);
+      knownCountRef.current += 2; // user + bot both persisted on server
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -114,6 +169,8 @@ export default function TestChatPage() {
                 className={`max-w-[80%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap break-words ${
                   msg.role === "user"
                     ? "bg-blue-100 text-blue-900 rounded-br-sm"
+                    : msg.role === "system"
+                    ? "bg-yellow-50 text-yellow-900 rounded-bl-sm border border-yellow-200"
                     : "bg-gray-100 text-gray-800 rounded-bl-sm"
                 }`}
               >

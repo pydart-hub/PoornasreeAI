@@ -177,6 +177,7 @@ model Ticket {
   problemDescription String    @db.Text
   machineName        String?
   machineSerialNumber String?  // denormalized for display
+  phoneNumber        String?   // link back to simulate chat (for OTP delivery)
 
   // Lifecycle
   status             String    @default("OPEN")  // OPEN | ASSIGNED | IN_PROGRESS | PENDING_OTP | CLOSED
@@ -206,6 +207,19 @@ model Ticket {
   assignedManager    User?     @relation("ManagerTickets",   fields: [assignedManagerId],    references: [id])
   assignedEngineer   User?     @relation("EngineerTickets",  fields: [assignedEngineerId],   references: [id])
   pincode            Pincode?  @relation(fields: [pincodeId],            references: [id])
+}
+
+// ── Simulate Message (persisted WhatsApp-simulator chat) ──────────────────
+// Stores every user/bot/system message in the test-chat interface so that
+// history survives page refreshes and OTP codes can be pushed to the customer.
+model SimulateMessage {
+  id          String   @id @default(uuid())
+  phoneNumber String
+  role        String   // "user" | "bot" | "system"
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([phoneNumber, createdAt])
 }
 
 // ── Troubleshooting Template ─────────────────────────────────────────────

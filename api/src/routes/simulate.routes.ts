@@ -3,10 +3,11 @@
 // Simulates WhatsApp message flow — no auth required.
 
 import { Router } from "express";
-import { handleMessage } from "../controllers/simulate.controller";
+import { handleMessage, getHistory } from "../controllers/simulate.controller";
 
 const router = Router();
 
 router.post("/message", handleMessage);
+router.get("/history/:phoneNumber", getHistory);
 
 export default router;

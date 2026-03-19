@@ -258,6 +258,7 @@ async function createHelpTicket(phoneNumber: string): Promise<void> {
     await TicketService.createTicket({
       customerId: adminUser.id,
       problemDescription: `Help request from ${phoneNumber}`,
+      phoneNumber,
     });
   } catch {
     // Non-blocking — log silently so the response still goes through

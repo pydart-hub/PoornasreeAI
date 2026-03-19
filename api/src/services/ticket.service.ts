@@ -32,6 +32,7 @@ export async function createTicket(data: {
   machineName?:       string;
   pincodeId?:         string;
   dealerId?:          string;
+  phoneNumber?:       string;
 }) {
   const ticketNumber = await generateTicketNumber();
 
@@ -52,6 +53,7 @@ export async function createTicket(data: {
       machineName:        data.machineName?.trim() || null,
       pincodeId:          data.pincodeId  || null,
       dealerId:           data.dealerId   || null,
+      phoneNumber:        data.phoneNumber || null,
       assignedEngineerId: autoEngineerId,
       status:             autoEngineerId ? "ASSIGNED" : "OPEN",
     },
@@ -167,7 +169,17 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
     },
   });
 
-  // TODO (Phase C): send plainCode to customer via WhatsApp instead of returning it
+  // Push OTP to simulate chat if this ticket was raised from the WhatsApp simulator
+  if (ticket.phoneNumber) {
+    await prisma.simulateMessage.create({
+      data: {
+        phoneNumber: ticket.phoneNumber,
+        role: "system",
+        content: `🔐 Your OTP for ticket ${ticket.ticketNumber} is: ${plainCode}\n\nPlease share this code with the service engineer to close your ticket.\n\nThis code expires in 30 minutes.`,
+      },
+    }).catch(() => {}); // non-blocking
+  }
+
   return { otp: plainCode, expiresAt };
 }
 
