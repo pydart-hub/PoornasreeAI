@@ -203,12 +203,10 @@ async function handleRegisteredUser(
 
 // ── Helper: query Qdrant for a document-based answer ────────────────────
 // Returns the answer string if confident, or null to fall back to templates.
+// NOTE: training.json intents are indexed into Qdrant at startup (not stored
+// in the Document table), so we do NOT gate on prisma.document.count().
 async function queryDocuments(query: string): Promise<string | null> {
   try {
-    // Check if any service documents have been uploaded
-    const docCount = await prisma.document.count({ where: { documentType: "service" } });
-    if (docCount === 0) return null;
-
     const embedding = await embedText(query);
     const hits = await searchVectors(embedding, 3, ["service"]);
 
