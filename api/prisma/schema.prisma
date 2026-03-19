@@ -266,19 +266,33 @@ model TroubleshootingSession {
 }
 
 // ── Conversation Session (WhatsApp simulation gatekeeper) ────────────────
-// Outer state machine per phone number. Enforces registration before any
-// feature access. One ACTIVE session per phoneNumber at a time.
+// V-Guard-style FSM per phone number. One active session per phoneNumber.
+// States: GREETING | MAIN_MENU | PRODUCT_SELECT | TROUBLESHOOTING |
+//         ESCALATION_NAME | ESCALATION_PLACE | ESCALATION_PINCODE |
+//         ESCALATION_SERIAL | COMPLETED
 model ConversationSession {
   id             String   @id @default(uuid())
   phoneNumber    String
-  state          String   @default("NEW_USER")  // NEW_USER | AWAITING_SERIAL | REGISTERED
+  state          String   @default("GREETING")
   isRegistered   Boolean  @default(false)
-  serialNumber   String?  // validated machine serial
-  machineId      String?  // FK to matched Machine (nullable for legacy/guest)
+  serialNumber   String?
+  machineId      String?
+  metadata       Json?    // flow-specific payload (productId, issueDescription, escalation fields, etc.)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([phoneNumber, state], name: "idx_convo_session_lookup")
+}
+
+// ── Product Catalogue ────────────────────────────────────────────────────
+// Admin-managed list of products shown to customers during complaint registration.
+model Product {
+  id           String   @id @default(uuid())
+  name         String
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // ── Machine Registry ────────────────────────────────────────────────────

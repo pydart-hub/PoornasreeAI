@@ -193,6 +193,30 @@ async function main() {
     console.log(`  + Template "${t.problemType}" (${t.steps.length} steps) — created`);
   }
 
+  // ── Seed product catalogue ─────────────────────────────────────────────
+  console.log("\nSeeding products...\n");
+
+  const SEED_PRODUCTS = [
+    { name: "Milk Analyzer",       displayOrder: 1 },
+    { name: "Vibro Machine",       displayOrder: 2 },
+    { name: "Solar Charger",       displayOrder: 3 },
+    { name: "Cream Separator",     displayOrder: 4 },
+    { name: "Fat Analyzer",        displayOrder: 5 },
+    { name: "Stirrer / Agitator",  displayOrder: 6 },
+    { name: "Water Pump",          displayOrder: 7 },
+    { name: "Other / General",     displayOrder: 8 },
+  ];
+
+  for (const p of SEED_PRODUCTS) {
+    const existing = await prisma.product.findFirst({ where: { name: p.name } });
+    if (existing) {
+      console.log(`  ✓ Product "${p.name}" — already exists`);
+      continue;
+    }
+    await prisma.product.create({ data: p });
+    console.log(`  + Product "${p.name}" — created`);
+  }
+
   console.log("\nAll seeding complete!");
 }
 

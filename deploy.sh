@@ -35,6 +35,7 @@ echo ""
 echo "[3/4] Applying Prisma schema changes..."
 sleep 5  # wait for DB to be ready
 docker compose exec -T api npx prisma db push || echo "  (schema push skipped or already up to date)"
+docker compose exec -T api npx prisma db seed || echo "  (seed skipped or already up to date)"
 echo "  Done."
 
 echo ""
