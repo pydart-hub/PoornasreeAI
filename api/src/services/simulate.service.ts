@@ -1,6 +1,7 @@
 // ── Simulate Service ──────────────────────────────────────────────────────
-// State-machine gatekeeper that enforces registration before any feature.
-// States: NEW_USER → AWAITING_MOBILE → REGISTERED
+// State-machine gatekeeper that enforces serial-number registration before
+// any feature.
+// States: NEW_USER → AWAITING_SERIAL → REGISTERED
 //
 // Once REGISTERED, incoming messages route through:
 //   1. Active troubleshooting session → forward to troubleshooting engine
@@ -10,14 +11,24 @@
 import prisma from "../lib/prisma";
 import * as TroubleshootingService from "./troubleshooting.service";
 import * as TicketService from "./ticket.service";
+import { findVideosForQuery } from "../controllers/video.controller";
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
 const REGISTRATION_PROMPT =
-  "📱 This mobile number is not registered with us.\n\n" +
-  "If you are a Registered Customer, please provide your registered 10 digit mobile number.\n\n" +
-  "Eg: 9633503333\n\n" +
-  "Else reply SKIP to continue.";
+  "� Welcome to Poornasree Service Support!\n\n" +
+  "Please enter your machine serial number (last 5 digits).\n\n" +
+  "Eg: 00001\n\n" +
+  "Or reply SKIP to continue without registration.";
+
+const SERIAL_NOT_FOUND_MESSAGE =
+  "❌ No machine found with that serial number.\n\n" +
+  "Please check and enter the last 5 digits of your serial number again.\n\n" +
+  "Or reply SKIP to continue without registration.";
+
+const MULTIPLE_MATCHES_MESSAGE =
+  "Multiple machines match those digits. Please enter the full serial number.\n\n" +
+  "Or reply SKIP to continue without registration.";
 
 const WELCOME_MESSAGE = "Welcome! Please describe your issue.";
 
@@ -35,7 +46,7 @@ const RESOLVED_MESSAGE = "✅ Glad your issue is resolved.";
 
 const ESCALATED_MESSAGE = "🚧 Service request created.\n\nOur engineer will contact you shortly.";
 
-const MOBILE_RE = /^\d{10}$/;
+const MAX_SERIAL_ATTEMPTS = 3;
 
 // ── Problem detection (keyword-based, no AI) ──────────────────────────────
 
@@ -99,15 +110,16 @@ export async function handleMessage(phoneNumber: string, message: string) {
 // ── Registered-user handler ───────────────────────────────────────────────
 
 async function handleRegisteredUser(
-  convoSession: { id: string; state: string; isRegistered: boolean },
+  convoSession: { id: string; state: string; isRegistered: boolean; serialNumber?: string | null },
   phoneNumber: string,
   message: string,
 ) {
-  const reply = (msg: string) => ({
+  const reply = (msg: string, videos?: any[]) => ({
     message: msg,
     state: convoSession.state,
     sessionId: convoSession.id,
     isRegistered: convoSession.isRegistered,
+    ...(videos && videos.length > 0 ? { videos } : {}),
   });
 
   // Check for an ACTIVE troubleshooting session for this phone number
@@ -142,8 +154,10 @@ async function handleRegisteredUser(
       return reply(ESCALATED_MESSAGE);
     }
 
-    // Ongoing step — standardize format (STEP 4)
-    return reply(reformatStepMessage(result.message));
+    // Ongoing step — standardize format and attach video suggestions
+    const formatted = reformatStepMessage(result.message);
+    const videos = await findVideosForStep(activeTs.problemType, result.message);
+    return reply(formatted, videos);
   }
 
   // ── CASE B: No active troubleshooting session ─────────────────────────
@@ -168,11 +182,13 @@ async function handleRegisteredUser(
   }
 
   // Start a new troubleshooting session
-  // serialNumber is not yet collected — use phoneNumber as placeholder
-  const tsResult = await TroubleshootingService.startSession(phoneNumber, phoneNumber, problemType);
+  const serialNum = convoSession.serialNumber || phoneNumber;
+  const tsResult = await TroubleshootingService.startSession(phoneNumber, serialNum, problemType);
 
-  // STEP 4: Standardize step format
-  return reply(reformatStepMessage(tsResult.message));
+  // Attach video suggestions for first step
+  const formatted2 = reformatStepMessage(tsResult.message);
+  const videos2 = await findVideosForStep(problemType, tsResult.message);
+  return reply(formatted2, videos2);
 }
 
 // ── Helper: reformat step messages to standard format (STEP 4) ───────────
@@ -182,6 +198,16 @@ function reformatStepMessage(msg: string): string {
   return msg
     .replace(/\nIs the issue resolved\? Reply YES or NO\.?/i,
       "\n\nIs the issue resolved?\nReply YES, NO, or HELP");
+}
+
+// ── Helper: find video suggestions for a troubleshooting step ─────────────
+async function findVideosForStep(problemType: string, stepMessage: string) {
+  try {
+    const query = `${problemType.replace(/_/g, " ")} ${stepMessage}`;
+    return await findVideosForQuery(query, 2);
+  } catch {
+    return [];
+  }
 }
 
 // ── Helper: create a help ticket using admin as fallback customer ──────────
@@ -204,11 +230,11 @@ async function gatekeeper(
   session: { id: string; state: string; phoneNumber: string },
   message: string,
 ) {
-  // ── NEW_USER → transition to AWAITING_MOBILE and show prompt ─────────
+  // ── NEW_USER → transition to AWAITING_SERIAL and show prompt ─────────
   if (session.state === "NEW_USER") {
     const updated = await prisma.conversationSession.update({
       where: { id: session.id },
-      data: { state: "AWAITING_MOBILE" },
+      data: { state: "AWAITING_SERIAL" },
     });
     return {
       message: REGISTRATION_PROMPT,
@@ -218,8 +244,8 @@ async function gatekeeper(
     };
   }
 
-  // ── AWAITING_MOBILE → validate input ─────────────────────────────────
-  if (session.state === "AWAITING_MOBILE") {
+  // ── AWAITING_SERIAL → validate serial number input ───────────────────
+  if (session.state === "AWAITING_SERIAL") {
     const trimmed = message.trim();
 
     // SKIP → guest mode
@@ -236,53 +262,59 @@ async function gatekeeper(
       };
     }
 
-    // Valid 10-digit number → check User table
-    if (MOBILE_RE.test(trimmed)) {
-      // Look up by email pattern OR a dedicated phone field.
-      // Current User model has no phone column, so we search by email
-      // containing the number (dealers/customers are often seeded with
-      // phone-based emails). A dedicated phone column can be added later.
-      // For now, also check the phoneNumber itself against existing
-      // conversation sessions that were previously verified — and check
-      // the User table for any user whose email starts with the number.
-      const user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: { startsWith: trimmed } },
-            { email: { contains: trimmed } },
-          ],
+    // Look up machine by serial number
+    // Strategy: try last 5 digits match first, then exact match
+    const input = trimmed.replace(/[^a-zA-Z0-9-]/g, ""); // sanitize
+
+    // First try exact match
+    let machine = await prisma.machine.findFirst({
+      where: { serialNumber: input, isActive: true },
+    });
+
+    if (!machine) {
+      // Try matching by last 5 digits (endsWith)
+      const last5 = input.slice(-5);
+      if (last5.length >= 3) {
+        const matches = await prisma.machine.findMany({
+          where: { serialNumber: { endsWith: last5 }, isActive: true },
+        });
+
+        if (matches.length === 1) {
+          machine = matches[0];
+        } else if (matches.length > 1) {
+          // Multiple matches — ask for full serial
+          return {
+            message: MULTIPLE_MATCHES_MESSAGE,
+            state: session.state,
+            sessionId: session.id,
+            isRegistered: false,
+          };
+        }
+      }
+    }
+
+    if (machine) {
+      // Machine found → register
+      const updated = await prisma.conversationSession.update({
+        where: { id: session.id },
+        data: {
+          state: "REGISTERED",
+          isRegistered: true,
+          serialNumber: machine.serialNumber,
+          machineId: machine.id,
         },
       });
-
-      if (user) {
-        const updated = await prisma.conversationSession.update({
-          where: { id: session.id },
-          data: {
-            state: "REGISTERED",
-            isRegistered: true,
-            providedMobile: trimmed,
-          },
-        });
-        return {
-          message: WELCOME_MESSAGE,
-          state: updated.state,
-          sessionId: updated.id,
-          isRegistered: true,
-        };
-      }
-
-      // Number not found in User table → re-prompt
       return {
-        message: REGISTRATION_PROMPT,
-        state: session.state,
-        sessionId: session.id,
-        isRegistered: false,
+        message: `✅ Machine verified: ${machine.modelName} (${machine.serialNumber})\n\n${WELCOME_MESSAGE}`,
+        state: updated.state,
+        sessionId: updated.id,
+        isRegistered: true,
       };
     }
 
-    // Any other input while AWAITING_MOBILE → re-prompt
+    // Not found → re-prompt
     return {
-      message: REGISTRATION_PROMPT,
+      message: SERIAL_NOT_FOUND_MESSAGE,
       state: session.state,
       sessionId: session.id,
       isRegistered: false,
@@ -305,7 +337,7 @@ async function loadOrCreateSession(phoneNumber: string) {
   const existing = await prisma.conversationSession.findFirst({
     where: {
       phoneNumber,
-      state: { in: ["NEW_USER", "AWAITING_MOBILE", "REGISTERED"] },
+      state: { in: ["NEW_USER", "AWAITING_SERIAL", "REGISTERED"] },
     },
     orderBy: { updatedAt: "desc" },
   });

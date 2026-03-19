@@ -6,7 +6,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import { protect } from "../middleware/auth";
-import { uploadDocument } from "../controllers/document.controller";
+import { uploadDocument, extractTemplates } from "../controllers/document.controller";
 import {
   createUser,
   listUsers,
@@ -17,8 +17,13 @@ import {
   reindexDocuments,
 } from "../controllers/admin.controller";
 import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
-import { exportChats, exportSupport } from "../controllers/export.controller";
+import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
+import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
+import { updateBranding, uploadLogo } from "../controllers/branding.controller";
+import { listPincodes, createPincode, deletePincode, assignUserToPincode } from "../controllers/pincode.controller";
+import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
+import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
 
 const router = Router();
 
@@ -81,6 +86,9 @@ router.delete("/documents/:id", deleteDocumentRecord);
 // POST /api/admin/documents/reindex  —  re-process all documents with improved chunking
 router.post("/documents/reindex", reindexDocuments);
 
+// POST /api/admin/documents/:id/extract-templates  —  extract troubleshooting templates from JSON doc
+router.post("/documents/:id/extract-templates", extractTemplates);
+
 // POST /api/admin/users  —  create a user with a specific role
 router.post("/users", createUser);
 
@@ -111,10 +119,42 @@ router.get("/export/chats", exportChats);
 // GET /api/admin/export/support  —  CSV download of all support tickets
 router.get("/export/support", exportSupport);
 
+// GET /api/admin/export/tickets  —  CSV download of ticket data
+router.get("/export/tickets", exportTickets);
+
 // Video recommendation resources (admin CRUD)
 router.get("/videos", listVideos);
 router.post("/videos", createVideo);
 router.patch("/videos/:id", updateVideo);
 router.delete("/videos/:id", deleteVideo);
+
+// Machine registry (admin CRUD)
+router.get("/machines", listMachines);
+router.get("/machines/search", searchMachines);
+router.post("/machines", createMachine);
+router.patch("/machines/:id", updateMachine);
+router.delete("/machines/:id", deleteMachine);
+
+// Branding (admin update)
+router.patch("/branding", updateBranding);
+router.post("/branding/logo", upload.single("file"), uploadLogo);
+
+// Pincode management (admin CRUD)
+router.get("/pincodes", listPincodes);
+router.post("/pincodes", createPincode);
+router.delete("/pincodes/:id", deletePincode);
+router.patch("/pincodes/:id/assign", assignUserToPincode);
+
+// Troubleshooting templates (admin CRUD)
+router.get("/templates", listTemplates);
+router.get("/templates/:id", getTemplate);
+router.post("/templates", createTemplate);
+router.patch("/templates/:id", updateTemplate);
+router.delete("/templates/:id", deleteTemplate);
+
+// R&D Videos (admin upload + delete, list accessible to engineer/admin)
+router.get("/rd-videos", listRdVideos);
+router.post("/rd-videos", upload.single("file"), createRdVideo);
+router.delete("/rd-videos/:id", deleteRdVideo);
 
 export default router;

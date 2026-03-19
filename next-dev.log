@@ -1,0 +1,24 @@
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+(node:18028) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling /test-chat ...
+ ✓ Compiled /test-chat in 9.3s (512 modules)
+ GET /test-chat 200 in 9703ms
+ ✓ Compiled in 888ms (245 modules)
+ ○ Compiling /service ...
+ ✓ Compiled /service in 1367ms (599 modules)
+ GET /service 200 in 1585ms
+ ✓ Compiled /login in 495ms (612 modules)
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 5.3s (1662 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1040ms (1665 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1305ms
+ GET /service 200 in 204ms
+ GET /service 200 in 652ms
+ ✓ Compiled in 5.8s (1676 modules)

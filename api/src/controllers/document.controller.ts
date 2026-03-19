@@ -7,7 +7,7 @@ import { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import prisma from "../lib/prisma";
-import { processDocument } from "../services/document.service";
+import { processDocument, extractTemplatesFromDocument } from "../services/document.service";
 
 // Where uploaded PDFs are stored (simple disk storage).
 const UPLOAD_DIR = path.resolve(__dirname, "../../uploads");
@@ -88,5 +88,34 @@ export async function getSuggestions(req: Request, res: Response): Promise<void>
   } catch (err) {
     console.error("getSuggestions error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+/**
+ * POST /api/admin/documents/:id/extract-templates
+ * Takes an uploaded JSON document and creates TroubleshootingTemplate rows from it.
+ */
+export async function extractTemplates(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Only admins may extract templates" });
+      return;
+    }
+
+    const id = String(req.params.id);
+    const doc = await prisma.document.findUnique({ where: { id } });
+    if (!doc) { res.status(404).json({ error: "Document not found" }); return; }
+
+    if (!doc.filePath.endsWith(".json")) {
+      res.status(400).json({ error: "Only JSON documents can be used for template extraction" });
+      return;
+    }
+
+    const result = await extractTemplatesFromDocument(doc.filePath);
+    res.json({ result });
+  } catch (err) {
+    console.error("extractTemplates error:", err);
+    const message = (err as Error).message ?? "Internal server error";
+    res.status(500).json({ error: message });
   }
 }

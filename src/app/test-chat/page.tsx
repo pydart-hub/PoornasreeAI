@@ -2,9 +2,17 @@
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 
+interface VideoSuggestion {
+  id: string;
+  title: string;
+  url: string;
+  description?: string | null;
+}
+
 interface Message {
   role: "user" | "bot";
   text: string;
+  videos?: VideoSuggestion[];
 }
 
 export default function TestChatPage() {
@@ -40,6 +48,7 @@ export default function TestChatPage() {
       const botMsg: Message = {
         role: "bot",
         text: res.ok ? data.message : (data.error ?? "Something went wrong."),
+        videos: res.ok && Array.isArray(data.videos) ? data.videos : undefined,
       };
       setMessages((prev) => [...prev, botMsg]);
     } catch {
@@ -99,7 +108,7 @@ export default function TestChatPage() {
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
               <div
                 className={`max-w-[80%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap break-words ${
@@ -110,6 +119,34 @@ export default function TestChatPage() {
               >
                 {msg.text}
               </div>
+
+              {/* Video suggestion cards */}
+              {msg.videos && msg.videos.length > 0 && (
+                <div className="mt-2 max-w-[90%] space-y-2">
+                  <p className="text-xs text-gray-500 ml-1">📹 Related videos:</p>
+                  {msg.videos.map((v) => (
+                    <a
+                      key={v.id}
+                      href={v.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-2 p-2 rounded-xl bg-white border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-800 truncate">{v.title}</p>
+                        {v.description && (
+                          <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{v.description}</p>
+                        )}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 

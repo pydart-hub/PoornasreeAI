@@ -87,6 +87,91 @@ export interface ProcessResult {
   failed:      number;
 }
 
+// ── Template extraction from JSON ──────────────────────────────────────
+// Takes a document file path (JSON) and creates/updates TroubleshootingTemplate
+// + TroubleshootingStep rows in the DB.
+// Expected JSON format:
+//   { "templates": [{ "problemType": "...", "title": "...", "description": "...", "steps": ["step1", "step2"] }] }
+
+export interface TemplateExtractionResult {
+  created: number;
+  updated: number;
+  errors:  string[];
+}
+
+export async function extractTemplatesFromDocument(
+  filePath: string,
+): Promise<TemplateExtractionResult> {
+  const buffer = fs.readFileSync(filePath);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(buffer.toString("utf-8"));
+  } catch {
+    throw new Error("File is not valid JSON");
+  }
+
+  if (!Array.isArray(parsed?.templates)) {
+    throw new Error('JSON must contain a "templates" array');
+  }
+
+  let created = 0;
+  let updated = 0;
+  const errors: string[] = [];
+
+  for (const tpl of parsed.templates) {
+    const { problemType, title, description, steps } = tpl;
+    if (!problemType || !title || !Array.isArray(steps) || steps.length === 0) {
+      errors.push(`Skipped entry: missing problemType, title, or steps`);
+      continue;
+    }
+
+    try {
+      const existing = await prisma.troubleshootingTemplate.findUnique({
+        where: { problemType },
+      });
+
+      if (existing) {
+        // Update: replace title/description and recreate steps
+        await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
+        await prisma.troubleshootingTemplate.update({
+          where: { id: existing.id },
+          data: {
+            title,
+            description: description ?? null,
+            steps: {
+              create: steps.map((s: string, i: number) => ({
+                stepNumber: i + 1,
+                stepContent: s,
+              })),
+            },
+          },
+        });
+        updated++;
+      } else {
+        // Create new template with steps
+        await prisma.troubleshootingTemplate.create({
+          data: {
+            problemType,
+            title,
+            description: description ?? null,
+            steps: {
+              create: steps.map((s: string, i: number) => ({
+                stepNumber: i + 1,
+                stepContent: s,
+              })),
+            },
+          },
+        });
+        created++;
+      }
+    } catch (err) {
+      errors.push(`Failed "${problemType}": ${(err as Error).message}`);
+    }
+  }
+
+  return { created, updated, errors };
+}
+
 /**
  * Full pipeline: read file → extract text → chunk → embed → Qdrant + DB.
  *

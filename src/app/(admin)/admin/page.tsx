@@ -32,6 +32,12 @@ import {
   Pencil,
   X,
   Download,
+  Settings,
+  MapPin,
+  BookOpen,
+  Palette,
+  Film,
+  Ticket,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -51,6 +57,12 @@ import {
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import MachinesTab from "@/components/admin/MachinesTab";
+import PincodesTab from "@/components/admin/PincodesTab";
+import TemplatesTab from "@/components/admin/TemplatesTab";
+import BrandingTab from "@/components/admin/BrandingTab";
+import RdVideosTab from "@/components/admin/RdVideosTab";
+import TicketsTab from "@/components/admin/TicketsTab";
 
 // ─────────────────────────────────────────────
 // Types
@@ -118,7 +130,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "machines" | "pincodes" | "templates" | "branding" | "rdvideos" | "tickets">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -533,6 +545,78 @@ export default function AdminPage() {
                 {videos.length}
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab("machines")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "machines"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Machines
+            </button>
+            <button
+              onClick={() => setActiveTab("pincodes")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "pincodes"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              Pincodes
+            </button>
+            <button
+              onClick={() => setActiveTab("templates")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "templates"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              Templates
+            </button>
+            <button
+              onClick={() => setActiveTab("branding")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "branding"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              Branding
+            </button>
+            <button
+              onClick={() => setActiveTab("rdvideos")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "rdvideos"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Film className="w-3.5 h-3.5" />
+              R&D Videos
+            </button>
+            <button
+              onClick={() => setActiveTab("tickets")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                activeTab === "tickets"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Ticket className="w-3.5 h-3.5" />
+              Tickets
+            </button>
           </div>
         </nav>
 
@@ -658,20 +742,31 @@ export default function AdminPage() {
           </section>
 
           {/* Tab switcher */}
-          <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
-            {(["documents", "users", "analytics", "videos"] as const).map((tab) => (
+          <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
+            {([
+              { key: "documents", label: "Documents", icon: <FileUp className="w-3.5 h-3.5" /> },
+              { key: "users", label: "Users", icon: <Users className="w-3.5 h-3.5" /> },
+              { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" /> },
+              { key: "videos", label: "Videos", icon: <Youtube className="w-3.5 h-3.5" /> },
+              { key: "machines", label: "Machines", icon: <Settings className="w-3.5 h-3.5" /> },
+              { key: "pincodes", label: "Pincodes", icon: <MapPin className="w-3.5 h-3.5" /> },
+              { key: "templates", label: "Templates", icon: <BookOpen className="w-3.5 h-3.5" /> },
+              { key: "branding", label: "Branding", icon: <Palette className="w-3.5 h-3.5" /> },
+              { key: "rdvideos", label: "R&D Videos", icon: <Film className="w-3.5 h-3.5" /> },
+              { key: "tickets", label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" /> },
+            ] as const).map((t) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  activeTab === tab
+                  activeTab === t.key
                     ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
                     : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
                 )}
               >
-                {tab === "documents" ? <FileUp className="w-3.5 h-3.5" /> : tab === "users" ? <Users className="w-3.5 h-3.5" /> : tab === "analytics" ? <BarChart2 className="w-3.5 h-3.5" /> : <Youtube className="w-3.5 h-3.5" />}
-                {tab === "documents" ? "Documents" : tab === "users" ? "Users" : tab === "analytics" ? "Analytics" : "Videos"}
+                {t.icon}
+                {t.label}
               </button>
             ))}
           </div>
@@ -1531,6 +1626,24 @@ export default function AdminPage() {
 
             </section>
           )}
+
+          {/* ── Machines Tab ── */}
+          {activeTab === "machines" && <MachinesTab />}
+
+          {/* ── Pincodes Tab ── */}
+          {activeTab === "pincodes" && <PincodesTab />}
+
+          {/* ── Templates Tab ── */}
+          {activeTab === "templates" && <TemplatesTab />}
+
+          {/* ── Branding Tab ── */}
+          {activeTab === "branding" && <BrandingTab />}
+
+          {/* ── R&D Videos Tab ── */}
+          {activeTab === "rdvideos" && <RdVideosTab />}
+
+          {/* ── Tickets Tab ── */}
+          {activeTab === "tickets" && <TicketsTab />}
 
         </div>
       </main>

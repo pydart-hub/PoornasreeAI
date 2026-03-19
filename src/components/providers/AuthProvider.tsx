@@ -45,6 +45,22 @@ const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     "documents.read": true,
     "profile.edit": true,
   },
+  service_engineer: {
+    chat: true,
+    "documents.read": true,
+    "profile.edit": true,
+  },
+  service_manager: {
+    "tickets.view": true,
+    "tickets.assign": true,
+    "analytics.view": true,
+    "profile.edit": true,
+  },
+  dealer: {
+    "tickets.create": true,
+    "tickets.view": true,
+    "profile.edit": true,
+  },
   sales: {
     "users.read": true,
     "users.create": true,

@@ -13,6 +13,7 @@ import {
   startWork,
   requestOTP,
   verifyOTP,
+  listEngineers,
 } from "../controllers/ticket.controller";
 
 const router = Router();
@@ -23,6 +24,7 @@ router.use(protect);
 router.post("/", authorize("dealer", "admin"), createTicket);
 
 // VIEW TICKETS: all ticket-related roles (role-scoped filtering in controller)
+router.get("/engineers", authorize("service_manager", "admin"), listEngineers);
 router.get("/", authorize("admin", "service_manager", "service_engineer", "service", "dealer"), listTickets);
 router.get("/:id", authorize("admin", "service_manager", "service_engineer", "service", "dealer"), getTicket);
 

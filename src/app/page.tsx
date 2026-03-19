@@ -17,8 +17,12 @@ export default function Home() {
         router.replace("/customer");
       } else if (user.role === "admin") {
         router.replace("/admin");
-      } else if (user.role === "service") {
+      } else if (user.role === "service" || user.role === "service_engineer") {
         router.replace("/service");
+      } else if (user.role === "service_manager") {
+        router.replace("/service-manager");
+      } else if (user.role === "dealer") {
+        router.replace("/dealer");
       } else {
         router.replace("/chat");
       }

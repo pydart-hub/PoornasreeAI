@@ -29,9 +29,12 @@ type TicketStatus = "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 
 interface ServiceTicket {
   id: string;
+  ticketNumber?: string;
   status: TicketStatus;
   problemDescription: string;
   machineName?: string | null;
+  machineSerialNumber?: string | null;
+  ageHours?: number;
   createdAt: string;
   updatedAt: string;
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
@@ -161,10 +164,24 @@ function TicketCard({
             {ticket.machineName || "Machine Support"}
           </p>
           <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
-            #{ticket.id.slice(0, 8).toUpperCase()}
+            {ticket.ticketNumber ? `#${ticket.ticketNumber}` : `#${ticket.id.slice(0, 8).toUpperCase()}`}
           </p>
         </div>
-        <StatusBadge status={ticket.status} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {typeof ticket.ageHours === "number" && (
+            <span className={cn(
+              "text-xs px-1.5 py-0.5 rounded-full font-medium",
+              ticket.ageHours > 24
+                ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                : ticket.ageHours > 8
+                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
+            )}>
+              {ticket.ageHours}h
+            </span>
+          )}
+          <StatusBadge status={ticket.status} />
+        </div>
       </div>
 
       {/* Description */}
@@ -230,6 +247,7 @@ export default function ServiceDashboard() {
 
   const [activeTab, setActiveTab] = useState<TicketStatus>("ASSIGNED");
   const [tickets, setTickets] = useState<ServiceTicket[]>([]);
+  const [allTickets, setAllTickets] = useState<ServiceTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [otpModalTicketId, setOtpModalTicketId] = useState<string | null>(null);
 
@@ -256,10 +274,17 @@ export default function ServiceDashboard() {
   const fetchTickets = useCallback(async () => {
     setTicketsLoading(true);
     try {
-      const res = await fetch(`/api/tickets?status=${activeTab}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
+      const [tabRes, allRes] = await Promise.all([
+        fetch(`/api/tickets?status=${activeTab}`, { credentials: "include" }),
+        fetch(`/api/tickets`, { credentials: "include" }),
+      ]);
+      if (tabRes.ok) {
+        const data = await tabRes.json();
         setTickets(data.tickets || []);
+      }
+      if (allRes.ok) {
+        const data = await allRes.json();
+        setAllTickets(data.tickets || []);
       }
     } catch { /* non-fatal */ }
     finally { setTicketsLoading(false); }
@@ -425,6 +450,28 @@ export default function ServiceDashboard() {
             {user.role === "admin" ? "Admin" : "Service Engineer"}
           </Badge>
         </header>
+
+        {/* Summary bar */}
+        <div className="shrink-0 grid grid-cols-4 gap-0 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
+          {TABS.map((tab) => {
+            const count = allTickets.filter((t) => t.status === tab.status).length;
+            return (
+              <button
+                key={tab.status}
+                onClick={() => setActiveTab(tab.status)}
+                className={cn(
+                  "py-3 flex flex-col items-center gap-0.5 text-xs border-b-2 transition-colors",
+                  activeTab === tab.status
+                    ? "border-primary text-primary"
+                    : "border-transparent text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+                )}
+              >
+                <span className="text-lg font-bold leading-none">{count}</span>
+                <span className="font-medium">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
         {/* Tab bar */}
         <div className="shrink-0 flex border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card px-4 gap-1 overflow-x-auto">

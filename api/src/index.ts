@@ -13,6 +13,9 @@ import salesRoutes from "./routes/sales.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import troubleshootingRoutes from "./routes/troubleshooting.routes";
 import simulateRoutes from "./routes/simulate.routes";
+import { getBranding } from "./controllers/branding.controller";
+import { listRdVideos } from "./controllers/rd-video.controller";
+import { protect } from "./middleware/auth";
 import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
@@ -27,6 +30,9 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve uploaded files (logos, R&D videos, etc.)
+import path from "path";
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 // ── Routes ───────────────────────────────────────
 app.use("/api/auth",    authRoutes);
 
@@ -35,6 +41,12 @@ app.use("/api/auth",    authRoutes);
 app.use("/api/simulate",        simulateRoutes);
 app.use("/api/tickets",         ticketRoutes);
 app.use("/api/troubleshooting", troubleshootingRoutes);
+
+// Public branding endpoint (no auth)
+app.get("/api/branding", getBranding);
+
+// R&D videos list (authenticated — engineers + admin)
+app.get("/api/rd-videos", protect, listRdVideos);
 
 // ── Authenticated routes ──────────────────────────────────────────────────
 app.use("/api",         chatRoutes);    // broad mount — runs protect on every /api/* that reaches here

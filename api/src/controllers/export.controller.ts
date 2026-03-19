@@ -134,3 +134,69 @@ export async function exportSupport(req: Request, res: Response): Promise<void> 
     if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ── GET /api/admin/export/tickets ────────────────────────────────────────
+export async function exportTickets(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const { ticketNumber, pincodeCode } = req.query;
+
+    const where: Record<string, unknown> = {};
+    if (ticketNumber) where.ticketNumber = { contains: String(ticketNumber) };
+    if (pincodeCode) {
+      const pincode = await prisma.pincode.findUnique({ where: { code: String(pincodeCode) } });
+      if (pincode) where.pincodeId = pincode.id;
+    }
+
+    const tickets = await prisma.ticket.findMany({
+      where,
+      include: {
+        customer: { select: { email: true, firstName: true, lastName: true } },
+        dealer: { select: { email: true, firstName: true } },
+        assignedEngineer: { select: { email: true, firstName: true } },
+        assignedManager: { select: { email: true, firstName: true } },
+        pincode: { select: { code: true, regionName: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="tickets_export.csv"');
+
+    res.write(
+      toRow([
+        "Ticket Number", "Status", "Problem Description", "Machine Name",
+        "Machine Serial", "Customer Email", "Customer Name",
+        "Dealer Email", "Engineer", "Manager",
+        "Pincode", "Region", "Created At", "Closed At",
+      ]) + "\n"
+    );
+
+    for (const t of tickets) {
+      res.write(
+        toRow([
+          t.ticketNumber, t.status, t.problemDescription, t.machineName ?? "",
+          t.machineSerialNumber ?? "",
+          t.customer?.email ?? "",
+          t.customer ? `${t.customer.firstName} ${t.customer.lastName ?? ""}`.trim() : "",
+          t.dealer?.email ?? "",
+          t.assignedEngineer?.firstName ?? "",
+          t.assignedManager?.firstName ?? "",
+          t.pincode?.code ?? "",
+          t.pincode?.regionName ?? "",
+          t.createdAt.toISOString(),
+          t.closedAt?.toISOString() ?? "",
+        ]) + "\n"
+      );
+    }
+
+    res.end();
+  } catch (err) {
+    console.error("exportTickets:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
+  }
+}

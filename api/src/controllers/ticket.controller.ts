@@ -67,7 +67,21 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     // admin: no filter — sees all tickets
 
     const tickets = await TicketService.listTickets(filters);
-    res.json({ tickets });
+
+    // Add computed metrics to each ticket
+    const now = Date.now();
+    const enriched = tickets.map((t: any) => ({
+      ...t,
+      ageHours: Math.round((now - new Date(t.createdAt).getTime()) / 3600000 * 10) / 10,
+      responseTimeHours: t.firstEngineeredAt
+        ? Math.round((new Date(t.firstEngineeredAt).getTime() - new Date(t.createdAt).getTime()) / 3600000 * 10) / 10
+        : null,
+      durationHours: t.closedAt
+        ? Math.round((new Date(t.closedAt).getTime() - new Date(t.createdAt).getTime()) / 3600000 * 10) / 10
+        : null,
+    }));
+
+    res.json({ tickets: enriched });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
@@ -212,6 +226,32 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
     });
 
     res.json({ message: "Ticket closed successfully", ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+// ── GET /api/tickets/engineers ────────────────────────────────────────────
+// Returns engineers assigned to the manager's pincode.
+// Also accessible by admin (returns all service_engineers).
+export async function listEngineers(req: Request, res: Response): Promise<void> {
+  try {
+    const role      = req.user!.role;
+    const pincodeId = req.user!.pincodeId;
+
+    const where: Record<string, unknown> = { role: "service_engineer" };
+    if (role === "service_manager" && pincodeId) {
+      where.pincodeId = pincodeId;
+    }
+
+    const engineers = await prisma.user.findMany({
+      where,
+      select: { id: true, firstName: true, lastName: true, email: true, pincodeId: true },
+      orderBy: { firstName: "asc" },
+    });
+
+    res.json({ engineers });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });

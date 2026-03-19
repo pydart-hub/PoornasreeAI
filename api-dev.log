@@ -1,0 +1,194 @@
+
+> api@1.0.0 dev
+> nodemon --exec ts-node src/index.ts
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: ts,json[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[development] API server running on http://localhost:4000
+Failed to obtain server version. Unable to check client-server compatibility. Set checkCompatibility=false to skip version check.
+[vector] Failed to ensure Qdrant collection: TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async fetchJson (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\openapi-typescript-fetch\dist\cjs\fetcher.js:135:22)
+    at async C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\js-client-rest\dist\cjs\api-client.js:36:24
+    at async handler (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\openapi-typescript-fetch\dist\cjs\fetcher.js:156:16)
+    at async C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\js-client-rest\dist\cjs\api-client.js:20:24
+    at async handler (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\openapi-typescript-fetch\dist\cjs\fetcher.js:156:16)
+    at async fetchUrl (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\openapi-typescript-fetch\dist\cjs\fetcher.js:162:22)
+    at async Object.fun [as getCollections] (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\openapi-typescript-fetch\dist\cjs\fetcher.js:168:20)
+    at async QdrantClient.getCollections (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@qdrant\js-client-rest\dist\cjs\qdrant-client.js:884:26)
+    at async ensureCollection (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\services\vector.service.ts:24:29)
+    at async Server.<anonymous> (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\index.ts:99:3) {
+  [cause]: AggregateError
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [ [Error], [Error] ]
+  }
+}
+[training] training.json not found — intent index skipped. Add a volume mount  ./public/Doc/training.json:/app/data/training.json:ro  in docker-compose.yml
+Incoming message: machine not turning on
+Session state: REGISTERED
+User is REGISTERED
+Checking for active troubleshooting session...
+Active session: null
+No active session → should detect problem
+Calling detectProblemType...
+Inside detectProblemType, message: machine not turning on
+Detected problemType: power_issue
+Incoming message: machine not turning on
+Session state: REGISTERED
+User is REGISTERED
+Checking for active troubleshooting session...
+Active session: {
+  id: 'f411b1d1-0983-4009-ba9f-4cf0ce50700c',
+  phoneNumber: '919048740132',
+  serialNumber: '919048740132',
+  problemType: 'power_issue',
+  currentStep: 1,
+  status: 'ACTIVE',
+  createdAt: 2026-03-18T10:22:58.158Z,
+  updatedAt: 2026-03-18T10:22:58.158Z
+}
+Entering handleResponse branch
+Incoming message: machine not turning on
+Session state: NEW_USER
+[auth] Login attempt — email: admin@poornasree.com  origin: http://localhost:3000
+[auth] Login attempt — email: admin@poornasree.com  origin: http://localhost:3000
+Auth /me error: PrismaClientKnownRequestError: 
+Invalid `prisma.user.findUnique()` invocation in
+C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\controllers\auth.controller.ts:112:36
+
+  109   role: string;
+  110 };
+  111 
+→ 112 const user = await prisma.user.findUnique(
+Can't reach database server at `127.0.0.1:5433`
+
+Please make sure your database server is running at `127.0.0.1:5433`.
+    at Vg.handleRequestError (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:182:7317)
+    at Vg.handleAndLogRequestError (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:182:6624)
+    at Vg.request (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:182:6308)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async a (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:191:9642)
+    at async getMe (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\controllers\auth.controller.ts:112:18) {
+  code: 'P1001',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'User',
+    database_host: '127.0.0.1',
+    database_port: 5433
+  }
+}
+Auth /me error: PrismaClientKnownRequestError: 
+Invalid `prisma.user.findUnique()` invocation in
+C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\controllers\auth.controller.ts:112:36
+
+  109   role: string;
+  110 };
+  111 
+→ 112 const user = await prisma.user.findUnique(
+Can't reach database server at `127.0.0.1:5433`
+
+Please make sure your database server is running at `127.0.0.1:5433`.
+    at Vg.handleRequestError (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:182:7317)
+    at Vg.handleAndLogRequestError (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:182:6624)
+    at Vg.request (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:182:6308)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async a (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\@prisma\client\runtime\binary.js:191:9642)
+    at async getMe (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\controllers\auth.controller.ts:112:18) {
+  code: 'P1001',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'User',
+    database_host: '127.0.0.1',
+    database_port: 5433
+  }
+}
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Object.<anonymous> (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\index.ts:95:12)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14)
+    at Module.m._compile (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\index.ts:1618:23)
+    at node:internal/modules/cjs/loader:1895:10
+    at Object.require.extensions.<computed> [as .ts] (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at phase4 (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:649:14)
+    at bootstrap (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:95:10)
+    at main (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:55:10) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Object.<anonymous> (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\index.ts:95:12)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14)
+    at Module.m._compile (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\index.ts:1618:23)
+    at node:internal/modules/cjs/loader:1895:10
+    at Object.require.extensions.<computed> [as .ts] (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at phase4 (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:649:14)
+    at bootstrap (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:95:10)
+    at main (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:55:10) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `ts-node src/index.ts`[39m
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Object.<anonymous> (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\src\index.ts:95:12)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14)
+    at Module.m._compile (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\index.ts:1618:23)
+    at node:internal/modules/cjs/loader:1895:10
+    at Object.require.extensions.<computed> [as .ts] (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at phase4 (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:649:14)
+    at bootstrap (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:95:10)
+    at main (C:\Users\abhis\OneDrive\Desktop\PoornasreeAI\api\node_modules\ts-node\src\bin.ts:55:10) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m

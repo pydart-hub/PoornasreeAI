@@ -35,6 +35,9 @@ model User {
   dealerTickets    Ticket[]           @relation("DealerTickets")
   managerTickets   Ticket[]           @relation("ManagerTickets")
   engineerTickets  Ticket[]           @relation("EngineerTickets")
+
+  // R&D videos uploaded by this user
+  rdVideos         RdVideo[]
 }
 
 model Conversation {
@@ -173,6 +176,7 @@ model Ticket {
   // Problem
   problemDescription String    @db.Text
   machineName        String?
+  machineSerialNumber String?  // denormalized for display
 
   // Lifecycle
   status             String    @default("OPEN")  // OPEN | ASSIGNED | IN_PROGRESS | PENDING_OTP | CLOSED
@@ -253,11 +257,51 @@ model TroubleshootingSession {
 model ConversationSession {
   id             String   @id @default(uuid())
   phoneNumber    String
-  state          String   @default("NEW_USER")  // NEW_USER | AWAITING_MOBILE | REGISTERED
+  state          String   @default("NEW_USER")  // NEW_USER | AWAITING_SERIAL | REGISTERED
   isRegistered   Boolean  @default(false)
-  providedMobile String?
+  serialNumber   String?  // validated machine serial
+  machineId      String?  // FK to matched Machine (nullable for legacy/guest)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([phoneNumber, state], name: "idx_convo_session_lookup")
+}
+
+// ── Machine Registry ────────────────────────────────────────────────────
+// Machines registered by admin. Customers validate serial during registration.
+model Machine {
+  id           String   @id @default(uuid())
+  serialNumber String   @unique
+  modelName    String
+  specs        String?  @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ── Branding (singleton — only row 0) ───────────────────────────────────
+// Admin-editable company branding applied across the frontend.
+model Branding {
+  id           String  @id @default(uuid())
+  companyName  String  @default("Poornasree")
+  logoUrl      String? // relative path or URL
+  address      String? @db.Text
+  primaryColor String  @default("#2563eb")
+  tagline      String? @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ── R&D Video (confidential internal videos for engineers) ──────────────
+// Uploaded by admin, accessible to service_engineer + admin roles only.
+model RdVideo {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?  @db.Text
+  filePath     String   // relative upload path on server
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
 }
