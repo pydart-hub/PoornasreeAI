@@ -23,6 +23,7 @@ import {
   ChevronDown,
   X,
 } from "lucide-react";
+import { getSocket, closeSocket } from "@/lib/socket-client";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
@@ -108,6 +109,23 @@ export default function ServiceManagerPage() {
     if (user?.role === "service_manager") {
       fetchData();
     }
+  }, [user, fetchData]);
+
+  // ── Real-time socket listener ──────────────────────────────────────
+  useEffect(() => {
+    if (!user || user.role !== "service_manager") return;
+    const socket = getSocket({
+      userId: user.id,
+      role: user.role,
+      name: `${user.firstName} ${user.lastName || ""}`.trim(),
+    });
+    const refresh = () => fetchData();
+    socket.on("ticket:new",     refresh);
+    socket.on("ticket:updated", refresh);
+    return () => {
+      socket.off("ticket:new",     refresh);
+      socket.off("ticket:updated", refresh);
+    };
   }, [user, fetchData]);
 
   const handleRefresh = () => {

@@ -23,6 +23,7 @@ import {
   PanelLeft,
   X,
 } from "lucide-react";
+import { getSocket } from "@/lib/socket-client";
 
 // ── Types ──────────────────────────────────────────────────────────────
 type TicketStatus = "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
@@ -292,6 +293,23 @@ export default function ServiceDashboard() {
 
   useEffect(() => {
     if (user) fetchTickets();
+  }, [user, fetchTickets]);
+
+  // ── Real-time: refresh when a ticket is assigned to this engineer ──
+  useEffect(() => {
+    if (!user) return;
+    const socket = getSocket({
+      userId: user.id,
+      role: user.role,
+      name: `${user.firstName} ${user.lastName || ""}`.trim(),
+    });
+    const refresh = () => fetchTickets();
+    socket.on("ticket:assigned", refresh);
+    socket.on("ticket:updated",  refresh);
+    return () => {
+      socket.off("ticket:assigned", refresh);
+      socket.off("ticket:updated",  refresh);
+    };
   }, [user, fetchTickets]);
 
   // ── Ticket actions ─────────────────────────────────────────────────

@@ -34,8 +34,8 @@ export async function createTicket(req: Request, res: Response): Promise<void> {
       dealerId: role === "dealer" ? userId : undefined,
     });
 
-    // Notify managers / admins of new ticket
-    io?.to("engineers").emit("ticket:new", ticket);
+    // Notify service managers of new ticket so their dashboard updates in real-time
+    io?.to("managers").emit("ticket:new", ticket);
 
     res.status(201).json({ ticket });
   } catch (err: unknown) {

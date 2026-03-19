@@ -36,15 +36,7 @@ export async function createTicket(data: {
 }) {
   const ticketNumber = await generateTicketNumber();
 
-  // Auto-assign: if a service engineer exists, assign directly → ASSIGNED
-  // (Temporary until pincode routing + service_manager workflow is built)
-  let autoEngineerId: string | null = null;
-  const engineer = await prisma.user.findFirst({
-    where: { role: { in: ["service_engineer", "service"] } },
-    select: { id: true },
-  });
-  if (engineer) autoEngineerId = engineer.id;
-
+  // Tickets always start as OPEN — service manager assigns engineer from their dashboard.
   return prisma.ticket.create({
     data: {
       ticketNumber,
@@ -54,8 +46,7 @@ export async function createTicket(data: {
       pincodeId:          data.pincodeId  || null,
       dealerId:           data.dealerId   || null,
       phoneNumber:        data.phoneNumber || null,
-      assignedEngineerId: autoEngineerId,
-      status:             autoEngineerId ? "ASSIGNED" : "OPEN",
+      status:             "OPEN",
     },
     include: TICKET_INCLUDE,
   });
