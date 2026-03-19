@@ -23,7 +23,7 @@ import {
   ChevronDown,
   X,
 } from "lucide-react";
-import { getSocket, closeSocket } from "@/lib/socket-client";
+import { getSocket } from "@/lib/socket-client";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
