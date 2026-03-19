@@ -13,7 +13,11 @@ import * as TicketService from "../services/ticket.service";
 // Dealers can also raise tickets, passing an optional dealerId implicitly.
 export async function createTicket(req: Request, res: Response): Promise<void> {
   try {
-    const { problemDescription, machineName, pincodeId } = req.body;
+    const { problemDescription, machineName } = req.body;
+    // Auto-inherit the dealer/user's own pincodeId so tickets are always
+    // routed to the correct service manager zone.
+    const pincodeId: string | undefined =
+      req.body.pincodeId || req.user!.pincodeId || undefined;
     const userId = req.user!.userId;
     const role   = req.user!.role;
 
