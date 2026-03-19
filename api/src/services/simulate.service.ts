@@ -12,6 +12,7 @@ import prisma from "../lib/prisma";
 import * as TroubleshootingService from "./troubleshooting.service";
 import * as TicketService from "./ticket.service";
 import { findVideosForQuery } from "../controllers/video.controller";
+import { embedText, searchVectors } from "./vector.service";
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -161,14 +162,23 @@ async function handleRegisteredUser(
   }
 
   // ── CASE B: No active troubleshooting session ─────────────────────────
+  console.log("No active session → trying AI vector search first");
 
-  console.log("No active session → should detect problem");
-  console.log("Calling detectProblemType...");
+  // ── STEP B1: Try RAG / vector search against uploaded documents ──────
+  const aiAnswer = await queryDocuments(message);
+
+  if (aiAnswer) {
+    // Document-based answer found — return it directly with video suggestions
+    const videos = await findVideosForQuery(message, 2).catch(() => []);
+    return reply(aiAnswer, videos.length > 0 ? videos : undefined);
+  }
+
+  // ── STEP B2: Fall back to keyword-based template engine ──────────────
+  console.log("No RAG answer → falling back to template engine");
   const problemType = detectProblemType(message);
   console.log("Detected problemType:", problemType);
 
   if (!problemType) {
-    // STEP 3: No dead-end — always guide user with clear options
     return reply(NO_ISSUE_DETECTED_MESSAGE);
   }
 
@@ -189,6 +199,38 @@ async function handleRegisteredUser(
   const formatted2 = reformatStepMessage(tsResult.message);
   const videos2 = await findVideosForStep(problemType, tsResult.message);
   return reply(formatted2, videos2);
+}
+
+// ── Helper: query Qdrant for a document-based answer ────────────────────
+// Returns the answer string if confident, or null to fall back to templates.
+async function queryDocuments(query: string): Promise<string | null> {
+  try {
+    // Check if any service documents have been uploaded
+    const docCount = await prisma.document.count({ where: { documentType: "service" } });
+    if (docCount === 0) return null;
+
+    const embedding = await embedText(query);
+    const hits = await searchVectors(embedding, 3, ["service"]);
+
+    const MIN_SCORE = 0.45;
+    const relevant = hits.filter((h) => h.score >= MIN_SCORE);
+    if (relevant.length === 0) return null;
+
+    const top = relevant[0];
+
+    // Direct-hit shortcut: if this chunk was indexed with a directResponse flag
+    // (i.e. came from a training.json intent), return it immediately.
+    if (top.payload.directResponse === true && top.score >= 0.55) {
+      const content = top.payload.content as string;
+      return content || null;
+    }
+
+    // Otherwise return the raw chunk content — it is the extracted document text
+    return (top.payload.content as string) || null;
+  } catch (err) {
+    console.warn("[simulate] RAG query failed:", err);
+    return null;
+  }
 }
 
 // ── Helper: reformat step messages to standard format (STEP 4) ───────────
