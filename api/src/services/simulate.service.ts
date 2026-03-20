@@ -1,4 +1,4 @@
-// â”€â”€ Simulate Service (V-Guard-Style FSM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+﻿// â”€â”€ Simulate Service (V-Guard-Style FSM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Flow overview:
 //   GREETING       â†’ any message â†’ show main menu
@@ -275,20 +275,20 @@ async function handleProductSelect(
   );
 }
 
-// â”€â”€ TROUBLESHOOTING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── TROUBLESHOOTING ───────────────────────────────────────────────────────────
+// Response semantics:
+//   1 (Done)        → advance to next step; if last step → issue RESOLVED (no ticket)
+//   2 (Not Working) → advance to next step; if last step → ESCALATE (create ticket)
+//   3 (Need Help)   → immediate ESCALATION regardless of step
 async function handleTroubleshooting(
   sessionId: string,
   phoneNumber: string,
   meta: SessionMeta,
   text: string,
 ) {
-  // Map 1/2/3 â†’ YES/NO/HELP (troubleshooting.service uses YES/NO/HELP internally)
-  const map: Record<string, string> = { "1": "YES", "2": "NO", "3": "HELP" };
-  const normalized = map[text] ?? text.toUpperCase();
-
-  if (!["YES", "NO", "HELP"].includes(normalized)) {
+  if (!["1", "2", "3"].includes(text)) {
     return makeReply(
-      "Please reply:\n1 - Done âœ… (issue resolved)\n2 - Not Working âŒ (try next step)\n3 - Need Help ðŸ†˜ (create service request)"
+      "Please reply:\n1 - Done ✅\n2 - Not Working ❌\n3 - Need Help 🆘"
     );
   }
 
@@ -297,26 +297,52 @@ async function handleTroubleshooting(
     return makeReply(GREETING_MSG);
   }
 
-  const result = await TroubleshootingService.handleResponse(
-    meta.troubleshootingSessionId,
-    normalized,
-  );
+  const tsSessionId = meta.troubleshootingSessionId;
 
-  if (result.done) {
-    const status = (result.session as { status: string }).status;
-    if (status === "COMPLETED") {
-      await updateSession(sessionId, "COMPLETED", meta);
-      return makeReply(
-        "âœ… Great! Your issue is resolved. We are glad we could help!\n\n" +
-        "Thank you for choosing Poornasree Support ðŸ˜Š\n\nReply MENU to return to main menu."
-      );
-    }
-    // ESCALATED â€” all steps exhausted or user chose help
+  // ── 3 (Need Help) → immediate escalation ──────────────────────────────────
+  if (text === "3") {
+    await TroubleshootingService.escalateSession(tsSessionId);
     await updateSession(sessionId, "ESCALATION_NAME", meta);
     return makeReply(`${escalationIntro}\n\nPlease enter your name:`);
   }
 
-  // Next step
+  // ── Determine current position in the troubleshooting flow ─────────────────
+  const tsSession = await prisma.troubleshootingSession.findUnique({
+    where: { id: tsSessionId },
+  });
+  if (!tsSession || tsSession.status !== "ACTIVE") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(GREETING_MSG);
+  }
+
+  const totalSteps = await prisma.troubleshootingStep.count({
+    where: { template: { problemType: tsSession.problemType } },
+  });
+  const isLastStep = tsSession.currentStep >= totalSteps;
+
+  // ── 1 (Done) → advance; resolve if last step ──────────────────────────────
+  if (text === "1") {
+    if (isLastStep) {
+      await TroubleshootingService.completeSession(tsSessionId);
+      await updateSession(sessionId, "COMPLETED", meta);
+      return makeReply(
+        "✅ Great! Your issue is resolved. We are glad we could help!\n\n" +
+        "Thank you for choosing Poornasree Support 😊\n\nReply MENU to return to main menu."
+      );
+    }
+    const result = await TroubleshootingService.moveToNextStep(tsSessionId);
+    const stepText = formatStepMessage(result.message);
+    const videos   = await getVideosFor(meta.problemType ?? "", result.message);
+    return makeReply(stepText, videos);
+  }
+
+  // ── 2 (Not Working) → advance; escalate if last step ──────────────────────
+  if (isLastStep) {
+    await TroubleshootingService.escalateSession(tsSessionId);
+    await updateSession(sessionId, "ESCALATION_NAME", meta);
+    return makeReply(`${escalationIntro}\n\nPlease enter your name:`);
+  }
+  const result = await TroubleshootingService.moveToNextStep(tsSessionId);
   const stepText = formatStepMessage(result.message);
   const videos   = await getVideosFor(meta.problemType ?? "", result.message);
   return makeReply(stepText, videos);
@@ -449,6 +475,7 @@ async function handleEscalationSerial(
     customerId:         adminUser.id,
     problemDescription: description,
     machineName:        meta.productName,
+    machineSerialNumber: cleaned,
     pincodeId:          pincodeRecord.id,
     phoneNumber,
     place:              meta.escPlace,

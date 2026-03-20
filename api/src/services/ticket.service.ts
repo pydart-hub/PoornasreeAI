@@ -30,6 +30,7 @@ export async function createTicket(data: {
   customerId:         string;
   problemDescription: string;
   machineName?:       string;
+  machineSerialNumber?: string;
   pincodeId?:         string;
   dealerId?:          string;
   phoneNumber?:       string;
@@ -59,6 +60,7 @@ export async function createTicket(data: {
       customerId:         data.customerId,
       problemDescription: data.problemDescription.trim(),
       machineName:        data.machineName?.trim() || null,
+      machineSerialNumber: data.machineSerialNumber?.trim() || null,
       pincodeId:          data.pincodeId  || null,
       dealerId:           data.dealerId   || null,
       phoneNumber:        data.phoneNumber || null,
