@@ -17,6 +17,8 @@ import {
   RefreshCw,
   UserX,
   Shield,
+  Pencil,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Avatar, Badge, LoadingScreen, ThemeToggle } from "@/components/ui";
@@ -26,6 +28,7 @@ import {
   getUsers,
   createUser,
   deleteUser,
+  updateUser,
   type ApiUser,
   type CreateUserPayload,
 } from "@/lib/api";
@@ -111,6 +114,15 @@ export default function UsersManagementPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
+  // Edit modal state
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", role: "service", newPassword: "" });
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editSubmitError, setEditSubmitError] = useState<string | null>(null);
+  const [editShowPassword, setEditShowPassword] = useState(false);
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -204,6 +216,73 @@ export default function UsersManagementPage() {
     },
     []
   );
+
+  // ── Edit user ─────────────────────────────────────────────────────
+  const openEditModal = (u: ApiUser) => {
+    setEditingUser(u);
+    setEditForm({
+      firstName: u.firstName,
+      lastName: u.lastName ?? "",
+      email: u.email,
+      role: u.role,
+      newPassword: "",
+    });
+    setEditFieldErrors({});
+    setEditSubmitError(null);
+    setEditShowPassword(false);
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    if (editSubmitting) return;
+    setEditModalOpen(false);
+    setEditingUser(null);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: Record<string, string> = {};
+    if (!editForm.firstName.trim()) errors.firstName = "First name is required";
+    if (!editForm.email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
+      errors.email = "Enter a valid email address";
+    }
+    if (editForm.newPassword && editForm.newPassword.length < 8) {
+      errors.newPassword = "Must be at least 8 characters";
+    }
+    if (!editForm.role) errors.role = "Role is required";
+    if (Object.keys(errors).length > 0) {
+      setEditFieldErrors(errors);
+      return;
+    }
+    setEditSubmitting(true);
+    setEditSubmitError(null);
+    try {
+      const payload: Record<string, string> = {
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        email: editForm.email.trim(),
+        role: editForm.role,
+      };
+      if (editForm.newPassword) payload.newPassword = editForm.newPassword;
+      const updated = await updateUser(editingUser!.id, payload);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
+      setEditModalOpen(false);
+      setEditingUser(null);
+      setSuccessBanner(`User "${updated.email}" updated successfully.`);
+      setTimeout(() => setSuccessBanner(null), 4000);
+    } catch (err) {
+      setEditSubmitError(err instanceof Error ? err.message : "Failed to update user");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const setEditField = (key: string, value: string) => {
+    setEditForm((prev) => ({ ...prev, [key]: value }));
+    if (editFieldErrors[key]) setEditFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
   // ── Filter ───────────────────────────────────────────────────────────
   const filtered = users.filter((u) => {
@@ -350,7 +429,7 @@ export default function UsersManagementPage() {
           <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
 
             {/* Table head */}
-            <div className="hidden sm:grid grid-cols-[2fr_2fr_1.2fr_1.2fr_1fr_44px] gap-4 px-5 py-3 border-b border-line dark:border-line-dark bg-surface-tertiary dark:bg-surface-dark-tertiary text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary">
+            <div className="hidden sm:grid grid-cols-[2fr_2fr_1.2fr_1.2fr_1fr_80px] gap-4 px-5 py-3 border-b border-line dark:border-line-dark bg-surface-tertiary dark:bg-surface-dark-tertiary text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary">
               <span>User</span>
               <span>Email</span>
               <span>Role</span>
@@ -367,7 +446,7 @@ export default function UsersManagementPage() {
                 <div
                   key={u.id}
                   className={cn(
-                    "flex flex-col sm:grid sm:grid-cols-[2fr_2fr_1.2fr_1.2fr_1fr_44px] gap-2 sm:gap-4 px-5 py-4 transition-colors hover:bg-surface-hover dark:hover:bg-surface-dark-hover",
+                    "flex flex-col sm:grid sm:grid-cols-[2fr_2fr_1.2fr_1.2fr_1fr_80px] gap-2 sm:gap-4 px-5 py-4 transition-colors hover:bg-surface-hover dark:hover:bg-surface-dark-hover",
                     i < filtered.length - 1 && "border-b border-line dark:border-line-dark"
                   )}
                 >
@@ -395,8 +474,27 @@ export default function UsersManagementPage() {
                   </div>
 
                   {/* Role */}
-                  <div className="flex items-center">
-                    <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center">
+                      <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
+                    </div>
+                    {/* Pincode badges for managers/engineers */}
+                    {(u as any).managedPincodes?.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                          Manages: {(u as any).managedPincodes.map((p: any) => p.code).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {(u as any).engineerPincodes?.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                          Serves: {(u as any).engineerPincodes.map((p: any) => p.code).join(", ")}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Created */}
@@ -417,8 +515,15 @@ export default function UsersManagementPage() {
                     </p>
                   </div>
 
-                  {/* Delete */}
-                  <div className="flex items-center justify-end">
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => openEditModal(u)}
+                      className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                      title="Edit user"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     {!isSelf && (
                       <button
                         onClick={() => handleDelete(u)}
@@ -621,6 +726,71 @@ export default function UsersManagementPage() {
                       Create User
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit User Modal ── */}
+      {editModalOpen && editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeEditModal} />
+          <div className="relative w-full max-w-md bg-surface dark:bg-surface-dark-card rounded-2xl shadow-2xl border border-line dark:border-line-dark overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-primary dark:text-primary-300" />
+                <h2 className="text-base font-semibold text-content dark:text-content-dark">Edit User</h2>
+              </div>
+              <button onClick={closeEditModal} disabled={editSubmitting} className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} noValidate className="px-6 py-5 space-y-4">
+              {editSubmitError && (
+                <div className="flex items-start gap-2 px-4 py-3 rounded-xl text-sm bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-500/20">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{editSubmitError}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">First Name <span className="text-red-500">*</span></label>
+                  <input value={editForm.firstName} onChange={(e) => setEditField("firstName", e.target.value)} className={cn("w-full h-9 px-3 rounded-lg border text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2", editFieldErrors.firstName ? "border-red-400 focus:ring-red-300/40" : "border-line dark:border-line-dark focus:ring-primary/30")} />
+                  {editFieldErrors.firstName && <p className="mt-1 text-xs text-red-500">{editFieldErrors.firstName}</p>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">Last Name</label>
+                  <input value={editForm.lastName} onChange={(e) => setEditField("lastName", e.target.value)} className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                <input type="email" value={editForm.email} onChange={(e) => setEditField("email", e.target.value)} className={cn("w-full h-9 px-3 rounded-lg border text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2", editFieldErrors.email ? "border-red-400 focus:ring-red-300/40" : "border-line dark:border-line-dark focus:ring-primary/30")} />
+                {editFieldErrors.email && <p className="mt-1 text-xs text-red-500">{editFieldErrors.email}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">New Password <span className="text-xs font-normal">(leave blank to keep current)</span></label>
+                <div className="relative">
+                  <input type={editShowPassword ? "text" : "password"} value={editForm.newPassword} onChange={(e) => setEditField("newPassword", e.target.value)} placeholder="Min 8 characters" className={cn("w-full h-9 px-3 pr-10 rounded-lg border text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2", editFieldErrors.newPassword ? "border-red-400 focus:ring-red-300/40" : "border-line dark:border-line-dark focus:ring-primary/30")} />
+                  <button type="button" onClick={() => setEditShowPassword((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark transition-colors">
+                    {editShowPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {editFieldErrors.newPassword && <p className="mt-1 text-xs text-red-500">{editFieldErrors.newPassword}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">Role <span className="text-red-500">*</span></label>
+                <select value={editForm.role} onChange={(e) => setEditField("role", e.target.value)} className={cn("w-full h-9 px-3 rounded-lg border text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 appearance-none cursor-pointer", editFieldErrors.role ? "border-red-400 focus:ring-red-300/40" : "border-line dark:border-line-dark focus:ring-primary/30")}>
+                  {ROLES.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
+                </select>
+                {editFieldErrors.role && <p className="mt-1 text-xs text-red-500">{editFieldErrors.role}</p>}
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button type="button" onClick={closeEditModal} disabled={editSubmitting} className="flex-1 h-9 rounded-xl border border-line dark:border-line-dark text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40">Cancel</button>
+                <button type="submit" disabled={editSubmitting} className="flex-1 h-9 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {editSubmitting ? (<><Loader2 className="w-4 h-4 animate-spin" />Saving…</>) : (<><Pencil className="w-4 h-4" />Save Changes</>)}
                 </button>
               </div>
             </form>

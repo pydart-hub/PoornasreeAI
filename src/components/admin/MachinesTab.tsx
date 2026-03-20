@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Loader2, Search, Settings } from "lucide-react";
+import { Plus, Trash2, Loader2, Search, Settings, Pencil, Power, X } from "lucide-react";
 
 interface Machine {
   id: string;
@@ -31,6 +31,11 @@ export default function MachinesTab() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
+  const [editForm, setEditForm] = useState({ serialNumber: "", modelName: "", specs: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const fetchMachines = useCallback(async () => {
     setLoading(true);
@@ -70,6 +75,45 @@ export default function MachinesTab() {
       setMachines(prev => prev.filter(m => m.id !== id));
     } catch { /* ignore */ }
     setDeletingId(null);
+  };
+
+  const handleToggleActive = async (m: Machine) => {
+    setTogglingId(m.id);
+    try {
+      await apiFetch(`/api/admin/machines/${m.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: !m.isActive }),
+      });
+      setMachines(prev => prev.map(x => x.id === m.id ? { ...x, isActive: !x.isActive } : x));
+    } catch { /* ignore */ }
+    setTogglingId(null);
+  };
+
+  const openEditModal = (m: Machine) => {
+    setEditingMachine(m);
+    setEditForm({ serialNumber: m.serialNumber, modelName: m.modelName, specs: m.specs ?? "" });
+    setEditError("");
+  };
+
+  const handleEditSave = async () => {
+    if (!editingMachine) return;
+    if (!editForm.serialNumber.trim() || !editForm.modelName.trim()) {
+      setEditError("Serial number and model name are required");
+      return;
+    }
+    setEditSaving(true);
+    setEditError("");
+    try {
+      await apiFetch(`/api/admin/machines/${editingMachine.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(editForm),
+      });
+      setMachines(prev => prev.map(x => x.id === editingMachine.id ? { ...x, ...editForm } : x));
+      setEditingMachine(null);
+    } catch (e) {
+      setEditError((e as Error).message);
+    }
+    setEditSaving(false);
   };
 
   const filtered = machines.filter(m =>
@@ -146,9 +190,20 @@ export default function MachinesTab() {
                 <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{m.modelName}{m.specs ? ` — ${m.specs}` : ""}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${m.isActive ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"}`}>
+                <button
+                  onClick={() => handleToggleActive(m)}
+                  disabled={togglingId === m.id}
+                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${m.isActive ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"} disabled:opacity-50`}
+                >
+                  {togglingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
                   {m.isActive ? "Active" : "Inactive"}
-                </span>
+                </button>
+                <button
+                  onClick={() => openEditModal(m)}
+                  className="p-2 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => handleDelete(m.id)}
                   disabled={deletingId === m.id}
@@ -159,6 +214,59 @@ export default function MachinesTab() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit Machine Modal */}
+      {editingMachine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-surface dark:bg-surface-dark rounded-2xl shadow-xl border border-line dark:border-line-dark p-6 w-full max-w-md space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-content dark:text-content-dark">Edit Machine</h3>
+              <button onClick={() => setEditingMachine(null)} className="p-1 rounded-lg hover:bg-surface-hover"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-content-secondary">Serial Number</label>
+                <input
+                  type="text"
+                  value={editForm.serialNumber}
+                  onChange={e => setEditForm(f => ({ ...f, serialNumber: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-content-secondary">Model Name</label>
+                <input
+                  type="text"
+                  value={editForm.modelName}
+                  onChange={e => setEditForm(f => ({ ...f, modelName: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-content-secondary">Specs</label>
+                <input
+                  type="text"
+                  value={editForm.specs}
+                  onChange={e => setEditForm(f => ({ ...f, specs: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+                />
+              </div>
+            </div>
+            {editError && <p className="text-xs text-red-500">{editError}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setEditingMachine(null)} className="px-4 py-2 rounded-xl text-sm text-content-secondary hover:bg-surface-hover">Cancel</button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving}
+                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50 flex items-center gap-2"
+              >
+                {editSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

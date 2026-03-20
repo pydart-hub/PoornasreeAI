@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Loader2, Pencil, BookOpen, X, Check } from "lucide-react";
+import { Plus, Trash2, Loader2, Pencil, BookOpen, X, Check, Power } from "lucide-react";
 
 interface TroubleshootingStep {
   id: string;
@@ -40,6 +40,7 @@ export default function TemplatesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editSteps, setEditSteps] = useState<string[]>([]);
   const [editTitle, setEditTitle] = useState("");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
@@ -80,6 +81,18 @@ export default function TemplatesTab() {
       setTemplates(prev => prev.filter(t => t.id !== id));
     } catch { /* ignore */ }
     setDeletingId(null);
+  };
+
+  const handleToggleActive = async (t: Template) => {
+    setTogglingId(t.id);
+    try {
+      await apiFetch(`/api/admin/templates/${t.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: !t.isActive }),
+      });
+      setTemplates(prev => prev.map(tm => tm.id === t.id ? { ...tm, isActive: !tm.isActive } : tm));
+    } catch { /* ignore */ }
+    setTogglingId(null);
   };
 
   const startEdit = (t: Template) => {
@@ -196,9 +209,18 @@ export default function TemplatesTab() {
                   )}
                   <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
                     {t.problemType} — {t.steps.length} step{t.steps.length !== 1 ? "s" : ""}
-                    <span className={`ml-2 ${t.isActive ? "text-emerald-600" : "text-red-500"}`}>
+                    <button
+                      onClick={() => handleToggleActive(t)}
+                      disabled={togglingId === t.id}
+                      className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                        t.isActive
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400"
+                          : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                      } disabled:opacity-50`}
+                    >
+                      {togglingId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
                       {t.isActive ? "Active" : "Inactive"}
-                    </span>
+                    </button>
                   </p>
                 </div>
                 <div className="flex items-center gap-1">

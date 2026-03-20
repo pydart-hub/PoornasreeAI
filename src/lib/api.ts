@@ -65,7 +65,7 @@ export async function deleteUser(id: string): Promise<void> {
 /** Update a user by ID (admin only). */
 export async function updateUser(
   id: string,
-  payload: { firstName?: string; lastName?: string; email?: string; newPassword?: string }
+  payload: { firstName?: string; lastName?: string; email?: string; newPassword?: string; role?: string }
 ): Promise<ApiUser> {
   const data = await apiFetch<{ user: ApiUser }>(`/api/admin/users/${id}`, {
     method: "PATCH",

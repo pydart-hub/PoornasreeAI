@@ -80,6 +80,8 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
         role: true,
         createdAt: true,
         _count: { select: { conversations: true } },
+        managedPincodes: { select: { code: true, regionName: true } },
+        engineerPincodes: { select: { code: true, regionName: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -151,9 +153,9 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const id = req.params.id as string;
-    const { firstName, lastName, email, newPassword } = req.body;
+    const { firstName, lastName, email, newPassword, role } = req.body;
 
-    if (!firstName && !lastName && !email && !newPassword) {
+    if (!firstName && !lastName && !email && !newPassword && !role) {
       res.status(400).json({ error: "Nothing to update" });
       return;
     }
@@ -185,6 +187,13 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
         return;
       }
       data.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    }
+    if (role) {
+      if (!VALID_ROLES.includes(role)) {
+        res.status(400).json({ error: `Invalid role. Must be one of: ${VALID_ROLES.join(", ")}` });
+        return;
+      }
+      data.role = role;
     }
 
     const updated = await prisma.user.update({
