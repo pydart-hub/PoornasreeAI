@@ -48,6 +48,33 @@ export default function PincodesTab() {
   // Legacy assign
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [fetchingRegion, setFetchingRegion] = useState(false);
+
+  // Auto-fetch region name from India Pincode API when 6 digits entered
+  useEffect(() => {
+    const code = form.code.trim();
+    if (!/^\d{6}$/.test(code)) return;
+    let cancelled = false;
+    setFetchingRegion(true);
+    fetch(`https://api.postalpincode.in/pincode/${code}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        if (
+          Array.isArray(data) &&
+          data[0]?.Status === "Success" &&
+          Array.isArray(data[0]?.PostOffice) &&
+          data[0].PostOffice.length > 0
+        ) {
+          const po = data[0].PostOffice[0];
+          const region = [po.Name, po.District, po.State].filter(Boolean).join(", ");
+          setForm(f => ({ ...f, regionName: region }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setFetchingRegion(false); });
+    return () => { cancelled = true; };
+  }, [form.code]);
 
   const fetchPincodes = useCallback(async () => {
     setLoading(true);
@@ -159,18 +186,25 @@ export default function PincodesTab() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input
             type="text"
+            inputMode="numeric"
+            maxLength={6}
             placeholder="Pincode (e.g. 600001)"
             value={form.code}
-            onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
             className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
           />
-          <input
-            type="text"
-            placeholder="Region Name (e.g. Chennai Central)"
-            value={form.regionName}
-            onChange={e => setForm(f => ({ ...f, regionName: e.target.value }))}
-            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder={fetchingRegion ? "Fetching region..." : "Region Name (e.g. Chennai Central)"}
+              value={form.regionName}
+              onChange={e => setForm(f => ({ ...f, regionName: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+            />
+            {fetchingRegion && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+            )}
+          </div>
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <button
