@@ -9,7 +9,7 @@ import { processDocument } from "../services/document.service";
 import { deleteVectorsByDocumentId } from "../services/vector.service";
 
 const SALT_ROUNDS = 12;
-const VALID_ROLES = ["admin", "service", "sales", "customer_service"];
+const VALID_ROLES = ["admin", "service", "service_manager", "service_engineer", "sales", "dealer", "customer_service"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
 export async function createUser(req: Request, res: Response): Promise<void> {

@@ -32,21 +32,27 @@ import {
 
 // ── Constants ────────────────────────────────────────────────────────────
 const ROLES = [
-  { value: "service",   label: "Service Engineer" },
-  { value: "sales",     label: "Sales" },
+  { value: "service",          label: "Service Engineer" },
+  { value: "service_manager",  label: "Service Manager" },
+  { value: "service_engineer", label: "Field Engineer" },
+  { value: "sales",            label: "Sales" },
+  { value: "dealer",           label: "Dealer" },
   { value: "customer_service", label: "Customer Service" },
-  { value: "admin",     label: "Administrator" },
+  { value: "admin",            label: "Administrator" },
 ] as const;
 
 const ROLE_BADGE: Record<
   string,
   { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }
 > = {
-  service:  { label: "Service Engineer",   variant: "info" },
-  admin:    { label: "Administrator",      variant: "default" },
-  sales:    { label: "Sales",              variant: "success" },
-  customer: { label: "Customer",           variant: "accent" },
-  customer_service: { label: "Customer Service", variant: "warning" },
+  service:          { label: "Service Engineer",  variant: "info" },
+  service_manager:  { label: "Service Manager",   variant: "info" },
+  service_engineer: { label: "Field Engineer",     variant: "info" },
+  admin:            { label: "Administrator",      variant: "default" },
+  sales:            { label: "Sales",              variant: "success" },
+  dealer:           { label: "Dealer",             variant: "success" },
+  customer:         { label: "Customer",           variant: "accent" },
+  customer_service: { label: "Customer Service",   variant: "warning" },
 };
 
 function getRoleBadge(role: string) {
