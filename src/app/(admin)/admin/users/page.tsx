@@ -479,19 +479,19 @@ export default function UsersManagementPage() {
                       <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
                     </div>
                     {/* Pincode badges for managers/engineers */}
-                    {(u as any).managedPincodes?.length > 0 && (
+                    {u.managedPincodes && u.managedPincodes.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap">
                         <MapPin className="w-3 h-3 text-blue-500 shrink-0" />
                         <span className="text-[10px] text-blue-600 dark:text-blue-400">
-                          Manages: {(u as any).managedPincodes.map((p: any) => p.code).join(", ")}
+                          Manages: {u.managedPincodes.map(p => p.code).join(", ")}
                         </span>
                       </div>
                     )}
-                    {(u as any).engineerPincodes?.length > 0 && (
+                    {u.engineerPincodes && u.engineerPincodes.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap">
                         <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                          Serves: {(u as any).engineerPincodes.map((p: any) => p.code).join(", ")}
+                          Serves: {u.engineerPincodes.map(p => p.code).join(", ")}
                         </span>
                       </div>
                     )}

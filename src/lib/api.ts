@@ -10,6 +10,8 @@ export interface ApiUser {
   role: string;
   createdAt: string;
   _count: { conversations: number };
+  managedPincodes?: { code: string; regionName: string | null }[];
+  engineerPincodes?: { code: string; regionName: string | null }[];
 }
 
 export interface CreateUserPayload {
