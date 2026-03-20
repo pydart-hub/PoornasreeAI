@@ -33,10 +33,26 @@ export async function createTicket(data: {
   pincodeId?:         string;
   dealerId?:          string;
   phoneNumber?:       string;
+  place?:             string;
+  district?:          string;
+  state?:             string;
 }) {
   const ticketNumber = await generateTicketNumber();
 
-  // Tickets always start as OPEN — service manager assigns engineer from their dashboard.
+  // Auto-assign manager from pincode mapping (if a manager is configured for this pincode)
+  let assignedManagerId: string | null = null;
+  let status = "OPEN";
+  if (data.pincodeId) {
+    const pincodeWithManager = await prisma.pincode.findUnique({
+      where: { id: data.pincodeId },
+      select: { managerId: true },
+    });
+    if (pincodeWithManager?.managerId) {
+      assignedManagerId = pincodeWithManager.managerId;
+      status = "ASSIGNED";
+    }
+  }
+
   return prisma.ticket.create({
     data: {
       ticketNumber,
@@ -46,7 +62,11 @@ export async function createTicket(data: {
       pincodeId:          data.pincodeId  || null,
       dealerId:           data.dealerId   || null,
       phoneNumber:        data.phoneNumber || null,
-      status:             "OPEN",
+      place:              data.place?.trim() || null,
+      district:           data.district?.trim() || null,
+      state:              data.state?.trim() || null,
+      assignedManagerId,
+      status,
     },
     include: TICKET_INCLUDE,
   });
@@ -57,6 +77,7 @@ export async function listTickets(filters: {
   status?:          string;
   pincodeId?:       string;
   pincodeIdOrNull?: string; // match this pincode OR tickets with no pincode (unrouted customer submissions)
+  managedPincodeIds?: string[]; // all pincodes managed by a service_manager
   customerId?:      string;
   dealerId?:        string;
   engineerId?:      string;
@@ -64,8 +85,14 @@ export async function listTickets(filters: {
 }) {
   const where: Record<string, unknown> = {};
   if (filters.status)          where.status             = filters.status;
-  if (filters.pincodeIdOrNull) {
-    // Show pincode-matched tickets AND unrouted tickets so managers can claim them
+
+  // Multi-pincode manager filter: show tickets from all managed pincodes + unrouted
+  if (filters.managedPincodeIds && filters.managedPincodeIds.length > 0) {
+    where.OR = [
+      { pincodeId: { in: filters.managedPincodeIds } },
+      { pincodeId: null },
+    ];
+  } else if (filters.pincodeIdOrNull) {
     where.OR = [
       { pincodeId: filters.pincodeIdOrNull },
       { pincodeId: null },
@@ -73,6 +100,7 @@ export async function listTickets(filters: {
   } else if (filters.pincodeId) {
     where.pincodeId = filters.pincodeId;
   }
+
   if (filters.customerId) where.customerId         = filters.customerId;
   if (filters.dealerId)   where.dealerId           = filters.dealerId;
   if (filters.engineerId) where.assignedEngineerId = filters.engineerId;

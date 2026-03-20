@@ -18,9 +18,13 @@ model User {
   role             String             @default("customer")
   createdAt        DateTime           @default(now())
 
-  // Pincode assignment (for engineers and dealers)
+  // Pincode assignment (for engineers and dealers — legacy single-pincode FK)
   pincodeId        String?
-  pincode          Pincode?           @relation(fields: [pincodeId], references: [id])
+  pincode          Pincode?           @relation("UserPincode", fields: [pincodeId], references: [id])
+
+  // Pincode-based routing relations (new)
+  managedPincodes  Pincode[]          @relation("ManagerPincodes")
+  engineerPincodes Pincode[]          @relation("EngineerPincodes")
 
   // Legacy relations (kept — not removed yet)
   conversations    Conversation[]
@@ -154,8 +158,16 @@ model Pincode {
   regionName String
   createdAt  DateTime @default(now())
 
-  users      User[]
+  // Legacy: users assigned to this pincode via User.pincodeId FK
+  users      User[]   @relation("UserPincode")
   tickets    Ticket[]
+
+  // New: assigned service manager for this zone
+  managerId  String?
+  manager    User?    @relation("ManagerPincodes", fields: [managerId], references: [id])
+
+  // New: engineers assigned to this zone (many-to-many)
+  engineers  User[]   @relation("EngineerPincodes")
 }
 
 // ── Ticket (core entity — replaces SupportRequest) ────────────────────────
@@ -172,6 +184,11 @@ model Ticket {
 
   // Routing
   pincodeId          String?
+
+  // Location (auto-detected from India Pincode API)
+  place              String?
+  district           String?
+  state              String?
 
   // Problem
   problemDescription String    @db.Text

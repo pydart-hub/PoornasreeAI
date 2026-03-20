@@ -85,6 +85,8 @@ type SessionMeta = {
   escName?:                 string;
   escPlace?:                string;
   escPincode?:              string;
+  escDistrict?:             string;
+  escState?:                string;
 };
 
 // â”€â”€ Entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -159,6 +161,9 @@ async function routeState(
 
     case "ESCALATION_PINCODE":
       return handleEscalationPincode(session.id, meta, text);
+
+    case "ESCALATION_LOCATION_CONFIRM":
+      return handleEscalationLocationConfirm(session.id, meta, text);
 
     case "ESCALATION_SERIAL":
       return handleEscalationSerial(session.id, phoneNumber, meta, text);
@@ -340,8 +345,66 @@ async function handleEscalationPincode(sessionId: string, meta: SessionMeta, tex
   if (!/^\d{6}$/.test(text)) {
     return makeReply("Please enter a valid 6-digit pincode (numbers only):");
   }
+
+  // Call India Pincode API to auto-detect location
+  try {
+    const response = await fetch(`https://api.postalpincode.in/pincode/${text}`);
+    const data = await response.json();
+    if (
+      Array.isArray(data) &&
+      data[0]?.Status === "Success" &&
+      Array.isArray(data[0]?.PostOffice) &&
+      data[0].PostOffice.length > 0
+    ) {
+      const po = data[0].PostOffice[0];
+      const place = po.Name || meta.escPlace || "Unknown";
+      const district = po.District || "";
+      const stateName = po.State || "";
+
+      const newMeta: SessionMeta = {
+        ...meta,
+        escPincode: text,
+        escPlace: place,
+        escDistrict: district,
+        escState: stateName,
+      };
+      await updateSession(sessionId, "ESCALATION_LOCATION_CONFIRM", newMeta);
+      return makeReply(
+        `📍 Location detected:\n\n` +
+        `Place: ${place}\n` +
+        `District: ${district}\n` +
+        `State: ${stateName}\n` +
+        `Pincode: ${text}\n\n` +
+        `Is this correct?\n1 - Yes ✅\n2 - No, re-enter pincode ❌`
+      );
+    }
+  } catch {
+    // API failed — fall through to manual flow
+  }
+
+  // Fallback: pincode API failed or returned no results
   await updateSession(sessionId, "ESCALATION_SERIAL", { ...meta, escPincode: text });
   return makeReply("Please enter the last 5 digits of your machine serial number:");
+}
+
+// ── ESCALATION: Location Confirm ──────────────────────────────────────────
+async function handleEscalationLocationConfirm(sessionId: string, meta: SessionMeta, text: string) {
+  if (text === "1") {
+    // Confirmed — proceed to serial
+    await updateSession(sessionId, "ESCALATION_SERIAL", meta);
+    return makeReply("Please enter the last 5 digits of your machine serial number:");
+  }
+  if (text === "2") {
+    // Re-enter pincode
+    await updateSession(sessionId, "ESCALATION_PINCODE", {
+      ...meta,
+      escPincode: undefined,
+      escDistrict: undefined,
+      escState: undefined,
+    });
+    return makeReply("Please enter your pincode (6 digits):");
+  }
+  return makeReply("Please reply:\n1 - Yes ✅\n2 - No, re-enter pincode ❌");
 }
 
 // â”€â”€ ESCALATION: Serial â†’ create ticket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -375,6 +438,8 @@ async function handleEscalationSerial(
     `Issue: ${meta.issueDescription ?? "Not specified"}`,
     `Customer Name: ${meta.escName}`,
     `Place: ${meta.escPlace}`,
+    `District: ${meta.escDistrict || "N/A"}`,
+    `State: ${meta.escState || "N/A"}`,
     `Pincode: ${meta.escPincode}`,
     `Serial (last 5): ${cleaned}`,
     `Phone: ${phoneNumber}`,
@@ -386,6 +451,9 @@ async function handleEscalationSerial(
     machineName:        meta.productName,
     pincodeId:          pincodeRecord.id,
     phoneNumber,
+    place:              meta.escPlace,
+    district:           meta.escDistrict,
+    state:              meta.escState,
   });
 
   // Notify service manager dashboard via socket

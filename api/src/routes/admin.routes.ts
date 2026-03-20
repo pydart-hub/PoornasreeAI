@@ -21,7 +21,7 @@ import { exportChats, exportSupport, exportTickets } from "../controllers/export
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
 import { updateBranding, uploadLogo } from "../controllers/branding.controller";
-import { listPincodes, createPincode, deletePincode, assignUserToPincode } from "../controllers/pincode.controller";
+import { listPincodes, createPincode, deletePincode, assignUserToPincode, updatePincode } from "../controllers/pincode.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
 
@@ -142,6 +142,7 @@ router.post("/branding/logo", upload.single("file"), uploadLogo);
 // Pincode management (admin CRUD)
 router.get("/pincodes", listPincodes);
 router.post("/pincodes", createPincode);
+router.patch("/pincodes/:id", updatePincode);
 router.delete("/pincodes/:id", deletePincode);
 router.patch("/pincodes/:id/assign", assignUserToPincode);
 

@@ -27,12 +27,14 @@ import { getSocket } from "@/lib/socket-client";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
+type TabKey = "unassigned" | "assigned" | "in_progress" | "closed";
 
 interface Engineer {
   id: string;
   firstName: string;
   lastName?: string | null;
   email: string;
+  activeTickets?: number;
 }
 
 interface ServiceTicket {
@@ -48,19 +50,32 @@ interface ServiceTicket {
   createdAt: string;
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
+  assignedManager?: { firstName: string; lastName?: string | null } | null;
   dealer?: { firstName: string; lastName?: string | null } | null;
+  pincode?: { code: string; regionName: string } | null;
 }
 
-// ── Status config ──────────────────────────────────────────────────────
-const STATUS_CONFIG: Record<TicketStatus, { label: string; variant: "info" | "warning" | "default" | "success" | "error"; icon: React.ReactNode }> = {
-  OPEN:        { label: "Open",        variant: "error",   icon: <AlertCircle className="w-3.5 h-3.5" /> },
-  ASSIGNED:    { label: "Assigned",    variant: "info",    icon: <UserCheck className="w-3.5 h-3.5" /> },
-  IN_PROGRESS: { label: "In Progress", variant: "warning", icon: <Activity className="w-3.5 h-3.5" /> },
-  PENDING_OTP: { label: "Pending OTP", variant: "default", icon: <Clock className="w-3.5 h-3.5" /> },
-  CLOSED:      { label: "Closed",      variant: "success", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-};
+// ── Tab config ─────────────────────────────────────────────────────────
+const TABS: { key: TabKey; label: string; statuses: TicketStatus[]; icon: React.ReactNode }[] = [
+  { key: "unassigned", label: "Unassigned", statuses: ["OPEN"], icon: <AlertCircle className="w-3.5 h-3.5" /> },
+  { key: "assigned", label: "Assigned", statuses: ["ASSIGNED"], icon: <UserCheck className="w-3.5 h-3.5" /> },
+  { key: "in_progress", label: "In Progress", statuses: ["IN_PROGRESS", "PENDING_OTP"], icon: <Activity className="w-3.5 h-3.5" /> },
+  { key: "closed", label: "Closed", statuses: ["CLOSED"], icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+];
 
-const ALL_STATUSES: TicketStatus[] = ["OPEN", "ASSIGNED", "IN_PROGRESS", "PENDING_OTP", "CLOSED"];
+function getAgeBadge(ageHours: number): { color: string; label: string } {
+  if (ageHours <= 12) return { color: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400", label: `${ageHours}h` };
+  if (ageHours <= 24) return { color: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400", label: `${ageHours}h` };
+  return { color: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400", label: `${ageHours}h` };
+}
+
+const STATUS_BADGE: Record<TicketStatus, { label: string; variant: "info" | "warning" | "default" | "success" | "error" }> = {
+  OPEN:        { label: "Open",        variant: "error" },
+  ASSIGNED:    { label: "Assigned",    variant: "info" },
+  IN_PROGRESS: { label: "In Progress", variant: "warning" },
+  PENDING_OTP: { label: "Pending OTP", variant: "default" },
+  CLOSED:      { label: "Closed",      variant: "success" },
+};
 
 export default function ServiceManagerPage() {
   const router = useRouter();
@@ -70,7 +85,7 @@ export default function ServiceManagerPage() {
   const [engineers, setEngineers] = useState<Engineer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>("unassigned");
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -165,12 +180,13 @@ export default function ServiceManagerPage() {
   if (!user) return null;
 
   // ── Summary counts ──
-  const counts = ALL_STATUSES.reduce<Record<string, number>>((acc, s) => {
-    acc[s] = tickets.filter((t) => t.status === s).length;
-    return acc;
-  }, {});
+  const total = tickets.length;
+  const unassigned = tickets.filter(t => t.status === "OPEN").length;
+  const assigned = tickets.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status)).length;
+  const closed = tickets.filter(t => t.status === "CLOSED").length;
 
-  const displayed = statusFilter ? tickets.filter((t) => t.status === statusFilter) : tickets;
+  const currentTab = TABS.find(t => t.key === activeTab)!;
+  const displayed = tickets.filter(t => currentTab.statuses.includes(t.status));
 
   return (
     <div className="flex flex-col h-screen bg-surface dark:bg-surface-dark overflow-hidden">
@@ -215,30 +231,22 @@ export default function ServiceManagerPage() {
           </div>
         )}
 
-        {/* ── Summary Cards ─────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {ALL_STATUSES.map((s) => {
-            const cfg = STATUS_CONFIG[s];
-            const isSelected = statusFilter === s;
-            return (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(isSelected ? null : s)}
-                className={cn(
-                  "p-4 rounded-2xl border text-left transition-all",
-                  isSelected
-                    ? "bg-primary/10 dark:bg-primary-400/10 border-primary/30 dark:border-primary-400/30"
-                    : "bg-surface-card dark:bg-surface-dark-card border-line dark:border-line-dark hover:border-primary/30 dark:hover:border-primary-400/30"
-                )}
-              >
-                <div className="flex items-center gap-1.5 mb-2 text-content-secondary dark:text-content-dark-secondary">
-                  {cfg.icon}
-                  <span className="text-xs font-medium">{cfg.label}</span>
-                </div>
-                <p className="text-2xl font-bold text-content dark:text-content-dark">{counts[s] ?? 0}</p>
-              </button>
-            );
-          })}
+        {/* ── Summary Bar ─────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Total", value: total, color: "text-content dark:text-content-dark" },
+            { label: "Unassigned", value: unassigned, color: "text-red-500" },
+            { label: "Active", value: assigned, color: "text-blue-500" },
+            { label: "Closed", value: closed, color: "text-green-500" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card"
+            >
+              <p className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1">{item.label}</p>
+              <p className={cn("text-2xl font-bold", item.color)}>{item.value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Team overview */}
@@ -249,40 +257,56 @@ export default function ServiceManagerPage() {
               {engineers.length} engineer{engineers.length !== 1 ? "s" : ""} in your zone
             </p>
             <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-              {engineers.map((e) => `${e.firstName} ${e.lastName || ""}`.trim()).join(", ") || "No engineers assigned yet"}
+              {engineers.map((e) => {
+                const name = `${e.firstName} ${e.lastName || ""}`.trim();
+                return e.activeTickets !== undefined ? `${name} (${e.activeTickets})` : name;
+              }).join(", ") || "No engineers assigned yet"}
             </p>
           </div>
         </div>
 
+        {/* ── Tabs ────────────────────────────────────────────── */}
+        <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary">
+          {TABS.map((tab) => {
+            const count = tickets.filter(t => tab.statuses.includes(t.status)).length;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                  isActive
+                    ? "bg-surface-card dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
+                    : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+                <span className={cn(
+                  "ml-1 text-xs px-1.5 py-0.5 rounded-full",
+                  isActive ? "bg-primary/10 text-primary" : "bg-surface-card/50 dark:bg-surface-dark-card/50"
+                )}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Ticket List ────────────────────────────────────────── */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-content dark:text-content-dark">
-              {statusFilter ? `${STATUS_CONFIG[statusFilter].label} Tickets` : "All Tickets"}
-              <span className="ml-2 text-xs text-content-secondary dark:text-content-dark-secondary font-normal">
-                ({displayed.length})
-              </span>
-            </h2>
-            {statusFilter && (
-              <button
-                onClick={() => setStatusFilter(null)}
-                className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
-              >
-                <X className="w-3 h-3" /> Clear filter
-              </button>
-            )}
-          </div>
-
           {displayed.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-content-secondary dark:text-content-dark-secondary">
               <Ticket className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">No tickets found</p>
+              <p className="text-sm">No {currentTab.label.toLowerCase()} tickets</p>
             </div>
           ) : (
             <div className="space-y-3">
               {displayed.map((ticket) => {
-                const cfg = STATUS_CONFIG[ticket.status];
+                const cfg = STATUS_BADGE[ticket.status];
                 const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
+                const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
                 return (
                   <div
                     key={ticket.id}
@@ -297,14 +321,14 @@ export default function ServiceManagerPage() {
                             </span>
                           )}
                           <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                          {typeof ticket.ageHours === "number" && (
-                            <span className={cn(
-                              "text-xs px-1.5 py-0.5 rounded-full",
-                              ticket.ageHours > 24
-                                ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                                : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
-                            )}>
-                              {ticket.ageHours}h old
+                          {ageBadge && (
+                            <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", ageBadge.color)}>
+                              {ageBadge.label}
+                            </span>
+                          )}
+                          {ticket.pincode && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                              📍 {ticket.pincode.code} — {ticket.pincode.regionName}
                             </span>
                           )}
                         </div>
@@ -363,7 +387,7 @@ export default function ServiceManagerPage() {
                           </button>
 
                           {dropdownOpen === ticket.id && (
-                            <div className="absolute right-0 top-full mt-1 w-48 z-20 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden">
+                            <div className="absolute right-0 top-full mt-1 w-56 z-20 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden">
                               {engineers.length === 0 ? (
                                 <p className="px-3 py-2 text-xs text-content-secondary dark:text-content-dark-secondary">
                                   No engineers in your zone
@@ -373,9 +397,21 @@ export default function ServiceManagerPage() {
                                   <button
                                     key={eng.id}
                                     onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                    className="w-full text-left px-3 py-2 text-sm text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                                    className="w-full text-left px-3 py-2 text-sm text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between"
                                   >
-                                    {eng.firstName} {eng.lastName}
+                                    <span>{eng.firstName} {eng.lastName}</span>
+                                    {eng.activeTickets !== undefined && (
+                                      <span className={cn(
+                                        "text-xs px-1.5 py-0.5 rounded-full",
+                                        eng.activeTickets === 0
+                                          ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                                          : eng.activeTickets <= 3
+                                            ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+                                            : "bg-red-100 dark:bg-red-900/30 text-red-600"
+                                      )}>
+                                        {eng.activeTickets} active
+                                      </span>
+                                    )}
                                   </button>
                                 ))
                               )}
