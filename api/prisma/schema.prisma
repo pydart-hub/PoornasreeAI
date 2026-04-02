@@ -170,6 +170,15 @@ model Pincode {
   engineers  User[]   @relation("EngineerPincodes")
 }
 
+// ── Ticket Status Enum ────────────────────────────────────────────────────
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  PENDING_OTP
+  CLOSED
+}
+
 // ── Ticket (core entity — replaces SupportRequest) ────────────────────────
 // Status flow: OPEN → ASSIGNED → IN_PROGRESS → PENDING_OTP → CLOSED
 model Ticket {
@@ -197,7 +206,7 @@ model Ticket {
   phoneNumber        String?   // link back to simulate chat (for OTP delivery)
 
   // Lifecycle
-  status             String    @default("OPEN")  // OPEN | ASSIGNED | IN_PROGRESS | PENDING_OTP | CLOSED
+  status             TicketStatus @default(OPEN)
 
   // OTP closure
   otpCodeHash        String?

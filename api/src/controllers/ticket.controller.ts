@@ -3,6 +3,7 @@
 // Handles validation, role guards, and response shaping only.
 
 import { Request, Response } from "express";
+import { TicketStatus } from "@prisma/client";
 import { io } from "../lib/socket";
 import prisma from "../lib/prisma";
 import * as TicketService from "../services/ticket.service";
@@ -57,7 +58,13 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     const statusQ  = req.query.status as string | undefined;
 
     const filters: Parameters<typeof TicketService.listTickets>[0] = {};
-    if (statusQ) filters.status = statusQ;
+    if (statusQ) {
+      if (!Object.values(TicketStatus).includes(statusQ as TicketStatus)) {
+        res.status(400).json({ error: `Invalid status. Must be one of: ${Object.values(TicketStatus).join(", ")}` });
+        return;
+      }
+      filters.status = statusQ as TicketStatus;
+    }
 
     // Role-scoped filtering
     if (role === "customer")                                     filters.customerId = userId;
@@ -310,7 +317,7 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
         _count: {
           select: {
             engineerTickets: {
-              where: { status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
+              where: { status: { in: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS, TicketStatus.PENDING_OTP] } },
             },
           },
         },

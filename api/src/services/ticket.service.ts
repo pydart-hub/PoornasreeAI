@@ -4,6 +4,7 @@
 
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ export async function createTicket(data: {
 
   // Auto-assign manager from pincode mapping (if a manager is configured for this pincode)
   let assignedManagerId: string | null = null;
-  let status = "OPEN";
+  let status: TicketStatus = TicketStatus.OPEN;
   if (data.pincodeId) {
     const pincodeWithManager = await prisma.pincode.findUnique({
       where: { id: data.pincodeId },
@@ -50,7 +51,7 @@ export async function createTicket(data: {
     });
     if (pincodeWithManager?.managerId) {
       assignedManagerId = pincodeWithManager.managerId;
-      status = "ASSIGNED";
+      status = TicketStatus.ASSIGNED;
     }
   }
 
@@ -76,7 +77,7 @@ export async function createTicket(data: {
 
 // ── listTickets ───────────────────────────────────────────────────────────
 export async function listTickets(filters: {
-  status?:          string;
+  status?:          TicketStatus;
   pincodeId?:       string;
   pincodeIdOrNull?: string; // match this pincode OR tickets with no pincode (unrouted customer submissions)
   managedPincodeIds?: string[]; // all pincodes managed by a service_manager
@@ -86,7 +87,7 @@ export async function listTickets(filters: {
   managerId?:       string;
 }) {
   const where: Record<string, unknown> = {};
-  if (filters.status)          where.status             = filters.status;
+  if (filters.status !== undefined) where.status           = filters.status;
 
   // Multi-pincode manager filter: show tickets from all managed pincodes + unrouted
   if (filters.managedPincodeIds && filters.managedPincodeIds.length > 0) {
@@ -125,11 +126,11 @@ export async function getTicket(id: string) {
 export async function assignManager(ticketId: string, managerId: string) {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket)                  throw Object.assign(new Error("Ticket not found"), { status: 404 });
-  if (ticket.status !== "OPEN") throw Object.assign(new Error("Only OPEN tickets can have a manager assigned"), { status: 400 });
+  if (ticket.status !== TicketStatus.OPEN) throw Object.assign(new Error("Only OPEN tickets can have a manager assigned"), { status: 400 });
 
   return prisma.ticket.update({
     where: { id: ticketId },
-    data:  { assignedManagerId: managerId, status: "ASSIGNED" },
+    data:  { assignedManagerId: managerId, status: TicketStatus.ASSIGNED },
     include: TICKET_INCLUDE,
   });
 }
@@ -139,13 +140,13 @@ export async function assignManager(ticketId: string, managerId: string) {
 export async function assignEngineer(ticketId: string, engineerId: string) {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
-  if (!["OPEN", "ASSIGNED"].includes(ticket.status)) {
+  if (ticket.status !== TicketStatus.OPEN && ticket.status !== TicketStatus.ASSIGNED) {
     throw Object.assign(new Error("Engineer can only be assigned to OPEN or ASSIGNED tickets"), { status: 400 });
   }
 
   return prisma.ticket.update({
     where: { id: ticketId },
-    data:  { assignedEngineerId: engineerId, status: "ASSIGNED" },
+    data:  { assignedEngineerId: engineerId, status: TicketStatus.ASSIGNED },
     include: TICKET_INCLUDE,
   });
 }
@@ -158,13 +159,13 @@ export async function startWork(ticketId: string, engineerId: string, isAdmin = 
   if (!isAdmin && ticket.assignedEngineerId !== engineerId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  if (ticket.status !== "ASSIGNED") {
+  if (ticket.status !== TicketStatus.ASSIGNED) {
     throw Object.assign(new Error("Ticket must be in ASSIGNED status to start work"), { status: 400 });
   }
 
   return prisma.ticket.update({
     where: { id: ticketId },
-    data:  { status: "IN_PROGRESS", firstEngineeredAt: new Date() },
+    data:  { status: TicketStatus.IN_PROGRESS, firstEngineeredAt: new Date() },
     include: TICKET_INCLUDE,
   });
 }
@@ -180,7 +181,7 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
   if (!isAdmin && ticket.assignedEngineerId !== engineerId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  if (ticket.status !== "IN_PROGRESS") {
+  if (ticket.status !== TicketStatus.IN_PROGRESS) {
     throw Object.assign(new Error("Ticket must be IN_PROGRESS before requesting OTP"), { status: 400 });
   }
 
@@ -195,7 +196,7 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
       otpExpiresAt: expiresAt,
       otpVerified:  false,
       otpAttempts:  0,          // reset counter whenever a fresh OTP is issued
-      status:       "PENDING_OTP",
+      status:       TicketStatus.PENDING_OTP,
     },
   });
 
@@ -221,7 +222,7 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
   if (!isAdmin && ticket.assignedEngineerId !== userId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  if (ticket.status !== "PENDING_OTP")      throw Object.assign(new Error("No OTP pending for this ticket"), { status: 400 });
+  if (ticket.status !== TicketStatus.PENDING_OTP)      throw Object.assign(new Error("No OTP pending for this ticket"), { status: 400 });
   if (!ticket.otpCodeHash || !ticket.otpExpiresAt) {
     throw Object.assign(new Error("OTP was not generated"), { status: 400 });
   }
@@ -247,7 +248,7 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
     where: { id: ticketId },
     data:  {
       otpVerified: true,
-      status:      "CLOSED",
+      status:      TicketStatus.CLOSED,
       closedAt:    new Date(),
     },
     include: TICKET_INCLUDE,
