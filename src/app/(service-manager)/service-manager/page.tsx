@@ -43,6 +43,8 @@ interface ServiceTicket {
   problemDescription: string;
   machineName?: string | null;
   machineSerialNumber?: string | null;
+  machineProductCode?: string | null;
+  machineCustomer?: string | null;
   ageHours?: number;
   responseTimeHours?: number | null;
   durationHours?: number | null;
@@ -336,7 +338,9 @@ export default function ServiceManagerPage() {
                         </p>
                         <div className="flex flex-wrap gap-3 text-xs text-content-secondary dark:text-content-dark-secondary">
                           {ticket.machineName && <span>Machine: {ticket.machineName}</span>}
+                          {ticket.machineProductCode && <span>Product: {ticket.machineProductCode}</span>}
                           {ticket.machineSerialNumber && <span>S/N: {ticket.machineSerialNumber}</span>}
+                          {ticket.machineCustomer && <span>Mfr. Customer: {ticket.machineCustomer}</span>}
                           {ticket.customer && (
                             <span>Customer: {ticket.customer.firstName} {ticket.customer.lastName}</span>
                           )}

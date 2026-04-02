@@ -203,6 +203,8 @@ model Ticket {
   problemDescription String    @db.Text
   machineName        String?
   machineSerialNumber String?  // denormalized for display
+  machineProductCode String?   // product_code from Passtest API
+  machineCustomer    String?   // customer name from Passtest API
   phoneNumber        String?   // link back to simulate chat (for OTP delivery)
 
   // Lifecycle

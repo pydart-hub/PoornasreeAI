@@ -6,6 +6,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
+import { fetchMachineBySerial } from "./machine.service";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -17,13 +18,37 @@ const TICKET_INCLUDE = {
   pincode:         { select: { id: true, code: true, regionName: true } },
 } as const;
 
-/** Generates TKT-YYYYMMDD-NNN, unique per day. */
-async function generateTicketNumber(): Promise<string> {
+// ── State machine ────────────────────────────────────────────────────────
+// Single source of truth for all permitted status transitions.
+// Any update that would violate this table is rejected before touching the DB.
+const ALLOWED_TRANSITIONS: Readonly<Partial<Record<TicketStatus, TicketStatus>>> = {
+  [TicketStatus.OPEN]:        TicketStatus.ASSIGNED,
+  [TicketStatus.ASSIGNED]:    TicketStatus.IN_PROGRESS,
+  [TicketStatus.IN_PROGRESS]: TicketStatus.PENDING_OTP,
+  [TicketStatus.PENDING_OTP]: TicketStatus.CLOSED,
+};
+
+function assertTransition(current: TicketStatus, next: TicketStatus): void {
+  if (current === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot update a closed ticket"), { status: 400 });
+  }
+  if (ALLOWED_TRANSITIONS[current] !== next) {
+    throw Object.assign(
+      new Error(`Invalid status transition: ${current} \u2192 ${next}`),
+      { status: 400 },
+    );
+  }
+}
+
+/** Generates TKT-YYYYMMDD-XXXXXXXX using a cryptographically random 4-byte
+ *  suffix. No DB read required — collision probability is ~1 in 4 billion per
+ *  day, safe at any realistic ticket volume. The @unique constraint on
+ *  ticketNumber in the schema remains the final safety net. */
+function generateTicketNumber(): string {
   const now     = new Date();
   const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-  const prefix  = `TKT-${dateStr}-`;
-  const count   = await prisma.ticket.count({ where: { ticketNumber: { startsWith: prefix } } });
-  return `${prefix}${String(count + 1).padStart(3, "0")}`;
+  const suffix  = crypto.randomBytes(4).toString("hex").toUpperCase();
+  return `TKT-${dateStr}-${suffix}`;
 }
 
 // ── createTicket ─────────────────────────────────────────────────────────
@@ -39,7 +64,26 @@ export async function createTicket(data: {
   district?:          string;
   state?:             string;
 }) {
-  const ticketNumber = await generateTicketNumber();
+  const ticketNumber = generateTicketNumber();
+
+  // Enrich from Passtest machine API if a serial number was provided.
+  // Non-blocking: 404 → null (skip silently); 502/503 → log and skip.
+  let machineName     = data.machineName?.trim()         || null;
+  let machineProductCode: string | null = null;
+  let machineCustomer:    string | null = null;
+  if (data.machineSerialNumber?.trim()) {
+    try {
+      const machineData = await fetchMachineBySerial(data.machineSerialNumber.trim());
+      if (machineData) {
+        machineName        = machineData.m_model       || machineName;
+        machineProductCode = machineData.product_code  || null;
+        machineCustomer    = machineData.customer       || null;
+      }
+    } catch (err: unknown) {
+      const e = err as { status?: number; message?: string };
+      console.error(`[createTicket] Passtest API error for serial ${data.machineSerialNumber}: ${e.message}`);
+    }
+  }
 
   // Auto-assign manager from pincode mapping (if a manager is configured for this pincode)
   let assignedManagerId: string | null = null;
@@ -60,8 +104,10 @@ export async function createTicket(data: {
       ticketNumber,
       customerId:         data.customerId,
       problemDescription: data.problemDescription.trim(),
-      machineName:        data.machineName?.trim() || null,
+      machineName,
       machineSerialNumber: data.machineSerialNumber?.trim() || null,
+      machineProductCode,
+      machineCustomer,
       pincodeId:          data.pincodeId  || null,
       dealerId:           data.dealerId   || null,
       phoneNumber:        data.phoneNumber || null,
@@ -123,32 +169,66 @@ export async function getTicket(id: string) {
 
 // ── assignManager ─────────────────────────────────────────────────────────
 // Admin or service_manager assigns a manager to an OPEN ticket.
+// Uses an atomic conditional updateMany to prevent race conditions — the
+// update only applies when status=OPEN and no manager is set.
 export async function assignManager(ticketId: string, managerId: string) {
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket)                  throw Object.assign(new Error("Ticket not found"), { status: 404 });
-  if (ticket.status !== TicketStatus.OPEN) throw Object.assign(new Error("Only OPEN tickets can have a manager assigned"), { status: 400 });
-
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data:  { assignedManagerId: managerId, status: TicketStatus.ASSIGNED },
-    include: TICKET_INCLUDE,
+  const result = await prisma.ticket.updateMany({
+    where: {
+      id:               ticketId,
+      status:           TicketStatus.OPEN,
+      assignedManagerId: null,
+    },
+    data: { assignedManagerId: managerId, status: TicketStatus.ASSIGNED },
   });
+
+  if (result.count === 1) {
+    return prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, include: TICKET_INCLUDE });
+  }
+
+  // Update did not apply — fetch once to determine and surface the reason
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.assignedManagerId) {
+    throw Object.assign(new Error("Manager already assigned. Use reassignment flow."), { status: 409 });
+  }
+  assertTransition(ticket.status, TicketStatus.ASSIGNED);
+  throw Object.assign(new Error("Only OPEN tickets can have a manager assigned"), { status: 400 });
 }
 
 // ── assignEngineer ────────────────────────────────────────────────────────
-// Admin or service_manager assigns an engineer to an OPEN or ASSIGNED ticket.
+// Admin or service_manager assigns an engineer to an ASSIGNED ticket.
+// Requires: status = ASSIGNED and assignedManagerId is already set.
+// Uses an atomic conditional updateMany to prevent race conditions — the
+// update only applies when all three preconditions hold simultaneously.
 export async function assignEngineer(ticketId: string, engineerId: string) {
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
-  if (ticket.status !== TicketStatus.OPEN && ticket.status !== TicketStatus.ASSIGNED) {
-    throw Object.assign(new Error("Engineer can only be assigned to OPEN or ASSIGNED tickets"), { status: 400 });
+  // Single atomic write: succeeds only when status=ASSIGNED, manager set, no engineer yet
+  const result = await prisma.ticket.updateMany({
+    where: {
+      id:                 ticketId,
+      status:             TicketStatus.ASSIGNED,
+      assignedManagerId:  { not: null },
+      assignedEngineerId: null,
+    },
+    data: { assignedEngineerId: engineerId },
+  });
+
+  if (result.count === 1) {
+    return prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, include: TICKET_INCLUDE });
   }
 
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data:  { assignedEngineerId: engineerId, status: TicketStatus.ASSIGNED },
-    include: TICKET_INCLUDE,
-  });
+  // Update did not apply — fetch once to determine and surface the reason
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.assignedEngineerId) {
+    throw Object.assign(new Error("Engineer already assigned. Use reassignment flow."), { status: 409 });
+  }
+  if (!ticket.assignedManagerId) {
+    throw Object.assign(new Error("A manager must be assigned before assigning an engineer"), { status: 400 });
+  }
+  if (ticket.status === TicketStatus.OPEN) {
+    throw Object.assign(new Error("A manager must be assigned before assigning an engineer"), { status: 400 });
+  }
+  throw Object.assign(new Error("Engineer can only be assigned to tickets in ASSIGNED status"), { status: 400 });
 }
 
 // ── startWork ─────────────────────────────────────────────────────────────
@@ -159,9 +239,7 @@ export async function startWork(ticketId: string, engineerId: string, isAdmin = 
   if (!isAdmin && ticket.assignedEngineerId !== engineerId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  if (ticket.status !== TicketStatus.ASSIGNED) {
-    throw Object.assign(new Error("Ticket must be in ASSIGNED status to start work"), { status: 400 });
-  }
+  assertTransition(ticket.status, TicketStatus.IN_PROGRESS);
 
   return prisma.ticket.update({
     where: { id: ticketId },
@@ -181,8 +259,11 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
   if (!isAdmin && ticket.assignedEngineerId !== engineerId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  if (ticket.status !== TicketStatus.IN_PROGRESS) {
-    throw Object.assign(new Error("Ticket must be IN_PROGRESS before requesting OTP"), { status: 400 });
+  assertTransition(ticket.status, TicketStatus.PENDING_OTP);
+  // Block regeneration while a valid (non-expired) OTP already exists.
+  // Prevents resetting otpAttempts on a live OTP regardless of how status was restored.
+  if (ticket.otpCodeHash && ticket.otpExpiresAt && new Date() < ticket.otpExpiresAt) {
+    throw Object.assign(new Error("An active OTP already exists. Wait for it to expire before requesting a new one."), { status: 409 });
   }
 
   const plainCode  = String(crypto.randomInt(1000, 10000));   // 4-digit
@@ -216,41 +297,62 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
 
 // ── verifyOTP ─────────────────────────────────────────────────────────────
 // Engineer submits the OTP provided by the customer. On success, closes ticket.
+// The failed-attempt increment is atomic: updateMany only fires while
+// otpAttempts < 3, preventing concurrent requests from bypassing the limit.
 export async function verifyOTP(ticketId: string, userId: string, code: string, isAdmin = false) {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket)                              throw Object.assign(new Error("Ticket not found"), { status: 404 });
   if (!isAdmin && ticket.assignedEngineerId !== userId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  if (ticket.status !== TicketStatus.PENDING_OTP)      throw Object.assign(new Error("No OTP pending for this ticket"), { status: 400 });
+  assertTransition(ticket.status, TicketStatus.CLOSED);
+  // assertTransition guarantees status === PENDING_OTP here; check kept for explicit clarity
+  if (ticket.status !== TicketStatus.PENDING_OTP) throw Object.assign(new Error("No OTP pending for this ticket"), { status: 400 });
   if (!ticket.otpCodeHash || !ticket.otpExpiresAt) {
     throw Object.assign(new Error("OTP was not generated"), { status: 400 });
   }
   if (new Date() > ticket.otpExpiresAt)     throw Object.assign(new Error("OTP has expired"), { status: 400 });
 
-  // Enforce attempt limit BEFORE running the expensive bcrypt compare
+  // Fast-fail on clearly locked tickets before the expensive bcrypt call
   if (ticket.otpAttempts >= 3) {
     throw Object.assign(new Error("OTP locked after 3 failed attempts. A Service Manager must override to close this ticket."), { status: 423 });
   }
 
   const valid = await bcrypt.compare(code, ticket.otpCodeHash);
-  if (!valid) {
-    const attempts = ticket.otpAttempts + 1;
-    await prisma.ticket.update({ where: { id: ticketId }, data: { otpAttempts: attempts } });
-    const remaining = 3 - attempts;
-    if (remaining <= 0) {
-      throw Object.assign(new Error("OTP locked after 3 failed attempts. A Service Manager must override to close this ticket."), { status: 423 });
-    }
-    throw Object.assign(new Error(`Invalid OTP. ${remaining} attempt(s) remaining.`), { status: 400 });
+
+  if (valid) {
+    return prisma.ticket.update({
+      where: { id: ticketId },
+      data:  { otpVerified: true, status: TicketStatus.CLOSED, closedAt: new Date() },
+      include: TICKET_INCLUDE,
+    });
   }
 
-  return prisma.ticket.update({
-    where: { id: ticketId },
-    data:  {
-      otpVerified: true,
-      status:      TicketStatus.CLOSED,
-      closedAt:    new Date(),
+  // Atomically increment attempts — only succeeds if still below the limit.
+  // Concurrent requests at attempt limit (otpAttempts=2) will race here;
+  // only one will find otpAttempts < 3 and succeed; the rest get count=0.
+  const incremented = await prisma.ticket.updateMany({
+    where: {
+      id:          ticketId,
+      status:      TicketStatus.PENDING_OTP,
+      otpAttempts: { lt: 3 },
     },
-    include: TICKET_INCLUDE,
+    data: { otpAttempts: { increment: 1 } },
   });
+
+  if (incremented.count === 0) {
+    // Concurrent request already consumed the last allowed attempt, or state changed
+    const fresh = await prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!fresh || fresh.status !== TicketStatus.PENDING_OTP) {
+      throw Object.assign(new Error("No OTP pending for this ticket"), { status: 400 });
+    }
+    throw Object.assign(new Error("OTP locked after 3 failed attempts. A Service Manager must override to close this ticket."), { status: 423 });
+  }
+
+  const attempts  = ticket.otpAttempts + 1;
+  const remaining = 3 - attempts;
+  if (remaining <= 0) {
+    throw Object.assign(new Error("OTP locked after 3 failed attempts. A Service Manager must override to close this ticket."), { status: 423 });
+  }
+  throw Object.assign(new Error(`Invalid OTP. ${remaining} attempt(s) remaining.`), { status: 400 });
 }
