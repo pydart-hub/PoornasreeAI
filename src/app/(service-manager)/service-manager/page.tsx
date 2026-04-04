@@ -471,7 +471,7 @@ export default function ServiceManagerPage() {
                         : "border-line dark:border-line-dark"
                     )}
                   >
-                    {/* ── Card Header: Needs Assignment banner ── */}
+                    {/* ── Needs Assignment banner ── */}
                     {ticket.status === "OPEN" && !isArchived && (
                       <div className="flex items-center gap-1.5 px-4 py-1.5 bg-red-50 dark:bg-red-900/20 text-xs font-semibold text-red-600 dark:text-red-400">
                         <AlertCircle className="w-3.5 h-3.5" />
@@ -480,7 +480,8 @@ export default function ServiceManagerPage() {
                     )}
 
                     <div className="p-4 space-y-3">
-                      {/* ── 1. Header: Ticket # / Status / Age ── */}
+
+                      {/* ── 1. Header: # / Status / Age ── */}
                       <div className="flex items-center gap-2 flex-wrap">
                         {ticket.ticketNumber && (
                           <span className="text-sm font-mono font-bold text-content dark:text-content-dark">
@@ -494,61 +495,72 @@ export default function ServiceManagerPage() {
                           </span>
                         )}
                         {ticket.assignedEngineer && (
-                          <span className="ml-auto text-xs text-primary dark:text-primary-300 font-medium">
+                          <span className="ml-auto text-xs text-primary dark:text-primary-300 font-medium shrink-0">
                             👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName}
                           </span>
                         )}
                       </div>
 
-                      {/* ── 2. Customer & Location ── */}
-                      <div className="space-y-0.5">
-                        {ticket.customer && (
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-                            <span className="text-sm font-medium text-content dark:text-content-dark">
-                              {ticket.customer.email}
-                            </span>
-                            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                              {ticket.customer.firstName} {ticket.customer.lastName}
-                            </span>
-                          </div>
-                        )}
-                        {ticket.pincode && (
-                          <div className="flex items-center gap-1.5 text-xs text-content-secondary dark:text-content-dark-secondary">
+                      {/* ── divider ── */}
+                      <div className="border-t border-line dark:border-line-dark" />
+
+                      {/* ── 2. Customer ── */}
+                      {ticket.customer && (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary">Customer</p>
+                          <p className="text-sm font-semibold text-content dark:text-content-dark">
+                            {ticket.customer.email}
+                          </p>
+                          <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                            {ticket.customer.firstName} {ticket.customer.lastName}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* ── 3. Location ── */}
+                      {ticket.pincode && (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary">Location</p>
+                          <div className="flex items-center gap-1.5 text-sm font-medium text-content dark:text-content-dark">
                             <span>📍</span>
                             <span>{ticket.pincode.regionName}</span>
-                            <span className="text-content-tertiary dark:text-content-dark-tertiary">·</span>
-                            <span>{ticket.pincode.code}</span>
+                            <span className="text-xs text-content-secondary dark:text-content-dark-secondary font-normal">— {ticket.pincode.code}</span>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
-                      {/* ── 3. Issue (most important) ── */}
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary mb-0.5">
-                          Issue
-                        </p>
-                        <p className="text-sm font-semibold text-content dark:text-content-dark leading-snug line-clamp-2">
+                      {/* ── 4. Issue ── */}
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary">Issue</p>
+                        <p className="text-sm font-bold text-content dark:text-content-dark leading-snug line-clamp-2">
                           {ticket.problemDescription}
                         </p>
                       </div>
 
-                      {/* ── 4. Machine Info ── */}
-                      {(ticket.machineName || ticket.machineSerialNumber || ticket.machineProductCode) && (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                          {ticket.machineName && (
-                            <span className="font-medium text-content dark:text-content-dark">🔧 {ticket.machineName}</span>
-                          )}
-                          {ticket.machineSerialNumber && (
-                            <span className="text-content-secondary dark:text-content-dark-secondary">S/N: {ticket.machineSerialNumber}</span>
-                          )}
-                          {ticket.machineProductCode && (
-                            <span className="text-content-tertiary dark:text-content-dark-tertiary">Product: {ticket.machineProductCode}</span>
-                          )}
-                          {ticket.machineCustomer && (
-                            <span className="text-content-tertiary dark:text-content-dark-tertiary">Cust: {ticket.machineCustomer}</span>
-                          )}
+                      {/* ── 5. Machine ── */}
+                      {(ticket.machineName || ticket.machineSerialNumber) && (
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary">Machine</p>
+                          <div className="flex items-center gap-2 text-sm">
+                            {ticket.machineName && (
+                              <span className="font-medium text-content dark:text-content-dark">🔧 {ticket.machineName}</span>
+                            )}
+                            {ticket.machineSerialNumber && (
+                              <span className="text-xs text-content-secondary dark:text-content-dark-secondary">S/N: {ticket.machineSerialNumber}</span>
+                            )}
+                          </div>
                         </div>
                       )}
+
+                      {/* ── 6. Source ── */}
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary">Source</p>
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                          {ticket.dealer
+                            ? `Dealer — ${ticket.dealer.firstName} ${ticket.dealer.lastName ?? ""}`.trim()
+                            : "Direct"}
+                        </p>
+                      </div>
 
                       {/* ── View Details toggle ── */}
                       <div>
@@ -561,8 +573,11 @@ export default function ServiceManagerPage() {
                         </button>
                         {isExpanded && (
                           <div className="mt-2 pt-2 border-t border-line dark:border-line-dark grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs text-content-secondary dark:text-content-dark-secondary">
-                            {ticket.dealer && (
-                              <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Dealer:</span> {ticket.dealer.firstName} {ticket.dealer.lastName}</div>
+                            {ticket.machineProductCode && (
+                              <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Product:</span> {ticket.machineProductCode}</div>
+                            )}
+                            {ticket.machineCustomer && (
+                              <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Mfr Cust:</span> {ticket.machineCustomer}</div>
                             )}
                             {ticket.responseTimeHours != null && (
                               <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Response:</span> {ticket.responseTimeHours}h</div>
@@ -575,7 +590,7 @@ export default function ServiceManagerPage() {
                         )}
                       </div>
 
-                      {/* ── 5. Action Area ── */}
+                      {/* ── 7. Action Area ── */}
                       <div className="flex items-center justify-between pt-2 border-t border-line dark:border-line-dark">
                         {/* Archive / Unarchive */}
                         <button
