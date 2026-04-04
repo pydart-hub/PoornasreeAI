@@ -25,13 +25,22 @@ import {
   Search,
   Archive,
   RotateCcw,
+  Plus,
+  MapPin,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
-type TabKey = "unassigned" | "assigned" | "in_progress" | "closed" | "archived";
+type TicketTabKey = "unassigned" | "assigned" | "in_progress" | "closed" | "archived";
 type DateRange = "all" | "today" | "7days" | "30days";
+type PageView = "tickets" | "team";
+
+interface PincodeInfo {
+  id: string;
+  code: string;
+  regionName: string;
+}
 
 interface Engineer {
   id: string;
@@ -39,6 +48,7 @@ interface Engineer {
   lastName?: string | null;
   email: string;
   activeTickets?: number;
+  engineerPincodes?: PincodeInfo[];
 }
 
 interface ServiceTicket {
@@ -62,19 +72,19 @@ interface ServiceTicket {
 }
 
 // ── Tab config ─────────────────────────────────────────────────────────
-const TABS: { key: TabKey; label: string; statuses: TicketStatus[]; icon: React.ReactNode }[] = [
-  { key: "unassigned", label: "Unassigned", statuses: ["OPEN"], icon: <AlertCircle className="w-3.5 h-3.5" /> },
-  { key: "assigned", label: "Assigned", statuses: ["ASSIGNED"], icon: <UserCheck className="w-3.5 h-3.5" /> },
-  { key: "in_progress", label: "In Progress", statuses: ["IN_PROGRESS", "PENDING_OTP"], icon: <Activity className="w-3.5 h-3.5" /> },
-  { key: "closed", label: "Closed", statuses: ["CLOSED"], icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  { key: "archived", label: "Archived", statuses: [], icon: <Archive className="w-3.5 h-3.5" /> },
+const TICKET_TABS: { key: TicketTabKey; label: string; statuses: TicketStatus[]; icon: React.ReactNode }[] = [
+  { key: "unassigned", label: "Unassigned", statuses: ["OPEN"], icon: <AlertCircle className="w-4 h-4" /> },
+  { key: "assigned", label: "Assigned", statuses: ["ASSIGNED"], icon: <UserCheck className="w-4 h-4" /> },
+  { key: "in_progress", label: "In Progress", statuses: ["IN_PROGRESS", "PENDING_OTP"], icon: <Activity className="w-4 h-4" /> },
+  { key: "closed", label: "Closed", statuses: ["CLOSED"], icon: <CheckCircle2 className="w-4 h-4" /> },
+  { key: "archived", label: "Archived", statuses: [], icon: <Archive className="w-4 h-4" /> },
 ];
 
 // ── Urgency helpers ────────────────────────────────────────────────────
-function getAgeBadge(ageHours: number): { color: string; label: string; urgency: string } {
-  if (ageHours > 24) return { color: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400", label: `${ageHours}h`, urgency: "Critical" };
-  if (ageHours >= 6) return { color: "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400", label: `${ageHours}h`, urgency: "Urgent" };
-  return { color: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400", label: `${ageHours}h`, urgency: "" };
+function getAgeBadge(ageHours: number) {
+  if (ageHours > 24) return { color: "bg-red-100 text-red-700", label: `${ageHours}h`, urgency: "Critical" };
+  if (ageHours >= 6) return { color: "bg-orange-100 text-orange-700", label: `${ageHours}h`, urgency: "Urgent" };
+  return { color: "bg-emerald-100 text-emerald-700", label: `${ageHours}h`, urgency: "" };
 }
 
 const STATUS_BADGE: Record<TicketStatus, { label: string; variant: "info" | "warning" | "default" | "success" | "error" }> = {
@@ -85,34 +95,40 @@ const STATUS_BADGE: Record<TicketStatus, { label: string; variant: "info" | "war
   CLOSED:      { label: "Closed",      variant: "success" },
 };
 
-// ── Date range filter helper ───────────────────────────────────────────
 function isWithinDateRange(createdAt: string, range: DateRange): boolean {
   if (range === "all") return true;
-  const now = new Date();
-  const created = new Date(createdAt);
-  const diffMs = now.getTime() - created.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffDays = (Date.now() - new Date(createdAt).getTime()) / 86400000;
   if (range === "today") return diffDays <= 1;
   if (range === "7days") return diffDays <= 7;
   if (range === "30days") return diffDays <= 30;
   return true;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// Component
+// ══════════════════════════════════════════════════════════════════════
 export default function ServiceManagerPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, logout } = useAuth();
 
+  // ── Core state ──
   const [tickets, setTickets] = useState<ServiceTicket[]>([]);
   const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [myPincodes, setMyPincodes] = useState<PincodeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>("unassigned");
+  const [error, setError] = useState("");
+
+  // ── Navigation state ──
+  const [pageView, setPageView] = useState<PageView>("tickets");
+  const [activeTab, setActiveTab] = useState<TicketTabKey>("unassigned");
+
+  // ── Ticket interaction state ──
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
-  const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // ── Filter state ───────────────────────────────────────────────────
+  // ── Filter state ──
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [archivedIds, setArchivedIds] = useState<Set<string>>(() => {
@@ -125,585 +141,618 @@ export default function ServiceManagerPage() {
     return new Set();
   });
 
+  // ── Team modal state ──
+  const [showAddEngineer, setShowAddEngineer] = useState(false);
+  const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", password: "", pincodeIds: [] as string[] });
+  const [addingEngineer, setAddingEngineer] = useState(false);
+
   // Persist archived ids
   useEffect(() => {
     localStorage.setItem("sm_archived_tickets", JSON.stringify(Array.from(archivedIds)));
   }, [archivedIds]);
 
-  const handleArchive = (ticketId: string) => {
-    setArchivedIds(prev => new Set(prev).add(ticketId));
+  const handleArchive = (id: string) => setArchivedIds(prev => new Set(prev).add(id));
+  const handleUnarchive = (id: string) => {
+    setArchivedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
   };
 
-  const handleUnarchive = (ticketId: string) => {
-    setArchivedIds(prev => {
-      const next = new Set(prev);
-      next.delete(ticketId);
-      return next;
-    });
-  };
-
-  const resetFilters = () => {
-    setSearchQuery("");
-    setDateRange("all");
-  };
-
+  const resetFilters = () => { setSearchQuery(""); setDateRange("all"); };
   const hasActiveFilters = searchQuery !== "" || dateRange !== "all";
 
-  // Auth guard
+  // ── Auth guard ──
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "service_manager")) {
-      router.replace("/login");
-    }
+    if (!authLoading && (!user || user.role !== "service_manager")) router.replace("/login");
   }, [user, authLoading, router]);
 
+  // ── Data fetching ──
   const fetchData = useCallback(async () => {
     try {
-      const [ticketsRes, engineersRes] = await Promise.all([
+      const [ticketsRes, engineersRes, pincodesRes] = await Promise.all([
         fetch("/api/tickets", { credentials: "include" }),
-        fetch("/api/tickets/engineers", { credentials: "include" }),
+        fetch("/api/manager/engineers", { credentials: "include" }),
+        fetch("/api/manager/pincodes", { credentials: "include" }),
       ]);
-
-      if (ticketsRes.ok) {
-        const { tickets: data } = await ticketsRes.json();
-        setTickets(data ?? []);
-      }
-      if (engineersRes.ok) {
-        const { engineers: data } = await engineersRes.json();
-        setEngineers(data ?? []);
-      }
-    } catch {
-      setError("Failed to load data");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      if (ticketsRes.ok) { const { tickets: d } = await ticketsRes.json(); setTickets(d ?? []); }
+      if (engineersRes.ok) { const { engineers: d } = await engineersRes.json(); setEngineers(d ?? []); }
+      if (pincodesRes.ok) { const { pincodes: d } = await pincodesRes.json(); setMyPincodes(d ?? []); }
+    } catch { setError("Failed to load data"); }
+    finally { setLoading(false); setRefreshing(false); }
   }, []);
 
-  useEffect(() => {
-    if (user?.role === "service_manager") {
-      fetchData();
-    }
-  }, [user, fetchData]);
+  useEffect(() => { if (user?.role === "service_manager") fetchData(); }, [user, fetchData]);
 
-  // ── Real-time socket listener ──────────────────────────────────────
+  // ── Socket ──
   useEffect(() => {
     if (!user || user.role !== "service_manager") return;
-    const socket = getSocket({
-      userId: user.id,
-      role: user.role,
-      name: `${user.firstName} ${user.lastName || ""}`.trim(),
-    });
+    const socket = getSocket({ userId: user.id, role: user.role, name: `${user.firstName} ${user.lastName || ""}`.trim() });
     const refresh = () => fetchData();
-    socket.on("ticket:new",     refresh);
+    socket.on("ticket:new", refresh);
     socket.on("ticket:updated", refresh);
-    return () => {
-      socket.off("ticket:new",     refresh);
-      socket.off("ticket:updated", refresh);
-    };
+    return () => { socket.off("ticket:new", refresh); socket.off("ticket:updated", refresh); };
   }, [user, fetchData]);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
+  const handleRefresh = () => { setRefreshing(true); fetchData(); };
 
   const handleAssignEngineer = async (ticketId: string, engineerId: string) => {
     setAssigningId(ticketId);
     setDropdownOpen(null);
     try {
       const res = await fetch(`/api/tickets/${ticketId}/assign-engineer`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ engineerId }),
       });
-      if (!res.ok) {
-        const { error: msg } = await res.json();
-        setError(msg || "Failed to assign engineer");
-      } else {
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to assign"); }
+      else await fetchData();
+    } catch { setError("Network error"); }
+    finally { setAssigningId(null); }
+  };
+
+  const handleAddEngineer = async () => {
+    if (!newEng.firstName.trim() || !newEng.email.trim() || !newEng.password.trim()) {
+      setError("Name, email/phone, and password are required");
+      return;
+    }
+    setAddingEngineer(true);
+    try {
+      const res = await fetch("/api/manager/engineers", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({
+          firstName: newEng.firstName.trim(),
+          lastName: newEng.lastName.trim() || undefined,
+          email: newEng.email.trim(),
+          password: newEng.password,
+          pincodeIds: newEng.pincodeIds.length > 0 ? newEng.pincodeIds : undefined,
+        }),
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add engineer"); }
+      else {
+        setShowAddEngineer(false);
+        setNewEng({ firstName: "", lastName: "", email: "", password: "", pincodeIds: [] });
         await fetchData();
       }
-    } catch {
-      setError("Network error");
-    } finally {
-      setAssigningId(null);
-    }
+    } catch { setError("Network error"); }
+    finally { setAddingEngineer(false); }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace("/login");
-  };
+  const handleLogout = async () => { await logout(); router.replace("/login"); };
 
-  // ── Filtered + sorted tickets ──────────────────────────────────────
+  // ── Derived data ──
   const sortedEngineers = useMemo(
     () => [...engineers].sort((a, b) => (a.activeTickets ?? 0) - (b.activeTickets ?? 0)),
     [engineers]
   );
 
   const displayed = useMemo(() => {
-    const currentTab = TABS.find(t => t.key === activeTab)!;
+    const tab = TICKET_TABS.find(t => t.key === activeTab)!;
     let result: ServiceTicket[];
-
-    if (activeTab === "archived") {
-      result = tickets.filter(t => archivedIds.has(t.id));
-    } else {
-      result = tickets.filter(t => currentTab.statuses.includes(t.status) && !archivedIds.has(t.id));
-    }
-
-    // Date filter
-    if (dateRange !== "all") {
-      result = result.filter(t => isWithinDateRange(t.createdAt, dateRange));
-    }
-
-    // Search filter (ticket number or customer email/phone-as-email)
+    if (activeTab === "archived") result = tickets.filter(t => archivedIds.has(t.id));
+    else result = tickets.filter(t => tab.statuses.includes(t.status) && !archivedIds.has(t.id));
+    if (dateRange !== "all") result = result.filter(t => isWithinDateRange(t.createdAt, dateRange));
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(t => {
-        const ticketNo = (t.ticketNumber ?? "").toLowerCase();
-        const custEmail = (t.customer?.email ?? "").toLowerCase();
-        const custName = `${t.customer?.firstName ?? ""} ${t.customer?.lastName ?? ""}`.toLowerCase();
-        return ticketNo.includes(q) || custEmail.includes(q) || custName.includes(q);
+        const tn = (t.ticketNumber ?? "").toLowerCase();
+        const ce = (t.customer?.email ?? "").toLowerCase();
+        const cn = `${t.customer?.firstName ?? ""} ${t.customer?.lastName ?? ""}`.toLowerCase();
+        return tn.includes(q) || ce.includes(q) || cn.includes(q);
       });
     }
-
-    // Sort by age descending (most urgent first)
     return result.sort((a, b) => (b.ageHours ?? 0) - (a.ageHours ?? 0));
   }, [tickets, activeTab, archivedIds, dateRange, searchQuery]);
 
   if (authLoading || loading) return <LoadingScreen />;
   if (!user) return null;
 
-  // ── Summary counts (non-archived only) ──
   const nonArchived = tickets.filter(t => !archivedIds.has(t.id));
   const total = nonArchived.length;
   const unassigned = nonArchived.filter(t => t.status === "OPEN").length;
   const active = nonArchived.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status)).length;
   const closed = nonArchived.filter(t => t.status === "CLOSED").length;
 
+  // ══════════════════════════════════════════════════════════════════════
+  // Render
+  // ══════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-screen bg-surface dark:bg-surface-dark overflow-hidden">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
+    <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden">
+
+      {/* ═══════════════════ HEADER ═══════════════════ */}
+      <header className="shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 bg-white border-b border-[#e2e8f0] shadow-sm">
         <div className="flex items-center gap-3">
           <Logo className="h-8 w-auto" />
           <div>
-            <p className="text-sm font-semibold text-content dark:text-content-dark">Service Manager</p>
-            <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-              {user.firstName} {user.lastName}
-            </p>
+            <h1 className="text-base font-bold text-gray-900 leading-tight">Service Manager</h1>
+            <p className="text-xs text-gray-500">{user.firstName} {user.lastName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
+          <button onClick={handleRefresh} disabled={refreshing}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
           <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
-          >
+          <button onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-500 transition-colors">
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
-        {error && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
-            <button onClick={() => setError("")} className="ml-auto"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-
-        {/* ── Summary Bar ─────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {[
-            { label: "Total", value: total, color: "text-content dark:text-content-dark" },
-            { label: "Unassigned", value: unassigned, color: "text-red-500" },
-            { label: "Active", value: active, color: "text-blue-500" },
-            { label: "Closed", value: closed, color: "text-green-500" },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="p-3 rounded-xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card"
-            >
-              <p className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">{item.label}</p>
-              <p className={cn("text-xl font-bold", item.color)}>{item.value}</p>
+          {/* ── Error banner ── */}
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 text-red-600 text-sm shadow-sm border border-red-100">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{error}</span>
+              <button onClick={() => setError("")} className="p-0.5"><X className="w-4 h-4" /></button>
             </div>
-          ))}
-        </div>
+          )}
 
-        {/* Team overview */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-          <Users className="w-5 h-5 text-primary dark:text-primary-300 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-content dark:text-content-dark">
-              {engineers.length} engineer{engineers.length !== 1 ? "s" : ""} in your zone
-            </p>
-            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">
-              {engineers.map((e) => {
-                const name = `${e.firstName} ${e.lastName || ""}`.trim();
-                return e.activeTickets !== undefined ? `${name} (${e.activeTickets})` : name;
-              }).join(", ") || "No engineers assigned yet"}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Filter Bar ──────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-          {/* Date range */}
-          <div className="flex gap-1">
+          {/* ═══════════════════ PAGE-LEVEL NAVIGATION ═══════════════════ */}
+          <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
             {([
-              { key: "all", label: "All Time" },
-              { key: "today", label: "Today" },
-              { key: "7days", label: "7 Days" },
-              { key: "30days", label: "30 Days" },
-            ] as { key: DateRange; label: string }[]).map((d) => (
-              <button
-                key={d.key}
-                onClick={() => setDateRange(d.key)}
+              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-4 h-4" />, count: total },
+              { key: "team" as PageView, label: "Team", icon: <Users className="w-4 h-4" />, count: engineers.length },
+            ]).map(nav => (
+              <button key={nav.key} onClick={() => setPageView(nav.key)}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
-                  dateRange === d.key
-                    ? "bg-primary text-white"
-                    : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-                )}
-              >
-                {d.label}
+                  "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
+                  pageView === nav.key
+                    ? "bg-[#2563eb] text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                )}>
+                {nav.icon}
+                {nav.label}
+                <span className={cn(
+                  "text-xs px-2 py-0.5 rounded-full font-bold",
+                  pageView === nav.key ? "bg-white/20" : "bg-gray-100 text-gray-600"
+                )}>{nav.count}</span>
               </button>
             ))}
           </div>
 
-          {/* Search */}
-          <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-secondary dark:text-content-dark-secondary" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search ticket # or customer..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-content dark:text-content-dark placeholder:text-content-secondary/50 dark:placeholder:text-content-dark-secondary/50 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          {/* ═══════════════════ TICKETS VIEW ═══════════════════ */}
+          {pageView === "tickets" && (
+            <>
+              {/* ── Stats Bar ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Total", value: total, color: "text-gray-900", bg: "" },
+                  { label: "Unassigned", value: unassigned, color: "text-red-600", bg: unassigned > 0 ? "ring-1 ring-red-200" : "" },
+                  { label: "Active", value: active, color: "text-[#2563eb]", bg: "" },
+                  { label: "Closed", value: closed, color: "text-emerald-600", bg: "" },
+                ].map(s => (
+                  <div key={s.label} className={cn("bg-white rounded-xl border border-[#e2e8f0] p-4 shadow-sm", s.bg)}>
+                    <p className="text-xs font-medium text-gray-500 mb-1">{s.label}</p>
+                    <p className={cn("text-2xl font-bold", s.color)}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
 
-          {/* Reset */}
-          {hasActiveFilters && (
-            <button
-              onClick={resetFilters}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset
-            </button>
-          )}
-        </div>
+              {/* ── Ticket Tabs ── */}
+              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-1.5 flex gap-1 overflow-x-auto">
+                {TICKET_TABS.map(tab => {
+                  const count = tab.key === "archived"
+                    ? tickets.filter(t => archivedIds.has(t.id)).length
+                    : tickets.filter(t => tab.statuses.includes(t.status) && !archivedIds.has(t.id)).length;
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                        isActive
+                          ? "bg-[#2563eb] text-white shadow-sm"
+                          : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                      )}>
+                      {tab.icon}
+                      <span className="hidden sm:inline">{tab.label}</span>
+                      <span className={cn(
+                        "text-xs px-1.5 py-0.5 rounded-full font-semibold",
+                        isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
+                      )}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-        {/* ── Tabs ────────────────────────────────────────────── */}
-        <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary overflow-x-auto">
-          {TABS.map((tab) => {
-            let count: number;
-            if (tab.key === "archived") {
-              count = tickets.filter(t => archivedIds.has(t.id)).length;
-            } else {
-              count = tickets.filter(t => tab.statuses.includes(t.status) && !archivedIds.has(t.id)).length;
-            }
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
-                  isActive
-                    ? "bg-surface-card dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
-                    : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+              {/* ── Filter Bar ── */}
+              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3 flex flex-wrap items-center gap-2">
+                <div className="flex gap-1">
+                  {([
+                    { key: "all" as DateRange, label: "All" },
+                    { key: "today" as DateRange, label: "Today" },
+                    { key: "7days" as DateRange, label: "7d" },
+                    { key: "30days" as DateRange, label: "30d" },
+                  ]).map(d => (
+                    <button key={d.key} onClick={() => setDateRange(d.key)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                        dateRange === d.key
+                          ? "bg-[#2563eb] text-white"
+                          : "text-gray-500 hover:bg-gray-100"
+                      )}>{d.label}</button>
+                  ))}
+                </div>
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search ticket # or customer..."
+                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-gray-50 border border-[#e2e8f0] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                </div>
+                {hasActiveFilters && (
+                  <button onClick={resetFilters}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                    <RotateCcw className="w-3 h-3" /> Reset
+                  </button>
                 )}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className={cn(
-                  "ml-0.5 text-xs px-1.5 py-0.5 rounded-full",
-                  isActive ? "bg-primary/10 text-primary" : "bg-surface-card/50 dark:bg-surface-dark-card/50"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+              </div>
 
-        {/* ── Ticket List ────────────────────────────────────────── */}
-        <section className="space-y-3">
-          {displayed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-content-secondary dark:text-content-dark-secondary">
-              <Ticket className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">
-                {hasActiveFilters ? "No tickets match your filters" : `No ${(TABS.find(t => t.key === activeTab)?.label ?? "").toLowerCase()} tickets`}
-              </p>
-              {hasActiveFilters && (
-                <button onClick={resetFilters} className="mt-2 text-xs text-primary hover:underline">Clear filters</button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {displayed.map((ticket) => {
-                const cfg = STATUS_BADGE[ticket.status];
-                const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
-                const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
-                const isExpanded = expandedId === ticket.id;
-                const isArchived = archivedIds.has(ticket.id);
-                return (
-                  <div
-                    key={ticket.id}
-                    className={cn(
-                      "rounded-2xl bg-surface-card dark:bg-surface-dark-card border overflow-hidden",
-                      ticket.status === "OPEN" && !isArchived
-                        ? "border-red-300 dark:border-red-700"
-                        : "border-line dark:border-line-dark"
-                    )}
-                  >
-                    {/* ── Needs Assignment banner ── */}
-                    {ticket.status === "OPEN" && !isArchived && (
-                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-red-50 dark:bg-red-900/20 text-xs font-semibold text-red-600 dark:text-red-400">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        ⚠ Needs Assignment
-                      </div>
-                    )}
+              {/* ── Ticket Cards ── */}
+              <section className="space-y-3">
+                {displayed.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-gray-400">
+                    <Ticket className="w-10 h-10 mb-3 opacity-40" />
+                    <p className="text-sm">{hasActiveFilters ? "No tickets match your filters" : `No ${(TICKET_TABS.find(t => t.key === activeTab)?.label ?? "").toLowerCase()} tickets`}</p>
+                    {hasActiveFilters && <button onClick={resetFilters} className="mt-2 text-xs text-[#2563eb] hover:underline">Clear filters</button>}
+                  </div>
+                ) : (
+                  displayed.map(ticket => {
+                    const cfg = STATUS_BADGE[ticket.status];
+                    const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
+                    const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
+                    const isExpanded = expandedId === ticket.id;
+                    const isArchived = archivedIds.has(ticket.id);
 
-                    <div className="p-4 space-y-2">
-
-                      {/* ── 1. Ticket # · Status · Age ── */}
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        {ticket.ticketNumber && (
-                          <span className="text-sm font-mono font-bold text-content dark:text-content-dark">
-                            #{ticket.ticketNumber}
-                          </span>
-                        )}
-                        <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
-                        {ageBadge && (
-                          <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", ageBadge.color)}>
-                            {ageBadge.label}{ageBadge.urgency ? ` · ${ageBadge.urgency}` : ""}
-                          </span>
-                        )}
-                        {ticket.assignedEngineer && (
-                          <span className="ml-auto text-xs text-primary dark:text-primary-300 font-medium shrink-0">
-                            👷 {ticket.assignedEngineer.firstName}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* ── 2. Location — place only ── */}
-                      {ticket.pincode?.regionName && (
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                          📍 {ticket.pincode.regionName}
-                        </p>
-                      )}
-
-                      {/* ── 3. Issue — single line, truncated ── */}
-                      <p className="text-sm font-semibold text-content dark:text-content-dark leading-snug line-clamp-1">
-                        {ticket.problemDescription}
-                      </p>
-
-                      {/* ── 4. Customer contact ── */}
-                      {ticket.customer && (
-                        <p className="text-xs font-medium text-content dark:text-content-dark">
-                          {ticket.customer.email}
-                        </p>
-                      )}
-
-                      {/* ── 5. Machine model ── */}
-                      {ticket.machineName && (
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                          🔧 {ticket.machineName}
-                        </p>
-                      )}
-
-                      {/* ── View Details toggle ── */}
-                      <div>
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
-                          className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-primary dark:hover:text-primary-300 transition-colors mt-1"
-                        >
-                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          {isExpanded ? "Hide Details" : "View Details"}
-                        </button>
-
-                        {isExpanded && (
-                          <div className="mt-3 pt-3 border-t border-line dark:border-line-dark space-y-3 text-xs">
-
-                            {/* Customer full */}
-                            {ticket.customer && (
-                              <div>
-                                <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Customer</p>
-                                <p className="font-medium text-content dark:text-content-dark">
-                                  {ticket.customer.firstName} {ticket.customer.lastName}
-                                </p>
-                                <p className="text-content-secondary dark:text-content-dark-secondary">{ticket.customer.email}</p>
-                              </div>
-                            )}
-
-                            {/* Location full */}
-                            {ticket.pincode && (
-                              <div>
-                                <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Location</p>
-                                <p className="font-medium text-content dark:text-content-dark">{ticket.pincode.regionName}</p>
-                                <p className="text-content-secondary dark:text-content-dark-secondary">Pincode: {ticket.pincode.code}</p>
-                              </div>
-                            )}
-
-                            {/* Machine full */}
-                            {(ticket.machineName || ticket.machineSerialNumber || ticket.machineProductCode) && (
-                              <div>
-                                <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Machine</p>
-                                {ticket.machineName && (
-                                  <p className="font-medium text-content dark:text-content-dark">{ticket.machineName}</p>
-                                )}
-                                {ticket.machineSerialNumber && (
-                                  <p className="text-content-secondary dark:text-content-dark-secondary">S/N: {ticket.machineSerialNumber}</p>
-                                )}
-                                {ticket.machineProductCode && (
-                                  <p className="text-content-secondary dark:text-content-dark-secondary">Product: {ticket.machineProductCode}</p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Full complaint */}
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Full Complaint</p>
-                              <p className="text-content dark:text-content-dark leading-relaxed">{ticket.problemDescription}</p>
-                            </div>
-
-                            {/* Source */}
-                            <div>
-                              <p className="text-[10px] uppercase tracking-wider font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Source</p>
-                              <p className="text-content-secondary dark:text-content-dark-secondary">
-                                {ticket.dealer
-                                  ? `Dealer — ${ticket.dealer.firstName} ${ticket.dealer.lastName ?? ""}`.trim()
-                                  : "Direct"}
-                              </p>
-                            </div>
-
-                            {/* Misc metadata */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-content-secondary dark:text-content-dark-secondary">
-                              {ticket.machineCustomer && (
-                                <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Mfr Cust:</span> {ticket.machineCustomer}</div>
-                              )}
-                              {ticket.responseTimeHours != null && (
-                                <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Response:</span> {ticket.responseTimeHours}h</div>
-                              )}
-                              {ticket.durationHours != null && (
-                                <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Duration:</span> {ticket.durationHours}h</div>
-                              )}
-                              <div><span className="text-content-tertiary dark:text-content-dark-tertiary">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}</div>
-                            </div>
-
+                    return (
+                      <div key={ticket.id}
+                        className={cn(
+                          "bg-white rounded-xl border overflow-hidden transition-shadow hover:shadow-md shadow-sm",
+                          ticket.status === "OPEN" && !isArchived ? "border-red-200" : "border-[#e2e8f0]"
+                        )}>
+                        {/* Banner */}
+                        {ticket.status === "OPEN" && !isArchived && (
+                          <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-xs font-semibold text-red-600">
+                            <AlertCircle className="w-3.5 h-3.5" /> Needs Assignment
                           </div>
                         )}
-                      </div>
 
-                      {/* ── Action Area ── */}
-                      <div className="flex items-center justify-between pt-2 border-t border-line dark:border-line-dark">
-                        {/* Archive / Unarchive */}
-                        <button
-                          onClick={() => isArchived ? handleUnarchive(ticket.id) : handleArchive(ticket.id)}
-                          className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark transition-colors"
-                        >
-                          <Archive className="w-3.5 h-3.5" />
-                          {isArchived ? "Unarchive" : "Archive"}
-                        </button>
+                        <div className="p-4 space-y-2.5">
+                          {/* Row 1: Ticket # · Status · Age · Assigned */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {ticket.ticketNumber && (
+                              <span className="text-sm font-mono font-bold text-gray-900">#{ticket.ticketNumber}</span>
+                            )}
+                            <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
+                            {ageBadge && (
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold", ageBadge.color)}>
+                                {ageBadge.label}{ageBadge.urgency ? ` · ${ageBadge.urgency}` : ""}
+                              </span>
+                            )}
+                            {ticket.assignedEngineer && (
+                              <span className="ml-auto text-xs text-[#2563eb] font-medium">
+                                👷 {ticket.assignedEngineer.firstName}
+                              </span>
+                            )}
+                          </div>
 
-                        {/* Assign Engineer */}
-                        {canAssign && !isArchived && (
-                          <div className="relative">
-                            <button
-                              onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
-                              disabled={assigningId === ticket.id || engineers.length === 0}
-                              className={cn(
-                                "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors",
-                                assigningId === ticket.id
-                                  ? "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
-                                  : "bg-primary text-white hover:bg-primary-600 disabled:opacity-50"
+                          {/* Row 2: Location */}
+                          {ticket.pincode?.regionName && (
+                            <p className="text-xs text-gray-500">📍 {ticket.pincode.regionName}</p>
+                          )}
+
+                          {/* Row 3: Issue */}
+                          <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">
+                            {ticket.problemDescription}
+                          </p>
+
+                          {/* Row 4: Customer */}
+                          {ticket.customer && (
+                            <p className="text-xs font-medium text-gray-700">{ticket.customer.email}</p>
+                          )}
+
+                          {/* Row 5: Machine */}
+                          {ticket.machineName && (
+                            <p className="text-xs text-gray-500">🔧 {ticket.machineName}</p>
+                          )}
+
+                          {/* Expand toggle */}
+                          <button onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#2563eb] transition-colors mt-1">
+                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            {isExpanded ? "Hide Details" : "View Details"}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2 pt-3 border-t border-[#e2e8f0] space-y-3 text-xs">
+                              {ticket.customer && (
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Customer</p>
+                                  <p className="font-medium text-gray-800">{ticket.customer.firstName} {ticket.customer.lastName}</p>
+                                  <p className="text-gray-500">{ticket.customer.email}</p>
+                                </div>
                               )}
-                            >
-                              {assigningId === ticket.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <UserCheck className="w-4 h-4" />
+                              {ticket.pincode && (
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Location</p>
+                                  <p className="font-medium text-gray-800">{ticket.pincode.regionName}</p>
+                                  <p className="text-gray-500">Pincode: {ticket.pincode.code}</p>
+                                </div>
                               )}
-                              Assign Engineer
-                              <ChevronDown className="w-3.5 h-3.5" />
+                              {(ticket.machineName || ticket.machineSerialNumber || ticket.machineProductCode) && (
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Machine</p>
+                                  {ticket.machineName && <p className="font-medium text-gray-800">{ticket.machineName}</p>}
+                                  {ticket.machineSerialNumber && <p className="text-gray-500">S/N: {ticket.machineSerialNumber}</p>}
+                                  {ticket.machineProductCode && <p className="text-gray-500">Product: {ticket.machineProductCode}</p>}
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Full Complaint</p>
+                                <p className="text-gray-700 leading-relaxed">{ticket.problemDescription}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Source</p>
+                                <p className="text-gray-500">
+                                  {ticket.dealer ? `Dealer — ${ticket.dealer.firstName} ${ticket.dealer.lastName ?? ""}`.trim() : "Direct"}
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-500">
+                                {ticket.machineCustomer && <div><span className="text-gray-400">Mfr Cust:</span> {ticket.machineCustomer}</div>}
+                                {ticket.responseTimeHours != null && <div><span className="text-gray-400">Response:</span> {ticket.responseTimeHours}h</div>}
+                                {ticket.durationHours != null && <div><span className="text-gray-400">Duration:</span> {ticket.durationHours}h</div>}
+                                <div><span className="text-gray-400">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Action area */}
+                          <div className="flex items-center justify-between pt-3 border-t border-[#e2e8f0]">
+                            <button onClick={() => isArchived ? handleUnarchive(ticket.id) : handleArchive(ticket.id)}
+                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                              <Archive className="w-3.5 h-3.5" /> {isArchived ? "Unarchive" : "Archive"}
                             </button>
 
-                            {dropdownOpen === ticket.id && (
-                              <div className="absolute right-0 bottom-full mb-1 w-64 z-20 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden">
-                                <div className="px-3 py-2 border-b border-line dark:border-line-dark">
-                                  <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Select Engineer</p>
-                                </div>
-                                {sortedEngineers.length === 0 ? (
-                                  <p className="px-3 py-3 text-xs text-content-secondary dark:text-content-dark-secondary text-center">
-                                    No engineers in your zone
-                                  </p>
-                                ) : (
-                                  sortedEngineers.map((eng, idx) => (
-                                    <button
-                                      key={eng.id}
-                                      onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                      className={cn(
-                                        "w-full text-left px-3 py-2.5 text-sm text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2",
-                                        idx === 0 && "bg-green-50 dark:bg-green-900/10"
-                                      )}
-                                    >
-                                      <span className="flex items-center gap-1.5 min-w-0">
-                                        {idx === 0 && (
-                                          <span className="text-green-600 dark:text-green-400 text-xs" title="Recommended (least loaded)">★</span>
-                                        )}
-                                        <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                      </span>
-                                      {eng.activeTickets !== undefined && (
-                                        <span className={cn(
-                                          "text-xs px-2 py-0.5 rounded-full shrink-0 font-medium",
-                                          eng.activeTickets === 0
-                                            ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                                            : eng.activeTickets <= 3
-                                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
-                                              : "bg-red-100 dark:bg-red-900/30 text-red-600"
-                                        )}>
-                                          {eng.activeTickets} active
-                                        </span>
-                                      )}
-                                    </button>
-                                  ))
+                            {canAssign && !isArchived && (
+                              <div className="relative">
+                                <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
+                                  disabled={assigningId === ticket.id || engineers.length === 0}
+                                  className={cn(
+                                    "flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm",
+                                    assigningId === ticket.id
+                                      ? "bg-gray-100 text-gray-400"
+                                      : "bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50"
+                                  )}>
+                                  {assigningId === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                                  Assign
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+
+                                {dropdownOpen === ticket.id && (
+                                  <div className="absolute right-0 bottom-full mb-1 w-64 z-20 rounded-xl bg-white border border-[#e2e8f0] shadow-lg overflow-hidden">
+                                    <div className="px-3 py-2 border-b border-[#e2e8f0]">
+                                      <p className="text-xs font-bold text-gray-500">Select Engineer</p>
+                                    </div>
+                                    {sortedEngineers.length === 0 ? (
+                                      <p className="px-3 py-3 text-xs text-gray-400 text-center">No engineers in your team</p>
+                                    ) : (
+                                      sortedEngineers.map((eng, idx) => (
+                                        <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                          className={cn(
+                                            "w-full text-left px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2",
+                                            idx === 0 && "bg-emerald-50"
+                                          )}>
+                                          <span className="flex items-center gap-1.5 min-w-0">
+                                            {idx === 0 && <span className="text-emerald-600 text-xs" title="Least loaded">★</span>}
+                                            <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                          </span>
+                                          {eng.activeTickets !== undefined && (
+                                            <span className={cn(
+                                              "text-xs px-2 py-0.5 rounded-full font-medium shrink-0",
+                                              eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                  : "bg-red-100 text-red-700"
+                                            )}>{eng.activeTickets} active</span>
+                                          )}
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })
+                )}
+              </section>
+            </>
           )}
-        </section>
+
+          {/* ═══════════════════ TEAM VIEW ═══════════════════ */}
+          {pageView === "team" && (
+            <section className="space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Engineers</h2>
+                  <p className="text-sm text-gray-500">{engineers.length} engineer{engineers.length !== 1 ? "s" : ""} in your team</p>
+                </div>
+                <button onClick={() => setShowAddEngineer(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] transition-colors shadow-sm">
+                  <Plus className="w-4 h-4" /> Add Engineer
+                </button>
+              </div>
+
+              {/* My Pincodes */}
+              {myPincodes.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Your Zones</p>
+                  <div className="flex flex-wrap gap-2">
+                    {myPincodes.map(p => (
+                      <span key={p.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-[#2563eb] border border-blue-100">
+                        <MapPin className="w-3 h-3" /> {p.regionName} — {p.code}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Engineer list */}
+              {engineers.length === 0 ? (
+                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-gray-400">
+                  <Users className="w-10 h-10 mb-3 opacity-40" />
+                  <p className="text-sm">No engineers yet</p>
+                  <button onClick={() => setShowAddEngineer(true)} className="mt-2 text-xs text-[#2563eb] hover:underline">Add your first engineer</button>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {engineers.map(eng => (
+                    <div key={eng.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{eng.firstName} {eng.lastName}</p>
+                          <p className="text-xs text-gray-500">{eng.email}</p>
+                        </div>
+                        <span className={cn(
+                          "text-xs px-2.5 py-1 rounded-full font-semibold",
+                          (eng.activeTickets ?? 0) === 0 ? "bg-emerald-100 text-emerald-700"
+                            : (eng.activeTickets ?? 0) <= 3 ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"
+                        )}>
+                          {eng.activeTickets ?? 0} active
+                        </span>
+                      </div>
+                      {eng.engineerPincodes && eng.engineerPincodes.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {eng.engineerPincodes.map(p => (
+                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-600">
+                              <MapPin className="w-2.5 h-2.5" /> {p.regionName}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+        </div>
       </main>
 
-      {/* Close dropdown on outside click */}
-      {dropdownOpen && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setDropdownOpen(null)}
-        />
+      {/* ═══════════════════ ADD ENGINEER MODAL ═══════════════════ */}
+      {showAddEngineer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-[#e2e8f0]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e2e8f0]">
+              <h3 className="text-base font-bold text-gray-900">Add Engineer</h3>
+              <button onClick={() => setShowAddEngineer(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
+                  <input type="text" value={newEng.firstName} onChange={e => setNewEng(p => ({ ...p, firstName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                    placeholder="Arun" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label>
+                  <input type="text" value={newEng.lastName} onChange={e => setNewEng(p => ({ ...p, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                    placeholder="Kumar" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Email / Phone *</label>
+                <input type="text" value={newEng.email} onChange={e => setNewEng(p => ({ ...p, email: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                  placeholder="arun@example.com" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Password *</label>
+                <input type="password" value={newEng.password} onChange={e => setNewEng(p => ({ ...p, password: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                  placeholder="Min 8 characters" />
+              </div>
+
+              {myPincodes.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">Assign Pincodes</label>
+                  <div className="flex flex-wrap gap-2">
+                    {myPincodes.map(p => {
+                      const selected = newEng.pincodeIds.includes(p.id);
+                      return (
+                        <button key={p.id} type="button"
+                          onClick={() => setNewEng(prev => ({
+                            ...prev,
+                            pincodeIds: selected
+                              ? prev.pincodeIds.filter(x => x !== p.id)
+                              : [...prev.pincodeIds, p.id],
+                          }))}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                            selected
+                              ? "bg-[#2563eb] text-white border-[#2563eb]"
+                              : "bg-white text-gray-600 border-[#e2e8f0] hover:border-[#2563eb] hover:text-[#2563eb]"
+                          )}>
+                          <MapPin className="w-3 h-3" /> {p.regionName} — {p.code}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e2e8f0] bg-gray-50 rounded-b-2xl">
+              <button onClick={() => setShowAddEngineer(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleAddEngineer} disabled={addingEngineer}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                {addingEngineer && <Loader2 className="w-4 h-4 animate-spin" />}
+                Add Engineer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Close dropdown on outside click */}
+      {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
     </div>
   );
 }
