@@ -156,6 +156,7 @@ export default function ServiceManagerPage() {
   const [savingEdit, setSavingEdit] = useState(false);
 
   // ── Locations state ──
+  const [locMode, setLocMode] = useState<"browse" | "custom">("browse");
   const [locState, setLocState] = useState("");
   const [locDistrict, setLocDistrict] = useState("");
   const [locSelected, setLocSelected] = useState<PincodeEntry[]>([]);
@@ -164,6 +165,11 @@ export default function ServiceManagerPage() {
   const [editingPincode, setEditingPincode] = useState<PincodeInfo | null>(null);
   const [editPincodeForm, setEditPincodeForm] = useState({ code: "", regionName: "" });
   const [savingPincodeEdit, setSavingPincodeEdit] = useState(false);
+  // custom pincode form
+  const [customForm, setCustomForm] = useState({ code: "", place: "", district: "", state: "" });
+  const [customValidating, setCustomValidating] = useState(false);
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [customError, setCustomError] = useState("");
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -179,6 +185,31 @@ export default function ServiceManagerPage() {
     setEditingEng(null);
     setEditForm({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] });
   };
+
+  // ── Custom pincode API lookup (optional, graceful) ──
+  useEffect(() => {
+    const code = customForm.code.trim();
+    if (!/^\d{6}$/.test(code)) return;
+    let cancelled = false;
+    setCustomValidating(true);
+    fetch(`https://api.postalpincode.in/pincode/${code}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          setCustomForm(f => ({
+            ...f,
+            place: f.place || po.Name || "",
+            district: f.district || po.District || "",
+            state: f.state || po.State || "",
+          }));
+        }
+      })
+      .catch(() => { /* API unavailable — user fills manually */ })
+      .finally(() => { if (!cancelled) setCustomValidating(false); });
+    return () => { cancelled = true; };
+  }, [customForm.code]);
 
   // ── Location handlers ──
   const handleSaveLocations = async () => {
@@ -201,6 +232,28 @@ export default function ServiceManagerPage() {
     await fetchData();
     if (toSave.length - saved > 0) setError(`${toSave.length - saved} pincode(s) could not be saved`);
     setSavingLocations(false);
+  };
+
+  const handleSaveCustom = async () => {
+    setCustomError("");
+    const code = customForm.code.trim();
+    if (!/^\d{6}$/.test(code)) { setCustomError("Enter a valid 6-digit pincode"); return; }
+    if (!customForm.place.trim()) { setCustomError("Place name is required"); return; }
+    if (!customForm.district.trim()) { setCustomError("District is required"); return; }
+    if (!customForm.state.trim()) { setCustomError("State is required"); return; }
+    const existing = new Set(myPincodes.map(p => p.code));
+    if (existing.has(code)) { setCustomError("This pincode is already added"); return; }
+    const regionName = [customForm.place.trim(), customForm.district.trim(), customForm.state.trim()].join(", ");
+    setSavingCustom(true);
+    try {
+      const res = await fetch("/api/manager/pincodes", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ code, regionName }),
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setCustomError(msg || "Failed to save"); }
+      else { setCustomForm({ code: "", place: "", district: "", state: "" }); await fetchData(); }
+    } catch { setCustomError("Network error"); }
+    finally { setSavingCustom(false); }
   };
 
   const handleDeletePincode = async (id: string) => {
@@ -820,10 +873,79 @@ export default function ServiceManagerPage() {
                 <p className="text-sm text-gray-500">Manage your service zones — {myPincodes.length} pincode{myPincodes.length !== 1 ? "s" : ""}</p>
               </div>
 
-              {/* Hierarchical selector */}
+              {/* Add service zones card */}
               <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-4">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Service Zones</p>
+                {/* Header + mode toggle */}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Service Zones</p>
+                  <div className="flex rounded-lg border border-[#e2e8f0] overflow-hidden text-xs">
+                    <button type="button"
+                      onClick={() => setLocMode("browse")}
+                      className={cn("px-3 py-1.5 font-semibold transition-colors",
+                        locMode === "browse" ? "bg-[#2563eb] text-white" : "bg-white text-gray-500 hover:bg-gray-50")}>
+                      Browse
+                    </button>
+                    <button type="button"
+                      onClick={() => { setLocMode("custom"); setCustomError(""); }}
+                      className={cn("px-3 py-1.5 font-semibold transition-colors border-l border-[#e2e8f0]",
+                        locMode === "custom" ? "bg-[#2563eb] text-white" : "bg-white text-gray-500 hover:bg-gray-50")}>
+                      Custom
+                    </button>
+                  </div>
+                </div>
 
+                {/* ── CUSTOM mode ── */}
+                {locMode === "custom" && (
+                  <div className="space-y-3">
+                    {/* Pincode */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Pincode *</label>
+                      <div className="relative">
+                        <input type="text" inputMode="numeric" maxLength={6}
+                          placeholder="e.g. 600001"
+                          value={customForm.code}
+                          onChange={e => setCustomForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                        {customValidating && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#2563eb]" />}
+                      </div>
+                      {customValidating && <p className="text-xs text-gray-400 mt-1">Looking up pincode…</p>}
+                    </div>
+                    {/* Place */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Place / Area *</label>
+                      <input type="text" placeholder="e.g. Adyar"
+                        value={customForm.place}
+                        onChange={e => setCustomForm(f => ({ ...f, place: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                    </div>
+                    {/* District + State side-by-side */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">District *</label>
+                        <input type="text" placeholder="e.g. Chennai"
+                          value={customForm.district}
+                          onChange={e => setCustomForm(f => ({ ...f, district: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">State *</label>
+                        <input type="text" placeholder="e.g. Tamil Nadu"
+                          value={customForm.state}
+                          onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                      </div>
+                    </div>
+                    {customError && <p className="text-xs text-red-500">{customError}</p>}
+                    <button onClick={handleSaveCustom} disabled={savingCustom}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                      {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      Add Custom Pincode
+                    </button>
+                  </div>
+                )}
+
+                {/* ── BROWSE mode ── */}
+                {locMode === "browse" && <>
                 {/* Step 1 — State */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">State</label>
@@ -913,6 +1035,7 @@ export default function ServiceManagerPage() {
                   {savingLocations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Save {locSelected.length > 0 ? `${locSelected.length} ` : ""}Zone{locSelected.length !== 1 ? "s" : ""}
                 </button>
+                </>}
               </div>
 
               {/* Pincode list */}
