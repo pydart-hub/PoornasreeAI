@@ -173,13 +173,16 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
     if (req.user!.role === "service_manager") {
       const managerId = req.user!.userId;
 
-      // Verify engineer exists and is a service_engineer
+      // Engineer must be owned by this manager
       const engineer = await prisma.user.findUnique({
         where: { id: engineerId },
-        select: { pincodeId: true, role: true },
+        select: { managerId: true, role: true },
       });
       if (!engineer || engineer.role !== "service_engineer") {
         res.status(400).json({ error: "Invalid engineer ID" }); return;
+      }
+      if (engineer.managerId !== managerId) {
+        res.status(403).json({ error: "This engineer is not in your team" }); return;
       }
 
       // Check that the manager manages the ticket's pincode
@@ -189,15 +192,10 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
       if (existing.pincodeId) {
         const pincodeRecord = await prisma.pincode.findUnique({
           where: { id: existing.pincodeId },
-          select: { managerId: true, engineers: { select: { id: true } } },
+          select: { managerId: true },
         });
-        if (pincodeRecord && pincodeRecord.managerId !== managerId) {
+        if (pincodeRecord && pincodeRecord.managerId && pincodeRecord.managerId !== managerId) {
           res.status(403).json({ error: "Cannot manage tickets outside your assigned pincodes" }); return;
-        }
-        // Warn if engineer is not mapped to this pincode (still allow)
-        const isEngineerMapped = pincodeRecord?.engineers.some(e => e.id === engineerId);
-        if (!isEngineerMapped) {
-          // Allow but log — the frontend can show a warning
         }
       }
     }
@@ -269,42 +267,19 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
 }
 
 // ── GET /api/tickets/engineers ────────────────────────────────────────────
-// Returns engineers from the manager's assigned pincodes (via new many-to-many),
-// including active ticket counts for workload visibility.
+// Returns engineers scoped to the manager who created them (via managerId FK).
 // Admin sees all service_engineers.
 export async function listEngineers(req: Request, res: Response): Promise<void> {
   try {
     const role   = req.user!.role;
     const userId = req.user!.userId;
 
-    let engineerWhere: Record<string, unknown> = { role: "service_engineer" };
-
-    if (role === "service_manager") {
-      // Find pincodes managed by this manager
-      const managedPincodes = await prisma.pincode.findMany({
-        where: { managerId: userId },
-        select: { id: true, engineers: { select: { id: true } } },
-      });
-
-      if (managedPincodes.length > 0) {
-        // Collect unique engineer IDs from all managed pincodes
-        const engineerIds = new Set<string>();
-        for (const p of managedPincodes) {
-          for (const e of p.engineers) engineerIds.add(e.id);
-        }
-        if (engineerIds.size > 0) {
-          engineerWhere = { id: { in: Array.from(engineerIds) }, role: "service_engineer" };
-        } else {
-          // No engineers mapped — return empty
-          res.json({ engineers: [] });
-          return;
-        }
-      } else {
-        // Fallback: legacy single-pincode
-        const pincodeId = req.user!.pincodeId;
-        if (pincodeId) engineerWhere.pincodeId = pincodeId;
-      }
-    }
+    // service_manager: only engineers they own (managerId === their id)
+    // admin: all service_engineers
+    const engineerWhere: Record<string, unknown> =
+      role === "service_manager"
+        ? { role: "service_engineer", managerId: userId }
+        : { role: "service_engineer" };
 
     const engineers = await prisma.user.findMany({
       where: engineerWhere,
@@ -313,7 +288,7 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
         firstName: true,
         lastName: true,
         email: true,
-        pincodeId: true,
+        engineerPincodes: { select: { id: true, code: true, regionName: true } },
         _count: {
           select: {
             engineerTickets: {
@@ -325,13 +300,12 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
       orderBy: { firstName: "asc" },
     });
 
-    // Flatten _count into activeTickets
     const result = engineers.map(e => ({
       id: e.id,
       firstName: e.firstName,
       lastName: e.lastName,
       email: e.email,
-      pincodeId: e.pincodeId,
+      pincodes: e.engineerPincodes,
       activeTickets: e._count.engineerTickets,
     }));
 

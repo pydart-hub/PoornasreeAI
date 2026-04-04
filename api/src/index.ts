@@ -8,6 +8,7 @@ import { env } from "./config/env";
 import authRoutes from "./routes/auth.routes";
 import chatRoutes from "./routes/chat.routes";
 import adminRoutes from "./routes/admin.routes";
+import managerRoutes from "./routes/manager.routes";
 import supportRoutes from "./routes/support.routes";
 import salesRoutes from "./routes/sales.routes";
 import ticketRoutes from "./routes/ticket.routes";
@@ -53,6 +54,7 @@ app.get("/api/rd-videos", protect, listRdVideos);
 // otherwise chatRoutes' protect middleware intercepts admin/support/sales
 // requests first and can cause duplicate auth checks or unexpected 401s.
 app.use("/api/admin",   adminRoutes);
+app.use("/api/manager", managerRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/sales",   salesRoutes);
 app.use("/api",         chatRoutes);    // broad mount — catch-all for /api/conversations, /api/messages, etc.

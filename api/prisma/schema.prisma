@@ -22,6 +22,11 @@ model User {
   pincodeId        String?
   pincode          Pincode?           @relation("UserPincode", fields: [pincodeId], references: [id])
 
+  // Engineer → owning manager (set when service_manager creates a service_engineer)
+  managerId        String?
+  manager          User?              @relation("EngineerManager", fields: [managerId], references: [id])
+  managedEngineers User[]             @relation("EngineerManager")
+
   // Pincode-based routing relations (new)
   managedPincodes  Pincode[]          @relation("ManagerPincodes")
   engineerPincodes Pincode[]          @relation("EngineerPincodes")
