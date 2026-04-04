@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Plus,
   MapPin,
+  Pencil,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 
@@ -141,10 +142,62 @@ export default function ServiceManagerPage() {
     return new Set();
   });
 
-  // ── Team modal state ──
+  // ── Team modal state — Add ──
   const [showAddEngineer, setShowAddEngineer] = useState(false);
   const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", password: "", pincodeIds: [] as string[] });
   const [addingEngineer, setAddingEngineer] = useState(false);
+
+  // ── Team modal state — Edit ──
+  const [editingEng, setEditingEng] = useState<Engineer | null>(null);
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] as string[] });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEditModal = (eng: Engineer) => {
+    setEditingEng(eng);
+    setEditForm({
+      firstName: eng.firstName,
+      lastName: eng.lastName ?? "",
+      newPassword: "",
+      pincodeIds: eng.engineerPincodes?.map(p => p.id) ?? [],
+    });
+  };
+
+  const closeEditModal = () => {
+    setEditingEng(null);
+    setEditForm({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEng) return;
+    if (!editForm.firstName.trim()) { setError("First name is required"); return; }
+    setSavingEdit(true);
+    try {
+      // Update basic info (only send fields that changed, or if password provided)
+      const basicBody: Record<string, string | undefined> = {};
+      if (editForm.firstName.trim() !== editingEng.firstName) basicBody.firstName = editForm.firstName.trim();
+      if (editForm.lastName.trim() !== (editingEng.lastName ?? "")) basicBody.lastName = editForm.lastName.trim();
+      if (editForm.newPassword.trim()) {
+        if (editForm.newPassword.length < 8) { setError("Password must be at least 8 characters"); setSavingEdit(false); return; }
+        basicBody.newPassword = editForm.newPassword;
+      }
+      if (Object.keys(basicBody).length > 0) {
+        const res = await fetch(`/api/manager/engineers/${editingEng.id}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+          body: JSON.stringify(basicBody),
+        });
+        if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to update engineer"); setSavingEdit(false); return; }
+      }
+      // Always sync pincodes
+      const pRes = await fetch(`/api/manager/engineers/${editingEng.id}/pincodes`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ pincodeIds: editForm.pincodeIds }),
+      });
+      if (!pRes.ok) { const { error: msg } = await pRes.json(); setError(msg || "Failed to update pincodes"); setSavingEdit(false); return; }
+      closeEditModal();
+      await fetchData();
+    } catch { setError("Network error"); }
+    finally { setSavingEdit(false); }
+  };
 
   // Persist archived ids
   useEffect(() => {
@@ -633,28 +686,39 @@ export default function ServiceManagerPage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {engineers.map(eng => (
                     <div key={eng.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{eng.firstName} {eng.lastName}</p>
-                          <p className="text-xs text-gray-500">{eng.email}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{eng.firstName} {eng.lastName}</p>
+                          <p className="text-xs text-gray-500 truncate">{eng.email}</p>
                         </div>
-                        <span className={cn(
-                          "text-xs px-2.5 py-1 rounded-full font-semibold",
-                          (eng.activeTickets ?? 0) === 0 ? "bg-emerald-100 text-emerald-700"
-                            : (eng.activeTickets ?? 0) <= 3 ? "bg-amber-100 text-amber-700"
-                              : "bg-red-100 text-red-700"
-                        )}>
-                          {eng.activeTickets ?? 0} active
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={cn(
+                            "text-xs px-2.5 py-1 rounded-full font-semibold",
+                            (eng.activeTickets ?? 0) === 0 ? "bg-emerald-100 text-emerald-700"
+                              : (eng.activeTickets ?? 0) <= 3 ? "bg-amber-100 text-amber-700"
+                                : "bg-red-100 text-red-700"
+                          )}>
+                            {eng.activeTickets ?? 0} active
+                          </span>
+                          <button
+                            onClick={() => openEditModal(eng)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-[#2563eb] hover:bg-blue-50 transition-colors"
+                            title="Edit engineer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      {eng.engineerPincodes && eng.engineerPincodes.length > 0 && (
+                      {eng.engineerPincodes && eng.engineerPincodes.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {eng.engineerPincodes.map(p => (
-                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-600">
+                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-[#2563eb]">
                               <MapPin className="w-2.5 h-2.5" /> {p.regionName}
                             </span>
                           ))}
                         </div>
+                      ) : (
+                        <p className="text-[11px] text-gray-400 italic">No pincodes assigned</p>
                       )}
                     </div>
                   ))}
@@ -753,6 +817,93 @@ export default function ServiceManagerPage() {
 
       {/* Close dropdown on outside click */}
       {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
+
+      {/* ═══════════════════ EDIT ENGINEER MODAL ═══════════════════ */}
+      {editingEng && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-[#e2e8f0]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e2e8f0]">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Edit Engineer</h3>
+                <p className="text-xs text-gray-500">{editingEng.email}</p>
+              </div>
+              <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
+                  <input type="text" value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label>
+                  <input type="text" value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                </div>
+              </div>
+
+              {/* New password (optional) */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">New Password <span className="font-normal text-gray-400">(leave blank to keep current)</span></label>
+                <input type="password" value={editForm.newPassword} onChange={e => setEditForm(p => ({ ...p, newPassword: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                  placeholder="Min 8 characters" />
+              </div>
+
+              {/* Pincode multi-select — only manager's own pincodes */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Assigned Pincodes
+                  <span className="ml-1 font-normal text-gray-400">(your zones only)</span>
+                </label>
+                {myPincodes.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-2">You have no pincodes assigned yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {myPincodes.map(p => {
+                      const selected = editForm.pincodeIds.includes(p.id);
+                      return (
+                        <button key={p.id} type="button"
+                          onClick={() => setEditForm(prev => ({
+                            ...prev,
+                            pincodeIds: selected
+                              ? prev.pincodeIds.filter(x => x !== p.id)
+                              : [...prev.pincodeIds, p.id],
+                          }))}
+                          className={cn(
+                            "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                            selected
+                              ? "bg-[#2563eb] text-white border-[#2563eb]"
+                              : "bg-white text-gray-600 border-[#e2e8f0] hover:border-[#2563eb] hover:text-[#2563eb]"
+                          )}>
+                          <MapPin className="w-3 h-3" /> {p.regionName} — {p.code}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e2e8f0] bg-gray-50 rounded-b-2xl">
+              <button onClick={closeEditModal}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSaveEdit} disabled={savingEdit}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                {savingEdit && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
