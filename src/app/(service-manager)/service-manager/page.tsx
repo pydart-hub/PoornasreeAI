@@ -20,6 +20,7 @@ import {
   Activity,
   Loader2,
   ChevronDown,
+  ChevronUp,
   X,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
@@ -90,6 +91,7 @@ export default function ServiceManagerPage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Auth guard
   useEffect(() => {
@@ -187,7 +189,9 @@ export default function ServiceManagerPage() {
   const closed = tickets.filter(t => t.status === "CLOSED").length;
 
   const currentTab = TABS.find(t => t.key === activeTab)!;
-  const displayed = tickets.filter(t => currentTab.statuses.includes(t.status));
+  const displayed = tickets
+    .filter(t => currentTab.statuses.includes(t.status))
+    .sort((a, b) => (b.ageHours ?? 0) - (a.ageHours ?? 0));
 
   return (
     <div className="flex flex-col h-screen bg-surface dark:bg-surface-dark overflow-hidden">
@@ -308,118 +312,171 @@ export default function ServiceManagerPage() {
                 const cfg = STATUS_BADGE[ticket.status];
                 const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
                 const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
+                const isExpanded = expandedId === ticket.id;
+                const sortedEngineers = [...engineers].sort((a, b) => (a.activeTickets ?? 0) - (b.activeTickets ?? 0));
                 return (
                   <div
                     key={ticket.id}
-                    className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark"
+                    className={cn(
+                      "rounded-2xl bg-surface-card dark:bg-surface-dark-card border overflow-hidden",
+                      ticket.status === "OPEN"
+                        ? "border-red-300 dark:border-red-700"
+                        : "border-line dark:border-line-dark"
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {ticket.ticketNumber && (
-                            <span className="text-xs font-mono text-content-secondary dark:text-content-dark-secondary">
-                              #{ticket.ticketNumber}
-                            </span>
-                          )}
-                          <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                          {ageBadge && (
-                            <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", ageBadge.color)}>
-                              {ageBadge.label}
-                            </span>
-                          )}
-                          {ticket.pincode && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                              📍 {ticket.pincode.code} — {ticket.pincode.regionName}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-content dark:text-content-dark font-medium line-clamp-2 mb-1">
-                          {ticket.problemDescription}
-                        </p>
-                        <div className="flex flex-wrap gap-3 text-xs text-content-secondary dark:text-content-dark-secondary">
-                          {ticket.machineName && <span>Machine: {ticket.machineName}</span>}
-                          {ticket.machineProductCode && <span>Product: {ticket.machineProductCode}</span>}
+                    {/* Needs Assignment banner */}
+                    {ticket.status === "OPEN" && (
+                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-red-50 dark:bg-red-900/20 text-xs font-semibold text-red-600 dark:text-red-400">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Needs Assignment
+                      </div>
+                    )}
+
+                    <div className="p-4 space-y-3">
+                      {/* ── Section 1: Ticket # / Status / Age ── */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {ticket.ticketNumber && (
+                          <span className="text-sm font-mono font-semibold text-content dark:text-content-dark">
+                            #{ticket.ticketNumber}
+                          </span>
+                        )}
+                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        {ageBadge && (
+                          <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", ageBadge.color)}>
+                            ⏱ {ageBadge.label}
+                          </span>
+                        )}
+                        {ticket.assignedEngineer && (
+                          <span className="ml-auto text-xs text-primary dark:text-primary-300 font-medium">
+                            👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ── Section 2: Customer + Location ── */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-content-secondary dark:text-content-dark-secondary">
+                        {ticket.customer && (
+                          <span className="font-medium text-content dark:text-content-dark">
+                            👤 {ticket.customer.firstName} {ticket.customer.lastName}
+                            {ticket.customer.email && (
+                              <span className="ml-1 font-normal text-content-secondary dark:text-content-dark-secondary">
+                                {ticket.customer.email}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {ticket.pincode && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                            📍 {ticket.pincode.regionName} — {ticket.pincode.code}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ── Section 3: Issue ── */}
+                      <p className="text-sm text-content dark:text-content-dark leading-snug line-clamp-2">
+                        {ticket.problemDescription}
+                      </p>
+
+                      {/* ── Section 4: Machine ── */}
+                      {(ticket.machineName || ticket.machineSerialNumber) && (
+                        <div className="flex items-center gap-2 text-xs text-content-secondary dark:text-content-dark-secondary">
+                          <span className="shrink-0">🔧</span>
+                          {ticket.machineName && <span className="font-medium">{ticket.machineName}</span>}
+                          {ticket.machineName && ticket.machineSerialNumber && <span className="text-line dark:text-line-dark">|</span>}
                           {ticket.machineSerialNumber && <span>S/N: {ticket.machineSerialNumber}</span>}
-                          {ticket.machineCustomer && <span>Mfr. Customer: {ticket.machineCustomer}</span>}
-                          {ticket.customer && (
-                            <span>Customer: {ticket.customer.firstName} {ticket.customer.lastName}</span>
-                          )}
-                          {ticket.dealer && (
-                            <span>Dealer: {ticket.dealer.firstName} {ticket.dealer.lastName}</span>
-                          )}
-                          {ticket.assignedEngineer && (
-                            <span className="text-primary dark:text-primary-300">
-                              Engineer: {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName}
-                            </span>
-                          )}
-                          <span>{formatRelativeTime(new Date(ticket.createdAt))}</span>
                         </div>
-                        {/* Metrics row */}
-                        {(ticket.responseTimeHours !== null || ticket.durationHours !== null) && (
-                          <div className="flex gap-3 mt-2 text-xs text-content-secondary dark:text-content-dark-secondary">
-                            {ticket.responseTimeHours !== null && (
+                      )}
+
+                      {/* ── Section 5: Details toggle + expanded info ── */}
+                      <div>
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
+                          className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-primary dark:hover:text-primary-300 transition-colors"
+                        >
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {isExpanded ? "Hide details" : "More details"}
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-2 pt-2 border-t border-line dark:border-line-dark flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-secondary dark:text-content-dark-secondary">
+                            {ticket.machineProductCode && <span>Product: {ticket.machineProductCode}</span>}
+                            {ticket.machineCustomer && <span>Mfr: {ticket.machineCustomer}</span>}
+                            {ticket.dealer && (
+                              <span>Dealer: {ticket.dealer.firstName} {ticket.dealer.lastName}</span>
+                            )}
+                            {ticket.responseTimeHours != null && (
                               <span>Response: {ticket.responseTimeHours}h</span>
                             )}
-                            {ticket.durationHours !== null && (
+                            {ticket.durationHours != null && (
                               <span>Duration: {ticket.durationHours}h</span>
                             )}
+                            <span>{formatRelativeTime(new Date(ticket.createdAt))}</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Assign Engineer button */}
+                      {/* ── Section 6: Assign action ── */}
                       {canAssign && (
-                        <div className="relative shrink-0">
-                          <button
-                            onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
-                            disabled={assigningId === ticket.id || engineers.length === 0}
-                            className={cn(
-                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                              assigningId === ticket.id
-                                ? "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
-                                : "bg-primary text-white hover:bg-primary-600 disabled:opacity-50"
-                            )}
-                          >
-                            {assigningId === ticket.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <UserCheck className="w-3.5 h-3.5" />
-                            )}
-                            Assign
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-
-                          {dropdownOpen === ticket.id && (
-                            <div className="absolute right-0 top-full mt-1 w-56 z-20 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden">
-                              {engineers.length === 0 ? (
-                                <p className="px-3 py-2 text-xs text-content-secondary dark:text-content-dark-secondary">
-                                  No engineers in your zone
-                                </p>
-                              ) : (
-                                engineers.map((eng) => (
-                                  <button
-                                    key={eng.id}
-                                    onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                    className="w-full text-left px-3 py-2 text-sm text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between"
-                                  >
-                                    <span>{eng.firstName} {eng.lastName}</span>
-                                    {eng.activeTickets !== undefined && (
-                                      <span className={cn(
-                                        "text-xs px-1.5 py-0.5 rounded-full",
-                                        eng.activeTickets === 0
-                                          ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                                          : eng.activeTickets <= 3
-                                            ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
-                                            : "bg-red-100 dark:bg-red-900/30 text-red-600"
-                                      )}>
-                                        {eng.activeTickets} active
-                                      </span>
-                                    )}
-                                  </button>
-                                ))
+                        <div className="flex items-center justify-end pt-2 border-t border-line dark:border-line-dark">
+                          <div className="relative">
+                            <button
+                              onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
+                              disabled={assigningId === ticket.id || engineers.length === 0}
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                                assigningId === ticket.id
+                                  ? "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
+                                  : "bg-primary text-white hover:bg-primary-600 disabled:opacity-50"
                               )}
-                            </div>
-                          )}
+                            >
+                              {assigningId === ticket.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <UserCheck className="w-3.5 h-3.5" />
+                              )}
+                              Assign Engineer
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+
+                            {dropdownOpen === ticket.id && (
+                              <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden">
+                                {sortedEngineers.length === 0 ? (
+                                  <p className="px-3 py-2 text-xs text-content-secondary dark:text-content-dark-secondary">
+                                    No engineers in your zone
+                                  </p>
+                                ) : (
+                                  sortedEngineers.map((eng, idx) => (
+                                    <button
+                                      key={eng.id}
+                                      onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                      className={cn(
+                                        "w-full text-left px-3 py-2 text-sm text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between",
+                                        idx === 0 && "bg-green-50 dark:bg-green-900/10"
+                                      )}
+                                    >
+                                      <span className="flex items-center gap-1.5">
+                                        {idx === 0 && (
+                                          <span className="text-green-600 dark:text-green-400" title="Least loaded">★</span>
+                                        )}
+                                        {eng.firstName} {eng.lastName}
+                                      </span>
+                                      {eng.activeTickets !== undefined && (
+                                        <span className={cn(
+                                          "text-xs px-1.5 py-0.5 rounded-full",
+                                          eng.activeTickets === 0
+                                            ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                                            : eng.activeTickets <= 3
+                                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600"
+                                              : "bg-red-100 dark:bg-red-900/30 text-red-600"
+                                        )}>
+                                          {eng.activeTickets} active
+                                        </span>
+                                      )}
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
