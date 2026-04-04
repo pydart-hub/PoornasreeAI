@@ -31,6 +31,7 @@ import {
   Trash2,
   Save,
 } from "lucide-react";
+import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -155,9 +156,10 @@ export default function ServiceManagerPage() {
   const [savingEdit, setSavingEdit] = useState(false);
 
   // ── Locations state ──
-  const [pincodeForm, setPincodeForm] = useState({ code: "", regionName: "" });
-  const [fetchingRegion, setFetchingRegion] = useState(false);
-  const [savingPincode, setSavingPincode] = useState(false);
+  const [locState, setLocState] = useState("");
+  const [locDistrict, setLocDistrict] = useState("");
+  const [locSelected, setLocSelected] = useState<PincodeEntry[]>([]);
+  const [savingLocations, setSavingLocations] = useState(false);
   const [deletingPincodeId, setDeletingPincodeId] = useState<string | null>(null);
   const [editingPincode, setEditingPincode] = useState<PincodeInfo | null>(null);
   const [editPincodeForm, setEditPincodeForm] = useState({ code: "", regionName: "" });
@@ -178,41 +180,27 @@ export default function ServiceManagerPage() {
     setEditForm({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] });
   };
 
-  // ── India Pincode API auto-fetch ──
-  useEffect(() => {
-    const code = pincodeForm.code.trim();
-    if (!/^\d{6}$/.test(code)) return;
-    let cancelled = false;
-    setFetchingRegion(true);
-    fetch(`https://api.postalpincode.in/pincode/${code}`)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return;
-        if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
-          const po = data[0].PostOffice[0];
-          const region = [po.Name, po.District, po.State].filter(Boolean).join(", ");
-          setPincodeForm(f => ({ ...f, regionName: region }));
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setFetchingRegion(false); });
-    return () => { cancelled = true; };
-  }, [pincodeForm.code]);
-
   // ── Location handlers ──
-  const handleCreatePincode = async () => {
-    if (!pincodeForm.code.trim() || !pincodeForm.regionName.trim()) { setError("Pincode and region name are required"); return; }
-    setSavingPincode(true);
+  const handleSaveLocations = async () => {
+    if (locSelected.length === 0) return;
+    setSavingLocations(true);
     setError("");
-    try {
-      const res = await fetch("/api/manager/pincodes", {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify(pincodeForm),
-      });
-      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to create pincode"); }
-      else { setPincodeForm({ code: "", regionName: "" }); await fetchData(); }
-    } catch { setError("Network error"); }
-    finally { setSavingPincode(false); }
+    const existing = new Set(myPincodes.map(p => p.code));
+    const toSave = locSelected.filter(p => !existing.has(p.code));
+    let saved = 0;
+    for (const entry of toSave) {
+      try {
+        const res = await fetch("/api/manager/pincodes", {
+          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+          body: JSON.stringify({ code: entry.code, regionName: entry.name }),
+        });
+        if (res.ok) saved++;
+      } catch { /* continue */ }
+    }
+    setLocSelected([]);
+    await fetchData();
+    if (toSave.length - saved > 0) setError(`${toSave.length - saved} pincode(s) could not be saved`);
+    setSavingLocations(false);
   };
 
   const handleDeletePincode = async (id: string) => {
@@ -832,29 +820,98 @@ export default function ServiceManagerPage() {
                 <p className="text-sm text-gray-500">Manage your service zones — {myPincodes.length} pincode{myPincodes.length !== 1 ? "s" : ""}</p>
               </div>
 
-              {/* Add pincode form */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Pincode</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" inputMode="numeric" maxLength={6}
-                    placeholder="Pincode (e.g. 600001)"
-                    value={pincodeForm.code}
-                    onChange={e => setPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                    className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
-                  <div className="relative">
-                    <input type="text"
-                      placeholder={fetchingRegion ? "Fetching region..." : "Region Name"}
-                      value={pincodeForm.regionName}
-                      onChange={e => setPincodeForm(f => ({ ...f, regionName: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
-                    {fetchingRegion && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#2563eb]" />}
-                  </div>
+              {/* Hierarchical selector */}
+              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-4">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Service Zones</p>
+
+                {/* Step 1 — State */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">State</label>
+                  <select
+                    value={locState}
+                    onChange={e => { setLocState(e.target.value); setLocDistrict(""); setLocSelected([]); }}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]">
+                    <option value="">Select state…</option>
+                    {getStates().map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
+
+                {/* Step 2 — District */}
+                {locState && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">District</label>
+                    <select
+                      value={locDistrict}
+                      onChange={e => { setLocDistrict(e.target.value); setLocSelected([]); }}
+                      className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]">
+                      <option value="">Select district…</option>
+                      {getDistricts(locState).map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {/* Step 3 — Pincodes multi-select */}
+                {locState && locDistrict && (() => {
+                  const existing = new Set(myPincodes.map(p => p.code));
+                  const available = getPincodes(locState, locDistrict);
+                  return (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-2">Pincodes</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
+                        {available.map(p => {
+                          const alreadySaved = existing.has(p.code);
+                          const isChosen = locSelected.some(s => s.code === p.code);
+                          return (
+                            <button key={p.code} type="button"
+                              disabled={alreadySaved}
+                              onClick={() => setLocSelected(prev =>
+                                isChosen ? prev.filter(s => s.code !== p.code) : [...prev, p]
+                              )}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs border transition-colors",
+                                alreadySaved
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-not-allowed opacity-60"
+                                  : isChosen
+                                    ? "border-[#2563eb] bg-blue-50 text-[#2563eb] font-semibold"
+                                    : "border-[#e2e8f0] bg-gray-50 text-gray-700 hover:border-[#2563eb]/40 hover:bg-blue-50/50"
+                              )}>
+                              <span className="font-mono font-bold shrink-0">{p.code}</span>
+                              <span className="truncate text-gray-500">{p.name}</span>
+                              {alreadySaved && <span className="ml-auto shrink-0 text-emerald-500">✓</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Selected chips */}
+                {locSelected.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-600">{locSelected.length} selected</p>
+                    <div className="flex flex-wrap gap-2">
+                      {locSelected.map(p => (
+                        <span key={p.code}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                          {p.code}
+                          <button type="button" onClick={() => setLocSelected(prev => prev.filter(s => s.code !== p.code))}
+                            className="ml-0.5 text-blue-400 hover:text-blue-700">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {error && pageView === "locations" && <p className="text-xs text-red-500">{error}</p>}
-                <button onClick={handleCreatePincode} disabled={savingPincode}
+
+                <button onClick={handleSaveLocations}
+                  disabled={savingLocations || locSelected.length === 0}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
-                  {savingPincode ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Add Pincode
+                  {savingLocations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Save {locSelected.length > 0 ? `${locSelected.length} ` : ""}Zone{locSelected.length !== 1 ? "s" : ""}
                 </button>
               </div>
 
