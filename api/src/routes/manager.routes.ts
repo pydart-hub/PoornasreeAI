@@ -11,6 +11,7 @@ import {
   setEngineerPincodes,
   listMyPincodes,
   createMyPincode,
+  createMyPincodesBatch,
   updateMyPincode,
   deleteMyPincode,
 } from "../controllers/manager.controller";
@@ -27,6 +28,7 @@ router.patch("/engineers/:id/pincodes",     setEngineerPincodes);
 
 // Pincodes (manager-owned CRUD)
 router.get("/pincodes",                     listMyPincodes);
+router.post("/pincodes/batch",              createMyPincodesBatch);
 router.post("/pincodes",                    createMyPincode);
 router.patch("/pincodes/:id",               updateMyPincode);
 router.delete("/pincodes/:id",              deleteMyPincode);

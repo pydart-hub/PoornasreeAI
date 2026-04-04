@@ -217,21 +217,33 @@ export default function ServiceManagerPage() {
     setSavingLocations(true);
     setError("");
     const existing = new Set(myPincodes.map(p => p.code));
-    const toSave = locSelected.filter(p => !existing.has(p.code));
-    let saved = 0;
-    for (const entry of toSave) {
-      try {
-        const res = await fetch("/api/manager/pincodes", {
-          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-          body: JSON.stringify({ code: entry.code, regionName: entry.name }),
-        });
-        if (res.ok) saved++;
-      } catch { /* continue */ }
+    const toSave = locSelected
+      .filter(p => !existing.has(p.code))
+      .map(p => ({ code: p.code, regionName: p.name }));
+    if (toSave.length === 0) {
+      setLocSelected([]);
+      setLocState("");
+      setLocDistrict("");
+      setSavingLocations(false);
+      return;
     }
-    setLocSelected([]);
-    await fetchData();
-    if (toSave.length - saved > 0) setError(`${toSave.length - saved} pincode(s) could not be saved`);
-    setSavingLocations(false);
+    try {
+      const res = await fetch("/api/manager/pincodes/batch", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ pincodes: toSave }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to save pincodes");
+      } else {
+        setLocSelected([]);
+        setLocState("");
+        setLocDistrict("");
+        await fetchData();
+        if (data.skipped?.length > 0) setError(`${data.skipped.length} pincode(s) already existed and were skipped`);
+      }
+    } catch { setError("Network error"); }
+    finally { setSavingLocations(false); }
   };
 
   const handleSaveCustom = async () => {
@@ -383,6 +395,10 @@ export default function ServiceManagerPage() {
       setError("Name, email/phone, and password are required");
       return;
     }
+    if (myPincodes.length > 0 && newEng.pincodeIds.length === 0) {
+      setError("Assign at least one pincode to this engineer");
+      return;
+    }
     setAddingEngineer(true);
     try {
       const res = await fetch("/api/manager/engineers", {
@@ -392,7 +408,7 @@ export default function ServiceManagerPage() {
           lastName: newEng.lastName.trim() || undefined,
           email: newEng.email.trim(),
           password: newEng.password,
-          pincodeIds: newEng.pincodeIds.length > 0 ? newEng.pincodeIds : undefined,
+          pincodeIds: newEng.pincodeIds,
         }),
       });
       if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add engineer"); }
@@ -1147,7 +1163,7 @@ export default function ServiceManagerPage() {
 
               {myPincodes.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-2">Assign Pincodes</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">Assign Pincodes *</label>
                   <div className="flex flex-wrap gap-2">
                     {myPincodes.map(p => {
                       const selected = newEng.pincodeIds.includes(p.id);

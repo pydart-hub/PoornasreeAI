@@ -40,7 +40,7 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
         select: { id: true },
       });
       if (managedPincodes.length !== pincodeIds.length) {
-        res.status(403).json({ error: "One or more pincodes are not in your managed zones" });
+        res.status(403).json({ error: "One or more selected pincodes do not belong to your managed zones" });
         return;
       }
     }
@@ -248,6 +248,58 @@ export async function listMyPincodes(req: Request, res: Response): Promise<void>
   }
 }
 
+// ── POST /api/manager/pincodes/batch ────────────────────────────────────────
+// Batch-save multiple pincodes at once. Skips codes that already exist globally.
+export async function createMyPincodesBatch(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const { pincodes } = req.body;
+
+    if (!Array.isArray(pincodes) || pincodes.length === 0) {
+      res.status(400).json({ error: "pincodes must be a non-empty array of { code, regionName }" });
+      return;
+    }
+
+    for (const entry of pincodes) {
+      if (!entry.code?.trim()) {
+        res.status(400).json({ error: "Each entry must have a non-empty code" });
+        return;
+      }
+      if (!entry.regionName?.trim()) {
+        res.status(400).json({ error: "Each entry must have a non-empty regionName" });
+        return;
+      }
+    }
+
+    type PincodeInput = { code: string; regionName: string };
+    const codes = (pincodes as PincodeInput[]).map(p => p.code.trim());
+
+    const existing = await prisma.pincode.findMany({
+      where: { code: { in: codes } },
+      select: { code: true },
+    });
+    const existingCodes = new Set(existing.map(p => p.code));
+    const toCreate = (pincodes as PincodeInput[]).filter(p => !existingCodes.has(p.code.trim()));
+
+    const created = await prisma.$transaction(
+      toCreate.map(p =>
+        prisma.pincode.create({
+          data: { code: p.code.trim(), regionName: p.regionName.trim(), managerId },
+          select: { id: true, code: true, regionName: true },
+        })
+      )
+    );
+
+    res.status(201).json({
+      created,
+      skipped: codes.filter(c => existingCodes.has(c)),
+    });
+  } catch (err) {
+    console.error("createMyPincodesBatch error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 // ── POST /api/manager/pincodes ────────────────────────────────────────────
 // Service manager creates a new pincode and automatically owns it.
 export async function createMyPincode(req: Request, res: Response): Promise<void> {
@@ -255,8 +307,12 @@ export async function createMyPincode(req: Request, res: Response): Promise<void
     const managerId = req.user!.userId;
     const { code, regionName, place, district, state } = req.body;
 
-    if (!code?.trim() || !regionName?.trim()) {
-      res.status(400).json({ error: "code and regionName are required" });
+    if (!code?.trim()) {
+      res.status(400).json({ error: "Pincode code is required" });
+      return;
+    }
+    if (!regionName?.trim()) {
+      res.status(400).json({ error: "Region name is required" });
       return;
     }
 
