@@ -33,7 +33,6 @@ import {
   X,
   Download,
   Settings,
-  MapPin,
   BookOpen,
   Palette,
   Film,
@@ -58,7 +57,6 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import MachinesTab from "@/components/admin/MachinesTab";
-import PincodesTab from "@/components/admin/PincodesTab";
 import TemplatesTab from "@/components/admin/TemplatesTab";
 import BrandingTab from "@/components/admin/BrandingTab";
 import RdVideosTab from "@/components/admin/RdVideosTab";
@@ -130,7 +128,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "machines" | "pincodes" | "templates" | "branding" | "rdvideos" | "tickets">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "machines" | "templates" | "branding" | "rdvideos" | "tickets">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -564,18 +562,6 @@ export default function AdminPage() {
               Machines
             </button>
             <button
-              onClick={() => setActiveTab("pincodes")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "pincodes"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <MapPin className="w-3.5 h-3.5" />
-              Pincodes
-            </button>
-            <button
               onClick={() => setActiveTab("templates")}
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
@@ -755,7 +741,6 @@ export default function AdminPage() {
               { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" /> },
               { key: "videos", label: "Videos", icon: <Youtube className="w-3.5 h-3.5" /> },
               { key: "machines", label: "Machines", icon: <Settings className="w-3.5 h-3.5" /> },
-              { key: "pincodes", label: "Pincodes", icon: <MapPin className="w-3.5 h-3.5" /> },
               { key: "templates", label: "Templates", icon: <BookOpen className="w-3.5 h-3.5" /> },
               { key: "branding", label: "Branding", icon: <Palette className="w-3.5 h-3.5" /> },
               { key: "rdvideos", label: "R&D Videos", icon: <Film className="w-3.5 h-3.5" /> },
@@ -1635,9 +1620,6 @@ export default function AdminPage() {
 
           {/* ── Machines Tab ── */}
           {activeTab === "machines" && <MachinesTab />}
-
-          {/* ── Pincodes Tab ── */}
-          {activeTab === "pincodes" && <PincodesTab />}
 
           {/* ── Templates Tab ── */}
           {activeTab === "templates" && <TemplatesTab />}

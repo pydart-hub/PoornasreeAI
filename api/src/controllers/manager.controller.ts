@@ -247,3 +247,111 @@ export async function listMyPincodes(req: Request, res: Response): Promise<void>
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ── POST /api/manager/pincodes ────────────────────────────────────────────
+// Service manager creates a new pincode and automatically owns it.
+export async function createMyPincode(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const { code, regionName, place, district, state } = req.body;
+
+    if (!code?.trim() || !regionName?.trim()) {
+      res.status(400).json({ error: "code and regionName are required" });
+      return;
+    }
+
+    const trimmedCode = code.trim();
+    const existing = await prisma.pincode.findUnique({ where: { code: trimmedCode } });
+    if (existing) {
+      res.status(409).json({ error: "Pincode already exists" });
+      return;
+    }
+
+    const pincode = await prisma.pincode.create({
+      data: {
+        code: trimmedCode,
+        regionName: regionName.trim(),
+        managerId,
+      },
+      select: { id: true, code: true, regionName: true },
+    });
+
+    res.status(201).json({ pincode });
+  } catch (err) {
+    console.error("createMyPincode error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── PATCH /api/manager/pincodes/:id ───────────────────────────────────────
+// Service manager edits one of their own pincodes.
+export async function updateMyPincode(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const pincodeId = String(req.params.id);
+    const { code, regionName } = req.body;
+
+    const pincode = await prisma.pincode.findUnique({ where: { id: pincodeId } });
+    if (!pincode || pincode.managerId !== managerId) {
+      res.status(404).json({ error: "Pincode not found or not owned by you" });
+      return;
+    }
+
+    const data: Record<string, unknown> = {};
+    if (regionName !== undefined) data.regionName = regionName.trim();
+    if (code !== undefined) {
+      const trimmedCode = code.trim();
+      if (trimmedCode !== pincode.code) {
+        const dup = await prisma.pincode.findUnique({ where: { code: trimmedCode } });
+        if (dup) { res.status(409).json({ error: "Pincode already exists" }); return; }
+        data.code = trimmedCode;
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    const updated = await prisma.pincode.update({
+      where: { id: pincodeId },
+      data,
+      select: { id: true, code: true, regionName: true },
+    });
+
+    res.json({ pincode: updated });
+  } catch (err) {
+    console.error("updateMyPincode error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── DELETE /api/manager/pincodes/:id ──────────────────────────────────────
+// Service manager deletes one of their own pincodes.
+// Disconnects engineers and unassigns legacy users first.
+export async function deleteMyPincode(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const pincodeId = String(req.params.id);
+
+    const pincode = await prisma.pincode.findUnique({ where: { id: pincodeId } });
+    if (!pincode || pincode.managerId !== managerId) {
+      res.status(404).json({ error: "Pincode not found or not owned by you" });
+      return;
+    }
+
+    // Unassign legacy users and disconnect engineers
+    await prisma.user.updateMany({ where: { pincodeId }, data: { pincodeId: null } });
+    // Disconnect engineers from this pincode (many-to-many)
+    await prisma.pincode.update({
+      where: { id: pincodeId },
+      data: { engineers: { set: [] } },
+    });
+    await prisma.pincode.delete({ where: { id: pincodeId } });
+
+    res.json({ message: "Pincode deleted" });
+  } catch (err) {
+    console.error("deleteMyPincode error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

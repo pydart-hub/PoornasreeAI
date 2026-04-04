@@ -28,6 +28,8 @@ import {
   Plus,
   MapPin,
   Pencil,
+  Trash2,
+  Save,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 
@@ -35,7 +37,7 @@ import { getSocket } from "@/lib/socket-client";
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type TicketTabKey = "unassigned" | "assigned" | "in_progress" | "closed" | "archived";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "team";
+type PageView = "tickets" | "team" | "locations";
 
 interface PincodeInfo {
   id: string;
@@ -69,7 +71,7 @@ interface ServiceTicket {
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
   dealer?: { firstName: string; lastName?: string | null } | null;
-  pincode?: { code: string; regionName: string } | null;
+  pincode?: { id: string; code: string; regionName: string } | null;
 }
 
 // ── Tab config ─────────────────────────────────────────────────────────
@@ -152,6 +154,15 @@ export default function ServiceManagerPage() {
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // ── Locations state ──
+  const [pincodeForm, setPincodeForm] = useState({ code: "", regionName: "" });
+  const [fetchingRegion, setFetchingRegion] = useState(false);
+  const [savingPincode, setSavingPincode] = useState(false);
+  const [deletingPincodeId, setDeletingPincodeId] = useState<string | null>(null);
+  const [editingPincode, setEditingPincode] = useState<PincodeInfo | null>(null);
+  const [editPincodeForm, setEditPincodeForm] = useState({ code: "", regionName: "" });
+  const [savingPincodeEdit, setSavingPincodeEdit] = useState(false);
+
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
     setEditForm({
@@ -165,6 +176,72 @@ export default function ServiceManagerPage() {
   const closeEditModal = () => {
     setEditingEng(null);
     setEditForm({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] });
+  };
+
+  // ── India Pincode API auto-fetch ──
+  useEffect(() => {
+    const code = pincodeForm.code.trim();
+    if (!/^\d{6}$/.test(code)) return;
+    let cancelled = false;
+    setFetchingRegion(true);
+    fetch(`https://api.postalpincode.in/pincode/${code}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        if (Array.isArray(data) && data[0]?.Status === "Success" && data[0]?.PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          const region = [po.Name, po.District, po.State].filter(Boolean).join(", ");
+          setPincodeForm(f => ({ ...f, regionName: region }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setFetchingRegion(false); });
+    return () => { cancelled = true; };
+  }, [pincodeForm.code]);
+
+  // ── Location handlers ──
+  const handleCreatePincode = async () => {
+    if (!pincodeForm.code.trim() || !pincodeForm.regionName.trim()) { setError("Pincode and region name are required"); return; }
+    setSavingPincode(true);
+    setError("");
+    try {
+      const res = await fetch("/api/manager/pincodes", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify(pincodeForm),
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to create pincode"); }
+      else { setPincodeForm({ code: "", regionName: "" }); await fetchData(); }
+    } catch { setError("Network error"); }
+    finally { setSavingPincode(false); }
+  };
+
+  const handleDeletePincode = async (id: string) => {
+    setDeletingPincodeId(id);
+    try {
+      const res = await fetch(`/api/manager/pincodes/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to delete pincode"); }
+      else { await fetchData(); }
+    } catch { setError("Network error"); }
+    finally { setDeletingPincodeId(null); }
+  };
+
+  const openEditPincode = (p: PincodeInfo) => {
+    setEditingPincode(p);
+    setEditPincodeForm({ code: p.code, regionName: p.regionName });
+  };
+
+  const handleSavePincodeEdit = async () => {
+    if (!editingPincode || !editPincodeForm.regionName.trim()) return;
+    setSavingPincodeEdit(true);
+    try {
+      const res = await fetch(`/api/manager/pincodes/${editingPincode.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify(editPincodeForm),
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to update pincode"); }
+      else { setEditingPincode(null); await fetchData(); }
+    } catch { setError("Network error"); }
+    finally { setSavingPincodeEdit(false); }
   };
 
   const handleSaveEdit = async () => {
@@ -369,6 +446,7 @@ export default function ServiceManagerPage() {
             {([
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-4 h-4" />, count: total },
               { key: "team" as PageView, label: "Team", icon: <Users className="w-4 h-4" />, count: engineers.length },
+              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-4 h-4" />, count: myPincodes.length },
             ]).map(nav => (
               <button key={nav.key} onClick={() => setPageView(nav.key)}
                 className={cn(
@@ -603,37 +681,70 @@ export default function ServiceManagerPage() {
                                   <ChevronDown className="w-3.5 h-3.5" />
                                 </button>
 
-                                {dropdownOpen === ticket.id && (
-                                  <div className="absolute right-0 bottom-full mb-1 w-64 z-20 rounded-xl bg-white border border-[#e2e8f0] shadow-lg overflow-hidden">
+                                {dropdownOpen === ticket.id && (() => {
+                                  // Filter engineers by ticket pincode, fallback to all
+                                  const ticketPincodeId = ticket.pincode?.id;
+                                  const matched = ticketPincodeId
+                                    ? sortedEngineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincodeId))
+                                    : [];
+                                  const others = ticketPincodeId
+                                    ? sortedEngineers.filter(e => !e.engineerPincodes?.some(p => p.id === ticketPincodeId))
+                                    : sortedEngineers;
+                                  const hasMatched = matched.length > 0;
+
+                                  return (
+                                  <div className="absolute right-0 bottom-full mb-1 w-64 z-20 rounded-xl bg-white border border-[#e2e8f0] shadow-lg overflow-hidden max-h-72 overflow-y-auto">
                                     <div className="px-3 py-2 border-b border-[#e2e8f0]">
                                       <p className="text-xs font-bold text-gray-500">Select Engineer</p>
+                                      {ticketPincodeId && <p className="text-[10px] text-gray-400 mt-0.5">{hasMatched ? "Showing zone-matched first" : "No zone match — showing all"}</p>}
                                     </div>
                                     {sortedEngineers.length === 0 ? (
                                       <p className="px-3 py-3 text-xs text-gray-400 text-center">No engineers in your team</p>
                                     ) : (
-                                      sortedEngineers.map((eng, idx) => (
-                                        <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                          className={cn(
-                                            "w-full text-left px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2",
-                                            idx === 0 && "bg-emerald-50"
-                                          )}>
-                                          <span className="flex items-center gap-1.5 min-w-0">
-                                            {idx === 0 && <span className="text-emerald-600 text-xs" title="Least loaded">★</span>}
-                                            <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                          </span>
-                                          {eng.activeTickets !== undefined && (
-                                            <span className={cn(
-                                              "text-xs px-2 py-0.5 rounded-full font-medium shrink-0",
-                                              eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                                : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                                  : "bg-red-100 text-red-700"
-                                            )}>{eng.activeTickets} active</span>
-                                          )}
-                                        </button>
-                                      ))
+                                      <>
+                                        {matched.map(eng => (
+                                          <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                            className="w-full text-left px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 bg-emerald-50">
+                                            <span className="flex items-center gap-1.5 min-w-0">
+                                              <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                              <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                            </span>
+                                            {eng.activeTickets !== undefined && (
+                                              <span className={cn(
+                                                "text-xs px-2 py-0.5 rounded-full font-medium shrink-0",
+                                                eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                  : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                    : "bg-red-100 text-red-700"
+                                              )}>{eng.activeTickets} active</span>
+                                            )}
+                                          </button>
+                                        ))}
+                                        {hasMatched && others.length > 0 && (
+                                          <div className="px-3 py-1.5 border-t border-[#e2e8f0] bg-gray-50">
+                                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Other Engineers</p>
+                                          </div>
+                                        )}
+                                        {others.map(eng => (
+                                          <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                            className="w-full text-left px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
+                                            <span className="flex items-center gap-1.5 min-w-0">
+                                              <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                            </span>
+                                            {eng.activeTickets !== undefined && (
+                                              <span className={cn(
+                                                "text-xs px-2 py-0.5 rounded-full font-medium shrink-0",
+                                                eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                  : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                    : "bg-red-100 text-red-700"
+                                              )}>{eng.activeTickets} active</span>
+                                            )}
+                                          </button>
+                                        ))}
+                                      </>
                                     )}
                                   </div>
-                                )}
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
@@ -660,20 +771,6 @@ export default function ServiceManagerPage() {
                   <Plus className="w-4 h-4" /> Add Engineer
                 </button>
               </div>
-
-              {/* My Pincodes */}
-              {myPincodes.length > 0 && (
-                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Your Zones</p>
-                  <div className="flex flex-wrap gap-2">
-                    {myPincodes.map(p => (
-                      <span key={p.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-[#2563eb] border border-blue-100">
-                        <MapPin className="w-3 h-3" /> {p.regionName} — {p.code}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Engineer list */}
               {engineers.length === 0 ? (
@@ -722,6 +819,103 @@ export default function ServiceManagerPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ═══════════════════ LOCATIONS VIEW ═══════════════════ */}
+          {pageView === "locations" && (
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Locations</h2>
+                <p className="text-sm text-gray-500">Manage your service zones — {myPincodes.length} pincode{myPincodes.length !== 1 ? "s" : ""}</p>
+              </div>
+
+              {/* Add pincode form */}
+              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Pincode</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input type="text" inputMode="numeric" maxLength={6}
+                    placeholder="Pincode (e.g. 600001)"
+                    value={pincodeForm.code}
+                    onChange={e => setPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                    className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                  <div className="relative">
+                    <input type="text"
+                      placeholder={fetchingRegion ? "Fetching region..." : "Region Name"}
+                      value={pincodeForm.regionName}
+                      onChange={e => setPincodeForm(f => ({ ...f, regionName: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                    {fetchingRegion && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#2563eb]" />}
+                  </div>
+                </div>
+                {error && pageView === "locations" && <p className="text-xs text-red-500">{error}</p>}
+                <button onClick={handleCreatePincode} disabled={savingPincode}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                  {savingPincode ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Add Pincode
+                </button>
+              </div>
+
+              {/* Pincode list */}
+              {myPincodes.length === 0 ? (
+                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-gray-400">
+                  <MapPin className="w-10 h-10 mb-3 opacity-40" />
+                  <p className="text-sm">No locations yet</p>
+                  <p className="text-xs mt-1">Add your first service zone above</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myPincodes.map(p => {
+                    const isEditing = editingPincode?.id === p.id;
+                    return (
+                      <div key={p.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3">
+                        {!isEditing ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-gray-900">{p.code}</p>
+                              <p className="text-xs text-gray-500 truncate">{p.regionName}</p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => openEditPincode(p)}
+                                className="p-2 rounded-lg text-gray-400 hover:text-[#2563eb] hover:bg-blue-50 transition-colors" title="Edit">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDeletePincode(p.id)} disabled={deletingPincodeId === p.id}
+                                className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                {deletingPincodeId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <input type="text" inputMode="numeric" maxLength={6}
+                                value={editPincodeForm.code}
+                                onChange={e => setEditPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                              <input type="text"
+                                value={editPincodeForm.regionName}
+                                onChange={e => setEditPincodeForm(f => ({ ...f, regionName: e.target.value }))}
+                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={handleSavePincodeEdit} disabled={savingPincodeEdit}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">
+                                {savingPincodeEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                Save
+                              </button>
+                              <button onClick={() => setEditingPincode(null)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>

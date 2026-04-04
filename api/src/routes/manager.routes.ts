@@ -10,6 +10,9 @@ import {
   updateMyEngineer,
   setEngineerPincodes,
   listMyPincodes,
+  createMyPincode,
+  updateMyPincode,
+  deleteMyPincode,
 } from "../controllers/manager.controller";
 
 const router = Router();
@@ -22,7 +25,10 @@ router.get("/engineers",                    listMyEngineers);
 router.patch("/engineers/:id",              updateMyEngineer);
 router.patch("/engineers/:id/pincodes",     setEngineerPincodes);
 
-// Pincodes
+// Pincodes (manager-owned CRUD)
 router.get("/pincodes",                     listMyPincodes);
+router.post("/pincodes",                    createMyPincode);
+router.patch("/pincodes/:id",               updateMyPincode);
+router.delete("/pincodes/:id",              deleteMyPincode);
 
 export default router;
