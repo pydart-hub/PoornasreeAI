@@ -911,54 +911,75 @@ export default function ServiceManagerPage() {
                 </div>
 
                 {/* ── CUSTOM mode ── */}
-                {locMode === "custom" && (
-                  <div className="space-y-3">
-                    {/* Pincode */}
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Pincode *</label>
-                      <div className="relative">
-                        <input type="text" inputMode="numeric" maxLength={6}
-                          placeholder="e.g. 600001"
-                          value={customForm.code}
-                          onChange={e => setCustomForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
-                        {customValidating && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#2563eb]" />}
-                      </div>
-                      {customValidating && <p className="text-xs text-gray-400 mt-1">Looking up pincode…</p>}
-                    </div>
-                    {/* Place */}
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Place / Area *</label>
-                      <input type="text" placeholder="e.g. Adyar"
-                        value={customForm.place}
-                        onChange={e => setCustomForm(f => ({ ...f, place: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
-                    </div>
-                    {/* District + State side-by-side */}
-                    <div className="grid grid-cols-2 gap-3">
+                {locMode === "custom" && (() => {
+                  const trimmedCode = customForm.code.trim();
+                  const isDuplicate = trimmedCode.length === 6 && myPincodes.some(p => p.code === trimmedCode);
+                  return (
+                    <div className="space-y-3">
+                      {/* Pincode */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">District *</label>
-                        <input type="text" placeholder="e.g. Chennai"
-                          value={customForm.district}
-                          onChange={e => setCustomForm(f => ({ ...f, district: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Pincode *</label>
+                        <div className="relative">
+                          <input type="text" inputMode="numeric" maxLength={6}
+                            placeholder="e.g. 600001"
+                            value={customForm.code}
+                            onChange={e => setCustomForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                            className={cn(
+                              "w-full px-3 py-2 rounded-lg text-sm border bg-gray-50 text-gray-900 focus:outline-none focus:ring-2",
+                              isDuplicate
+                                ? "border-amber-400 focus:ring-amber-200 focus:border-amber-400"
+                                : "border-[#e2e8f0] focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                            )} />
+                          {customValidating && !isDuplicate && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#2563eb]" />
+                          )}
+                          {isDuplicate && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded">
+                              Already added
+                            </span>
+                          )}
+                        </div>
+                        {customValidating && !isDuplicate && <p className="text-xs text-gray-400 mt-1">Looking up pincode…</p>}
+                        {isDuplicate && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            {trimmedCode} is already in your service zones.
+                          </p>
+                        )}
                       </div>
+                      {/* Place */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">State *</label>
-                        <input type="text" placeholder="e.g. Tamil Nadu"
-                          value={customForm.state}
-                          onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Place / Area *</label>
+                        <input type="text" placeholder="e.g. Adyar"
+                          value={customForm.place}
+                          onChange={e => setCustomForm(f => ({ ...f, place: e.target.value }))}
                           className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
                       </div>
+                      {/* District + State side-by-side */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">District *</label>
+                          <input type="text" placeholder="e.g. Chennai"
+                            value={customForm.district}
+                            onChange={e => setCustomForm(f => ({ ...f, district: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">State *</label>
+                          <input type="text" placeholder="e.g. Tamil Nadu"
+                            value={customForm.state}
+                            onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                        </div>
+                      </div>
+                      {customError && <p className="text-xs text-red-500">{customError}</p>}
+                      <button onClick={handleSaveCustom} disabled={savingCustom || isDuplicate}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                        {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Add Custom Pincode
+                      </button>
                     </div>
-                    {customError && <p className="text-xs text-red-500">{customError}</p>}
-                    <button onClick={handleSaveCustom} disabled={savingCustom}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
-                      {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      Add Custom Pincode
-                    </button>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* ── BROWSE mode ── */}
                 {locMode === "browse" && <>
@@ -1062,16 +1083,18 @@ export default function ServiceManagerPage() {
                   <p className="text-xs mt-1">Add your first service zone above</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {myPincodes.map(p => {
                     const isEditing = editingPincode?.id === p.id;
                     return (
-                      <div key={p.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3">
+                      <div key={p.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3.5 space-y-3">
                         {!isEditing ? (
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-gray-900">{p.code}</p>
-                              <p className="text-xs text-gray-500 truncate">{p.regionName}</p>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-blue-50 text-[#2563eb] border border-blue-200">
+                                {p.code}
+                              </span>
+                              <p className="text-xs text-gray-600 truncate">{p.regionName}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => openEditPincode(p)}
