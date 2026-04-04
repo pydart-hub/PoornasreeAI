@@ -127,7 +127,7 @@ export default function ServiceManagerPage() {
 
   // Persist archived ids
   useEffect(() => {
-    localStorage.setItem("sm_archived_tickets", JSON.stringify([...archivedIds]));
+    localStorage.setItem("sm_archived_tickets", JSON.stringify(Array.from(archivedIds)));
   }, [archivedIds]);
 
   const handleArchive = (ticketId: string) => {
