@@ -27,8 +27,7 @@ model User {
   manager          User?              @relation("EngineerManager", fields: [managerId], references: [id])
   managedEngineers User[]             @relation("EngineerManager")
 
-  // Pincode-based routing relations (new)
-  managedPincodes  Pincode[]          @relation("ManagerPincodes")
+  // Pincode-based routing relations
   engineerPincodes Pincode[]          @relation("EngineerPincodes")
 
   // Legacy relations (kept — not removed yet)
@@ -158,21 +157,19 @@ model SupportMessage {
 
 // ── Pincode (geographic routing zone) ─────────────────────────────────────
 model Pincode {
-  id         String   @id @default(uuid())
-  code       String   @unique
-  regionName String
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  code      String   @unique
+  place     String?
+  district  String?
+  state     String?
+  createdAt DateTime @default(now())
 
   // Legacy: users assigned to this pincode via User.pincodeId FK
-  users      User[]   @relation("UserPincode")
-  tickets    Ticket[]
+  users     User[]   @relation("UserPincode")
+  tickets   Ticket[]
 
-  // New: assigned service manager for this zone
-  managerId  String?
-  manager    User?    @relation("ManagerPincodes", fields: [managerId], references: [id])
-
-  // New: engineers assigned to this zone (many-to-many)
-  engineers  User[]   @relation("EngineerPincodes")
+  // Engineers assigned to this zone (many-to-many)
+  engineers User[]   @relation("EngineerPincodes")
 }
 
 // ── Ticket Status Enum ────────────────────────────────────────────────────

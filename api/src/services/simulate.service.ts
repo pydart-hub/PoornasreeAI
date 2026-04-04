@@ -449,7 +449,7 @@ async function handleEscalationSerial(
   let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.escPincode! } });
   if (!pincodeRecord) {
     pincodeRecord = await prisma.pincode.create({
-      data: { code: meta.escPincode!, regionName: meta.escPlace || "Unknown" },
+      data: { code: meta.escPincode!, place: meta.escPlace || null, district: meta.escDistrict || null, state: meta.escState || null },
     });
   }
 

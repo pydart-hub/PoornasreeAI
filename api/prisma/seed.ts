@@ -6,8 +6,8 @@ const SALT_ROUNDS = 12;
 
 // ── Pincodes (geographic routing zones) ──────────────────────────────────
 const SEED_PINCODES = [
-  { code: "600001", regionName: "Chennai Central" },
-  { code: "110001", regionName: "New Delhi" },
+  { code: "600001", place: "Chennai Central", district: "Chennai", state: "Tamil Nadu" },
+  { code: "110001", place: "New Delhi", district: "New Delhi", state: "Delhi" },
 ];
 
 // ── Users with role-based assignments ────────────────────────────────────
@@ -82,11 +82,11 @@ async function main() {
     const existing = await prisma.pincode.findUnique({ where: { code: p.code } });
     if (existing) {
       pincodeMap.set(p.code, existing.id);
-      console.log(`  ✓ Pincode ${p.code} (${p.regionName}) — already exists`);
+      console.log(`  ✓ Pincode ${p.code} (${p.place}, ${p.district}) — already exists`);
     } else {
       const created = await prisma.pincode.create({ data: p });
       pincodeMap.set(p.code, created.id);
-      console.log(`  + Pincode ${p.code} (${p.regionName}) — created`);
+      console.log(`  + Pincode ${p.code} (${p.place}, ${p.district}) — created`);
     }
   }
 

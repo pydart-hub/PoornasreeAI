@@ -11,7 +11,7 @@ const SALT_ROUNDS = 12;
 
 // ── POST /api/manager/engineers ───────────────────────────────────────────
 // Service manager creates a new service_engineer linked to themselves.
-// Optional: pincodeIds array (must be from the manager's own pincodes).
+// Optional: pincodeIds array.
 export async function createEngineer(req: Request, res: Response): Promise<void> {
   try {
     const managerId = req.user!.userId;
@@ -31,18 +31,6 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
     if (existing) {
       res.status(409).json({ error: "An account with this email already exists" });
       return;
-    }
-
-    // Validate pincodeIds — each must be managed by this manager
-    if (pincodeIds && Array.isArray(pincodeIds) && pincodeIds.length > 0) {
-      const managedPincodes = await prisma.pincode.findMany({
-        where: { managerId, id: { in: pincodeIds as string[] } },
-        select: { id: true },
-      });
-      if (managedPincodes.length !== pincodeIds.length) {
-        res.status(403).json({ error: "One or more selected pincodes do not belong to your managed zones" });
-        return;
-      }
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -66,7 +54,7 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
         role: true,
         createdAt: true,
         manager: { select: { id: true, firstName: true, lastName: true } },
-        engineerPincodes: { select: { id: true, code: true, regionName: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
       },
     });
 
@@ -91,7 +79,7 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
         firstName: true,
         lastName: true,
         createdAt: true,
-        engineerPincodes: { select: { id: true, code: true, regionName: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
         _count: {
           select: {
             engineerTickets: {
@@ -168,7 +156,6 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
 
 // ── PATCH /api/manager/engineers/:id/pincodes ─────────────────────────────
 // Replace the engineer's pincode assignments.
-// Only pincodes managed by THIS manager are permitted.
 export async function setEngineerPincodes(req: Request, res: Response): Promise<void> {
   try {
     const managerId = req.user!.userId;
@@ -190,18 +177,6 @@ export async function setEngineerPincodes(req: Request, res: Response): Promise<
       return;
     }
 
-    // Validate all requested pincodes belong to this manager
-    if (pincodeIds.length > 0) {
-      const managed = await prisma.pincode.findMany({
-        where: { managerId, id: { in: pincodeIds as string[] } },
-        select: { id: true },
-      });
-      if (managed.length !== pincodeIds.length) {
-        res.status(403).json({ error: "One or more pincodes are not in your managed zones" });
-        return;
-      }
-    }
-
     const updated = await prisma.user.update({
       where: { id: engineerId },
       data: {
@@ -213,7 +188,7 @@ export async function setEngineerPincodes(req: Request, res: Response): Promise<
         id: true,
         firstName: true,
         lastName: true,
-        engineerPincodes: { select: { id: true, code: true, regionName: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
       },
     });
 
@@ -225,17 +200,16 @@ export async function setEngineerPincodes(req: Request, res: Response): Promise<
 }
 
 // ── GET /api/manager/pincodes ─────────────────────────────────────────────
-// Returns the manager's own managed pincodes (for the UI to populate dropdowns).
+// Returns all pincodes in the system.
 export async function listMyPincodes(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
-
     const pincodes = await prisma.pincode.findMany({
-      where: { managerId },
       select: {
         id: true,
         code: true,
-        regionName: true,
+        place: true,
+        district: true,
+        state: true,
         engineers: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { code: "asc" },
@@ -249,14 +223,13 @@ export async function listMyPincodes(req: Request, res: Response): Promise<void>
 }
 
 // ── POST /api/manager/pincodes/batch ────────────────────────────────────────
-// Batch-save multiple pincodes at once. Skips codes that already exist globally.
+// Batch-save multiple pincodes. Skips codes that already exist.
 export async function createMyPincodesBatch(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
     const { pincodes } = req.body;
 
     if (!Array.isArray(pincodes) || pincodes.length === 0) {
-      res.status(400).json({ error: "pincodes must be a non-empty array of { code, regionName }" });
+      res.status(400).json({ error: "pincodes must be a non-empty array of { code, place, district, state }" });
       return;
     }
 
@@ -265,13 +238,9 @@ export async function createMyPincodesBatch(req: Request, res: Response): Promis
         res.status(400).json({ error: "Each entry must have a non-empty code" });
         return;
       }
-      if (!entry.regionName?.trim()) {
-        res.status(400).json({ error: "Each entry must have a non-empty regionName" });
-        return;
-      }
     }
 
-    type PincodeInput = { code: string; regionName: string };
+    type PincodeInput = { code: string; place?: string; district?: string; state?: string };
     const codes = (pincodes as PincodeInput[]).map(p => p.code.trim());
 
     const existing = await prisma.pincode.findMany({
@@ -284,8 +253,13 @@ export async function createMyPincodesBatch(req: Request, res: Response): Promis
     const created = await prisma.$transaction(
       toCreate.map(p =>
         prisma.pincode.create({
-          data: { code: p.code.trim(), regionName: p.regionName.trim(), managerId },
-          select: { id: true, code: true, regionName: true },
+          data: {
+            code: p.code.trim(),
+            place: p.place?.trim() || null,
+            district: p.district?.trim() || null,
+            state: p.state?.trim() || null,
+          },
+          select: { id: true, code: true, place: true, district: true, state: true },
         })
       )
     );
@@ -301,18 +275,13 @@ export async function createMyPincodesBatch(req: Request, res: Response): Promis
 }
 
 // ── POST /api/manager/pincodes ────────────────────────────────────────────
-// Service manager creates a new pincode and automatically owns it.
+// Creates a single pincode. Returns 409 if already exists.
 export async function createMyPincode(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
-    const { code, regionName, place, district, state } = req.body;
+    const { code, place, district, state } = req.body;
 
     if (!code?.trim()) {
       res.status(400).json({ error: "Pincode code is required" });
-      return;
-    }
-    if (!regionName?.trim()) {
-      res.status(400).json({ error: "Region name is required" });
       return;
     }
 
@@ -326,10 +295,11 @@ export async function createMyPincode(req: Request, res: Response): Promise<void
     const pincode = await prisma.pincode.create({
       data: {
         code: trimmedCode,
-        regionName: regionName.trim(),
-        managerId,
+        place: place?.trim() || null,
+        district: district?.trim() || null,
+        state: state?.trim() || null,
       },
-      select: { id: true, code: true, regionName: true },
+      select: { id: true, code: true, place: true, district: true, state: true },
     });
 
     res.status(201).json({ pincode });
@@ -340,21 +310,22 @@ export async function createMyPincode(req: Request, res: Response): Promise<void
 }
 
 // ── PATCH /api/manager/pincodes/:id ───────────────────────────────────────
-// Service manager edits one of their own pincodes.
+// Service manager edits a pincode.
 export async function updateMyPincode(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
     const pincodeId = String(req.params.id);
-    const { code, regionName } = req.body;
+    const { code, place, district, state } = req.body;
 
     const pincode = await prisma.pincode.findUnique({ where: { id: pincodeId } });
-    if (!pincode || pincode.managerId !== managerId) {
-      res.status(404).json({ error: "Pincode not found or not owned by you" });
+    if (!pincode) {
+      res.status(404).json({ error: "Pincode not found" });
       return;
     }
 
     const data: Record<string, unknown> = {};
-    if (regionName !== undefined) data.regionName = regionName.trim();
+    if (place !== undefined) data.place = place?.trim() || null;
+    if (district !== undefined) data.district = district?.trim() || null;
+    if (state !== undefined) data.state = state?.trim() || null;
     if (code !== undefined) {
       const trimmedCode = code.trim();
       if (trimmedCode !== pincode.code) {
@@ -372,7 +343,7 @@ export async function updateMyPincode(req: Request, res: Response): Promise<void
     const updated = await prisma.pincode.update({
       where: { id: pincodeId },
       data,
-      select: { id: true, code: true, regionName: true },
+      select: { id: true, code: true, place: true, district: true, state: true },
     });
 
     res.json({ pincode: updated });
@@ -383,16 +354,14 @@ export async function updateMyPincode(req: Request, res: Response): Promise<void
 }
 
 // ── DELETE /api/manager/pincodes/:id ──────────────────────────────────────
-// Service manager deletes one of their own pincodes.
-// Disconnects engineers and unassigns legacy users first.
+// Deletes a pincode; disconnects engineers and unassigns legacy users first.
 export async function deleteMyPincode(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
     const pincodeId = String(req.params.id);
 
     const pincode = await prisma.pincode.findUnique({ where: { id: pincodeId } });
-    if (!pincode || pincode.managerId !== managerId) {
-      res.status(404).json({ error: "Pincode not found or not owned by you" });
+    if (!pincode) {
+      res.status(404).json({ error: "Pincode not found" });
       return;
     }
 

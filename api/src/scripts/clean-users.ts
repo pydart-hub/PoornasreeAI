@@ -39,17 +39,10 @@ async function main() {
       where: { id },
       data: {
         engineerPincodes: { set: [] },
-        managedPincodes:  { set: [] },
       },
     });
   }
 
-  // ── 3. Nullify managerId on pincodes ───────────────────────────────────
-  console.log("[2/9] Clearing pincode manager assignments...");
-  await prisma.pincode.updateMany({
-    where: { managerId: { in: ids } },
-    data:  { managerId: null },
-  });
 
   // ── 4. Nullify optional Ticket FK fields ───────────────────────────────
   console.log("[3/9] Clearing ticket assignments (dealer / manager / engineer)...");

@@ -159,7 +159,7 @@ export async function exportTickets(req: Request, res: Response): Promise<void> 
         dealer: { select: { email: true, firstName: true } },
         assignedEngineer: { select: { email: true, firstName: true } },
         assignedManager: { select: { email: true, firstName: true } },
-        pincode: { select: { code: true, regionName: true } },
+        pincode: { select: { code: true, place: true, district: true, state: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -187,7 +187,7 @@ export async function exportTickets(req: Request, res: Response): Promise<void> 
           t.assignedEngineer?.firstName ?? "",
           t.assignedManager?.firstName ?? "",
           t.pincode?.code ?? "",
-          t.pincode?.regionName ?? "",
+          [t.pincode?.place, t.pincode?.district, t.pincode?.state].filter(Boolean).join(", "),
           t.createdAt.toISOString(),
           t.closedAt?.toISOString() ?? "",
         ]) + "\n"

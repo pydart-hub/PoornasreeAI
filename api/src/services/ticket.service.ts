@@ -15,7 +15,7 @@ const TICKET_INCLUDE = {
   dealer:          { select: { id: true, firstName: true, lastName: true, email: true } },
   assignedManager: { select: { id: true, firstName: true, lastName: true } },
   assignedEngineer:{ select: { id: true, firstName: true, lastName: true } },
-  pincode:         { select: { id: true, code: true, regionName: true } },
+  pincode:         { select: { id: true, code: true, place: true, district: true, state: true } },
 } as const;
 
 // ── State machine ────────────────────────────────────────────────────────
@@ -106,17 +106,7 @@ export async function createTicket(data: {
     }
   }
 
-  // Manager routing: only when NOT dealer-routed
-  if (!resolvedDealerId && data.pincodeId) {
-    const pincodeWithManager = await prisma.pincode.findUnique({
-      where: { id: data.pincodeId },
-      select: { managerId: true },
-    });
-    if (pincodeWithManager?.managerId) {
-      assignedManagerId = pincodeWithManager.managerId;
-      status = TicketStatus.ASSIGNED;
-    }
-  }
+  // Manager routing removed — tickets stay OPEN until manually assigned
 
   return prisma.ticket.create({
     data: {

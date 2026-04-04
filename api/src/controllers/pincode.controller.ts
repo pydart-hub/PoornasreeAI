@@ -1,13 +1,12 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 
-// GET /api/admin/pincodes — list all pincodes with manager, engineers, and legacy user counts
+// GET /api/admin/pincodes — list all pincodes with engineers and legacy user counts
 export async function listPincodes(_req: Request, res: Response): Promise<void> {
   const pincodes = await prisma.pincode.findMany({
     orderBy: { code: "asc" },
     include: {
       users: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
-      manager: { select: { id: true, firstName: true, lastName: true, email: true } },
       engineers: { select: { id: true, firstName: true, lastName: true, email: true } },
     },
   });
@@ -16,9 +15,9 @@ export async function listPincodes(_req: Request, res: Response): Promise<void> 
 
 // POST /api/admin/pincodes — create a pincode
 export async function createPincode(req: Request, res: Response): Promise<void> {
-  const { code, regionName } = req.body;
-  if (!code?.trim() || !regionName?.trim()) {
-    res.status(400).json({ error: "code and regionName are required" });
+  const { code, place, district, state } = req.body;
+  if (!code?.trim()) {
+    res.status(400).json({ error: "code is required" });
     return;
   }
   const existing = await prisma.pincode.findUnique({ where: { code: code.trim() } });
@@ -27,22 +26,28 @@ export async function createPincode(req: Request, res: Response): Promise<void> 
     return;
   }
   const pincode = await prisma.pincode.create({
-    data: { code: code.trim(), regionName: regionName.trim() },
+    data: {
+      code: code.trim(),
+      place: place?.trim() || null,
+      district: district?.trim() || null,
+      state: state?.trim() || null,
+    },
   });
   res.status(201).json({ pincode });
 }
 
-// PATCH /api/admin/pincodes/:id — update pincode (set manager, engineers, regionName)
+// PATCH /api/admin/pincodes/:id — update pincode (set engineers, place, district, state)
 export async function updatePincode(req: Request, res: Response): Promise<void> {
   const id = String(req.params.id);
-  const { managerId, engineerIds, regionName } = req.body;
+  const { engineerIds, place, district, state } = req.body;
 
   const pincode = await prisma.pincode.findUnique({ where: { id } });
   if (!pincode) { res.status(404).json({ error: "Pincode not found" }); return; }
 
   const data: Record<string, unknown> = {};
-  if (regionName !== undefined) data.regionName = regionName.trim();
-  if (managerId !== undefined) data.managerId = managerId || null;
+  if (place !== undefined) data.place = place?.trim() || null;
+  if (district !== undefined) data.district = district?.trim() || null;
+  if (state !== undefined) data.state = state?.trim() || null;
   if (engineerIds !== undefined) {
     data.engineers = { set: (engineerIds as string[]).map((eid: string) => ({ id: eid })) };
   }
@@ -51,7 +56,6 @@ export async function updatePincode(req: Request, res: Response): Promise<void> 
     where: { id },
     data,
     include: {
-      manager: { select: { id: true, firstName: true, lastName: true, email: true } },
       engineers: { select: { id: true, firstName: true, lastName: true, email: true } },
       users: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
     },

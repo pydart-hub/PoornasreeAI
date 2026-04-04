@@ -17,7 +17,7 @@ interface TicketItem {
   durationHours?: number | null;
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
   assignedEngineer?: { firstName: string } | null;
-  pincode?: { code: string; regionName: string } | null;
+  pincode?: { code: string; place?: string | null; district?: string | null; state?: string | null } | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {

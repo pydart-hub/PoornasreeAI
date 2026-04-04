@@ -79,21 +79,7 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     if (role === "customer")                                     filters.customerId = userId;
     else if (role === "dealer")                                  filters.dealerId   = userId;
     else if (role === "service_engineer" || role === "service")  filters.engineerId = userId;
-    else if (role === "service_manager") {
-      // Manager sees only tickets whose pincodeId is in their managed zones.
-      // Tickets with no pincode (unrouted) are excluded.
-      const managedPincodes = await prisma.pincode.findMany({
-        where: { managerId: userId },
-        select: { id: true },
-      });
-      if (managedPincodes.length === 0) {
-        // No pincodes assigned — return empty immediately
-        res.json({ tickets: [] });
-        return;
-      }
-      filters.managedPincodeIds = managedPincodes.map(p => p.id);
-    }
-    // admin: no filter — sees all tickets
+    // service_manager and admin: no filter — sees all tickets
 
     const tickets = await TicketService.listTickets(filters);
 
@@ -134,18 +120,8 @@ export async function getTicket(req: Request, res: Response): Promise<void> {
       if (ticket.customerId !== userId) { res.status(403).json({ error: "Access denied" }); return; }
     } else if (role === "service_engineer" || role === "service") {
       if (ticket.assignedEngineerId !== userId) { res.status(403).json({ error: "Access denied: not assigned to this ticket" }); return; }
-    } else if (role === "service_manager") {
-      // Check if this manager manages the ticket's pincode
-      if (ticket.pincodeId) {
-        const pincodeRecord = await prisma.pincode.findUnique({
-          where: { id: ticket.pincodeId },
-          select: { managerId: true },
-        });
-        if (pincodeRecord && pincodeRecord.managerId && pincodeRecord.managerId !== userId) {
-          res.status(403).json({ error: "Access denied: ticket outside your pincode" }); return;
-        }
-      }
     }
+    // service_manager: sees all tickets — no pincode ownership restriction
     // admin: full access — no filter
 
     res.json({ ticket });
@@ -206,14 +182,6 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
       if (!existing) { res.status(404).json({ error: "Ticket not found" }); return; }
 
       if (existing.pincodeId) {
-        const pincodeRecord = await prisma.pincode.findUnique({
-          where: { id: existing.pincodeId },
-          select: { managerId: true },
-        });
-        if (pincodeRecord && pincodeRecord.managerId && pincodeRecord.managerId !== managerId) {
-          res.status(403).json({ error: "Cannot manage tickets outside your assigned pincodes" }); return;
-        }
-
         // Warn if engineer's pincodes don't include the ticket's pincode (manual override)
         const engineerMatchesPincode = engineer.engineerPincodes.some(p => p.id === existing.pincodeId);
         if (!engineerMatchesPincode) {
@@ -316,7 +284,7 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
           firstName: true,
           lastName: true,
           email: true,
-          engineerPincodes: { select: { id: true, code: true, regionName: true } },
+          engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
           _count: {
             select: {
               engineerTickets: {
@@ -351,7 +319,7 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
         firstName: true,
         lastName: true,
         email: true,
-        engineerPincodes: { select: { id: true, code: true, regionName: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
         _count: {
           select: {
             engineerTickets: {

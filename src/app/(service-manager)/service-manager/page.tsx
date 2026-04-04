@@ -43,7 +43,9 @@ type PageView = "tickets" | "team" | "locations";
 interface PincodeInfo {
   id: string;
   code: string;
-  regionName: string;
+  place?: string | null;
+  district?: string | null;
+  state?: string | null;
 }
 
 interface Engineer {
@@ -72,7 +74,7 @@ interface ServiceTicket {
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
   dealer?: { firstName: string; lastName?: string | null } | null;
-  pincode?: { id: string; code: string; regionName: string } | null;
+  pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
 }
 
 // ── Tab config ─────────────────────────────────────────────────────────
@@ -163,7 +165,7 @@ export default function ServiceManagerPage() {
   const [savingLocations, setSavingLocations] = useState(false);
   const [deletingPincodeId, setDeletingPincodeId] = useState<string | null>(null);
   const [editingPincode, setEditingPincode] = useState<PincodeInfo | null>(null);
-  const [editPincodeForm, setEditPincodeForm] = useState({ code: "", regionName: "" });
+  const [editPincodeForm, setEditPincodeForm] = useState({ code: "", place: "", district: "", state: "" });
   const [savingPincodeEdit, setSavingPincodeEdit] = useState(false);
   // custom pincode form
   const [customForm, setCustomForm] = useState({ code: "", place: "", district: "", state: "" });
@@ -219,7 +221,7 @@ export default function ServiceManagerPage() {
     const existing = new Set(myPincodes.map(p => p.code));
     const toSave = locSelected
       .filter(p => !existing.has(p.code))
-      .map(p => ({ code: p.code, regionName: p.name }));
+      .map(p => ({ code: p.code, place: p.name, district: locDistrict, state: locState }));
     if (toSave.length === 0) {
       setLocSelected([]);
       setLocState("");
@@ -255,12 +257,11 @@ export default function ServiceManagerPage() {
     if (!customForm.state.trim()) { setCustomError("State is required"); return; }
     const existing = new Set(myPincodes.map(p => p.code));
     if (existing.has(code)) { setCustomError("This pincode is already added"); return; }
-    const regionName = [customForm.place.trim(), customForm.district.trim(), customForm.state.trim()].join(", ");
     setSavingCustom(true);
     try {
       const res = await fetch("/api/manager/pincodes", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ code, regionName }),
+        body: JSON.stringify({ code, place: customForm.place.trim(), district: customForm.district.trim(), state: customForm.state.trim() }),
       });
       if (!res.ok) { const { error: msg } = await res.json(); setCustomError(msg || "Failed to save"); }
       else { setCustomForm({ code: "", place: "", district: "", state: "" }); await fetchData(); }
@@ -280,11 +281,11 @@ export default function ServiceManagerPage() {
 
   const openEditPincode = (p: PincodeInfo) => {
     setEditingPincode(p);
-    setEditPincodeForm({ code: p.code, regionName: p.regionName });
+    setEditPincodeForm({ code: p.code, place: p.place ?? "", district: p.district ?? "", state: p.state ?? "" });
   };
 
   const handleSavePincodeEdit = async () => {
-    if (!editingPincode || !editPincodeForm.regionName.trim()) return;
+    if (!editingPincode) return;
     setSavingPincodeEdit(true);
     try {
       const res = await fetch(`/api/manager/pincodes/${editingPincode.id}`, {
@@ -647,8 +648,8 @@ export default function ServiceManagerPage() {
                           </div>
 
                           {/* Row 2: Location */}
-                          {ticket.pincode?.regionName && (
-                            <p className="text-xs text-gray-500">📍 {ticket.pincode.regionName}</p>
+                          {(ticket.pincode?.place || ticket.pincode?.district) && (
+                            <p className="text-xs text-gray-500">📍 {[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>
                           )}
 
                           {/* Row 3: Issue */}
@@ -685,7 +686,7 @@ export default function ServiceManagerPage() {
                               {ticket.pincode && (
                                 <div>
                                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Location</p>
-                                  <p className="font-medium text-gray-800">{ticket.pincode.regionName}</p>
+                                  <p className="font-medium text-gray-800">{[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ") || ticket.pincode.code}</p>
                                   <p className="text-gray-500">Pincode: {ticket.pincode.code}</p>
                                 </div>
                               )}
@@ -867,7 +868,7 @@ export default function ServiceManagerPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {eng.engineerPincodes.map(p => (
                             <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-[#2563eb]">
-                              <MapPin className="w-2.5 h-2.5" /> {p.regionName}
+                              <MapPin className="w-2.5 h-2.5" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code}
                             </span>
                           ))}
                         </div>
@@ -1094,7 +1095,7 @@ export default function ServiceManagerPage() {
                               <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-blue-50 text-[#2563eb] border border-blue-200">
                                 {p.code}
                               </span>
-                              <p className="text-xs text-gray-600 truncate">{p.regionName}</p>
+                              <p className="text-xs text-gray-600 truncate">{[p.place, p.district, p.state].filter(Boolean).join(", ") || "—"}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => openEditPincode(p)}
@@ -1114,9 +1115,17 @@ export default function ServiceManagerPage() {
                                 value={editPincodeForm.code}
                                 onChange={e => setEditPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
                                 className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
-                              <input type="text"
-                                value={editPincodeForm.regionName}
-                                onChange={e => setEditPincodeForm(f => ({ ...f, regionName: e.target.value }))}
+                              <input type="text" placeholder="Place"
+                                value={editPincodeForm.place}
+                                onChange={e => setEditPincodeForm(f => ({ ...f, place: e.target.value }))}
+                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                              <input type="text" placeholder="District"
+                                value={editPincodeForm.district}
+                                onChange={e => setEditPincodeForm(f => ({ ...f, district: e.target.value }))}
+                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                              <input type="text" placeholder="State"
+                                value={editPincodeForm.state}
+                                onChange={e => setEditPincodeForm(f => ({ ...f, state: e.target.value }))}
                                 className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
                             </div>
                             <div className="flex items-center gap-2">
@@ -1204,7 +1213,7 @@ export default function ServiceManagerPage() {
                               ? "bg-[#2563eb] text-white border-[#2563eb]"
                               : "bg-white text-gray-600 border-[#e2e8f0] hover:border-[#2563eb] hover:text-[#2563eb]"
                           )}>
-                          <MapPin className="w-3 h-3" /> {p.regionName} — {p.code}
+                          <MapPin className="w-3 h-3" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code} — {p.code}
                         </button>
                       );
                     })}
@@ -1272,7 +1281,6 @@ export default function ServiceManagerPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   Assigned Pincodes
-                  <span className="ml-1 font-normal text-gray-400">(your zones only)</span>
                 </label>
                 {myPincodes.length === 0 ? (
                   <p className="text-xs text-gray-400 italic py-2">You have no pincodes assigned yet.</p>
@@ -1294,7 +1302,7 @@ export default function ServiceManagerPage() {
                               ? "bg-[#2563eb] text-white border-[#2563eb]"
                               : "bg-white text-gray-600 border-[#e2e8f0] hover:border-[#2563eb] hover:text-[#2563eb]"
                           )}>
-                          <MapPin className="w-3 h-3" /> {p.regionName} — {p.code}
+                          <MapPin className="w-3 h-3" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code} — {p.code}
                         </button>
                       );
                     })}

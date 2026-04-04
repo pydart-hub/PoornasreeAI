@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Loader2, MapPin, Shield, Save, X } from "lucide-react";
+import { Plus, Trash2, Loader2, MapPin } from "lucide-react";
 
 interface SimpleUser {
   id: string;
@@ -14,9 +14,9 @@ interface SimpleUser {
 interface Pincode {
   id: string;
   code: string;
-  regionName: string;
-  managerId?: string | null;
-  manager?: SimpleUser | null;
+  place?: string | null;
+  district?: string | null;
+  state?: string | null;
   engineers?: SimpleUser[];
   users: SimpleUser[];
 }
@@ -35,15 +35,10 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 export default function PincodesTab() {
   const [pincodes, setPincodes] = useState<Pincode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ code: "", regionName: "" });
+  const [form, setForm] = useState({ code: "", place: "", district: "", state: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [allUsers, setAllUsers] = useState<SimpleUser[]>([]);
-  // Edit state for manager
-  const [editManagerId, setEditManagerId] = useState<string>("");
-  const [savingEdit, setSavingEdit] = useState(false);
   const [fetchingRegion, setFetchingRegion] = useState(false);
 
   // Auto-fetch region name from India Pincode API when 6 digits entered
@@ -63,8 +58,7 @@ export default function PincodesTab() {
           data[0].PostOffice.length > 0
         ) {
           const po = data[0].PostOffice[0];
-          const region = [po.Name, po.District, po.State].filter(Boolean).join(", ");
-          setForm(f => ({ ...f, regionName: region }));
+          setForm(f => ({ ...f, place: f.place || po.Name || "", district: f.district || po.District || "", state: f.state || po.State || "" }));
         }
       })
       .catch(() => {})
@@ -81,27 +75,18 @@ export default function PincodesTab() {
     setLoading(false);
   }, []);
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      const data = await apiFetch<{ users: SimpleUser[] }>("/api/admin/users");
-      setAllUsers(data.users);
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => { fetchPincodes(); fetchUsers(); }, [fetchPincodes, fetchUsers]);
-
-  const managers = allUsers.filter(u => u.role === "service_manager");
+  useEffect(() => { fetchPincodes(); }, [fetchPincodes]);
 
   const handleCreate = async () => {
-    if (!form.code.trim() || !form.regionName.trim()) {
-      setError("Pincode and region name are required");
+    if (!form.code.trim()) {
+      setError("Pincode is required");
       return;
     }
     setSaving(true);
     setError("");
     try {
       await apiFetch("/api/admin/pincodes", { method: "POST", body: JSON.stringify(form) });
-      setForm({ code: "", regionName: "" });
+      setForm({ code: "", place: "", district: "", state: "" });
       fetchPincodes();
     } catch (e) {
       setError((e as Error).message);
@@ -116,33 +101,6 @@ export default function PincodesTab() {
       fetchPincodes();
     } catch { /* ignore */ }
     setDeletingId(null);
-  };
-
-  const startEditing = (p: Pincode) => {
-    setEditingId(p.id);
-    setEditManagerId(p.manager?.id || "");
-  };
-
-  const cancelEditing = () => {
-    setEditingId(null);
-    setEditManagerId("");
-  };
-
-  const handleSaveAssignments = async (pincodeId: string) => {
-    setSavingEdit(true);
-    try {
-      await apiFetch(`/api/admin/pincodes/${pincodeId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          managerId: editManagerId || null,
-        }),
-      });
-      cancelEditing();
-      fetchPincodes();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    setSavingEdit(false);
   };
 
   return (
@@ -167,15 +125,29 @@ export default function PincodesTab() {
           <div className="relative">
             <input
               type="text"
-              placeholder={fetchingRegion ? "Fetching region..." : "Region Name (e.g. Chennai Central)"}
-              value={form.regionName}
-              onChange={e => setForm(f => ({ ...f, regionName: e.target.value }))}
+              placeholder={fetchingRegion ? "Fetching place..." : "Place (e.g. Chennai Central)"}
+              value={form.place}
+              onChange={e => setForm(f => ({ ...f, place: e.target.value }))}
               className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
             />
             {fetchingRegion && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
             )}
           </div>
+          <input
+            type="text"
+            placeholder="District"
+            value={form.district}
+            onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
+            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+          />
+          <input
+            type="text"
+            placeholder="State"
+            value={form.state}
+            onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+          />
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <button
@@ -196,40 +168,18 @@ export default function PincodesTab() {
       ) : (
         <div className="space-y-3">
           {pincodes.map(p => {
-            const isEditing = editingId === p.id;
             return (
               <div key={p.id} className="p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-content dark:text-content-dark">{p.code} — {p.regionName}</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {p.manager ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                          <Shield className="w-3 h-3" /> {p.manager.firstName} {p.manager.lastName ?? ""}
-                        </span>
-                      ) : (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                          No manager assigned
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium text-content dark:text-content-dark">
+                      {p.code}{p.place ? ` — ${p.place}` : ""}
+                    </p>
+                    {(p.district || p.state) && (
+                      <p className="text-xs text-content-secondary mt-0.5">{[p.district, p.state].filter(Boolean).join(", ")}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {!isEditing ? (
-                      <button
-                        onClick={() => startEditing(p)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                      >
-                        Assign Manager
-                      </button>
-                    ) : (
-                      <button
-                        onClick={cancelEditing}
-                        className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
                     <button
                       onClick={() => handleDelete(p.id)}
                       disabled={deletingId === p.id}
@@ -239,40 +189,6 @@ export default function PincodesTab() {
                     </button>
                   </div>
                 </div>
-
-                {/* Edit assignment panel */}
-                {isEditing && (
-                  <div className="space-y-3 pt-3 border-t border-line dark:border-line-dark">
-                    <div>
-                      <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1 block">
-                        Service Manager
-                      </label>
-                      <select
-                        value={editManagerId}
-                        onChange={e => setEditManagerId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
-                      >
-                        <option value="">No manager assigned</option>
-                        {managers.map(m => (
-                          <option key={m.id} value={m.id}>
-                            {m.firstName} {m.lastName ?? ""} — {m.email}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <button
-                      onClick={() => handleSaveAssignments(p.id)}
-                      disabled={savingEdit}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
-                    >
-                      {savingEdit ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Save Assignments
-                    </button>
-                  </div>
-                )}
-
-
               </div>
             );
           })}

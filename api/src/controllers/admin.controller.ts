@@ -80,8 +80,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
         role: true,
         createdAt: true,
         _count: { select: { conversations: true } },
-        managedPincodes: { select: { id: true, code: true, regionName: true } },
-        engineerPincodes: { select: { id: true, code: true, regionName: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
         // For service_engineer roles — shows which manager owns them
         manager: { select: { id: true, firstName: true, lastName: true } },
       },
