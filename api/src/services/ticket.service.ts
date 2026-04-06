@@ -199,16 +199,15 @@ export async function assignManager(ticketId: string, managerId: string) {
 
 // ── assignEngineer ────────────────────────────────────────────────────────
 // Admin or service_manager assigns an engineer to an ASSIGNED ticket.
-// Requires: status = ASSIGNED and assignedManagerId is already set.
+// Single-manager system: no per-ticket manager assignment is required.
 // Uses an atomic conditional updateMany to prevent race conditions — the
-// update only applies when all three preconditions hold simultaneously.
+// update only applies when both preconditions hold simultaneously.
 export async function assignEngineer(ticketId: string, engineerId: string) {
-  // Single atomic write: succeeds only when status=ASSIGNED, manager set, no engineer yet
+  // Single atomic write: succeeds only when status=ASSIGNED and no engineer yet
   const result = await prisma.ticket.updateMany({
     where: {
       id:                 ticketId,
       status:             TicketStatus.ASSIGNED,
-      assignedManagerId:  { not: null },
       assignedEngineerId: null,
     },
     data: { assignedEngineerId: engineerId },
@@ -223,12 +222,6 @@ export async function assignEngineer(ticketId: string, engineerId: string) {
   if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
   if (ticket.assignedEngineerId) {
     throw Object.assign(new Error("Engineer already assigned. Use reassignment flow."), { status: 409 });
-  }
-  if (!ticket.assignedManagerId) {
-    throw Object.assign(new Error("A manager must be assigned before assigning an engineer"), { status: 400 });
-  }
-  if (ticket.status === TicketStatus.OPEN) {
-    throw Object.assign(new Error("A manager must be assigned before assigning an engineer"), { status: 400 });
   }
   throw Object.assign(new Error("Engineer can only be assigned to tickets in ASSIGNED status"), { status: 400 });
 }
