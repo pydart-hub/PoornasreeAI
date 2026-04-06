@@ -30,7 +30,7 @@ type SessionMeta = {
 // ── Static messages ───────────────────────────────────────────────────────
 const GREETING_MSG =
   "Hello 👋\nWelcome to Poornasree Support 🤖\n\n" +
-  "Please enter your machine serial number (e.g., PSR-24001 or 24001):";
+  "Please enter your machine serial number:";
 
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function handleMessage(phoneNumber: string, message: string) {
@@ -92,26 +92,21 @@ async function routeState(
 
 // ── SERIAL_INPUT ──────────────────────────────────────────────────────────
 async function handleSerialInput(sessionId: string, _meta: SessionMeta, text: string) {
-  // Normalize: strip whitespace, uppercase, prepend PSR- if only digits
-  let serial = text.replace(/\s+/g, "").toUpperCase();
-  if (/^\d+$/.test(serial)) {
-    serial = `PSR-${serial}`;
-  }
-  // Also handle "psr24001" without dash → "PSR-24001"
-  const noDash = serial.match(/^PSR(\d+)$/);
-  if (noDash) {
-    serial = `PSR-${noDash[1]}`;
-  }
+  // Normalize: trim + uppercase only. Do NOT force any prefix.
+  const serial = text.replace(/\s+/g, "").toUpperCase();
+  console.log(`[simulate] Serial received: "${text}" → normalized: "${serial}"`);
 
-  if (serial.length < 3) {
-    return makeReply("Please enter a valid serial number (e.g., PSR-24001 or 24001):");
+  if (serial.length < 1) {
+    return makeReply("Please enter your machine serial number:");
   }
 
   // Call Passtest API
   let machineData: PasstestMachine | null = null;
   try {
     machineData = await fetchMachineBySerial(serial);
-  } catch {
+    console.log(`[simulate] API result for "${serial}":`, machineData ? "FOUND" : "NOT FOUND");
+  } catch (err) {
+    console.error(`[simulate] API error for "${serial}":`, (err as Error).message);
     // API error — continue to manual flow
   }
 
@@ -131,6 +126,7 @@ async function handleSerialInput(sessionId: string, _meta: SessionMeta, text: st
   }
 
   // API failed or machine not found → manual flow
+  console.log(`[simulate] No machine data for "${serial}" — entering manual flow`);
   const newMeta: SessionMeta = { serialNumber: serial, machineData: null };
   await updateSession(sessionId, "MANUAL_NAME", newMeta);
   return makeReply(
@@ -241,6 +237,7 @@ async function createTicketFromAPI(
   let resolvedDealerId: string | undefined;
   if (md.customer?.trim()) {
     const customerName = md.customer.trim().toLowerCase();
+    console.log(`[simulate] Matching customer: "${customerName}" against dealer table`);
     const dealers = await prisma.user.findMany({
       where: { role: "dealer" },
       select: { id: true, firstName: true, lastName: true },
@@ -251,7 +248,12 @@ async function createTicketFromAPI(
     });
     if (matched) {
       resolvedDealerId = matched.id;
+      console.log(`[simulate] Dealer match found: ${matched.id} (${matched.firstName} ${matched.lastName})`);
+    } else {
+      console.log(`[simulate] No dealer match — routing to MANAGER`);
     }
+  } else {
+    console.log(`[simulate] No customer name in API data — routing to MANAGER`);
   }
 
   const description = [
