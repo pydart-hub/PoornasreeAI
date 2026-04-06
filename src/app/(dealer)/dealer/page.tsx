@@ -16,9 +16,6 @@ import {
   Plus,
   AlertCircle,
   CheckCircle2,
-  Activity,
-  Clock,
-  UserCheck,
   Loader2,
   X,
   ChevronDown,
@@ -35,9 +32,12 @@ interface DealerTicket {
   problemDescription: string;
   machineName?: string | null;
   machineSerialNumber?: string | null;
+  machineCustomer?: string | null;
+  machineProductCode?: string | null;
   ageHours?: number;
   createdAt: string;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
+  pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
 }
 
 const STATUS_CONFIG: Record<TicketStatus, { label: string; variant: "info" | "warning" | "default" | "success" | "error" }> = {
@@ -47,6 +47,26 @@ const STATUS_CONFIG: Record<TicketStatus, { label: string; variant: "info" | "wa
   PENDING_OTP: { label: "Pending OTP", variant: "default" },
   CLOSED:      { label: "Closed",      variant: "success" },
 };
+
+// ── Parse structured problemDescription from chat-created tickets ──────────
+function parseTicketDescription(desc: string) {
+  const pairs: Record<string, string> = {};
+  for (const line of desc.split("\n")) {
+    const m = line.match(/^([^:\n]+?):\s*(.+)$/);
+    if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
+  }
+  const isStructured = Object.keys(pairs).length >= 2;
+  return {
+    isStructured,
+    customerName: pairs["customer"] || pairs["customer name"] || undefined,
+    location:
+      pairs["location"] ||
+      [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||
+      [pairs["place"], pairs["district"], pairs["state"]].filter(Boolean).join(", ") ||
+      undefined,
+    phone: pairs["phone"] || undefined,
+  };
+}
 
 const STATUS_TABS: { label: string; value: TicketStatus | "ALL" }[] = [
   { label: "All", value: "ALL" },
@@ -67,6 +87,7 @@ export default function DealerPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     problemDescription: "",
@@ -335,59 +356,127 @@ export default function DealerPage() {
             <div className="space-y-3">
               {displayed.map((ticket) => {
                 const cfg = STATUS_CONFIG[ticket.status];
+                const parsed = parseTicketDescription(ticket.problemDescription);
+                const customerDisplay = ticket.machineCustomer || parsed.customerName;
+                const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") || parsed.location;
+                const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
+                const isExpanded = expandedId === ticket.id;
                 return (
                   <div
                     key={ticket.id}
-                    className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark"
+                    className="rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark overflow-hidden shadow-sm"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {ticket.ticketNumber && (
-                            <span className="text-xs font-mono text-content-secondary dark:text-content-dark-secondary">
-                              #{ticket.ticketNumber}
-                            </span>
-                          )}
-                          <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                          {typeof ticket.ageHours === "number" && (
-                            <span className={cn(
-                              "text-xs px-1.5 py-0.5 rounded-full",
-                              ticket.ageHours > 48
-                                ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                                : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
-                            )}>
-                              {ticket.ageHours}h old
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-content dark:text-content-dark font-medium line-clamp-2 mb-1">
-                          {ticket.problemDescription}
-                        </p>
-                        <div className="flex flex-wrap gap-3 text-xs text-content-secondary dark:text-content-dark-secondary">
-                          {ticket.machineName && <span>Machine: {ticket.machineName}</span>}
-                          {ticket.machineSerialNumber && <span>S/N: {ticket.machineSerialNumber}</span>}
-                          {ticket.assignedEngineer && (
-                            <span className="text-primary dark:text-primary-300">
-                              Engineer: {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName}
-                            </span>
-                          )}
-                          <span>{formatRelativeTime(new Date(ticket.createdAt))}</span>
-                        </div>
+                    <div className="p-4 space-y-2.5">
+                      {/* ── Row 1: ID · Status · Age ── */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {ticket.ticketNumber && (
+                          <span className="text-sm font-mono font-bold text-content dark:text-content-dark">#{ticket.ticketNumber}</span>
+                        )}
+                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                        {typeof ticket.ageHours === "number" && (
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full font-semibold",
+                            ticket.ageHours > 48
+                              ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                              : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
+                          )}>
+                            {ticket.ageHours}h old
+                          </span>
+                        )}
                       </div>
 
-                      {/* Status icon */}
-                      <div className={cn(
-                        "shrink-0 mt-0.5",
-                        ticket.status === "CLOSED" ? "text-green-500" :
-                        ticket.status === "IN_PROGRESS" ? "text-amber-500" :
-                        ticket.status === "OPEN" ? "text-red-500" : "text-blue-500"
-                      )}>
-                        {ticket.status === "CLOSED" ? <CheckCircle2 className="w-5 h-5" /> :
-                         ticket.status === "IN_PROGRESS" ? <Activity className="w-5 h-5" /> :
-                         ticket.status === "PENDING_OTP" ? <Clock className="w-5 h-5" /> :
-                         ticket.status === "ASSIGNED" ? <UserCheck className="w-5 h-5" /> :
-                         <AlertCircle className="w-5 h-5" />}
+                      {/* ── Structured primary fields ── */}
+                      <div className="space-y-1.5">
+                        {customerDisplay && (
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">👤</span>
+                            <span className="font-semibold text-content dark:text-content-dark leading-snug">{customerDisplay}</span>
+                          </div>
+                        )}
+                        {locationShort && (
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">📍</span>
+                            <span className="text-content-secondary dark:text-content-dark-secondary leading-snug">{locationShort}</span>
+                          </div>
+                        )}
+                        {machineDisplay && (
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">🔧</span>
+                            <span className="text-content-secondary dark:text-content-dark-secondary leading-snug">{machineDisplay}</span>
+                          </div>
+                        )}
+                        {parsed.isStructured ? (
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">💬</span>
+                            <span className="text-content-secondary dark:text-content-dark-secondary italic leading-snug">Service request via chat</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-2 text-sm">
+                            <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">💬</span>
+                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2">{ticket.problemDescription}</span>
+                          </div>
+                        )}
                       </div>
+
+                      {/* ── Engineer chip + View Details ── */}
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {ticket.assignedEngineer && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-primary dark:text-primary-300 bg-primary/10 px-2 py-0.5 rounded-full">
+                            👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
+                          className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-primary dark:hover:text-primary-300 transition-colors ml-auto"
+                        >
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {isExpanded ? "Hide Details" : "View Details"}
+                        </button>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="mt-2 pt-3 border-t border-line dark:border-line-dark space-y-3 text-xs">
+                          {(ticket.machineCustomer || parsed.customerName) && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Customer</p>
+                              <p className="font-medium text-content dark:text-content-dark">{ticket.machineCustomer || parsed.customerName}</p>
+                            </div>
+                          )}
+                          {ticket.pincode ? (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Location</p>
+                              <p className="font-medium text-content dark:text-content-dark">{[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ") || ticket.pincode.code}</p>
+                              <p className="text-content-secondary dark:text-content-dark-secondary">Pincode: {ticket.pincode.code}</p>
+                            </div>
+                          ) : parsed.location ? (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Location</p>
+                              <p className="font-medium text-content dark:text-content-dark">{parsed.location}</p>
+                            </div>
+                          ) : null}
+                          {(ticket.machineName || ticket.machineSerialNumber || ticket.machineProductCode) && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Machine</p>
+                              {ticket.machineName && <p className="font-medium text-content dark:text-content-dark">{ticket.machineName}</p>}
+                              {ticket.machineSerialNumber && <p className="text-content-secondary dark:text-content-dark-secondary">S/N: {ticket.machineSerialNumber}</p>}
+                              {ticket.machineProductCode && <p className="text-content-secondary dark:text-content-dark-secondary">Product: {ticket.machineProductCode}</p>}
+                            </div>
+                          )}
+                          {parsed.phone && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Phone</p>
+                              <p className="font-medium text-content dark:text-content-dark">{parsed.phone}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Full Description</p>
+                            <p className="text-content dark:text-content-dark leading-relaxed whitespace-pre-line">{ticket.problemDescription}</p>
+                          </div>
+                          <div className="text-content-secondary dark:text-content-dark-secondary">
+                            <span className="opacity-60">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

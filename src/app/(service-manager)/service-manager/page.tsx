@@ -110,6 +110,26 @@ function isWithinDateRange(createdAt: string, range: DateRange): boolean {
   return true;
 }
 
+// ── Parse structured problemDescription from chat-created tickets ──────────
+function parseTicketDescription(desc: string) {
+  const pairs: Record<string, string> = {};
+  for (const line of desc.split("\n")) {
+    const m = line.match(/^([^:\n]+?):\s*(.+)$/);
+    if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
+  }
+  const isStructured = Object.keys(pairs).length >= 2;
+  return {
+    isStructured,
+    customerName: pairs["customer"] || pairs["customer name"] || undefined,
+    location:
+      pairs["location"] ||
+      [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||
+      [pairs["place"], pairs["district"], pairs["state"]].filter(Boolean).join(", ") ||
+      undefined,
+    phone: pairs["phone"] || undefined,
+  };
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // Component
 // ══════════════════════════════════════════════════════════════════════
@@ -614,6 +634,10 @@ export default function ServiceManagerPage() {
                     const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
                     const isExpanded = expandedId === ticket.id;
                     const isArchived = archivedIds.has(ticket.id);
+                    const parsed = parseTicketDescription(ticket.problemDescription);
+                    const customerDisplay = ticket.machineCustomer || parsed.customerName;
+                    const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") || parsed.location;
+                    const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
 
                     return (
                       <div key={ticket.id}
@@ -629,7 +653,7 @@ export default function ServiceManagerPage() {
                         )}
 
                         <div className="p-4 space-y-2.5">
-                          {/* Row 1: Ticket # · Status · Age · Assigned */}
+                          {/* ── Row 1: ID · Status · Age ── */}
                           <div className="flex items-center gap-2 flex-wrap">
                             {ticket.ticketNumber && (
                               <span className="text-sm font-mono font-bold text-gray-900">#{ticket.ticketNumber}</span>
@@ -640,56 +664,75 @@ export default function ServiceManagerPage() {
                                 {ageBadge.label}{ageBadge.urgency ? ` · ${ageBadge.urgency}` : ""}
                               </span>
                             )}
-                            {ticket.assignedEngineer && (
-                              <span className="ml-auto text-xs text-[#2563eb] font-medium">
-                                👷 {ticket.assignedEngineer.firstName}
-                              </span>
+                          </div>
+
+                          {/* ── Structured primary fields ── */}
+                          <div className="space-y-1.5">
+                            {customerDisplay && (
+                              <div className="flex items-start gap-2 text-sm">
+                                <span className="text-gray-400 shrink-0 text-[13px]">👤</span>
+                                <span className="font-semibold text-gray-900 leading-snug">{customerDisplay}</span>
+                              </div>
+                            )}
+                            {locationShort && (
+                              <div className="flex items-start gap-2 text-sm">
+                                <span className="text-gray-400 shrink-0 text-[13px]">📍</span>
+                                <span className="text-gray-600 leading-snug">{locationShort}</span>
+                              </div>
+                            )}
+                            {machineDisplay && (
+                              <div className="flex items-start gap-2 text-sm">
+                                <span className="text-gray-400 shrink-0 text-[13px]">🔧</span>
+                                <span className="text-gray-600 leading-snug">{machineDisplay}</span>
+                              </div>
+                            )}
+                            {parsed.isStructured ? (
+                              <div className="flex items-start gap-2 text-sm">
+                                <span className="text-gray-400 shrink-0 text-[13px]">💬</span>
+                                <span className="text-gray-500 italic leading-snug">Service request via chat</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-2 text-sm">
+                                <span className="text-gray-400 shrink-0 text-[13px]">💬</span>
+                                <span className="font-medium text-gray-800 leading-snug line-clamp-2">{ticket.problemDescription}</span>
+                              </div>
                             )}
                           </div>
 
-                          {/* Row 2: Location */}
-                          {(ticket.pincode?.place || ticket.pincode?.district) && (
-                            <p className="text-xs text-gray-500">📍 {[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>
-                          )}
-
-                          {/* Row 3: Issue */}
-                          <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">
-                            {ticket.problemDescription}
-                          </p>
-
-                          {/* Row 4: Customer */}
-                          {ticket.customer && (
-                            <p className="text-xs font-medium text-gray-700">{ticket.customer.email}</p>
-                          )}
-
-                          {/* Row 5: Machine */}
-                          {ticket.machineName && (
-                            <p className="text-xs text-gray-500">🔧 {ticket.machineName}</p>
-                          )}
-
-                          {/* Expand toggle */}
-                          <button onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
-                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#2563eb] transition-colors mt-1">
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            {isExpanded ? "Hide Details" : "View Details"}
-                          </button>
+                          {/* ── Engineer chip + View Details ── */}
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            {ticket.assignedEngineer && (
+                              <span className="flex items-center gap-1 text-xs font-medium text-[#2563eb] bg-blue-50 px-2 py-0.5 rounded-full">
+                                👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
+                              </span>
+                            )}
+                            <button onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
+                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#2563eb] transition-colors ml-auto">
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              {isExpanded ? "Hide Details" : "View Details"}
+                            </button>
+                          </div>
 
                           {isExpanded && (
                             <div className="mt-2 pt-3 border-t border-[#e2e8f0] space-y-3 text-xs">
-                              {ticket.customer && (
+                              {(ticket.machineCustomer || parsed.customerName) && (
                                 <div>
                                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Customer</p>
-                                  <p className="font-medium text-gray-800">{ticket.customer.firstName} {ticket.customer.lastName}</p>
-                                  <p className="text-gray-500">{ticket.customer.email}</p>
+                                  <p className="font-medium text-gray-800">{ticket.machineCustomer || parsed.customerName}</p>
                                 </div>
                               )}
-                              {ticket.pincode && (
+                              {ticket.pincode ? (
                                 <div>
                                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Location</p>
                                   <p className="font-medium text-gray-800">{[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ") || ticket.pincode.code}</p>
                                   <p className="text-gray-500">Pincode: {ticket.pincode.code}</p>
                                 </div>
-                              )}
+                              ) : parsed.location ? (
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Location</p>
+                                  <p className="font-medium text-gray-800">{parsed.location}</p>
+                                </div>
+                              ) : null}
                               {(ticket.machineName || ticket.machineSerialNumber || ticket.machineProductCode) && (
                                 <div>
                                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Machine</p>
@@ -698,9 +741,15 @@ export default function ServiceManagerPage() {
                                   {ticket.machineProductCode && <p className="text-gray-500">Product: {ticket.machineProductCode}</p>}
                                 </div>
                               )}
+                              {parsed.phone && (
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Phone</p>
+                                  <p className="font-medium text-gray-800">{parsed.phone}</p>
+                                </div>
+                              )}
                               <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Full Complaint</p>
-                                <p className="text-gray-700 leading-relaxed">{ticket.problemDescription}</p>
+                                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Full Description</p>
+                                <p className="text-gray-700 leading-relaxed whitespace-pre-line">{ticket.problemDescription}</p>
                               </div>
                               <div>
                                 <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Source</p>
@@ -709,7 +758,6 @@ export default function ServiceManagerPage() {
                                 </p>
                               </div>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-500">
-                                {ticket.machineCustomer && <div><span className="text-gray-400">Mfr Cust:</span> {ticket.machineCustomer}</div>}
                                 {ticket.responseTimeHours != null && <div><span className="text-gray-400">Response:</span> {ticket.responseTimeHours}h</div>}
                                 {ticket.durationHours != null && <div><span className="text-gray-400">Duration:</span> {ticket.durationHours}h</div>}
                                 <div><span className="text-gray-400">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}</div>
