@@ -81,6 +81,9 @@ async function routeState(
     case "MANUAL_PLACE":
       return handleManualPlace(session.id, meta, text);
 
+    case "API_PINCODE":
+      return handleApiPincode(session.id, phoneNumber, meta, text);
+
     case "MANUAL_PINCODE":
       return handleManualPincode(session.id, phoneNumber, meta, text);
 
@@ -143,8 +146,9 @@ async function handleMachineConfirm(
   text: string,
 ) {
   if (text === "1") {
-    // Yes — create ticket with API data + auto-route
-    return createTicketFromAPI(sessionId, phoneNumber, meta);
+    // Yes — ask for pincode (API does not provide it)
+    await updateSession(sessionId, "API_PINCODE", meta);
+    return makeReply("Please enter your pincode (6 digits):");
   }
   if (text === "2") {
     // No — fall to manual flow (keep serial)
@@ -173,6 +177,50 @@ async function handleManualPlace(sessionId: string, meta: SessionMeta, text: str
   }
   await updateSession(sessionId, "MANUAL_PINCODE", { ...meta, manualPlace: text });
   return makeReply("Please enter your pincode (6 digits):");
+}
+
+// ── API_PINCODE → create ticket from API ────────────────────────────────
+async function handleApiPincode(
+  sessionId: string,
+  phoneNumber: string,
+  meta: SessionMeta,
+  text: string,
+) {
+  if (!/^\d{6}$/.test(text)) {
+    return makeReply("Please enter a valid 6-digit pincode (numbers only):");
+  }
+
+  // Enrich from India Pincode API
+  let district: string | undefined;
+  let stateName: string | undefined;
+  let place: string | undefined;
+  try {
+    const response = await fetch(`https://api.postalpincode.in/pincode/${text}`);
+    const data = await response.json();
+    if (
+      Array.isArray(data) &&
+      data[0]?.Status === "Success" &&
+      Array.isArray(data[0]?.PostOffice) &&
+      data[0].PostOffice.length > 0
+    ) {
+      const po = data[0].PostOffice[0];
+      place    = po.Name     || undefined;
+      district = po.District || undefined;
+      stateName = po.State   || undefined;
+    }
+  } catch {
+    // Non-blocking
+  }
+
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    manualPincode:  text,
+    manualPlace:    place,
+    manualDistrict: district,
+    manualState:    stateName,
+  };
+
+  return createTicketFromAPI(sessionId, phoneNumber, updatedMeta);
 }
 
 // ── MANUAL_PINCODE → create ticket ───────────────────────────────────────
@@ -256,12 +304,30 @@ async function createTicketFromAPI(
     console.log(`[simulate] No customer name in API data — routing to MANAGER`);
   }
 
+  // Resolve or create Pincode record from pincode collected in chat
+  let pincodeId: string | undefined;
+  if (meta.manualPincode) {
+    let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.manualPincode } });
+    if (!pincodeRecord) {
+      pincodeRecord = await prisma.pincode.create({
+        data: {
+          code:     meta.manualPincode,
+          place:    meta.manualPlace    || null,
+          district: meta.manualDistrict || null,
+          state:    meta.manualState    || null,
+        },
+      });
+    }
+    pincodeId = pincodeRecord.id;
+  }
+
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
     problemDescription:  `Service request via chat for serial ${serial}`,
     issueDescription:    `Customer confirmed machine via serial scan. Customer: ${md.customer || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || "N/A"}`,
     machineName:         md.m_model || undefined,
     machineSerialNumber: serial,
+    pincodeId,
     phoneNumber,
     dealerId:            resolvedDealerId,
   });

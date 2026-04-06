@@ -365,8 +365,10 @@ export default function DealerPage() {
                 const cfg = STATUS_CONFIG[ticket.status];
                 const parsed = parseTicketDescription(ticket.problemDescription);
                 const customerDisplay = ticket.machineCustomer || parsed.customerName;
-                const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") ||
-                  ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
+                const locationShort = [
+                  [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
+                  ticket.pincode?.code,
+                ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                 const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
                 const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
                 const isExpanded = expandedId === ticket.id;
