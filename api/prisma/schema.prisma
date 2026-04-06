@@ -213,10 +213,16 @@ model Ticket {
 
   // Problem
   problemDescription String    @db.Text
+  issueDescription   String?   @db.Text  // the actual customer complaint (chat-submitted)
   machineName        String?
   machineSerialNumber String?  // denormalized for display
   machineProductCode String?   // product_code from Passtest API
   machineCustomer    String?   // customer name from Passtest API
+  machineAddress1    String?   // Address1 from Passtest API
+  machineAddress2    String?   // Address2 from Passtest API
+  machineInvoiceNo   String?   // InvNo from Passtest API
+  machineInvoiceDate String?   // InvDate from Passtest API
+  machineWarranty    Int?      // WARRANTY months from Passtest API
   phoneNumber        String?   // link back to simulate chat (for OTP delivery)
 
   // Lifecycle

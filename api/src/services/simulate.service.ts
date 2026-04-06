@@ -256,18 +256,10 @@ async function createTicketFromAPI(
     console.log(`[simulate] No customer name in API data — routing to MANAGER`);
   }
 
-  const description = [
-    `Customer: ${md.customer || "N/A"}`,
-    `Model: ${md.m_model || "N/A"}`,
-    `Product Code: ${md.product_code || "N/A"}`,
-    `Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || "N/A"}`,
-    `Serial: ${serial}`,
-    `Phone: ${phoneNumber}`,
-  ].join("\n");
-
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
-    problemDescription:  description,
+    problemDescription:  `Service request via chat for serial ${serial}`,
+    issueDescription:    `Customer confirmed machine via serial scan. Customer: ${md.customer || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || "N/A"}`,
     machineName:         md.m_model || undefined,
     machineSerialNumber: serial,
     phoneNumber,
@@ -320,20 +312,11 @@ async function createTicketManual(
     pincodeId = pincodeRecord.id;
   }
 
-  const description = [
-    `Customer Name: ${meta.manualName || "N/A"}`,
-    `Place: ${meta.manualPlace || "N/A"}`,
-    `District: ${meta.manualDistrict || "N/A"}`,
-    `State: ${meta.manualState || "N/A"}`,
-    `Pincode: ${meta.manualPincode || "N/A"}`,
-    `Serial: ${meta.serialNumber || "N/A"}`,
-    `Phone: ${phoneNumber}`,
-  ].join("\n");
-
   // Manual flow → always routes to MANAGER (no API data for dealer match)
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
-    problemDescription:  description,
+    problemDescription:  `Manual service request via chat`,
+    issueDescription:    `Customer: ${meta.manualName || "N/A"}, Location: ${[meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}`,
     machineSerialNumber: meta.serialNumber || undefined,
     pincodeId,
     phoneNumber,

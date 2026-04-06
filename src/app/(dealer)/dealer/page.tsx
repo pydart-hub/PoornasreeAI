@@ -30,10 +30,17 @@ interface DealerTicket {
   ticketNumber?: string;
   status: TicketStatus;
   problemDescription: string;
+  issueDescription?: string | null;
   machineName?: string | null;
   machineSerialNumber?: string | null;
   machineCustomer?: string | null;
   machineProductCode?: string | null;
+  machineAddress1?: string | null;
+  machineAddress2?: string | null;
+  machineInvoiceNo?: string | null;
+  machineInvoiceDate?: string | null;
+  machineWarranty?: number | null;
+  phoneNumber?: string | null;
   ageHours?: number;
   createdAt: string;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
@@ -358,8 +365,10 @@ export default function DealerPage() {
                 const cfg = STATUS_CONFIG[ticket.status];
                 const parsed = parseTicketDescription(ticket.problemDescription);
                 const customerDisplay = ticket.machineCustomer || parsed.customerName;
-                const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") || parsed.location;
+                const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") ||
+                  ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                 const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
+                const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
                 const isExpanded = expandedId === ticket.id;
                 return (
                   <div
@@ -405,15 +414,10 @@ export default function DealerPage() {
                             <span className="text-content-secondary dark:text-content-dark-secondary leading-snug">{machineDisplay}</span>
                           </div>
                         )}
-                        {parsed.isStructured ? (
+                        {issueDisplay && (
                           <div className="flex items-start gap-2 text-sm">
                             <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">💬</span>
-                            <span className="text-content-secondary dark:text-content-dark-secondary italic leading-snug">Service request via chat</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-2 text-sm">
-                            <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">💬</span>
-                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2">{ticket.problemDescription}</span>
+                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2">{issueDisplay}</span>
                           </div>
                         )}
                       </div>
@@ -442,11 +446,12 @@ export default function DealerPage() {
                               <p className="font-medium text-content dark:text-content-dark">{ticket.machineCustomer || parsed.customerName}</p>
                             </div>
                           )}
-                          {ticket.pincode ? (
+                          {(ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode) ? (
                             <div>
-                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Location</p>
-                              <p className="font-medium text-content dark:text-content-dark">{[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ") || ticket.pincode.code}</p>
-                              <p className="text-content-secondary dark:text-content-dark-secondary">Pincode: {ticket.pincode.code}</p>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Full Address</p>
+                              {ticket.machineAddress1 && <p className="font-medium text-content dark:text-content-dark">{ticket.machineAddress1}</p>}
+                              {ticket.machineAddress2 && <p className="text-content-secondary dark:text-content-dark-secondary">{ticket.machineAddress2}</p>}
+                              {ticket.pincode && <p className="text-content-secondary dark:text-content-dark-secondary mt-0.5">Pincode: {ticket.pincode.code} · {[ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>}
                             </div>
                           ) : parsed.location ? (
                             <div>
@@ -459,19 +464,23 @@ export default function DealerPage() {
                               <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Machine</p>
                               {ticket.machineName && <p className="font-medium text-content dark:text-content-dark">{ticket.machineName}</p>}
                               {ticket.machineSerialNumber && <p className="text-content-secondary dark:text-content-dark-secondary">S/N: {ticket.machineSerialNumber}</p>}
-                              {ticket.machineProductCode && <p className="text-content-secondary dark:text-content-dark-secondary">Product: {ticket.machineProductCode}</p>}
+                              {ticket.machineProductCode && <p className="text-content-secondary dark:text-content-dark-secondary">Product Code: {ticket.machineProductCode}</p>}
                             </div>
                           )}
-                          {parsed.phone && (
+                          {(ticket.machineInvoiceNo || ticket.machineInvoiceDate || ticket.machineWarranty) && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Invoice / Warranty</p>
+                              {ticket.machineInvoiceNo && <p className="text-content-secondary dark:text-content-dark-secondary">Invoice: {ticket.machineInvoiceNo}</p>}
+                              {ticket.machineInvoiceDate && <p className="text-content-secondary dark:text-content-dark-secondary">Date: {ticket.machineInvoiceDate}</p>}
+                              {ticket.machineWarranty != null && <p className="text-content-secondary dark:text-content-dark-secondary">Warranty: {ticket.machineWarranty} months</p>}
+                            </div>
+                          )}
+                          {(ticket.phoneNumber || parsed.phone) && (
                             <div>
                               <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Phone</p>
-                              <p className="font-medium text-content dark:text-content-dark">{parsed.phone}</p>
+                              <p className="font-medium text-content dark:text-content-dark">{ticket.phoneNumber || parsed.phone}</p>
                             </div>
                           )}
-                          <div>
-                            <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Full Description</p>
-                            <p className="text-content dark:text-content-dark leading-relaxed whitespace-pre-line">{ticket.problemDescription}</p>
-                          </div>
                           <div className="text-content-secondary dark:text-content-dark-secondary">
                             <span className="opacity-60">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}
                           </div>

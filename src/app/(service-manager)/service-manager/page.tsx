@@ -62,10 +62,16 @@ interface ServiceTicket {
   ticketNumber?: string;
   status: TicketStatus;
   problemDescription: string;
+  issueDescription?: string | null;
   machineName?: string | null;
   machineSerialNumber?: string | null;
   machineProductCode?: string | null;
   machineCustomer?: string | null;
+  machineAddress1?: string | null;
+  machineAddress2?: string | null;
+  machineInvoiceNo?: string | null;
+  machineInvoiceDate?: string | null;
+  machineWarranty?: number | null;
   ageHours?: number;
   responseTimeHours?: number | null;
   durationHours?: number | null;
@@ -75,6 +81,7 @@ interface ServiceTicket {
   assignedManager?: { firstName: string; lastName?: string | null } | null;
   dealer?: { firstName: string; lastName?: string | null } | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
+  phoneNumber?: string | null;
 }
 
 // ── Tab config ─────────────────────────────────────────────────────────
@@ -636,8 +643,10 @@ export default function ServiceManagerPage() {
                     const isArchived = archivedIds.has(ticket.id);
                     const parsed = parseTicketDescription(ticket.problemDescription);
                     const customerDisplay = ticket.machineCustomer || parsed.customerName;
-                    const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") || parsed.location;
+                    const locationShort = [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", ") ||
+                      ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                     const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
+                    const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
 
                     return (
                       <div key={ticket.id}
@@ -686,15 +695,10 @@ export default function ServiceManagerPage() {
                                 <span className="text-gray-600 leading-snug">{machineDisplay}</span>
                               </div>
                             )}
-                            {parsed.isStructured ? (
+                            {issueDisplay && (
                               <div className="flex items-start gap-2 text-sm">
                                 <span className="text-gray-400 shrink-0 text-[13px]">💬</span>
-                                <span className="text-gray-500 italic leading-snug">Service request via chat</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-start gap-2 text-sm">
-                                <span className="text-gray-400 shrink-0 text-[13px]">💬</span>
-                                <span className="font-medium text-gray-800 leading-snug line-clamp-2">{ticket.problemDescription}</span>
+                                <span className="font-medium text-gray-800 leading-snug line-clamp-2">{issueDisplay}</span>
                               </div>
                             )}
                           </div>
@@ -721,11 +725,12 @@ export default function ServiceManagerPage() {
                                   <p className="font-medium text-gray-800">{ticket.machineCustomer || parsed.customerName}</p>
                                 </div>
                               )}
-                              {ticket.pincode ? (
+                              {(ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode) ? (
                                 <div>
-                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Location</p>
-                                  <p className="font-medium text-gray-800">{[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ") || ticket.pincode.code}</p>
-                                  <p className="text-gray-500">Pincode: {ticket.pincode.code}</p>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Full Address</p>
+                                  {ticket.machineAddress1 && <p className="font-medium text-gray-800">{ticket.machineAddress1}</p>}
+                                  {ticket.machineAddress2 && <p className="text-gray-600">{ticket.machineAddress2}</p>}
+                                  {ticket.pincode && <p className="text-gray-500 mt-0.5">Pincode: {ticket.pincode.code} · {[ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>}
                                 </div>
                               ) : parsed.location ? (
                                 <div>
@@ -738,19 +743,23 @@ export default function ServiceManagerPage() {
                                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Machine</p>
                                   {ticket.machineName && <p className="font-medium text-gray-800">{ticket.machineName}</p>}
                                   {ticket.machineSerialNumber && <p className="text-gray-500">S/N: {ticket.machineSerialNumber}</p>}
-                                  {ticket.machineProductCode && <p className="text-gray-500">Product: {ticket.machineProductCode}</p>}
+                                  {ticket.machineProductCode && <p className="text-gray-500">Product Code: {ticket.machineProductCode}</p>}
                                 </div>
                               )}
-                              {parsed.phone && (
+                              {(ticket.machineInvoiceNo || ticket.machineInvoiceDate || ticket.machineWarranty) && (
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Invoice / Warranty</p>
+                                  {ticket.machineInvoiceNo && <p className="text-gray-600">Invoice: {ticket.machineInvoiceNo}</p>}
+                                  {ticket.machineInvoiceDate && <p className="text-gray-600">Date: {ticket.machineInvoiceDate}</p>}
+                                  {ticket.machineWarranty != null && <p className="text-gray-600">Warranty: {ticket.machineWarranty} months</p>}
+                                </div>
+                              )}
+                              {(ticket.phoneNumber || parsed.phone) && (
                                 <div>
                                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Phone</p>
-                                  <p className="font-medium text-gray-800">{parsed.phone}</p>
+                                  <p className="font-medium text-gray-800">{ticket.phoneNumber || parsed.phone}</p>
                                 </div>
                               )}
-                              <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Full Description</p>
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-line">{ticket.problemDescription}</p>
-                              </div>
                               <div>
                                 <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-0.5">Source</p>
                                 <p className="text-gray-500">

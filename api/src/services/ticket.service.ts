@@ -55,6 +55,7 @@ function generateTicketNumber(): string {
 export async function createTicket(data: {
   customerId:         string;
   problemDescription: string;
+  issueDescription?:  string;
   machineName?:       string;
   machineSerialNumber?: string;
   pincodeId?:         string;
@@ -68,16 +69,26 @@ export async function createTicket(data: {
 
   // Enrich from Passtest machine API if a serial number was provided.
   // Non-blocking: 404 → null (skip silently); 502/503 → log and skip.
-  let machineName     = data.machineName?.trim()         || null;
+  let machineName        = data.machineName?.trim()  || null;
   let machineProductCode: string | null = null;
   let machineCustomer:    string | null = null;
+  let machineAddress1:    string | null = null;
+  let machineAddress2:    string | null = null;
+  let machineInvoiceNo:   string | null = null;
+  let machineInvoiceDate: string | null = null;
+  let machineWarranty:    number | null = null;
   if (data.machineSerialNumber?.trim()) {
     try {
       const machineData = await fetchMachineBySerial(data.machineSerialNumber.trim());
       if (machineData) {
         machineName        = machineData.m_model       || machineName;
         machineProductCode = machineData.product_code  || null;
-        machineCustomer    = machineData.customer       || null;
+        machineCustomer    = machineData.customer      || null;
+        machineAddress1    = machineData.Address1      || null;
+        machineAddress2    = machineData.Address2      || null;
+        machineInvoiceNo   = machineData.invoice_no    || null;
+        machineInvoiceDate = machineData.invoice_date  || null;
+        machineWarranty    = machineData.warranty_months != null ? Number(machineData.warranty_months) : null;
       }
     } catch (err: unknown) {
       const e = err as { status?: number; message?: string };
@@ -122,18 +133,24 @@ export async function createTicket(data: {
       ticketNumber,
       ownerType,
       ownerId,
-      customerId:         data.customerId,
-      problemDescription: data.problemDescription.trim(),
+      customerId:          data.customerId,
+      problemDescription:  data.problemDescription.trim(),
+      issueDescription:    data.issueDescription?.trim() || null,
       machineName,
       machineSerialNumber: data.machineSerialNumber?.trim() || null,
       machineProductCode,
       machineCustomer,
-      pincodeId:          data.pincodeId  || null,
-      dealerId:           resolvedDealerId,
-      phoneNumber:        data.phoneNumber || null,
-      place:              data.place?.trim() || null,
-      district:           data.district?.trim() || null,
-      state:              data.state?.trim() || null,
+      machineAddress1,
+      machineAddress2,
+      machineInvoiceNo,
+      machineInvoiceDate,
+      machineWarranty,
+      pincodeId:           data.pincodeId  || null,
+      dealerId:            resolvedDealerId,
+      phoneNumber:         data.phoneNumber || null,
+      place:               data.place?.trim() || null,
+      district:            data.district?.trim() || null,
+      state:               data.state?.trim() || null,
       status,
     },
     include: TICKET_INCLUDE,
