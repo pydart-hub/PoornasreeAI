@@ -3,7 +3,7 @@
 // Handles validation, role guards, and response shaping only.
 
 import { Request, Response } from "express";
-import { TicketStatus } from "@prisma/client";
+import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import { io } from "../lib/socket";
 import prisma from "../lib/prisma";
 import * as TicketService from "../services/ticket.service";
@@ -77,9 +77,15 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
 
     // Role-scoped filtering
     if (role === "customer")                                     filters.customerId = userId;
-    else if (role === "dealer")                                  filters.dealerId   = userId;
+    else if (role === "dealer") {
+      filters.ownerType = TicketOwnerType.DEALER;
+      filters.ownerId   = userId;
+    }
     else if (role === "service_engineer" || role === "service")  filters.engineerId = userId;
-    // service_manager and admin: no filter — sees all tickets
+    else if (role === "service_manager") {
+      filters.ownerType = TicketOwnerType.MANAGER;
+    }
+    // admin: no filter — sees all tickets
 
     const tickets = await TicketService.listTickets(filters);
 
@@ -124,22 +130,6 @@ export async function getTicket(req: Request, res: Response): Promise<void> {
     // service_manager: sees all tickets — no pincode ownership restriction
     // admin: full access — no filter
 
-    res.json({ ticket });
-  } catch (err: unknown) {
-    const e = err as { status?: number; message?: string };
-    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
-  }
-}
-
-// ── PATCH /api/tickets/:id/assign-manager ─────────────────────────────────
-export async function assignManager(req: Request, res: Response): Promise<void> {
-  try {
-    const id = String(req.params.id);
-    const { managerId } = req.body;
-    if (!managerId) { res.status(400).json({ error: "managerId is required" }); return; }
-
-    const ticket = await TicketService.assignManager(id, managerId);
-    io?.to("engineers").emit("ticket:updated", { ticketId: id, status: ticket.status });
     res.json({ ticket });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };

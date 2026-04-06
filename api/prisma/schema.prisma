@@ -181,11 +181,21 @@ enum TicketStatus {
   CLOSED
 }
 
+// ── Ticket Owner Type Enum ────────────────────────────────────────────────
+enum TicketOwnerType {
+  MANAGER
+  DEALER
+}
+
 // ── Ticket (core entity — replaces SupportRequest) ────────────────────────
 // Status flow: OPEN → ASSIGNED → IN_PROGRESS → PENDING_OTP → CLOSED
 model Ticket {
   id                 String    @id @default(uuid())
   ticketNumber       String    @unique  // e.g. TKT-20260317-001
+
+  // Routing / Ownership
+  ownerType          TicketOwnerType @default(MANAGER)
+  ownerId            String?   // user ID of the owner (manager or dealer)
 
   // Parties
   customerId         String

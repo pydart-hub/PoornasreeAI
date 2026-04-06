@@ -4,7 +4,7 @@
 
 import crypto from "crypto";
 import bcrypt from "bcrypt";
-import { TicketStatus } from "@prisma/client";
+import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { fetchMachineBySerial } from "./machine.service";
 
@@ -86,12 +86,13 @@ export async function createTicket(data: {
   }
 
   // ── Routing decision ────────────────────────────────────────────────────
-  // 1. If dealerId is provided and valid → dealer-routed (OPEN, no auto-manager)
-  // 2. Else → manager-routed: auto-assign manager from pincode (ASSIGNED)
-  // Fallback: if dealer not found in DB → ignore and route to manager
+  // 1. If dealerId is provided and valid dealer in DB → ownerType=DEALER, ownerId=dealer.id
+  // 2. Else → ownerType=MANAGER, ownerId=default service manager
+  // Fallback: if dealer not found in DB → route to MANAGER
   let resolvedDealerId: string | null = null;
-  let assignedManagerId: string | null = null;
-  let status: TicketStatus = TicketStatus.OPEN;
+  let ownerType: TicketOwnerType = TicketOwnerType.MANAGER;
+  let ownerId: string | null = null;
+  const status: TicketStatus = TicketStatus.OPEN;
 
   if (data.dealerId) {
     const dealer = await prisma.user.findUnique({
@@ -100,17 +101,27 @@ export async function createTicket(data: {
     });
     if (dealer && dealer.role === "dealer") {
       resolvedDealerId = dealer.id;
-      // Dealer-routed: stays OPEN until dealer or admin assigns manager
+      ownerType = TicketOwnerType.DEALER;
+      ownerId = dealer.id;
     } else {
       console.warn(`[createTicket] dealerId ${data.dealerId} not found or not a dealer — falling back to manager routing`);
     }
   }
 
-  // Manager routing removed — tickets stay OPEN until manually assigned
+  // If routed to MANAGER, resolve the default service manager
+  if (ownerType === TicketOwnerType.MANAGER) {
+    const defaultManager = await prisma.user.findFirst({
+      where: { role: "service_manager" },
+      select: { id: true },
+    });
+    ownerId = defaultManager?.id ?? null;
+  }
 
   return prisma.ticket.create({
     data: {
       ticketNumber,
+      ownerType,
+      ownerId,
       customerId:         data.customerId,
       problemDescription: data.problemDescription.trim(),
       machineName,
@@ -123,7 +134,6 @@ export async function createTicket(data: {
       place:              data.place?.trim() || null,
       district:           data.district?.trim() || null,
       state:              data.state?.trim() || null,
-      assignedManagerId,
       status,
     },
     include: TICKET_INCLUDE,
@@ -139,14 +149,18 @@ export async function listTickets(filters: {
   dealerId?:        string;
   engineerId?:      string;
   managerId?:       string;
+  ownerType?:       TicketOwnerType;
+  ownerId?:         string;
 }) {
   const where: Record<string, unknown> = {};
   if (filters.status !== undefined) where.status           = filters.status;
 
+  // Owner-based routing filter
+  if (filters.ownerType) where.ownerType = filters.ownerType;
+  if (filters.ownerId)   where.ownerId   = filters.ownerId;
+
   // Multi-pincode manager filter: only tickets in managed pincodes (no unrouted)
   if (filters.managedPincodeIds) {
-    // Empty array means manager has no pincodes — callers must short-circuit before here,
-    // but guard defensively so no tickets leak through.
     where.pincodeId = { in: filters.managedPincodeIds };
   } else if (filters.pincodeId) {
     where.pincodeId = filters.pincodeId;
@@ -169,48 +183,20 @@ export async function getTicket(id: string) {
   return prisma.ticket.findUnique({ where: { id }, include: TICKET_INCLUDE });
 }
 
-// ── assignManager ─────────────────────────────────────────────────────────
-// Admin or service_manager assigns a manager to an OPEN ticket.
-// Uses an atomic conditional updateMany to prevent race conditions — the
-// update only applies when status=OPEN and no manager is set.
-export async function assignManager(ticketId: string, managerId: string) {
-  const result = await prisma.ticket.updateMany({
-    where: {
-      id:               ticketId,
-      status:           TicketStatus.OPEN,
-      assignedManagerId: null,
-    },
-    data: { assignedManagerId: managerId, status: TicketStatus.ASSIGNED },
-  });
-
-  if (result.count === 1) {
-    return prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, include: TICKET_INCLUDE });
-  }
-
-  // Update did not apply — fetch once to determine and surface the reason
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
-  if (ticket.assignedManagerId) {
-    throw Object.assign(new Error("Manager already assigned. Use reassignment flow."), { status: 409 });
-  }
-  assertTransition(ticket.status, TicketStatus.ASSIGNED);
-  throw Object.assign(new Error("Only OPEN tickets can have a manager assigned"), { status: 400 });
-}
-
 // ── assignEngineer ────────────────────────────────────────────────────────
-// Admin or service_manager assigns an engineer to an ASSIGNED ticket.
-// Single-manager system: no per-ticket manager assignment is required.
-// Uses an atomic conditional updateMany to prevent race conditions — the
-// update only applies when both preconditions hold simultaneously.
+// Admin or service_manager assigns an engineer to an OPEN ticket.
+// Single-manager system: requires ownerType=MANAGER, no per-ticket manager assignment.
+// Uses an atomic conditional updateMany to prevent race conditions.
 export async function assignEngineer(ticketId: string, engineerId: string) {
-  // Single atomic write: succeeds only when status=ASSIGNED and no engineer yet
+  // Single atomic write: succeeds only when status=OPEN, ownerType=MANAGER, and no engineer yet
   const result = await prisma.ticket.updateMany({
     where: {
       id:                 ticketId,
-      status:             TicketStatus.ASSIGNED,
+      status:             TicketStatus.OPEN,
+      ownerType:          TicketOwnerType.MANAGER,
       assignedEngineerId: null,
     },
-    data: { assignedEngineerId: engineerId },
+    data: { assignedEngineerId: engineerId, status: TicketStatus.ASSIGNED },
   });
 
   if (result.count === 1) {
@@ -223,7 +209,10 @@ export async function assignEngineer(ticketId: string, engineerId: string) {
   if (ticket.assignedEngineerId) {
     throw Object.assign(new Error("Engineer already assigned. Use reassignment flow."), { status: 409 });
   }
-  throw Object.assign(new Error("Engineer can only be assigned to tickets in ASSIGNED status"), { status: 400 });
+  if (ticket.ownerType !== TicketOwnerType.MANAGER) {
+    throw Object.assign(new Error("Only manager-owned tickets can have engineers assigned by the manager"), { status: 400 });
+  }
+  throw Object.assign(new Error("Engineer can only be assigned to tickets in OPEN status"), { status: 400 });
 }
 
 // ── startWork ─────────────────────────────────────────────────────────────

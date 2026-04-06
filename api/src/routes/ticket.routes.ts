@@ -8,7 +8,6 @@ import {
   createTicket,
   listTickets,
   getTicket,
-  assignManager,
   assignEngineer,
   startWork,
   requestOTP,
@@ -29,8 +28,7 @@ router.get("/", authorize("admin", "service_manager", "service_engineer", "servi
 router.get("/:id", authorize("admin", "service_manager", "service_engineer", "service", "dealer", "customer"), getTicket);
 
 // ── Assignment ────────────────────────────────────────────────────────────
-// ASSIGN MANAGER: admin only
-router.patch("/:id/assign-manager", authorize("admin"), assignManager);
+
 // ASSIGN ENGINEER: service_manager or admin
 router.patch("/:id/assign-engineer", authorize("service_manager", "admin"), assignEngineer);
 
