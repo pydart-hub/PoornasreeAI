@@ -65,3 +65,26 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
+// ── DELETE /api/simulate/session/:phoneNumber ─────────────────────────────
+// Wipes the server-side session state and full message history so the
+// frontend reset button produces a genuinely clean start.
+export async function resetSession(req: Request, res: Response): Promise<void> {
+  try {
+    const phone = String(req.params.phoneNumber || "").trim();
+    if (!phone) {
+      res.status(400).json({ error: "phoneNumber is required" });
+      return;
+    }
+
+    await Promise.all([
+      prisma.conversationSession.deleteMany({ where: { phoneNumber: phone } }),
+      prisma.simulateMessage.deleteMany({ where: { phoneNumber: phone } }),
+    ]);
+
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}

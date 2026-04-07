@@ -57,14 +57,15 @@ const GREETING_MSG =
 export async function handleMessage(phoneNumber: string, message: string) {
   const text = message.trim();
 
-  // ── Global navigation commands ──────────────────────────────────────────
-  if (text.toUpperCase() === "MENU") {
+  // ── Global navigation commands ──────────────────────────────────────────────────
+  const upper = text.toUpperCase();
+  if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESET") {
     const s = await getOrCreateSession(phoneNumber);
     await updateSession(s.id, "GREETING", {});
     return makeReply(GREETING_MSG);
   }
 
-  if (text.toUpperCase() === "BYE") {
+  if (upper === "BYE") {
     const s = await getOrCreateSession(phoneNumber);
     await updateSession(s.id, "COMPLETED", {});
     return makeReply("👋 Session closed. Thank you for contacting Poornasree Support!\n\nReply anything to start again.");

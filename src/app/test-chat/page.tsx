@@ -171,11 +171,11 @@ export default function TestChatPage() {
           onClick={async () => {
             setMessages([]);
             setInputMessage("");
+            knownCountRef.current = 0;
             try {
-              const r = await fetch(`${BASE_URL}/api/simulate/history/${encodeURIComponent(phoneNumber.trim())}`);
-              const d = await r.json();
-              knownCountRef.current = (d.messages || []).length;
-            } catch { knownCountRef.current = 999999; }
+              // Reset server-side session + message history
+              await fetch(`${BASE_URL}/api/simulate/session/${encodeURIComponent(phoneNumber.trim())}`, { method: "DELETE" });
+            } catch { /* silent */ }
           }}
           className="p-2 rounded-full hover:bg-white/10 transition-colors"
           title="Reset chat"
