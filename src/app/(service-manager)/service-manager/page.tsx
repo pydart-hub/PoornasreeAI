@@ -84,14 +84,7 @@ interface ServiceTicket {
   phoneNumber?: string | null;
 }
 
-// ── Tab config ─────────────────────────────────────────────────────────
-const TICKET_TABS: { key: TicketTabKey; label: string; statuses: TicketStatus[]; icon: React.ReactNode }[] = [
-  { key: "unassigned", label: "Unassigned", statuses: ["OPEN"], icon: <AlertCircle className="w-4 h-4" /> },
-  { key: "assigned", label: "Assigned", statuses: ["ASSIGNED"], icon: <UserCheck className="w-4 h-4" /> },
-  { key: "in_progress", label: "In Progress", statuses: ["IN_PROGRESS", "PENDING_OTP"], icon: <Activity className="w-4 h-4" /> },
-  { key: "closed", label: "Closed", statuses: ["CLOSED"], icon: <CheckCircle2 className="w-4 h-4" /> },
-  { key: "archived", label: "Archived", statuses: [], icon: <Archive className="w-4 h-4" /> },
-];
+
 
 // ── Urgency helpers ────────────────────────────────────────────────────
 function getAgeBadge(ageHours: number) {
