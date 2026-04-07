@@ -90,6 +90,13 @@ function getAccentBorder(ageHours?: number): string {
 
 // ── OTP handling moved to /service/[id] work screen ──────────────────
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 export default function ServiceDashboard() {
   const router = useRouter();
@@ -98,6 +105,9 @@ export default function ServiceDashboard() {
   const [activeTab, setActiveTab] = useState<TicketStatus>("ASSIGNED");
   const [allTickets, setAllTickets] = useState<ServiceTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -183,7 +193,7 @@ export default function ServiceDashboard() {
   const totalActive = allTickets.filter(t => t.status !== "CLOSED").length;
 
   // ── Render ticket card ─────────────────────────────────────────────
-  const renderCard = (ticket: ServiceTicket) => {
+  const renderCard = (ticket: ServiceTicket, index: number = 0) => {
     const parsed = parseDescription(ticket.problemDescription);
     const statusCfg = STATUS_CONFIG[ticket.status];
     const issueText = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
@@ -197,7 +207,12 @@ export default function ServiceDashboard() {
     const isBusy = actionLoading === ticket.id;
 
     return (
-      <div key={ticket.id}
+      <div
+        key={ticket.id}
+        className={`transition-all duration-500 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}`}
+        style={{ transitionDelay: `${250 + index * 70}ms` }}
+      >
+      <div
         className={cn(
           "bg-white rounded-2xl border border-gray-100 shadow-sm",
           "hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99]",
@@ -281,6 +296,7 @@ export default function ServiceDashboard() {
           </div>
         )}
       </div>
+      </div>
     );
   };
 
@@ -290,8 +306,10 @@ export default function ServiceDashboard() {
       {/* ═══════════════════ HEADER ═══════════════════ */}
       <header className="shrink-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
-            <h1 className="text-xl font-bold text-gray-900 tracking-tight">Jobs</h1>
+          <div className={`transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-3"}`}>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+              {getGreeting()}, {user.firstName}! 👋
+            </h1>
             <span className="text-xs text-gray-400">Today, {formattedDate}</span>
           </div>
           <button onClick={handleRefresh} disabled={ticketsLoading}
@@ -302,7 +320,7 @@ export default function ServiceDashboard() {
       </header>
 
       {/* ═══════════════════ TABS (segmented control) ═══════════════════ */}
-      <div className="shrink-0 bg-white border-b border-gray-100 px-4 py-2">
+      <div className={`shrink-0 bg-white border-b border-gray-100 px-4 py-2 transition-all duration-700 delay-150 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}`}>
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-full">
             {TABS.map(tab => {
@@ -345,7 +363,7 @@ export default function ServiceDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredTickets.map(renderCard)}
+              {filteredTickets.map((ticket, i) => renderCard(ticket, i))}
             </div>
           )}
         </div>
