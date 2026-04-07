@@ -235,7 +235,7 @@ export default function CustomerServiceDashboard() {
       <aside
         className={cn(
           "flex flex-col h-full bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 ease-in-out shrink-0",
-          isMobile ? "fixed inset-y-0 left-0 z-40 w-[240px]" : "relative",
+          isMobile ? "fixed inset-y-0 left-0 z-40 w-[240px] max-w-[75vw]" : "relative",
           !sidebarOpen && (isMobile ? "-translate-x-full" : "w-0 overflow-hidden border-r-0"),
           sidebarOpen && "w-[240px]"
         )}

@@ -187,17 +187,17 @@ export default function DealerPage() {
   return (
     <div className="flex flex-col h-screen bg-surface dark:bg-surface-dark overflow-hidden">
       {/* ── Header ──────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-        <div className="flex items-center gap-3">
-          <Logo className="h-8 w-auto" />
-          <div>
-            <p className="text-sm font-semibold text-content dark:text-content-dark">Dealer Portal</p>
-            <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Logo className="h-7 sm:h-8 w-auto shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-content dark:text-content-dark truncate">Dealer Portal</p>
+            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">
               {user.firstName} {user.lastName}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <ThemeToggle />
           <button
             onClick={handleRefresh}
@@ -206,18 +206,20 @@ export default function DealerPage() {
           >
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
-          <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
+          <span className="hidden sm:block">
+            <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
+          </span>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Logout
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
 
         {/* Alerts */}
         {error && (
@@ -236,18 +238,18 @@ export default function DealerPage() {
         )}
 
         {/* ── Summary ───────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="p-3 sm:p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
             <p className="text-xs text-content-secondary dark:text-content-dark-secondary mb-1">Total Tickets</p>
-            <p className="text-2xl font-bold text-content dark:text-content-dark">{tickets.length}</p>
+            <p className="text-xl sm:text-2xl font-bold text-content dark:text-content-dark">{tickets.length}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+          <div className="p-3 sm:p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
             <p className="text-xs text-content-secondary dark:text-content-dark-secondary mb-1">Active</p>
-            <p className="text-2xl font-bold text-amber-500">{openCount}</p>
+            <p className="text-xl sm:text-2xl font-bold text-amber-500">{openCount}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+          <div className="p-3 sm:p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
             <p className="text-xs text-content-secondary dark:text-content-dark-secondary mb-1">Resolved</p>
-            <p className="text-2xl font-bold text-green-500">{closedCount}</p>
+            <p className="text-xl sm:text-2xl font-bold text-green-500">{closedCount}</p>
           </div>
         </div>
 
@@ -255,7 +257,7 @@ export default function DealerPage() {
         <div className="rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark overflow-hidden">
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+            className="w-full flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 text-sm font-semibold text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
           >
             <div className="flex items-center gap-2">
               <Plus className="w-4 h-4 text-primary dark:text-primary-300" />
@@ -265,7 +267,7 @@ export default function DealerPage() {
           </button>
 
           {showForm && (
-            <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-4 border-t border-line dark:border-line-dark pt-4">
+            <form onSubmit={handleSubmit} className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-4 border-t border-line dark:border-line-dark pt-4">
               <div>
                 <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
                   Problem Description <span className="text-red-500">*</span>
@@ -328,13 +330,13 @@ export default function DealerPage() {
         {/* ── My Tickets ────────────────────────────────────────── */}
         <section className="space-y-3">
           {/* Status filter tabs */}
-          <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
+          <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setStatusFilter(tab.value)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                  "px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                   statusFilter === tab.value
                     ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
                     : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
@@ -399,27 +401,27 @@ export default function DealerPage() {
                       {/* ── Structured primary fields ── */}
                       <div className="space-y-1.5">
                         {customerDisplay && (
-                          <div className="flex items-start gap-2 text-sm">
+                          <div className="flex items-start gap-2 text-sm min-w-0">
                             <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">👤</span>
-                            <span className="font-semibold text-content dark:text-content-dark leading-snug">{customerDisplay}</span>
+                            <span className="font-semibold text-content dark:text-content-dark leading-snug truncate">{customerDisplay}</span>
                           </div>
                         )}
                         {locationShort && (
-                          <div className="flex items-start gap-2 text-sm">
+                          <div className="flex items-start gap-2 text-sm min-w-0">
                             <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">📍</span>
-                            <span className="text-content-secondary dark:text-content-dark-secondary leading-snug">{locationShort}</span>
+                            <span className="text-content-secondary dark:text-content-dark-secondary leading-snug line-clamp-1">{locationShort}</span>
                           </div>
                         )}
                         {machineDisplay && (
-                          <div className="flex items-start gap-2 text-sm">
+                          <div className="flex items-start gap-2 text-sm min-w-0">
                             <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">🔧</span>
-                            <span className="text-content-secondary dark:text-content-dark-secondary leading-snug">{machineDisplay}</span>
+                            <span className="text-content-secondary dark:text-content-dark-secondary leading-snug truncate">{machineDisplay}</span>
                           </div>
                         )}
                         {issueDisplay && (
-                          <div className="flex items-start gap-2 text-sm">
+                          <div className="flex items-start gap-2 text-sm min-w-0">
                             <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">💬</span>
-                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2">{issueDisplay}</span>
+                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2 break-words">{issueDisplay}</span>
                           </div>
                         )}
                       </div>
@@ -441,7 +443,7 @@ export default function DealerPage() {
                       </div>
 
                       {isExpanded && (
-                        <div className="mt-2 pt-3 border-t border-line dark:border-line-dark space-y-3 text-xs">
+                        <div className="mt-2 pt-3 border-t border-line dark:border-line-dark space-y-3 text-xs break-words">
                           {(ticket.machineCustomer || parsed.customerName) && (
                             <div>
                               <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Customer</p>

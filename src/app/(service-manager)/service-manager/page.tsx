@@ -494,9 +494,9 @@ export default function ServiceManagerPage() {
       <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-white border-b border-[#e2e8f0] shadow-sm">
         <div className="flex items-center gap-3">
           <Logo className="h-8 w-auto" />
-          <div>
-            <h1 className="text-base font-bold text-gray-900 leading-tight">Service Manager</h1>
-            <p className="text-xs text-gray-500">{user.firstName} {user.lastName}</p>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-gray-900 leading-tight truncate">Service Manager</h1>
+            <p className="text-xs text-gray-500 truncate">{user.firstName} {user.lastName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

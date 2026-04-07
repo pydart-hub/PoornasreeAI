@@ -468,6 +468,7 @@ export default function UsersManagementPage() {
 
                   {/* Email */}
                   <div className="flex items-center">
+                    <span className="sm:hidden text-[10px] uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary font-semibold mr-2">Email:</span>
                     <p className="text-sm text-content-secondary dark:text-content-dark-secondary truncate">
                       {u.email}
                     </p>
@@ -499,6 +500,7 @@ export default function UsersManagementPage() {
 
                   {/* Created */}
                   <div className="flex items-center">
+                    <span className="sm:hidden text-[10px] uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary font-semibold mr-2">Joined:</span>
                     <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
                       {new Date(u.createdAt).toLocaleDateString("en-IN", {
                         day: "numeric",
@@ -510,6 +512,7 @@ export default function UsersManagementPage() {
 
                   {/* Chats */}
                   <div className="flex items-center">
+                    <span className="sm:hidden text-[10px] uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary font-semibold mr-2">Chats:</span>
                     <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
                       {u._count?.conversations ?? 0}
                     </p>

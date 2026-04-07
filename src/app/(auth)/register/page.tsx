@@ -107,7 +107,7 @@ export default function RegisterPage() {
         )}
 
         {/* Name row */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input
             label="First name *"
             placeholder="John"
@@ -210,7 +210,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Rules checklist */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
               {PASSWORD_RULES.map((rule) => {
                 const passed = rule.test(form.password);
                 return (
