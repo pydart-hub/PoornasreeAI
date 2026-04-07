@@ -144,8 +144,6 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
     const { engineerId } = req.body;
     if (!engineerId) { res.status(400).json({ error: "engineerId is required" }); return; }
 
-    let pincodeWarning: string | null = null;
-
     // Pincode enforcement for service_manager
     if (req.user!.role === "service_manager") {
       const managerId = req.user!.userId;
@@ -172,17 +170,18 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
       if (!existing) { res.status(404).json({ error: "Ticket not found" }); return; }
 
       if (existing.pincodeId) {
-        // Warn if engineer's pincodes don't include the ticket's pincode (manual override)
+        // Hard reject if engineer's pincodes don't include the ticket's pincode
         const engineerMatchesPincode = engineer.engineerPincodes.some(p => p.id === existing.pincodeId);
         if (!engineerMatchesPincode) {
-          pincodeWarning = "Engineer does not cover this ticket's pincode zone — assigned via manual override";
+          res.status(400).json({ error: "Engineer does not cover this ticket's pincode zone. Assign the correct zone to the engineer first." });
+          return;
         }
       }
     }
 
     const ticket = await TicketService.assignEngineer(id, engineerId);
     io?.to(`user:${engineerId}`).emit("ticket:assigned", { ticketId: id });
-    res.json({ ticket, ...(pincodeWarning ? { warning: pincodeWarning } : {}) });
+    res.json({ ticket });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });

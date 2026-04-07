@@ -73,6 +73,7 @@ interface ServiceTicket {
   responseTimeHours?: number | null;
   durationHours?: number | null;
   createdAt: string;
+  updatedAt?: string;
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
@@ -152,6 +153,8 @@ export default function ServiceManagerPage() {
 
   const [drawerTicket, setDrawerTicket] = useState<ServiceTicket | null>(null);
   const [closedCollapsed, setClosedCollapsed] = useState(true);
+  const [drawerReassign, setDrawerReassign] = useState(false);
+  const [drawerConfirmEng, setDrawerConfirmEng] = useState<Engineer | null>(null);
 
   // ── Filter state ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -594,7 +597,8 @@ export default function ServiceManagerPage() {
 
                 const renderTicketCard = (ticket: ServiceTicket) => {
                   const cfg = STATUS_BADGE[ticket.status];
-                  const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
+                  const canAssign = ticket.status === "OPEN";
+                  const isAssigned = ticket.status !== "OPEN" && ticket.status !== "CLOSED" && !!ticket.assignedEngineer;
                   const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
                   const isArchived = archivedIds.has(ticket.id);
                   const parsed = parseTicketDescription(ticket.problemDescription);
@@ -649,11 +653,15 @@ export default function ServiceManagerPage() {
 
                         {/* ── Row 3: Location · Time ── */}
                         <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
-                          {locationShort && <>
+                          {locationShort ? <>
                             <span className="shrink-0">📍</span>
                             <span className="truncate">{locationShort}</span>
-                          </>}
-                          {locationShort && ticket.createdAt && <span className="mx-0.5 text-gray-300">•</span>}
+                          </> : (
+                            <span className="text-amber-500 font-medium flex items-center gap-0.5">
+                              <AlertCircle className="w-3 h-3" /> No zone
+                            </span>
+                          )}
+                          {ticket.createdAt && <span className="mx-0.5 text-gray-300">•</span>}
                           {ticket.createdAt && <>
                             <span className="shrink-0">⏱</span>
                             <span className="shrink-0">{formatRelativeTime(new Date(ticket.createdAt))}</span>
@@ -671,10 +679,14 @@ export default function ServiceManagerPage() {
                         {/* ── Row 5: Actions ── */}
                         <div className="flex items-center justify-between pt-1">
                           <div className="flex items-center gap-2 min-w-0">
-                            {ticket.assignedEngineer && (
-                              <span className="text-xs text-[#2563eb] font-medium truncate max-w-[140px]">
-                                👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
+                            {isAssigned && ticket.assignedEngineer && (
+                              <span className="inline-flex items-center gap-1 text-xs text-[#2563eb] font-medium truncate max-w-[180px]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb] shrink-0" />
+                                {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
                               </span>
+                            )}
+                            {ticket.updatedAt && (
+                              <span className="text-[10px] text-gray-400 shrink-0">{formatRelativeTime(new Date(ticket.updatedAt))}</span>
                             )}
                             <button onClick={() => setDrawerTicket(ticket)}
                               className="text-xs text-gray-400 hover:text-[#2563eb] transition-colors shrink-0">
@@ -768,7 +780,7 @@ export default function ServiceManagerPage() {
                     <div key={title}>
                       <button
                         onClick={() => isClosedGroup && setClosedCollapsed(c => !c)}
-                        className={cn("flex items-center gap-1.5 mb-2 w-full text-left", isClosedGroup && "cursor-pointer")}
+                        className={cn("flex items-center gap-1.5 mb-2 w-full text-left sticky top-0 z-10 bg-[#f8fafc] py-1", isClosedGroup && "cursor-pointer")}
                       >
                         <span className="text-sm">{icon}</span>
                         <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{title}</span>
@@ -1248,7 +1260,7 @@ export default function ServiceManagerPage() {
         const ageBadge = typeof t.ageHours === "number" ? getAgeBadge(t.ageHours) : null;
         return (
           <>
-            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={() => setDrawerTicket(null)} />
+            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} />
             <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white border-l border-[#e2e8f0] shadow-xl overflow-y-auto">
               <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-5 py-3 border-b border-[#e2e8f0]">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1258,7 +1270,7 @@ export default function ServiceManagerPage() {
                     <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold", ageBadge.color)}>{ageBadge.label}</span>
                   )}
                 </div>
-                <button onClick={() => setDrawerTicket(null)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                <button onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
               </div>
 
               <div className="px-5 py-4 space-y-4">
@@ -1340,7 +1352,99 @@ export default function ServiceManagerPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-3 border-t border-[#e2e8f0]">
+                <div className="flex flex-col gap-3 pt-3 border-t border-[#e2e8f0]">
+                  {/* Change Engineer — only for non-closed tickets */}
+                  {t.status !== "CLOSED" && (() => {
+                    const ticketPincode = t.pincode;
+                    const matched = ticketPincode
+                      ? sortedEngineers.filter(e =>
+                          e.engineerPincodes?.some(p =>
+                            p.id === ticketPincode.id || p.code === ticketPincode.code
+                          )
+                        )
+                      : sortedEngineers;
+
+                    return (
+                      <div className="space-y-2">
+                        {!drawerReassign ? (
+                          <button onClick={() => setDrawerReassign(true)}
+                            className="flex items-center gap-1 text-xs text-[#2563eb] hover:text-[#1d4ed8] font-medium transition-colors">
+                            <UserCheck className="w-3.5 h-3.5" />
+                            {t.assignedEngineer ? "Change Engineer" : "Assign Engineer"}
+                          </button>
+                        ) : drawerConfirmEng ? (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                            <p className="text-xs font-semibold text-amber-800">
+                              {t.assignedEngineer ? "Reassign" : "Assign"} to {drawerConfirmEng.firstName} {drawerConfirmEng.lastName ?? ""}?
+                            </p>
+                            {t.assignedEngineer && (
+                              <p className="text-[10px] text-amber-600">
+                                Currently: {t.assignedEngineer.firstName} {t.assignedEngineer.lastName ?? ""}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={async () => {
+                                  await handleAssignEngineer(t.id, drawerConfirmEng.id);
+                                  setDrawerReassign(false);
+                                  setDrawerConfirmEng(null);
+                                  setDrawerTicket(null);
+                                }}
+                                disabled={assigningId === t.id}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">
+                                {assigningId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                                Confirm
+                              </button>
+                              <button onClick={() => setDrawerConfirmEng(null)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                                Back
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold text-gray-500">
+                                Select Engineer
+                                {ticketPincode && (
+                                  <span className="ml-1 font-normal text-gray-400">
+                                    (Zone: {ticketPincode.code})
+                                  </span>
+                                )}
+                              </p>
+                              <button onClick={() => setDrawerReassign(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                            </div>
+                            {matched.length === 0 ? (
+                              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2 text-center">
+                                No engineer assigned to zone {ticketPincode?.code ?? "—"}
+                              </p>
+                            ) : (
+                              <div className="border border-[#e2e8f0] rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                                {matched.map(eng => (
+                                  <button key={eng.id} onClick={() => setDrawerConfirmEng(eng)}
+                                    className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 border-b border-[#e2e8f0] last:border-b-0">
+                                    <span className="flex items-center gap-1 min-w-0">
+                                      <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                    </span>
+                                    {eng.activeTickets !== undefined && (
+                                      <span className={cn(
+                                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                        eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                          : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                            : "bg-red-100 text-red-700"
+                                      )}>{eng.activeTickets}</span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <button onClick={() => { if (isArchived) { handleUnarchive(t.id); } else { handleArchive(t.id); } setDrawerTicket(null); }}
                     className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
                     <Archive className="w-3.5 h-3.5" /> {isArchived ? "Unarchive" : "Archive"}
