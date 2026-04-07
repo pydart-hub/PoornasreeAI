@@ -1,14 +1,11 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
   LogOut,
@@ -18,10 +15,8 @@ import {
   KeyRound,
   CheckCircle2,
   Loader2,
-  Menu,
-  PanelLeftClose,
-  PanelLeft,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 
@@ -33,36 +28,54 @@ interface ServiceTicket {
   ticketNumber?: string;
   status: TicketStatus;
   problemDescription: string;
+  issueDescription?: string | null;
   machineName?: string | null;
   machineSerialNumber?: string | null;
+  machineProductCode?: string | null;
+  machineCustomer?: string | null;
+  machineAddress1?: string | null;
+  machineAddress2?: string | null;
   ageHours?: number;
   createdAt: string;
   updatedAt: string;
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
+  assignedManager?: { firstName: string; lastName?: string | null } | null;
+  pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
+  phoneNumber?: string | null;
 }
 
-const TABS: { label: string; status: TicketStatus }[] = [
-  { label: "Assigned",    status: "ASSIGNED" },
-  { label: "In Progress", status: "IN_PROGRESS" },
-  { label: "Pending OTP", status: "PENDING_OTP" },
-  { label: "Closed",      status: "CLOSED" },
+const TABS: { key: TicketStatus; label: string; color: string }[] = [
+  { key: "ASSIGNED",    label: "Assigned",  color: "text-blue-600" },
+  { key: "IN_PROGRESS", label: "Active",    color: "text-amber-600" },
+  { key: "PENDING_OTP", label: "OTP",       color: "text-purple-600" },
+  { key: "CLOSED",      label: "Closed",    color: "text-emerald-600" },
 ];
 
-// ── Status badge ───────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: TicketStatus }) {
-  const variantMap: Record<TicketStatus, "info" | "warning" | "default" | "success"> = {
-    ASSIGNED:    "info",
-    IN_PROGRESS: "warning",
-    PENDING_OTP: "default",
-    CLOSED:      "success",
+// ── Parse structured problemDescription ────────────────────────────────
+function parseDescription(desc: string) {
+  const pairs: Record<string, string> = {};
+  for (const line of desc.split("\n")) {
+    const m = line.match(/^([^:\n]+?):\s*(.+)$/);
+    if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
+  }
+  const isStructured = Object.keys(pairs).length >= 2;
+  return {
+    isStructured,
+    customerName: pairs["customer"] || pairs["customer name"] || undefined,
+    location:
+      pairs["location"] ||
+      [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||
+      [pairs["place"], pairs["district"], pairs["state"]].filter(Boolean).join(", ") ||
+      undefined,
+    phone: pairs["phone"] || undefined,
   };
-  const labelMap: Record<TicketStatus, string> = {
-    ASSIGNED:    "Assigned",
-    IN_PROGRESS: "In Progress",
-    PENDING_OTP: "Pending OTP",
-    CLOSED:      "Closed",
-  };
-  return <Badge variant={variantMap[status]}>{labelMap[status]}</Badge>;
+}
+
+// ── Age badge helper ───────────────────────────────────────────────────
+function getAgeBadge(ageHours: number) {
+  if (ageHours > 24) return { color: "bg-red-100 text-red-700", label: `${ageHours}h` };
+  if (ageHours >= 6) return { color: "bg-amber-100 text-amber-700", label: `${ageHours}h` };
+  return { color: "bg-gray-100 text-gray-600", label: `${ageHours}h` };
 }
 
 // ── OTP Modal ──────────────────────────────────────────────────────────
@@ -101,139 +114,39 @@ function OtpModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-content dark:text-content-dark">Verify OTP</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <X className="w-4 h-4 text-content-secondary" />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-gray-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-base font-bold text-gray-900">Verify OTP</h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-content-secondary dark:text-content-dark-secondary mb-4">
-          Enter the 4-digit OTP provided by the customer to close this ticket.
-        </p>
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={4}
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
-          placeholder="0000"
-          className="w-full text-center text-2xl font-mono tracking-widest rounded-xl px-4 py-3 border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30 mb-3"
-        />
-        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-        <div className="flex gap-2">
-          <Button variant="ghost" size="md" onClick={onClose} className="flex-1">
+        <div className="px-5 py-5 space-y-4">
+          <p className="text-sm text-gray-500">Enter the 4-digit code from the customer.</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            placeholder="0000"
+            className="w-full text-center text-3xl font-mono tracking-[0.3em] rounded-xl px-4 py-4 border border-gray-200 bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+          />
+          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+        </div>
+        <div className="flex gap-2 px-5 pb-5">
+          <button onClick={onClose}
+            className="flex-1 h-11 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
             Cancel
-          </Button>
-          <Button variant="primary" size="md" onClick={handleSubmit} loading={loading} className="flex-1">
+          </button>
+          <button onClick={handleSubmit} disabled={loading || otp.length !== 4}
+            className="flex-1 h-11 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
             Verify &amp; Close
-          </Button>
+          </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Ticket Card ────────────────────────────────────────────────────────
-function TicketCard({
-  ticket,
-  onAction,
-  onVerifyOtp,
-}: {
-  ticket: ServiceTicket;
-  onAction: (id: string, action: "start" | "otp") => Promise<void>;
-  onVerifyOtp: (id: string) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  const handleAction = async (action: "start" | "otp") => {
-    setBusy(true);
-    await onAction(ticket.id, action);
-    setBusy(false);
-  };
-
-  return (
-    <div className="bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark rounded-xl p-4 flex flex-col gap-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-content dark:text-content-dark truncate">
-            {ticket.machineName || "Machine Support"}
-          </p>
-          <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
-            {ticket.ticketNumber ? `#${ticket.ticketNumber}` : `#${ticket.id.slice(0, 8).toUpperCase()}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {typeof ticket.ageHours === "number" && (
-            <span className={cn(
-              "text-xs px-1.5 py-0.5 rounded-full font-medium",
-              ticket.ageHours > 24
-                ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                : ticket.ageHours > 8
-                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary"
-            )}>
-              {ticket.ageHours}h
-            </span>
-          )}
-          <StatusBadge status={ticket.status} />
-        </div>
-      </div>
-
-      {/* Description */}
-      <p className="text-sm text-content-secondary dark:text-content-dark-secondary line-clamp-2">
-        {ticket.problemDescription}
-      </p>
-
-      {/* Customer & time */}
-      <div className="flex items-center justify-between text-xs text-content-tertiary dark:text-content-dark-secondary">
-        <span>
-          {ticket.customer
-            ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim()
-            : "—"}
-        </span>
-        <span>{formatRelativeTime(new Date(ticket.updatedAt))}</span>
-      </div>
-
-      {/* Action button — strictly controlled by status */}
-      {ticket.status === "ASSIGNED" && (
-        <Button
-          variant="primary"
-          size="sm"
-          loading={busy}
-          icon={!busy ? <Play className="w-3.5 h-3.5" /> : undefined}
-          onClick={() => handleAction("start")}
-        >
-          Start Work
-        </Button>
-      )}
-      {ticket.status === "IN_PROGRESS" && (
-        <Button
-          variant="secondary"
-          size="sm"
-          loading={busy}
-          icon={!busy ? <KeyRound className="w-3.5 h-3.5" /> : undefined}
-          onClick={() => handleAction("otp")}
-        >
-          Request OTP
-        </Button>
-      )}
-      {ticket.status === "PENDING_OTP" && (
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-          onClick={() => onVerifyOtp(ticket.id)}
-        >
-          Verify OTP
-        </Button>
-      )}
-      {/* CLOSED: no action buttons — read-only */}
     </div>
   );
 }
@@ -243,26 +156,10 @@ export default function ServiceDashboard() {
   const router = useRouter();
   const { user, isLoading: authLoading, logout } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-
   const [activeTab, setActiveTab] = useState<TicketStatus>("ASSIGNED");
-  const [tickets, setTickets] = useState<ServiceTicket[]>([]);
   const [allTickets, setAllTickets] = useState<ServiceTicket[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
   const [otpModalTicketId, setOtpModalTicketId] = useState<string | null>(null);
-
-  // ── Responsive ─────────────────────────────────────────────────────
-  useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -271,31 +168,23 @@ export default function ServiceDashboard() {
       router.replace("/");
   }, [user, authLoading, router]);
 
-  // ── Fetch tickets ──────────────────────────────────────────────────
+  // ── Fetch all tickets once ─────────────────────────────────────────
   const fetchTickets = useCallback(async () => {
-    setTicketsLoading(true);
     try {
-      const [tabRes, allRes] = await Promise.all([
-        fetch(`/api/tickets?status=${activeTab}`, { credentials: "include" }),
-        fetch(`/api/tickets`, { credentials: "include" }),
-      ]);
-      if (tabRes.ok) {
-        const data = await tabRes.json();
-        setTickets(data.tickets || []);
-      }
-      if (allRes.ok) {
-        const data = await allRes.json();
+      const res = await fetch("/api/tickets", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
         setAllTickets(data.tickets || []);
       }
     } catch { /* non-fatal */ }
     finally { setTicketsLoading(false); }
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     if (user) fetchTickets();
   }, [user, fetchTickets]);
 
-  // ── Real-time: refresh when a ticket is assigned to this engineer ──
+  // ── Real-time ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     const socket = getSocket({
@@ -312,16 +201,32 @@ export default function ServiceDashboard() {
     };
   }, [user, fetchTickets]);
 
+  // ── Filter by tab ──────────────────────────────────────────────────
+  const filteredTickets = useMemo(
+    () => allTickets.filter(t => t.status === activeTab).sort((a, b) => (b.ageHours ?? 0) - (a.ageHours ?? 0)),
+    [allTickets, activeTab]
+  );
+
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const tab of TABS) counts[tab.key] = allTickets.filter(t => t.status === tab.key).length;
+    return counts;
+  }, [allTickets]);
+
   // ── Ticket actions ─────────────────────────────────────────────────
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
   const handleAction = useCallback(async (id: string, action: "start" | "otp") => {
+    setActionLoading(id);
     const endpoint = action === "start"
       ? `/api/tickets/${encodeURIComponent(id)}/start`
       : `/api/tickets/${encodeURIComponent(id)}/otp`;
     const method = action === "start" ? "PATCH" : "POST";
     try {
       const res = await fetch(endpoint, { method, credentials: "include" });
-      if (res.ok) fetchTickets();
+      if (res.ok) await fetchTickets();
     } catch { /* non-fatal */ }
+    finally { setActionLoading(null); }
   }, [fetchTickets]);
 
   const handleOtpSuccess = useCallback(() => {
@@ -329,12 +234,111 @@ export default function ServiceDashboard() {
     fetchTickets();
   }, [fetchTickets]);
 
+  const handleRefresh = () => { setTicketsLoading(true); fetchTickets(); };
+
   // ── Render guards ──────────────────────────────────────────────────
-  if (authLoading) return <LoadingScreen message="Loading..." />;
+  if (authLoading || ticketsLoading) return <LoadingScreen message="Loading..." />;
   if (!user) return null;
 
+  // ── Render ticket card ─────────────────────────────────────────────
+  const renderCard = (ticket: ServiceTicket) => {
+    const parsed = parseDescription(ticket.problemDescription);
+    const issueText = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
+    const customerName = ticket.machineCustomer || parsed.customerName
+      || (ticket.customer ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
+    const locationShort = [
+      [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
+      ticket.pincode?.code,
+    ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
+    const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
+    const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
+    const isBusy = actionLoading === ticket.id;
+
+    const borderColor = (ticket.ageHours ?? 0) > 24
+      ? "border-l-red-500"
+      : (ticket.ageHours ?? 0) >= 6
+        ? "border-l-amber-400"
+        : "border-l-blue-400";
+
+    return (
+      <div key={ticket.id}
+        className={cn(
+          "bg-white rounded-xl border border-gray-200 border-l-[3px] p-4 flex flex-col gap-2.5 shadow-sm hover:shadow-md transition-shadow",
+          borderColor
+        )}>
+        {/* Row 1: Issue + Status + Age */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[15px] font-semibold text-gray-900 leading-snug line-clamp-2 flex-1 min-w-0">
+            {issueText || "Service Request"}
+          </p>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {ageBadge && (
+              <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold leading-none", ageBadge.color)}>
+                ⏱ {ageBadge.label}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Location */}
+        {locationShort && (
+          <p className="text-xs text-gray-500 leading-tight truncate">
+            📍 {locationShort}
+          </p>
+        )}
+
+        {/* Row 3: Customer + Machine */}
+        <div className="space-y-0.5">
+          {customerName && (
+            <p className="text-xs text-gray-600 truncate">{customerName}</p>
+          )}
+          {machineDisplay && (
+            <p className="text-xs text-gray-400 truncate">🛠 {machineDisplay}</p>
+          )}
+        </div>
+
+        {/* Row 4: Ticket # + time */}
+        <div className="flex items-center justify-between text-[11px] text-gray-400 pt-0.5">
+          <span className="font-mono">
+            {ticket.ticketNumber ? `#${ticket.ticketNumber}` : `#${ticket.id.slice(0, 8).toUpperCase()}`}
+          </span>
+          <span>{formatRelativeTime(new Date(ticket.createdAt))}</span>
+        </div>
+
+        {/* Row 5: Action Button — full width, prominent */}
+        {ticket.status === "ASSIGNED" && (
+          <button onClick={() => handleAction(ticket.id, "start")} disabled={isBusy}
+            className="w-full h-10 mt-1 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm">
+            {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Start Work
+          </button>
+        )}
+        {ticket.status === "IN_PROGRESS" && (
+          <button onClick={() => handleAction(ticket.id, "otp")} disabled={isBusy}
+            className="w-full h-10 mt-1 rounded-xl text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm">
+            {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+            Continue → Request OTP
+          </button>
+        )}
+        {ticket.status === "PENDING_OTP" && (
+          <button onClick={() => setOtpModalTicketId(ticket.id)}
+            className="w-full h-10 mt-1 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 transition-all flex items-center justify-center gap-2 shadow-sm animate-pulse">
+            <KeyRound className="w-4 h-4" />
+            Verify OTP
+          </button>
+        )}
+        {ticket.status === "CLOSED" && (
+          <div className="flex items-center gap-1.5 mt-1 px-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            <span className="text-xs font-medium text-emerald-600">Completed</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="h-screen flex overflow-hidden bg-surface dark:bg-surface-dark">
+    <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden">
 
       {/* OTP Modal */}
       {otpModalTicketId && (
@@ -345,196 +349,62 @@ export default function ServiceDashboard() {
         />
       )}
 
-      {/* ══════════════════════════════════════════════════════════ */}
-      {/* SIDEBAR                                                    */}
-      {/* ══════════════════════════════════════════════════════════ */}
-      <aside
-        className={cn(
-          "flex flex-col h-full bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 ease-in-out shrink-0",
-          isMobile ? "fixed inset-y-0 left-0 z-40 w-[240px]" : "relative",
-          !sidebarOpen && (isMobile ? "-translate-x-full" : "w-0 overflow-hidden border-r-0"),
-          sidebarOpen && "w-[240px]"
-        )}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
-          <Logo variant="full" size="sm" />
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1.5 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Section label */}
-        <div className="px-3 py-4 border-b border-line dark:border-line-dark">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center border border-blue-200 dark:border-blue-500/30">
-              <Ticket className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-content dark:text-content-dark">My Tickets</p>
-              <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary">Service workflow</p>
-            </div>
+      {/* ═══════════════════ HEADER ═══════════════════ */}
+      <header className="shrink-0 flex items-center justify-between px-4 py-2.5 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Logo className="h-7 w-auto" />
+          <div>
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">My Tasks</h1>
+            <p className="text-[11px] text-gray-500">{user.firstName} {user.lastName ?? ""}</p>
           </div>
         </div>
-
-        {/* Tab navigation */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-          {TABS.map((tab) => (
-            <button
-              key={tab.status}
-              onClick={() => setActiveTab(tab.status)}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                activeTab === tab.status
-                  ? "bg-primary/10 dark:bg-primary/20 text-primary"
-                  : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* User profile */}
-        <div className="shrink-0 border-t border-line dark:border-line-dark p-3 space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Theme</span>
-            <ThemeToggle />
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
-            <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-content dark:text-content-dark truncate">
-                {user.firstName} {user.lastName ?? ""}
-              </p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">
-                {user.email}
-              </p>
-            </div>
-            <button
-              onClick={async () => { await logout(); router.replace("/login"); }}
-              className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Sidebar backdrop (mobile) */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ══════════════════════════════════════════════════════════ */}
-      {/* MAIN                                                       */}
-      {/* ══════════════════════════════════════════════════════════ */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-
-        {/* Header */}
-        <header className="shrink-0 bg-surface/80 dark:bg-surface-dark/80 backdrop-blur border-b border-line dark:border-line-dark px-4 sm:px-5 py-3 flex items-center gap-3 z-10">
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
-            >
-              {isMobile ? <Menu className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-            </button>
-          )}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-semibold text-content dark:text-content-dark truncate">
-              Service Dashboard
-            </h1>
-            <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary">
-              {user.firstName} · {TABS.find((t) => t.status === activeTab)?.label} tickets
-            </p>
-          </div>
-          <button
-            onClick={fetchTickets}
-            disabled={ticketsLoading}
-            className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40"
-            title="Refresh"
-          >
+        <div className="flex items-center gap-1.5">
+          <button onClick={handleRefresh} disabled={ticketsLoading}
+            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <RefreshCw className={cn("w-4 h-4", ticketsLoading && "animate-spin")} />
           </button>
-          <Badge variant="info" dot>
-            {user.role === "admin" ? "Admin" : "Service Engineer"}
-          </Badge>
-        </header>
-
-        {/* Summary bar */}
-        <div className="shrink-0 grid grid-cols-4 gap-0 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-          {TABS.map((tab) => {
-            const count = allTickets.filter((t) => t.status === tab.status).length;
-            return (
-              <button
-                key={tab.status}
-                onClick={() => setActiveTab(tab.status)}
-                className={cn(
-                  "py-3 flex flex-col items-center gap-0.5 text-xs border-b-2 transition-colors",
-                  activeTab === tab.status
-                    ? "border-primary text-primary"
-                    : "border-transparent text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
-                )}
-              >
-                <span className="text-lg font-bold leading-none">{count}</span>
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
+          <button onClick={async () => { await logout(); router.replace("/login"); }}
+            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Sign out">
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
+      </header>
 
-        {/* Tab bar */}
-        <div className="shrink-0 flex border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card px-4 gap-1 overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.status}
-              onClick={() => setActiveTab(tab.status)}
+      {/* ═══════════════════ TAB BAR ═══════════════════ */}
+      <div className="shrink-0 grid grid-cols-4 bg-white border-b border-gray-200">
+        {TABS.map(tab => {
+          const count = tabCounts[tab.key] ?? 0;
+          const isActive = activeTab === tab.key;
+          return (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors",
-                activeTab === tab.status
-                  ? "border-primary text-primary"
-                  : "border-transparent text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
-              )}
-            >
-              {tab.label}
+                "py-2.5 flex flex-col items-center gap-0.5 text-xs border-b-2 transition-all",
+                isActive
+                  ? "border-blue-600 bg-blue-50/50"
+                  : "border-transparent hover:bg-gray-50"
+              )}>
+              <span className={cn("text-lg font-bold leading-none", isActive ? tab.color : "text-gray-400")}>
+                {count}
+              </span>
+              <span className={cn("font-semibold", isActive ? "text-gray-900" : "text-gray-400")}>
+                {tab.label}
+              </span>
             </button>
-          ))}
-        </div>
+          );
+        })}
+      </div>
 
-        {/* Ticket grid */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {ticketsLoading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="w-6 h-6 animate-spin text-content-secondary" />
-            </div>
-          ) : tickets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark flex items-center justify-center">
-                <Ticket className="w-7 h-7 text-content-secondary/40" />
-              </div>
-              <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                No {TABS.find((t) => t.status === activeTab)?.label.toLowerCase()} tickets
-              </p>
+      {/* ═══════════════════ TICKET LIST ═══════════════════ */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
+          {filteredTickets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <Ticket className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm font-medium">No {TABS.find(t => t.key === activeTab)?.label.toLowerCase()} tickets</p>
+              <p className="text-xs mt-1 text-gray-300">Pull down to refresh</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  onAction={handleAction}
-                  onVerifyOtp={(id) => setOtpModalTicketId(id)}
-                />
-              ))}
-            </div>
+            filteredTickets.map(renderCard)
           )}
         </div>
       </main>
