@@ -160,6 +160,8 @@ export default function ServiceManagerPage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [drawerTicket, setDrawerTicket] = useState<ServiceTicket | null>(null);
+  const [closedCollapsed, setClosedCollapsed] = useState(true);
 
   // ── Filter state ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -475,6 +477,27 @@ export default function ServiceManagerPage() {
     return result.sort((a, b) => (b.ageHours ?? 0) - (a.ageHours ?? 0));
   }, [tickets, activeTab, archivedIds, dateRange, searchQuery]);
 
+  // ── Grouped tickets for decision-focused view ──
+  const ticketGroups = useMemo(() => {
+    let pool = tickets.filter(t => !archivedIds.has(t.id));
+    if (dateRange !== "all") pool = pool.filter(t => isWithinDateRange(t.createdAt, dateRange));
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      pool = pool.filter(t => {
+        const tn = (t.ticketNumber ?? "").toLowerCase();
+        const ce = (t.customer?.email ?? "").toLowerCase();
+        const cn = `${t.customer?.firstName ?? ""} ${t.customer?.lastName ?? ""}`.toLowerCase();
+        return tn.includes(q) || ce.includes(q) || cn.includes(q);
+      });
+    }
+    const sortByAge = (a: ServiceTicket, b: ServiceTicket) => (b.ageHours ?? 0) - (a.ageHours ?? 0);
+    const urgent = pool.filter(t => (t.ageHours ?? 0) > 6 && t.status !== "CLOSED").sort(sortByAge);
+    const unassigned = pool.filter(t => t.status === "OPEN" && (t.ageHours ?? 0) <= 6).sort(sortByAge);
+    const inProgress = pool.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status) && (t.ageHours ?? 0) <= 6).sort(sortByAge);
+    const closed = pool.filter(t => t.status === "CLOSED").sort(sortByAge);
+    return { urgent, unassigned, inProgress, closed };
+  }, [tickets, archivedIds, dateRange, searchQuery]);
+
   if (authLoading || loading) return <LoadingScreen />;
   if (!user) return null;
 
@@ -491,7 +514,7 @@ export default function ServiceManagerPage() {
     <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden">
 
       {/* ═══════════════════ HEADER ═══════════════════ */}
-      <header className="shrink-0 flex items-center justify-between px-5 sm:px-8 py-4 bg-white border-b border-[#e2e8f0] shadow-sm">
+      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-white border-b border-[#e2e8f0] shadow-sm">
         <div className="flex items-center gap-3">
           <Logo className="h-8 w-auto" />
           <div>
@@ -515,7 +538,7 @@ export default function ServiceManagerPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 space-y-4">
 
           {/* ── Error banner ── */}
           {error && (
@@ -553,304 +576,271 @@ export default function ServiceManagerPage() {
           {/* ═══════════════════ TICKETS VIEW ═══════════════════ */}
           {pageView === "tickets" && (
             <>
-              {/* ── Stats Bar ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: "Total", value: total, color: "text-gray-900", bg: "" },
-                  { label: "Unassigned", value: unassigned, color: "text-red-600", bg: unassigned > 0 ? "ring-1 ring-red-200" : "" },
-                  { label: "Active", value: active, color: "text-[#2563eb]", bg: "" },
-                  { label: "Closed", value: closed, color: "text-emerald-600", bg: "" },
-                ].map(s => (
-                  <div key={s.label} className={cn("bg-white rounded-xl border border-[#e2e8f0] p-4 shadow-sm", s.bg)}>
-                    <p className="text-xs font-medium text-gray-500 mb-1">{s.label}</p>
-                    <p className={cn("text-2xl font-bold", s.color)}>{s.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Ticket Tabs ── */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-1.5 flex gap-1 overflow-x-auto">
-                {TICKET_TABS.map(tab => {
-                  const count = tab.key === "archived"
-                    ? tickets.filter(t => archivedIds.has(t.id)).length
-                    : tickets.filter(t => tab.statuses.includes(t.status) && !archivedIds.has(t.id)).length;
-                  const isActive = activeTab === tab.key;
-                  return (
-                    <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                      className={cn(
-                        "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
-                        isActive
-                          ? "bg-[#2563eb] text-white shadow-sm"
-                          : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                      )}>
-                      {tab.icon}
-                      <span className="hidden sm:inline">{tab.label}</span>
-                      <span className={cn(
-                        "text-xs px-1.5 py-0.5 rounded-full font-semibold",
-                        isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"
-                      )}>{count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* ── Filter Bar ── */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3 flex flex-wrap items-center gap-2">
-                <div className="flex gap-1">
-                  {([
-                    { key: "all" as DateRange, label: "All" },
-                    { key: "today" as DateRange, label: "Today" },
-                    { key: "7days" as DateRange, label: "7d" },
-                    { key: "30days" as DateRange, label: "30d" },
-                  ]).map(d => (
-                    <button key={d.key} onClick={() => setDateRange(d.key)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                        dateRange === d.key
-                          ? "bg-[#2563eb] text-white"
-                          : "text-gray-500 hover:bg-gray-100"
-                      )}>{d.label}</button>
-                  ))}
+              {/* ── Compact Stats + Filter Row ── */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-3 text-xs font-medium">
+                  <span className="text-gray-500">Total <span className="font-bold text-gray-900">{total}</span></span>
+                  <span className={cn("text-gray-500", unassigned > 0 && "text-red-600")}>Open <span className="font-bold">{unassigned}</span></span>
+                  <span className="text-gray-500">Active <span className="font-bold text-[#2563eb]">{active}</span></span>
+                  <span className="text-gray-500">Closed <span className="font-bold text-emerald-600">{closed}</span></span>
                 </div>
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Search ticket # or customer..."
-                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-gray-50 border border-[#e2e8f0] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
-                </div>
-                {hasActiveFilters && (
-                  <button onClick={resetFilters}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
-                    <RotateCcw className="w-3 h-3" /> Reset
-                  </button>
-                )}
-              </div>
-
-              {/* ── Ticket Cards ── */}
-              <section className="space-y-3">
-                {displayed.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-gray-400">
-                    <Ticket className="w-10 h-10 mb-3 opacity-40" />
-                    <p className="text-sm">{hasActiveFilters ? "No tickets match your filters" : `No ${(TICKET_TABS.find(t => t.key === activeTab)?.label ?? "").toLowerCase()} tickets`}</p>
-                    {hasActiveFilters && <button onClick={resetFilters} className="mt-2 text-xs text-[#2563eb] hover:underline">Clear filters</button>}
-                  </div>
-                ) : (
-                  displayed.map(ticket => {
-                    const cfg = STATUS_BADGE[ticket.status];
-                    const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
-                    const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
-                    const isExpanded = expandedId === ticket.id;
-                    const isArchived = archivedIds.has(ticket.id);
-                    const parsed = parseTicketDescription(ticket.problemDescription);
-                    const customerDisplay = ticket.machineCustomer || parsed.customerName;
-                    const locationShort = [
-                      [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
-                      ticket.pincode?.code,
-                    ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
-                    const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
-                    const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
-
-                    return (
-                      <div key={ticket.id}
+                <div className="ml-auto flex items-center gap-1.5">
+                  <div className="flex gap-0.5">
+                    {([
+                      { key: "all" as DateRange, label: "All" },
+                      { key: "today" as DateRange, label: "Today" },
+                      { key: "7days" as DateRange, label: "7d" },
+                      { key: "30days" as DateRange, label: "30d" },
+                    ]).map(d => (
+                      <button key={d.key} onClick={() => setDateRange(d.key)}
                         className={cn(
-                          "bg-white rounded-lg border overflow-hidden transition-shadow hover:shadow-md shadow-sm",
-                          ticket.status === "OPEN" && !isArchived ? "border-red-200" : "border-[#e2e8f0]"
-                        )}>
-                        <div className="p-3 space-y-1.5">
+                          "px-2 py-1 rounded text-xs font-medium transition-colors",
+                          dateRange === d.key
+                            ? "bg-[#2563eb] text-white"
+                            : "text-gray-400 hover:bg-gray-100"
+                        )}>{d.label}</button>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Search..."
+                      className="w-40 pl-7 pr-2 py-1.5 rounded-md text-xs bg-gray-50 border border-[#e2e8f0] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#2563eb]/30 focus:border-[#2563eb]" />
+                  </div>
+                  {hasActiveFilters && (
+                    <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600"><RotateCcw className="w-3 h-3" /></button>
+                  )}
+                </div>
+              </div>
 
-                          {/* ── Top row: Ticket# + Customer Name | Status + Urgency ── */}
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {ticket.ticketNumber && (
-                                <span className="text-xs font-mono text-gray-400 shrink-0">#{ticket.ticketNumber}</span>
-                              )}
-                              {customerDisplay && (
-                                <span className="font-semibold text-sm text-gray-900 leading-tight truncate">{customerDisplay}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
-                              {ageBadge?.urgency && (
-                                <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-semibold leading-tight", ageBadge.color)}>
-                                  {ageBadge.urgency}
-                                </span>
-                              )}
-                            </div>
+              {/* ── Grouped Ticket Sections ── */}
+              {(() => {
+                const { urgent, unassigned: unassignedGroup, inProgress: inProgressGroup, closed: closedGroup } = ticketGroups;
+                const totalVisible = urgent.length + unassignedGroup.length + inProgressGroup.length + closedGroup.length;
+
+                const renderTicketCard = (ticket: ServiceTicket) => {
+                  const cfg = STATUS_BADGE[ticket.status];
+                  const canAssign = ticket.status === "OPEN" || ticket.status === "ASSIGNED";
+                  const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
+                  const isArchived = archivedIds.has(ticket.id);
+                  const parsed = parseTicketDescription(ticket.problemDescription);
+                  const customerDisplay = ticket.machineCustomer || parsed.customerName;
+                  const locationShort = [
+                    [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
+                    ticket.pincode?.code,
+                  ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
+                  const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
+                  const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
+
+                  const borderColor = (ticket.ageHours ?? 0) > 24
+                    ? "border-l-red-500"
+                    : (ticket.ageHours ?? 0) >= 6
+                      ? "border-l-amber-400"
+                      : "border-l-transparent";
+
+                  return (
+                    <div key={ticket.id}
+                      className={cn(
+                        "bg-white rounded-md border border-[#e2e8f0] border-l-[3px] overflow-hidden transition-shadow hover:shadow-md shadow-sm",
+                        borderColor
+                      )}>
+                      <div className="p-3 space-y-1">
+
+                        {/* ── Row 1: Customer | Status + Age badge ── */}
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {ticket.ticketNumber && (
+                              <span className="text-[11px] font-mono text-gray-400 shrink-0">#{ticket.ticketNumber}</span>
+                            )}
+                            {customerDisplay ? (
+                              <span className="font-semibold text-sm text-gray-900 leading-tight truncate">{customerDisplay}</span>
+                            ) : (
+                              <span className="text-sm text-gray-400 italic leading-tight">No customer</span>
+                            )}
                           </div>
-
-                          {/* ── Second row: Location · Time ── */}
-                          {(locationShort || ticket.createdAt) && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
-                              {locationShort && <>
-                                <span>📍</span>
-                                <span className="truncate">{locationShort}</span>
-                              </>}
-                              {locationShort && ticket.createdAt && <span className="mx-0.5 text-gray-300">•</span>}
-                              {ticket.createdAt && <>
-                                <span>⏱</span>
-                                <span className="shrink-0">{formatRelativeTime(new Date(ticket.createdAt))}</span>
-                              </>}
-                            </div>
-                          )}
-
-                          {/* ── Third row: Machine / S/N ── */}
-                          {machineDisplay && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
-                              <span>🛠</span>
-                              <span className="truncate">{machineDisplay}</span>
-                            </div>
-                          )}
-
-                          {/* ── Fourth row: Issue (1-line truncate) ── */}
-                          {issueDisplay && (
-                            <p className="text-sm text-gray-700 leading-tight truncate">{issueDisplay}</p>
-                          )}
-
-                          {/* ── Expanded details ── */}
-                          {isExpanded && (
-                            <div className="pt-2 border-t border-[#e2e8f0] space-y-2 text-xs">
-                              {(ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode) ? (
-                                <div>
-                                  <p className="text-gray-500 font-medium mb-0.5">Address</p>
-                                  {ticket.machineAddress1 && <p className="text-gray-800">{ticket.machineAddress1}</p>}
-                                  {ticket.machineAddress2 && <p className="text-gray-600">{ticket.machineAddress2}</p>}
-                                  {ticket.pincode && <p className="text-gray-500">{ticket.pincode.code} · {[ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>}
-                                </div>
-                              ) : parsed.location ? (
-                                <div>
-                                  <p className="text-gray-500 font-medium mb-0.5">Location</p>
-                                  <p className="text-gray-800">{parsed.location}</p>
-                                </div>
-                              ) : null}
-                              {ticket.machineProductCode && (
-                                <p className="text-gray-500">Product Code: {ticket.machineProductCode}</p>
-                              )}
-                              {(ticket.machineInvoiceNo || ticket.machineInvoiceDate || ticket.machineWarranty != null) && (
-                                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-gray-500">
-                                  {ticket.machineInvoiceNo && <span>Invoice: {ticket.machineInvoiceNo}</span>}
-                                  {ticket.machineInvoiceDate && <span>Date: {ticket.machineInvoiceDate}</span>}
-                                  {ticket.machineWarranty != null && <span>Warranty: {ticket.machineWarranty}mo</span>}
-                                </div>
-                              )}
-                              {(ticket.phoneNumber || parsed.phone) && (
-                                <p className="text-gray-700">📞 {ticket.phoneNumber || parsed.phone}</p>
-                              )}
-                              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-gray-500">
-                                <span>{ticket.dealer ? `Dealer: ${ticket.dealer.firstName} ${ticket.dealer.lastName ?? ""}`.trim() : "Direct"}</span>
-                                {ticket.responseTimeHours != null && <span>Response: {ticket.responseTimeHours}h</span>}
-                                {ticket.durationHours != null && <span>Duration: {ticket.durationHours}h</span>}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* ── Bottom row: Archive + View Details | Assign ── */}
-                          <div className="flex items-center justify-between pt-1.5 border-t border-[#e2e8f0]">
-                            <div className="flex items-center gap-2">
-                              {ticket.assignedEngineer && (
-                                <span className="text-xs text-[#2563eb] font-medium truncate max-w-[120px]">
-                                  👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
-                                </span>
-                              )}
-                              <button onClick={() => isArchived ? handleUnarchive(ticket.id) : handleArchive(ticket.id)}
-                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                                <Archive className="w-3 h-3" /> {isArchived ? "Unarchive" : "Archive"}
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <button onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
-                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#2563eb] transition-colors">
-                                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                {isExpanded ? "Hide" : "Details"}
-                              </button>
-                              {canAssign && !isArchived && (
-                                <div className="relative">
-                                  <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
-                                    disabled={assigningId === ticket.id || engineers.length === 0}
-                                    className={cn(
-                                      "flex items-center gap-1 h-8 px-3 rounded-md text-xs font-semibold transition-all",
-                                      assigningId === ticket.id
-                                        ? "bg-gray-100 text-gray-400"
-                                        : "bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50"
-                                    )}>
-                                    {assigningId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                                    Assign
-                                    <ChevronDown className="w-3 h-3" />
-                                  </button>
-
-                                  {dropdownOpen === ticket.id && (() => {
-                                    const ticketPincodeId = ticket.pincode?.id;
-                                    const matched = ticketPincodeId
-                                      ? sortedEngineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincodeId))
-                                      : [];
-                                    const others = ticketPincodeId
-                                      ? sortedEngineers.filter(e => !e.engineerPincodes?.some(p => p.id === ticketPincodeId))
-                                      : sortedEngineers;
-                                    const hasMatched = matched.length > 0;
-
-                                    return (
-                                      <div className="absolute right-0 bottom-full mb-1 w-64 z-20 rounded-xl bg-white border border-[#e2e8f0] shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-                                        <div className="px-3 py-2 border-b border-[#e2e8f0]">
-                                          <p className="text-xs font-bold text-gray-500">Select Engineer</p>
-                                          {ticketPincodeId && <p className="text-[10px] text-gray-400 mt-0.5">{hasMatched ? "Showing zone-matched first" : "No zone match — showing all"}</p>}
-                                        </div>
-                                        {sortedEngineers.length === 0 ? (
-                                          <p className="px-3 py-3 text-xs text-gray-400 text-center">No engineers in your team</p>
-                                        ) : (
-                                          <>
-                                            {matched.map(eng => (
-                                              <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                                className="w-full text-left px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 bg-emerald-50">
-                                                <span className="flex items-center gap-1.5 min-w-0">
-                                                  <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                                                  <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                                </span>
-                                                {eng.activeTickets !== undefined && (
-                                                  <span className={cn(
-                                                    "text-xs px-2 py-0.5 rounded-full font-medium shrink-0",
-                                                    eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                                      : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                                        : "bg-red-100 text-red-700"
-                                                  )}>{eng.activeTickets} active</span>
-                                                )}
-                                              </button>
-                                            ))}
-                                            {hasMatched && others.length > 0 && (
-                                              <div className="px-3 py-1.5 border-t border-[#e2e8f0] bg-gray-50">
-                                                <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Other Engineers</p>
-                                              </div>
-                                            )}
-                                            {others.map(eng => (
-                                              <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                                className="w-full text-left px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
-                                                <span className="flex items-center gap-1.5 min-w-0">
-                                                  <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                                </span>
-                                                {eng.activeTickets !== undefined && (
-                                                  <span className={cn(
-                                                    "text-xs px-2 py-0.5 rounded-full font-medium shrink-0",
-                                                    eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                                      : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                                        : "bg-red-100 text-red-700"
-                                                  )}>{eng.activeTickets} active</span>
-                                                )}
-                                              </button>
-                                            ))}
-                                          </>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
+                            {ageBadge && (
+                              <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold leading-none", ageBadge.color)}>
+                                {ageBadge.label}
+                              </span>
+                            )}
                           </div>
-
                         </div>
+
+                        {/* ── Row 2: Issue (1 line) ── */}
+                        {issueDisplay && (
+                          <p className="text-sm text-gray-600 leading-tight truncate">{issueDisplay}</p>
+                        )}
+
+                        {/* ── Row 3: Location · Time ── */}
+                        <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
+                          {locationShort && <>
+                            <span className="shrink-0">📍</span>
+                            <span className="truncate">{locationShort}</span>
+                          </>}
+                          {locationShort && ticket.createdAt && <span className="mx-0.5 text-gray-300">•</span>}
+                          {ticket.createdAt && <>
+                            <span className="shrink-0">⏱</span>
+                            <span className="shrink-0">{formatRelativeTime(new Date(ticket.createdAt))}</span>
+                          </>}
+                        </div>
+
+                        {/* ── Row 4: Machine ── */}
+                        {machineDisplay && (
+                          <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
+                            <span className="shrink-0">🛠</span>
+                            <span className="truncate">{machineDisplay}</span>
+                          </div>
+                        )}
+
+                        {/* ── Row 5: Actions ── */}
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {ticket.assignedEngineer && (
+                              <span className="text-xs text-[#2563eb] font-medium truncate max-w-[140px]">
+                                👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
+                              </span>
+                            )}
+                            <button onClick={() => setDrawerTicket(ticket)}
+                              className="text-xs text-gray-400 hover:text-[#2563eb] transition-colors shrink-0">
+                              Details
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {canAssign && !isArchived && (
+                              <div className="relative">
+                                <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
+                                  disabled={assigningId === ticket.id || engineers.length === 0}
+                                  className={cn(
+                                    "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
+                                    assigningId === ticket.id
+                                      ? "bg-gray-100 text-gray-400"
+                                      : "bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50"
+                                  )}>
+                                  {assigningId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                                  Assign
+                                  <ChevronDown className="w-2.5 h-2.5" />
+                                </button>
+
+                                {dropdownOpen === ticket.id && (() => {
+                                  const ticketPincodeId = ticket.pincode?.id;
+                                  const matched = ticketPincodeId
+                                    ? sortedEngineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincodeId))
+                                    : [];
+                                  const others = ticketPincodeId
+                                    ? sortedEngineers.filter(e => !e.engineerPincodes?.some(p => p.id === ticketPincodeId))
+                                    : sortedEngineers;
+                                  const hasMatched = matched.length > 0;
+
+                                  return (
+                                    <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-white border border-[#e2e8f0] shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                                      <div className="px-3 py-1.5 border-b border-[#e2e8f0]">
+                                        <p className="text-xs font-bold text-gray-500">Select Engineer</p>
+                                        {ticketPincodeId && <p className="text-[10px] text-gray-400">{hasMatched ? "Zone-matched first" : "No zone match"}</p>}
+                                      </div>
+                                      {sortedEngineers.length === 0 ? (
+                                        <p className="px-3 py-2 text-xs text-gray-400 text-center">No engineers</p>
+                                      ) : (
+                                        <>
+                                          {matched.map(eng => (
+                                            <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                              className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 bg-emerald-50">
+                                              <span className="flex items-center gap-1 min-w-0">
+                                                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                                <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                              </span>
+                                              {eng.activeTickets !== undefined && (
+                                                <span className={cn(
+                                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                                  eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                    : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                      : "bg-red-100 text-red-700"
+                                                )}>{eng.activeTickets}</span>
+                                              )}
+                                            </button>
+                                          ))}
+                                          {hasMatched && others.length > 0 && (
+                                            <div className="px-3 py-1 border-t border-[#e2e8f0] bg-gray-50">
+                                              <p className="text-[10px] font-medium text-gray-400">Others</p>
+                                            </div>
+                                          )}
+                                          {others.map(eng => (
+                                            <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                              className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
+                                              <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                              {eng.activeTickets !== undefined && (
+                                                <span className={cn(
+                                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                                  eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                    : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                      : "bg-red-100 text-red-700"
+                                                )}>{eng.activeTickets}</span>
+                                              )}
+                                            </button>
+                                          ))}
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                       </div>
-                    );
-                  })
-                )}
-              </section>
+                    </div>
+                  );
+                };
+
+                const renderGroup = (title: string, icon: string, tickets: ServiceTicket[], defaultOpen = true) => {
+                  if (tickets.length === 0) return null;
+                  const isClosedGroup = title === "Closed";
+                  const isCollapsed = isClosedGroup && closedCollapsed;
+                  return (
+                    <div key={title}>
+                      <button
+                        onClick={() => isClosedGroup && setClosedCollapsed(c => !c)}
+                        className={cn("flex items-center gap-1.5 mb-2 w-full text-left", isClosedGroup && "cursor-pointer")}
+                      >
+                        <span className="text-sm">{icon}</span>
+                        <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{title}</span>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{tickets.length}</span>
+                        {isClosedGroup && (
+                          <span className="ml-auto">
+                            {isCollapsed ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronUp className="w-3 h-3 text-gray-400" />}
+                          </span>
+                        )}
+                      </button>
+                      {!isCollapsed && (
+                        <div className="space-y-2">
+                          {tickets.map(renderTicketCard)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+
+                if (totalVisible === 0) {
+                  return (
+                    <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm py-12 flex flex-col items-center text-gray-400">
+                      <Ticket className="w-8 h-8 mb-2 opacity-40" />
+                      <p className="text-sm">{hasActiveFilters ? "No tickets match your filters" : "No tickets"}</p>
+                      {hasActiveFilters && <button onClick={resetFilters} className="mt-1 text-xs text-[#2563eb] hover:underline">Clear filters</button>}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-5">
+                    {renderGroup("Urgent / Overdue", "🔥", urgent)}
+                    {renderGroup("Unassigned", "⚠️", unassignedGroup)}
+                    {renderGroup("In Progress", "🟢", inProgressGroup)}
+                    {renderGroup("Closed", "✅", closedGroup)}
+                  </div>
+                );
+              })()}
             </>
           )}
 
@@ -1278,6 +1268,121 @@ export default function ServiceManagerPage() {
 
       {/* Close dropdown on outside click */}
       {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
+
+      {/* ═══════════════════ TICKET DETAIL DRAWER ═══════════════════ */}
+      {drawerTicket && (() => {
+        const t = drawerTicket;
+        const parsed = parseTicketDescription(t.problemDescription);
+        const customerDisplay = t.machineCustomer || parsed.customerName;
+        const isArchived = archivedIds.has(t.id);
+        const canAssign = t.status === "OPEN" || t.status === "ASSIGNED";
+        const cfg = STATUS_BADGE[t.status];
+        const ageBadge = typeof t.ageHours === "number" ? getAgeBadge(t.ageHours) : null;
+        return (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={() => setDrawerTicket(null)} />
+            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white border-l border-[#e2e8f0] shadow-xl overflow-y-auto">
+              <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-5 py-3 border-b border-[#e2e8f0]">
+                <div className="flex items-center gap-2 min-w-0">
+                  {t.ticketNumber && <span className="text-xs font-mono text-gray-400">#{t.ticketNumber}</span>}
+                  <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
+                  {ageBadge && (
+                    <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold", ageBadge.color)}>{ageBadge.label}</span>
+                  )}
+                </div>
+                <button onClick={() => setDrawerTicket(null)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="px-5 py-4 space-y-4">
+                {/* Customer */}
+                {customerDisplay && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Customer</p>
+                    <p className="text-sm font-semibold text-gray-900">{customerDisplay}</p>
+                  </div>
+                )}
+
+                {/* Issue */}
+                {(t.issueDescription || t.problemDescription) && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Issue</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{t.issueDescription || t.problemDescription}</p>
+                  </div>
+                )}
+
+                {/* Address */}
+                {(t.machineAddress1 || t.machineAddress2 || t.pincode || parsed.location) && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Address</p>
+                    {t.machineAddress1 && <p className="text-xs text-gray-800">{t.machineAddress1}</p>}
+                    {t.machineAddress2 && <p className="text-xs text-gray-600">{t.machineAddress2}</p>}
+                    {t.pincode && <p className="text-xs text-gray-500">{t.pincode.code} · {[t.pincode.place, t.pincode.district, t.pincode.state].filter(Boolean).join(", ")}</p>}
+                    {!t.machineAddress1 && !t.machineAddress2 && !t.pincode && parsed.location && <p className="text-xs text-gray-800">{parsed.location}</p>}
+                  </div>
+                )}
+
+                {/* Machine */}
+                {(t.machineName || t.machineSerialNumber || t.machineProductCode) && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Machine</p>
+                    {t.machineName && <p className="text-xs text-gray-800">{t.machineName}</p>}
+                    {t.machineSerialNumber && <p className="text-xs text-gray-500">S/N: {t.machineSerialNumber}</p>}
+                    {t.machineProductCode && <p className="text-xs text-gray-500">Product: {t.machineProductCode}</p>}
+                  </div>
+                )}
+
+                {/* Invoice / Warranty */}
+                {(t.machineInvoiceNo || t.machineInvoiceDate || t.machineWarranty != null) && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Invoice / Warranty</p>
+                    <div className="flex flex-wrap gap-x-4 text-xs text-gray-600">
+                      {t.machineInvoiceNo && <span>Invoice: {t.machineInvoiceNo}</span>}
+                      {t.machineInvoiceDate && <span>Date: {t.machineInvoiceDate}</span>}
+                      {t.machineWarranty != null && <span>Warranty: {t.machineWarranty}mo</span>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phone */}
+                {(t.phoneNumber || parsed.phone) && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Phone</p>
+                    <p className="text-xs text-gray-800">{t.phoneNumber || parsed.phone}</p>
+                  </div>
+                )}
+
+                {/* Assigned Engineer */}
+                {t.assignedEngineer && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Engineer</p>
+                    <p className="text-xs text-[#2563eb] font-medium">👷 {t.assignedEngineer.firstName} {t.assignedEngineer.lastName ?? ""}</p>
+                  </div>
+                )}
+
+                {/* Meta */}
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Details</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span>Source: {t.dealer ? `Dealer — ${t.dealer.firstName} ${t.dealer.lastName ?? ""}`.trim() : "Direct"}</span>
+                    <span>Created: {formatRelativeTime(new Date(t.createdAt))}</span>
+                    {t.responseTimeHours != null && <span>Response: {t.responseTimeHours}h</span>}
+                    {t.durationHours != null && <span>Duration: {t.durationHours}h</span>}
+                    {t.ageHours != null && <span>Age: {t.ageHours}h</span>}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-3 border-t border-[#e2e8f0]">
+                  <button onClick={() => { isArchived ? handleUnarchive(t.id) : handleArchive(t.id); setDrawerTicket(null); }}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                    <Archive className="w-3.5 h-3.5" /> {isArchived ? "Unarchive" : "Archive"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* ═══════════════════ EDIT ENGINEER MODAL ═══════════════════ */}
       {editingEng && (
