@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from "react";
-import { Send, RotateCcw, Phone, Settings, X } from "lucide-react";
+import { Send, RotateCcw, Phone, Settings, X, MessageSquare, ChevronRight, Plus } from "lucide-react";
 
 interface VideoSuggestion {
   id: string;
@@ -58,6 +58,9 @@ export default function TestChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [sessions, setSessions] = useState<{ phoneNumber: string; content: string; role: string; createdAt: string }[]>([]);
+  const [newPhone, setNewPhone] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const knownCountRef = useRef(0);
@@ -80,6 +83,20 @@ export default function TestChatPage() {
       knownCountRef.current = dbMessages.length;
     } catch { /* silent */ }
   }, []);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/simulate/sessions`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSessions(data.sessions || []);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  // Refresh session list whenever messages change (new conversation started)
+  useEffect(() => { if (messages.length > 0) loadSessions(); }, [messages.length, loadSessions]);
 
   useEffect(() => {
     if (phoneNumber.trim()) loadHistory(phoneNumber.trim());
@@ -147,18 +164,109 @@ export default function TestChatPage() {
     if (e.key === "Enter") sendMessage();
   }
 
+  function selectSession(phone: string) {
+    setPhoneNumber(phone);
+    setMessages([]);
+    knownCountRef.current = 0;
+    setInputMessage("");
+    if (window.innerWidth < 640) setShowSidebar(false);
+  }
+
+  function formatPhone(p: string) {
+    // 919876543210 → +91 98765 43210
+    const digits = p.replace(/\D/g, "");
+    if (digits.startsWith("91") && digits.length === 12) {
+      return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
+    }
+    return `+${digits}`;
+  }
+
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#e5ddd5] dark:bg-[#0d1117]">
+    <div className="flex h-[100dvh] bg-[#e5ddd5] dark:bg-[#0d1117] overflow-hidden">
+
+      {/* ── Left Sidebar — Session List ── */}
+      <aside
+        className={`${
+          showSidebar ? "w-[280px] sm:w-[300px]" : "w-0"
+        } shrink-0 flex flex-col bg-white dark:bg-[#111b21] border-r border-gray-200 dark:border-gray-700 transition-all duration-200 overflow-hidden`}
+      >
+        {/* Sidebar header */}
+        <div className="shrink-0 bg-[#075e54] px-4 py-3 flex items-center gap-3">
+          <MessageSquare className="w-5 h-5 text-white shrink-0" />
+          <span className="text-white font-semibold text-sm flex-1">Test Sessions</span>
+          <button onClick={() => setShowSidebar(false)} className="p-1.5 rounded-full hover:bg-white/10">
+            <X className="w-4 h-4 text-white/80" />
+          </button>
+        </div>
+
+        {/* New phone input */}
+        <div className="shrink-0 px-3 py-2.5 border-b border-gray-100 dark:border-gray-700/50 flex gap-2">
+          <input
+            type="text"
+            value={newPhone}
+            onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, ""))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newPhone.trim()) {
+                selectSession(newPhone.trim());
+                setNewPhone("");
+              }
+            }}
+            placeholder="New phone (e.g. 9198765...)"
+            className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:border-[#075e54]"
+          />
+          <button
+            onClick={() => { if (newPhone.trim()) { selectSession(newPhone.trim()); setNewPhone(""); } }}
+            className="p-1.5 rounded-lg bg-[#25d366] hover:bg-[#1da855] text-white"
+            title="Open this number"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Session list */}
+        <div className="flex-1 overflow-y-auto">
+          {sessions.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center mt-6 px-4">No sessions yet.<br/>Start a conversation to see it here.</p>
+          ) : (
+            sessions.map((s) => (
+              <button
+                key={s.phoneNumber}
+                onClick={() => selectSession(s.phoneNumber)}
+                className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-700/40 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left ${
+                  s.phoneNumber === phoneNumber ? "bg-[#ebebeb] dark:bg-gray-700/60" : ""
+                }`}
+              >
+                <div className="w-9 h-9 rounded-full bg-[#075e54]/10 dark:bg-[#25d366]/10 flex items-center justify-center shrink-0">
+                  <Phone className="w-4 h-4 text-[#075e54] dark:text-[#25d366]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{formatPhone(s.phoneNumber)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{s.content}</p>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 shrink-0" />
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* ── Right — Chat Panel ── */}
+      <div className="flex-1 flex flex-col min-w-0">
 
       {/* ── WhatsApp-style header ── */}
       <header className="shrink-0 flex items-center gap-3 px-4 py-3 bg-[#075e54] shadow-md z-10">
+        {!showSidebar && (
+          <button onClick={() => setShowSidebar(true)} className="p-1.5 rounded-full hover:bg-white/10">
+            <MessageSquare className="w-4 h-4 text-white/80" />
+          </button>
+        )}
         <div className="w-9 h-9 rounded-full bg-[#25d366]/30 flex items-center justify-center shrink-0">
           <Phone className="w-4 h-4 text-white" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-semibold text-sm leading-tight truncate">Poornasree AI</p>
           <p className="text-[#b2dfdb] text-xs truncate">
-            {loading ? "typing…" : "+91 " + phoneNumber.replace(/^91/, "")}
+            {loading ? "typing…" : formatPhone(phoneNumber)}
           </p>
         </div>
         <button
@@ -169,16 +277,18 @@ export default function TestChatPage() {
         </button>
         <button
           onClick={async () => {
+            // Reset FSM state on server (keep message history) + clear local UI
+            try {
+              await fetch(`${BASE_URL}/api/simulate/session/${encodeURIComponent(phoneNumber.trim())}`, { method: "DELETE" });
+            } catch { /* silent */ }
             setMessages([]);
             setInputMessage("");
             knownCountRef.current = 0;
-            try {
-              // Reset server-side session + message history
-              await fetch(`${BASE_URL}/api/simulate/session/${encodeURIComponent(phoneNumber.trim())}`, { method: "DELETE" });
-            } catch { /* silent */ }
+            // Reload history so user can still see old messages
+            loadHistory(phoneNumber.trim());
           }}
           className="p-2 rounded-full hover:bg-white/10 transition-colors"
-          title="Reset chat"
+          title="Reset flow (keeps history)"
         >
           <RotateCcw className="w-4 h-4 text-white/80" />
         </button>
@@ -346,6 +456,7 @@ export default function TestChatPage() {
         </button>
       </div>
 
+      </div>{/* end chat panel */}
     </div>
   );
 }

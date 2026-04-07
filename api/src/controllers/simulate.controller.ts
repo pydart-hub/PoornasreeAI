@@ -42,6 +42,22 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
   }
 }
 
+// ── GET /api/simulate/sessions ───────────────────────────────────────────
+// Returns all distinct phone numbers that have simulate messages.
+export async function listSessions(req: Request, res: Response): Promise<void> {
+  try {
+    const rows = await prisma.simulateMessage.findMany({
+      distinct: ["phoneNumber"],
+      orderBy:  { createdAt: "desc" },
+      select:   { phoneNumber: true, content: true, role: true, createdAt: true },
+    });
+    res.json({ sessions: rows });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
 // ── GET /api/simulate/history/:phoneNumber ────────────────────────────────
 // Returns persisted chat history for a phone number so the frontend can
 // restore state after a page refresh and also receive pushed OTP messages.
@@ -67,8 +83,7 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
 }
 
 // ── DELETE /api/simulate/session/:phoneNumber ─────────────────────────────
-// Wipes the server-side session state and full message history so the
-// frontend reset button produces a genuinely clean start.
+// Resets ONLY the FSM session state — message history is preserved.
 export async function resetSession(req: Request, res: Response): Promise<void> {
   try {
     const phone = String(req.params.phoneNumber || "").trim();
@@ -77,10 +92,8 @@ export async function resetSession(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    await Promise.all([
-      prisma.conversationSession.deleteMany({ where: { phoneNumber: phone } }),
-      prisma.simulateMessage.deleteMany({ where: { phoneNumber: phone } }),
-    ]);
+    // Only reset FSM state — keep message history so user can still read the conversation
+    await prisma.conversationSession.deleteMany({ where: { phoneNumber: phone } });
 
     res.json({ ok: true });
   } catch (err: unknown) {
