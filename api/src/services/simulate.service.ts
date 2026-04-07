@@ -185,12 +185,12 @@ async function handleMachineConfirm(
   meta: SessionMeta,
   text: string,
 ) {
-  if (text === "1") {
+  if (text === "1" || /^yes/i.test(text)) {
     // Yes — ask for pincode (API does not provide it)
     await updateSession(sessionId, "API_PINCODE", meta);
     return makeReply("Please enter your pincode (6 digits):");
   }
-  if (text === "2") {
+  if (text === "2" || /^no/i.test(text)) {
     // No — fall to manual flow (keep serial)
     await updateSession(sessionId, "MANUAL_NAME", {
       serialNumber: meta.serialNumber,
@@ -279,11 +279,11 @@ async function handleApiPincodeConfirm(
   meta: SessionMeta,
   text: string,
 ) {
-  if (text === "1") {
+  if (text === "1" || /^yes/i.test(text)) {
     await updateSession(sessionId, "API_COMPLAINT", meta);
     return makeReply(complaintsMessage());
   }
-  if (text === "2") {
+  if (text === "2" || /^no/i.test(text)) {
     await updateSession(sessionId, "API_PINCODE", {
       ...meta,
       manualPincode:  undefined,
@@ -304,7 +304,10 @@ async function handleApiComplaint(
   meta: SessionMeta,
   text: string,
 ) {
-  const index = parseInt(text, 10) - 1;
+  // Accept complaint by number OR by matching the label text (from button tap)
+  const byText   = COMPLAINTS.findIndex((c) => c.toLowerCase() === text.toLowerCase());
+  const byNumber = parseInt(text, 10) - 1;
+  const index    = byText >= 0 ? byText : byNumber;
   if (isNaN(index) || index < 0 || index >= COMPLAINTS.length) {
     return makeReply(`${complaintsMessage()}\n\nPlease select a valid option (1-${COMPLAINTS.length}):`);
   }
@@ -372,11 +375,11 @@ async function handleManualPincodeConfirm(
   meta: SessionMeta,
   text: string,
 ) {
-  if (text === "1") {
+  if (text === "1" || /^yes/i.test(text)) {
     await updateSession(sessionId, "MANUAL_COMPLAINT", meta);
     return makeReply(complaintsMessage());
   }
-  if (text === "2") {
+  if (text === "2" || /^no/i.test(text)) {
     await updateSession(sessionId, "MANUAL_PINCODE", {
       ...meta,
       manualPincode:  undefined,
@@ -397,7 +400,10 @@ async function handleManualComplaint(
   meta: SessionMeta,
   text: string,
 ) {
-  const index = parseInt(text, 10) - 1;
+  // Accept complaint by number OR by matching the label text (from button tap)
+  const byText   = COMPLAINTS.findIndex((c) => c.toLowerCase() === text.toLowerCase());
+  const byNumber = parseInt(text, 10) - 1;
+  const index    = byText >= 0 ? byText : byNumber;
   if (isNaN(index) || index < 0 || index >= COMPLAINTS.length) {
     return makeReply(`${complaintsMessage()}\n\nPlease select a valid option (1-${COMPLAINTS.length}):`);
   }
