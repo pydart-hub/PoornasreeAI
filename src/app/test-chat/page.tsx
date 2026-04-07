@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from "react";
-import { Send, RotateCcw, Phone, Settings, X, MessageSquare, ChevronRight, Plus } from "lucide-react";
+import { Send, RotateCcw, Phone, Settings, X, MessageSquare, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 interface VideoSuggestion {
   id: string;
@@ -194,6 +194,22 @@ export default function TestChatPage() {
         <div className="shrink-0 bg-[#075e54] px-4 py-3 flex items-center gap-3">
           <MessageSquare className="w-5 h-5 text-white shrink-0" />
           <span className="text-white font-semibold text-sm flex-1">Test Sessions</span>
+          <button
+            onClick={async () => {
+              if (!confirm("Delete ALL chats and tickets? This cannot be undone.")) return;
+              try {
+                await fetch(`${BASE_URL}/api/simulate/all`, { method: "DELETE" });
+              } catch { /* silent */ }
+              setMessages([]);
+              setSessions([]);
+              setInputMessage("");
+              knownCountRef.current = 0;
+            }}
+            className="p-1.5 rounded-full hover:bg-red-500/30 transition-colors"
+            title="Clear all chats & tickets"
+          >
+            <Trash2 className="w-4 h-4 text-white/80" />
+          </button>
           <button onClick={() => setShowSidebar(false)} className="p-1.5 rounded-full hover:bg-white/10">
             <X className="w-4 h-4 text-white/80" />
           </button>

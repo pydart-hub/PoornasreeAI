@@ -61,7 +61,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const upper = text.toUpperCase();
   if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESET") {
     const s = await getOrCreateSession(phoneNumber);
-    await updateSession(s.id, "GREETING", {});
+    await updateSession(s.id, "SERIAL_INPUT", {});
     return makeReply(GREETING_MSG);
   }
 

@@ -101,3 +101,18 @@ export async function resetSession(req: Request, res: Response): Promise<void> {
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
+// ── DELETE /api/simulate/all ──────────────────────────────────────────────
+// Wipes all simulate messages, FSM sessions, and ALL tickets. Fresh-start helper.
+export async function clearAll(_req: Request, res: Response): Promise<void> {
+  try {
+    // Delete in FK-safe order
+    await prisma.simulateMessage.deleteMany({});
+    await prisma.conversationSession.deleteMany({});
+    await prisma.ticket.deleteMany({});
+    res.json({ ok: true, message: "All simulate messages, sessions, and tickets deleted." });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
