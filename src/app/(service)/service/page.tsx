@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Badge } from "@/components/ui/Badge";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { cn, formatRelativeTime } from "@/lib/utils";
