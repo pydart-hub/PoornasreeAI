@@ -25,7 +25,28 @@ type SessionMeta = {
   manualPincode?:  string;
   manualDistrict?: string;
   manualState?:    string;
+  complaint?:      string;
+  pincodeDisplay?: string;
 };
+
+// ── Complaint options ────────────────────────────────────────────────────
+const COMPLAINTS = [
+  "Machine not turning on",
+  "No display / blank screen",
+  "Vibration / unusual noise",
+  "Overheating",
+  "Button / control not responding",
+  "Error code on display",
+  "Physical damage",
+  "Other",
+];
+
+function complaintsMessage(): string {
+  return (
+    "Please select your complaint:\n\n" +
+    COMPLAINTS.map((c, i) => `${i + 1}. ${c}`).join("\n")
+  );
+}
 
 // ── Static messages ───────────────────────────────────────────────────────
 const GREETING_MSG =
@@ -84,8 +105,20 @@ async function routeState(
     case "API_PINCODE":
       return handleApiPincode(session.id, phoneNumber, meta, text);
 
+    case "API_PINCODE_CONFIRM":
+      return handleApiPincodeConfirm(session.id, meta, text);
+
+    case "API_COMPLAINT":
+      return handleApiComplaint(session.id, phoneNumber, meta, text);
+
     case "MANUAL_PINCODE":
       return handleManualPincode(session.id, phoneNumber, meta, text);
+
+    case "MANUAL_PINCODE_CONFIRM":
+      return handleManualPincodeConfirm(session.id, meta, text);
+
+    case "MANUAL_COMPLAINT":
+      return handleManualComplaint(session.id, phoneNumber, meta, text);
 
     default:
       await updateSession(session.id, "SERIAL_INPUT", {});
@@ -114,17 +147,24 @@ async function handleSerialInput(sessionId: string, _meta: SessionMeta, text: st
   }
 
   if (machineData) {
+    // Look up admin Machine table for a friendly model name
+    let adminModelName: string | undefined;
+    try {
+      const adminMachine = await prisma.machine.findUnique({ where: { serialNumber: serial } });
+      if (adminMachine?.modelName) adminModelName = adminMachine.modelName;
+    } catch { /* non-blocking */ }
+
+    const displayName = adminModelName || machineData.m_model || "N/A";
     const newMeta: SessionMeta = { serialNumber: serial, machineData };
     await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
     return makeReply(
-      `We found your machine details:\n\n` +
-      `Customer: ${machineData.customer || "N/A"}\n` +
-      `Model: ${machineData.m_model || "N/A"}\n` +
-      `Product Code: ${machineData.product_code || "N/A"}\n` +
-      `Location: ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
+      `✅ We found your machine details:\n\n` +
+      `👤 Customer: ${machineData.customer || "N/A"}\n` +
+      `🔧 Machine Name: ${displayName}\n` +
+      `📍 Location: ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
       `Is this your machine?\n\n` +
-      `1 - Yes ✅\n` +
-      `2 - No ❌`
+      `1. Yes ✅\n` +
+      `2. No ❌`
     );
   }
 
@@ -158,7 +198,7 @@ async function handleMachineConfirm(
     });
     return makeReply("Please enter your name:");
   }
-  return makeReply("Please reply:\n1 - Yes ✅\n2 - No ❌");
+  return makeReply("Please reply:\n1. Yes ✅\n2. No ❌");
 }
 
 // ── MANUAL_NAME ───────────────────────────────────────────────────────────
@@ -179,10 +219,10 @@ async function handleManualPlace(sessionId: string, meta: SessionMeta, text: str
   return makeReply("Please enter your pincode (6 digits):");
 }
 
-// ── API_PINCODE → create ticket from API ────────────────────────────────
+// ── API_PINCODE → fetch pincode location → confirm ───────────────────────
 async function handleApiPincode(
   sessionId: string,
-  phoneNumber: string,
+  _phoneNumber: string,
   meta: SessionMeta,
   text: string,
 ) {
@@ -204,29 +244,78 @@ async function handleApiPincode(
       data[0].PostOffice.length > 0
     ) {
       const po = data[0].PostOffice[0];
-      place    = po.Name     || undefined;
-      district = po.District || undefined;
-      stateName = po.State   || undefined;
+      place     = po.Name     || undefined;
+      district  = po.District || undefined;
+      stateName = po.State    || undefined;
     }
   } catch {
     // Non-blocking
   }
 
+  const locationStr = [place, district, stateName].filter(Boolean).join(", ");
   const updatedMeta: SessionMeta = {
     ...meta,
     manualPincode:  text,
     manualPlace:    place,
     manualDistrict: district,
     manualState:    stateName,
+    pincodeDisplay: locationStr || text,
   };
 
+  await updateSession(sessionId, "API_PINCODE_CONFIRM", updatedMeta);
+
+  const locationLine = locationStr
+    ? `📍 *${text}* — ${locationStr}`
+    : `📍 Pincode: *${text}*`;
+
+  return makeReply(
+    `${locationLine}\n\nIs this your pincode?\n\n1. Yes ✅\n2. No, re-enter ❌`
+  );
+}
+
+// ── API_PINCODE_CONFIRM ──────────────────────────────────────────────────
+async function handleApiPincodeConfirm(
+  sessionId: string,
+  meta: SessionMeta,
+  text: string,
+) {
+  if (text === "1") {
+    await updateSession(sessionId, "API_COMPLAINT", meta);
+    return makeReply(complaintsMessage());
+  }
+  if (text === "2") {
+    await updateSession(sessionId, "API_PINCODE", {
+      ...meta,
+      manualPincode:  undefined,
+      manualPlace:    undefined,
+      manualDistrict: undefined,
+      manualState:    undefined,
+      pincodeDisplay: undefined,
+    });
+    return makeReply("Please enter your pincode (6 digits):");
+  }
+  return makeReply("Please reply:\n1. Yes ✅\n2. No, re-enter ❌");
+}
+
+// ── API_COMPLAINT → create ticket ────────────────────────────────────────
+async function handleApiComplaint(
+  sessionId: string,
+  phoneNumber: string,
+  meta: SessionMeta,
+  text: string,
+) {
+  const index = parseInt(text, 10) - 1;
+  if (isNaN(index) || index < 0 || index >= COMPLAINTS.length) {
+    return makeReply(`${complaintsMessage()}\n\nPlease select a valid option (1-${COMPLAINTS.length}):`);
+  }
+  const updatedMeta = { ...meta, complaint: COMPLAINTS[index] };
   return createTicketFromAPI(sessionId, phoneNumber, updatedMeta);
 }
 
-// ── MANUAL_PINCODE → create ticket ───────────────────────────────────────
+// ── MANUAL_PINCODE → fetch location → confirm ────────────────────────────
 async function handleManualPincode(
   sessionId: string,
-  phoneNumber: string,
+  _phoneNumber: string,
   meta: SessionMeta,
   text: string,
 ) {
@@ -248,22 +337,71 @@ async function handleManualPincode(
       data[0].PostOffice.length > 0
     ) {
       const po = data[0].PostOffice[0];
-      place = po.Name || place;
-      district = po.District || undefined;
-      stateName = po.State || undefined;
+      place     = po.Name     || place;
+      district  = po.District || undefined;
+      stateName = po.State    || undefined;
     }
   } catch {
     // Non-blocking
   }
 
+  const locationStr = [place, district, stateName].filter(Boolean).join(", ");
   const updatedMeta: SessionMeta = {
     ...meta,
-    manualPincode: text,
-    manualPlace: place,
+    manualPincode:  text,
+    manualPlace:    place,
     manualDistrict: district,
-    manualState: stateName,
+    manualState:    stateName,
+    pincodeDisplay: locationStr || text,
   };
 
+  await updateSession(sessionId, "MANUAL_PINCODE_CONFIRM", updatedMeta);
+
+  const locationLine = locationStr
+    ? `📍 *${text}* — ${locationStr}`
+    : `📍 Pincode: *${text}*`;
+
+  return makeReply(
+    `${locationLine}\n\nIs this your pincode?\n\n1. Yes ✅\n2. No, re-enter ❌`
+  );
+}
+
+// ── MANUAL_PINCODE_CONFIRM ───────────────────────────────────────────────
+async function handleManualPincodeConfirm(
+  sessionId: string,
+  meta: SessionMeta,
+  text: string,
+) {
+  if (text === "1") {
+    await updateSession(sessionId, "MANUAL_COMPLAINT", meta);
+    return makeReply(complaintsMessage());
+  }
+  if (text === "2") {
+    await updateSession(sessionId, "MANUAL_PINCODE", {
+      ...meta,
+      manualPincode:  undefined,
+      manualPlace:    undefined,
+      manualDistrict: undefined,
+      manualState:    undefined,
+      pincodeDisplay: undefined,
+    });
+    return makeReply("Please enter your pincode (6 digits):");
+  }
+  return makeReply("Please reply:\n1. Yes ✅\n2. No, re-enter ❌");
+}
+
+// ── MANUAL_COMPLAINT → create ticket ─────────────────────────────────────
+async function handleManualComplaint(
+  sessionId: string,
+  phoneNumber: string,
+  meta: SessionMeta,
+  text: string,
+) {
+  const index = parseInt(text, 10) - 1;
+  if (isNaN(index) || index < 0 || index >= COMPLAINTS.length) {
+    return makeReply(`${complaintsMessage()}\n\nPlease select a valid option (1-${COMPLAINTS.length}):`);
+  }
+  const updatedMeta = { ...meta, complaint: COMPLAINTS[index] };
   return createTicketManual(sessionId, phoneNumber, updatedMeta);
 }
 
@@ -323,8 +461,8 @@ async function createTicketFromAPI(
 
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
-    problemDescription:  `Service request via chat for serial ${serial}`,
-    issueDescription:    `Customer confirmed machine via serial scan. Customer: ${md.customer || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || "N/A"}`,
+    problemDescription:  meta.complaint || `Service request via chat for serial ${serial}`,
+    issueDescription:    `Customer: ${md.customer || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}${meta.pincodeDisplay ? ` (${meta.pincodeDisplay})` : ""}`,
     machineName:         md.m_model || undefined,
     machineSerialNumber: serial,
     pincodeId,
@@ -381,7 +519,7 @@ async function createTicketManual(
   // Manual flow → always routes to MANAGER (no API data for dealer match)
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
-    problemDescription:  `Manual service request via chat`,
+    problemDescription:  meta.complaint || `Manual service request via chat`,
     issueDescription:    `Customer: ${meta.manualName || "N/A"}, Location: ${[meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}`,
     machineSerialNumber: meta.serialNumber || undefined,
     pincodeId,
