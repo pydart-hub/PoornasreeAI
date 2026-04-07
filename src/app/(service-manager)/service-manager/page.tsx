@@ -154,12 +154,12 @@ export default function ServiceManagerPage() {
 
   // ── Navigation state ──
   const [pageView, setPageView] = useState<PageView>("tickets");
-  const [activeTab, setActiveTab] = useState<TicketTabKey>("unassigned");
+
 
   // ── Ticket interaction state ──
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const [drawerTicket, setDrawerTicket] = useState<ServiceTicket | null>(null);
   const [closedCollapsed, setClosedCollapsed] = useState(true);
 
@@ -459,23 +459,7 @@ export default function ServiceManagerPage() {
     [engineers]
   );
 
-  const displayed = useMemo(() => {
-    const tab = TICKET_TABS.find(t => t.key === activeTab)!;
-    let result: ServiceTicket[];
-    if (activeTab === "archived") result = tickets.filter(t => archivedIds.has(t.id));
-    else result = tickets.filter(t => tab.statuses.includes(t.status) && !archivedIds.has(t.id));
-    if (dateRange !== "all") result = result.filter(t => isWithinDateRange(t.createdAt, dateRange));
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      result = result.filter(t => {
-        const tn = (t.ticketNumber ?? "").toLowerCase();
-        const ce = (t.customer?.email ?? "").toLowerCase();
-        const cn = `${t.customer?.firstName ?? ""} ${t.customer?.lastName ?? ""}`.toLowerCase();
-        return tn.includes(q) || ce.includes(q) || cn.includes(q);
-      });
-    }
-    return result.sort((a, b) => (b.ageHours ?? 0) - (a.ageHours ?? 0));
-  }, [tickets, activeTab, archivedIds, dateRange, searchQuery]);
+
 
   // ── Grouped tickets for decision-focused view ──
   const ticketGroups = useMemo(() => {
@@ -794,7 +778,7 @@ export default function ServiceManagerPage() {
                   );
                 };
 
-                const renderGroup = (title: string, icon: string, tickets: ServiceTicket[], defaultOpen = true) => {
+                const renderGroup = (title: string, icon: string, tickets: ServiceTicket[]) => {
                   if (tickets.length === 0) return null;
                   const isClosedGroup = title === "Closed";
                   const isCollapsed = isClosedGroup && closedCollapsed;
@@ -1275,7 +1259,6 @@ export default function ServiceManagerPage() {
         const parsed = parseTicketDescription(t.problemDescription);
         const customerDisplay = t.machineCustomer || parsed.customerName;
         const isArchived = archivedIds.has(t.id);
-        const canAssign = t.status === "OPEN" || t.status === "ASSIGNED";
         const cfg = STATUS_BADGE[t.status];
         const ageBadge = typeof t.ageHours === "number" ? getAgeBadge(t.ageHours) : null;
         return (
@@ -1373,7 +1356,7 @@ export default function ServiceManagerPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 pt-3 border-t border-[#e2e8f0]">
-                  <button onClick={() => { isArchived ? handleUnarchive(t.id) : handleArchive(t.id); setDrawerTicket(null); }}
+                  <button onClick={() => { if (isArchived) { handleUnarchive(t.id); } else { handleArchive(t.id); } setDrawerTicket(null); }}
                     className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
                     <Archive className="w-3.5 h-3.5" /> {isArchived ? "Unarchive" : "Archive"}
                   </button>
