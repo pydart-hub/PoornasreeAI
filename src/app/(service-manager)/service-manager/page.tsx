@@ -488,26 +488,26 @@ export default function ServiceManagerPage() {
   // Render
   // ══════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-screen bg-[#f8fafc] overflow-hidden">
+    <div className="flex flex-col h-screen bg-surface dark:bg-surface-dark overflow-hidden">
 
       {/* ═══════════════════ HEADER ═══════════════════ */}
-      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-white border-b border-[#e2e8f0] shadow-sm">
+      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark shadow-sm">
         <div className="flex items-center gap-3">
           <Logo className="h-8 w-auto" />
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-gray-900 leading-tight truncate">Service Manager</h1>
-            <p className="text-xs text-gray-500 truncate">{user.firstName} {user.lastName}</p>
+            <h1 className="text-base font-bold text-content dark:text-content-dark leading-tight truncate">Service Manager</h1>
+            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{user.firstName} {user.lastName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <button onClick={handleRefresh} disabled={refreshing}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
             <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
           </button>
           <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
           <button onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-red-500 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors">
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Logout</span>
           </button>
@@ -515,7 +515,7 @@ export default function ServiceManagerPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 space-y-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-24 sm:pb-4 space-y-4">
 
           {/* ── Error banner ── */}
           {error && (
@@ -527,24 +527,24 @@ export default function ServiceManagerPage() {
           )}
 
           {/* ═══════════════════ PAGE-LEVEL NAVIGATION ═══════════════════ */}
-          <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-[#e2e8f0] shadow-sm">
+          <div className="fixed bottom-0 inset-x-0 z-30 flex items-center bg-surface-card dark:bg-surface-dark-card border-t border-line dark:border-line-dark sm:static sm:inset-x-auto sm:bottom-auto sm:z-auto sm:rounded-xl sm:border sm:shadow-sm sm:p-1">
             {([
-              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-4 h-4" />, count: total },
-              { key: "team" as PageView, label: "Team", icon: <Users className="w-4 h-4" />, count: engineers.length },
-              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-4 h-4" />, count: myPincodes.length },
+              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-5 h-5 sm:w-4 sm:h-4" />, count: total },
+              { key: "team" as PageView, label: "Team", icon: <Users className="w-5 h-5 sm:w-4 sm:h-4" />, count: engineers.length },
+              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-5 h-5 sm:w-4 sm:h-4" />, count: myPincodes.length },
             ]).map(nav => (
               <button key={nav.key} onClick={() => setPageView(nav.key)}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all",
+                  "flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-2.5 rounded-none sm:rounded-lg text-sm font-semibold transition-all",
                   pageView === nav.key
-                    ? "bg-[#2563eb] text-white shadow-sm"
-                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    ? "bg-primary text-white sm:shadow-sm"
+                    : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark hover:bg-surface dark:hover:bg-surface-dark"
                 )}>
                 {nav.icon}
-                {nav.label}
+                <span className="text-[10px] sm:text-sm">{nav.label}</span>
                 <span className={cn(
-                  "text-xs px-2 py-0.5 rounded-full font-bold",
-                  pageView === nav.key ? "bg-white/20" : "bg-gray-100 text-gray-600"
+                  "text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold",
+                  pageView === nav.key ? "bg-white/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-secondary dark:text-content-dark-secondary"
                 )}>{nav.count}</span>
               </button>
             ))}
@@ -556,12 +556,12 @@ export default function ServiceManagerPage() {
               {/* ── Compact Stats + Filter Row ── */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-3 text-xs font-medium">
-                  <span className="text-gray-500">Total <span className="font-bold text-gray-900">{total}</span></span>
-                  <span className={cn("text-gray-500", unassigned > 0 && "text-red-600")}>Open <span className="font-bold">{unassigned}</span></span>
-                  <span className="text-gray-500">Active <span className="font-bold text-[#2563eb]">{active}</span></span>
-                  <span className="text-gray-500">Closed <span className="font-bold text-emerald-600">{closed}</span></span>
+                  <span className="text-content-secondary dark:text-content-dark-secondary">Total <span className="font-bold text-content dark:text-content-dark">{total}</span></span>
+                  <span className={cn("text-content-secondary dark:text-content-dark-secondary", unassigned > 0 && "text-red-600")}>Open <span className="font-bold">{unassigned}</span></span>
+                  <span className="text-content-secondary dark:text-content-dark-secondary">Active <span className="font-bold text-primary">{active}</span></span>
+                  <span className="text-content-secondary dark:text-content-dark-secondary">Closed <span className="font-bold text-emerald-600">{closed}</span></span>
                 </div>
-                <div className="ml-auto flex items-center gap-1.5">
+                <div className="ml-auto flex flex-wrap items-center gap-1.5">
                   <div className="flex gap-0.5">
                     {([
                       { key: "all" as DateRange, label: "All" },
@@ -573,19 +573,19 @@ export default function ServiceManagerPage() {
                         className={cn(
                           "px-2 py-1 rounded text-xs font-medium transition-colors",
                           dateRange === d.key
-                            ? "bg-[#2563eb] text-white"
-                            : "text-gray-400 hover:bg-gray-100"
+                            ? "bg-primary text-white"
+                            : "text-content-tertiary dark:text-content-dark-tertiary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"
                         )}>{d.label}</button>
                     ))}
                   </div>
                   <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
                     <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                       placeholder="Search..."
-                      className="w-40 pl-7 pr-2 py-1.5 rounded-md text-xs bg-gray-50 border border-[#e2e8f0] text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#2563eb]/30 focus:border-[#2563eb]" />
+                      className="w-full sm:w-40 pl-7 pr-2 py-1.5 rounded-md text-xs bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-content dark:text-content-dark placeholder:text-content-tertiary dark:placeholder:text-content-dark-tertiary focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
                   </div>
                   {hasActiveFilters && (
-                    <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-600"><RotateCcw className="w-3 h-3" /></button>
+                    <button onClick={resetFilters} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary"><RotateCcw className="w-3 h-3" /></button>
                   )}
                 </div>
               </div>
@@ -619,7 +619,7 @@ export default function ServiceManagerPage() {
                   return (
                     <div key={ticket.id}
                       className={cn(
-                        "bg-white rounded-md border border-[#e2e8f0] border-l-[3px] overflow-hidden transition-shadow hover:shadow-md shadow-sm",
+                        "bg-surface-card dark:bg-surface-dark-card rounded-md border border-line dark:border-line-dark border-l-[3px] overflow-hidden transition-shadow hover:shadow-md shadow-sm",
                         borderColor
                       )}>
                       <div className="p-3 space-y-1">
@@ -628,12 +628,12 @@ export default function ServiceManagerPage() {
                         <div className="flex items-center justify-between gap-2 min-w-0">
                           <div className="flex items-center gap-1.5 min-w-0">
                             {ticket.ticketNumber && (
-                              <span className="text-[11px] font-mono text-gray-400 shrink-0">#{ticket.ticketNumber}</span>
+                              <span className="text-[11px] font-mono text-content-tertiary dark:text-content-dark-tertiary shrink-0">#{ticket.ticketNumber}</span>
                             )}
                             {customerDisplay ? (
-                              <span className="font-semibold text-sm text-gray-900 leading-tight truncate">{customerDisplay}</span>
+                              <span className="font-semibold text-sm text-content dark:text-content-dark leading-tight truncate">{customerDisplay}</span>
                             ) : (
-                              <span className="text-sm text-gray-400 italic leading-tight">No customer</span>
+                              <span className="text-sm text-content-tertiary dark:text-content-dark-tertiary italic leading-tight">No customer</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -648,12 +648,11 @@ export default function ServiceManagerPage() {
 
                         {/* ── Row 2: Issue (1 line) ── */}
                         {issueDisplay && (
-                          <p className="text-sm text-gray-600 leading-tight truncate">{issueDisplay}</p>
+                          <p className="text-sm text-content-secondary dark:text-content-dark-secondary leading-tight truncate">{issueDisplay}</p>
                         )}
 
                         {/* ── Row 3: Location · Time ── */}
-                        <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
-                          {locationShort ? <>
+                        <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
                             <span className="shrink-0">📍</span>
                             <span className="truncate">{locationShort}</span>
                           </> : (
@@ -661,7 +660,7 @@ export default function ServiceManagerPage() {
                               <AlertCircle className="w-3 h-3" /> No zone
                             </span>
                           )}
-                          {ticket.createdAt && <span className="mx-0.5 text-gray-300">•</span>}
+                          {ticket.createdAt && <span className="mx-0.5 text-content-tertiary dark:text-content-dark-tertiary">•</span>}
                           {ticket.createdAt && <>
                             <span className="shrink-0">⏱</span>
                             <span className="shrink-0">{formatRelativeTime(new Date(ticket.createdAt))}</span>
@@ -670,7 +669,7 @@ export default function ServiceManagerPage() {
 
                         {/* ── Row 4: Machine ── */}
                         {machineDisplay && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 leading-tight">
+                          <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
                             <span className="shrink-0">🛠</span>
                             <span className="truncate">{machineDisplay}</span>
                           </div>
@@ -680,16 +679,16 @@ export default function ServiceManagerPage() {
                         <div className="flex items-center justify-between pt-1">
                           <div className="flex items-center gap-2 min-w-0">
                             {isAssigned && ticket.assignedEngineer && (
-                              <span className="inline-flex items-center gap-1 text-xs text-[#2563eb] font-medium truncate max-w-[180px]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#2563eb] shrink-0" />
+                              <span className="inline-flex items-center gap-1 text-xs text-primary font-medium truncate max-w-[180px]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                                 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
                               </span>
                             )}
                             {ticket.updatedAt && (
-                              <span className="text-[10px] text-gray-400 shrink-0">{formatRelativeTime(new Date(ticket.updatedAt))}</span>
+                              <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary shrink-0">{formatRelativeTime(new Date(ticket.updatedAt))}</span>
                             )}
                             <button onClick={() => setDrawerTicket(ticket)}
-                              className="text-xs text-gray-400 hover:text-[#2563eb] transition-colors shrink-0">
+                              className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-primary transition-colors shrink-0">
                               Details
                             </button>
                           </div>
@@ -701,8 +700,8 @@ export default function ServiceManagerPage() {
                                   className={cn(
                                     "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
                                     assigningId === ticket.id
-                                      ? "bg-gray-100 text-gray-400"
-                                      : "bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50"
+                                      ? "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary"
+                                      : "bg-primary text-white hover:bg-primary-hover disabled:opacity-50"
                                   )}>
                                   {assigningId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
                                   Assign
@@ -724,26 +723,26 @@ export default function ServiceManagerPage() {
                                   const noZoneEngineer = hasTicketPincode && matched.length === 0;
 
                                   return (
-                                    <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-white border border-[#e2e8f0] shadow-lg overflow-hidden max-h-64 overflow-y-auto">
-                                      <div className="px-3 py-1.5 border-b border-[#e2e8f0]">
-                                        <p className="text-xs font-bold text-gray-500">Select Engineer</p>
+                                    <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                                      <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
+                                        <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Select Engineer</p>
                                         {hasTicketPincode && (
-                                          <p className="text-[10px] text-gray-400">
+                                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
                                             Zone: {ticketPincode.code}{ticketPincode.place ? ` · ${ticketPincode.place}` : ""}
                                           </p>
                                         )}
                                       </div>
                                       {sortedEngineers.length === 0 ? (
-                                        <p className="px-3 py-2 text-xs text-gray-400 text-center">No engineers in your team</p>
+                                        <p className="px-3 py-2 text-xs text-content-tertiary dark:text-content-dark-tertiary text-center">No engineers in your team</p>
                                       ) : noZoneEngineer ? (
                                         <div className="px-3 py-3 text-center">
                                           <p className="text-xs font-semibold text-amber-600">No engineer assigned to zone {ticketPincode!.code}</p>
-                                          <p className="text-[10px] text-gray-400 mt-0.5">Assign a pincode to an engineer in Team tab first</p>
+                                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Assign a pincode to an engineer in Team tab first</p>
                                         </div>
                                       ) : (
                                         matched.map(eng => (
                                           <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                            className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
+                                            className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2">
                                             <span className="flex items-center gap-1 min-w-0">
                                               <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
                                               <span className="truncate">{eng.firstName} {eng.lastName}</span>
@@ -780,14 +779,14 @@ export default function ServiceManagerPage() {
                     <div key={title}>
                       <button
                         onClick={() => isClosedGroup && setClosedCollapsed(c => !c)}
-                        className={cn("flex items-center gap-1.5 mb-2 w-full text-left sticky top-0 z-10 bg-[#f8fafc] py-1", isClosedGroup && "cursor-pointer")}
+                        className={cn("flex items-center gap-1.5 mb-2 w-full text-left sticky top-0 z-10 bg-surface dark:bg-surface-dark py-1", isClosedGroup && "cursor-pointer")}
                       >
                         <span className="text-sm">{icon}</span>
-                        <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{title}</span>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{tickets.length}</span>
+                        <span className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{title}</span>
+                        <span className="text-xs font-bold text-content-tertiary dark:text-content-dark-tertiary bg-surface-secondary dark:bg-surface-dark-secondary px-1.5 py-0.5 rounded">{tickets.length}</span>
                         {isClosedGroup && (
                           <span className="ml-auto">
-                            {isCollapsed ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronUp className="w-3 h-3 text-gray-400" />}
+                            {isCollapsed ? <ChevronDown className="w-3 h-3 text-content-tertiary dark:text-content-dark-tertiary" /> : <ChevronUp className="w-3 h-3 text-content-tertiary dark:text-content-dark-tertiary" />}
                           </span>
                         )}
                       </button>
@@ -802,10 +801,10 @@ export default function ServiceManagerPage() {
 
                 if (totalVisible === 0) {
                   return (
-                    <div className="bg-white rounded-lg border border-[#e2e8f0] shadow-sm py-12 flex flex-col items-center text-gray-400">
+                    <div className="bg-surface-card dark:bg-surface-dark-card rounded-lg border border-line dark:border-line-dark shadow-sm py-12 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
                       <Ticket className="w-8 h-8 mb-2 opacity-40" />
                       <p className="text-sm">{hasActiveFilters ? "No tickets match your filters" : "No tickets"}</p>
-                      {hasActiveFilters && <button onClick={resetFilters} className="mt-1 text-xs text-[#2563eb] hover:underline">Clear filters</button>}
+                      {hasActiveFilters && <button onClick={resetFilters} className="mt-1 text-xs text-primary hover:underline">Clear filters</button>}
                     </div>
                   );
                 }
@@ -828,30 +827,30 @@ export default function ServiceManagerPage() {
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Engineers</h2>
-                  <p className="text-sm text-gray-500">{engineers.length} engineer{engineers.length !== 1 ? "s" : ""} in your team</p>
+                  <h2 className="text-lg font-bold text-content dark:text-content-dark">Engineers</h2>
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{engineers.length} engineer{engineers.length !== 1 ? "s" : ""} in your team</p>
                 </div>
                 <button onClick={() => setShowAddEngineer(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] transition-colors shadow-sm">
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
                   <Plus className="w-4 h-4" /> Add Engineer
                 </button>
               </div>
 
               {/* Engineer list */}
               {engineers.length === 0 ? (
-                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-gray-400">
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
                   <Users className="w-10 h-10 mb-3 opacity-40" />
                   <p className="text-sm">No engineers yet</p>
-                  <button onClick={() => setShowAddEngineer(true)} className="mt-2 text-xs text-[#2563eb] hover:underline">Add your first engineer</button>
+                  <button onClick={() => setShowAddEngineer(true)} className="mt-2 text-xs text-primary hover:underline">Add your first engineer</button>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {engineers.map(eng => (
-                    <div key={eng.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
+                    <div key={eng.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{eng.firstName} {eng.lastName}</p>
-                          <p className="text-xs text-gray-500 truncate">{eng.email}</p>
+                          <p className="text-sm font-bold text-content dark:text-content-dark truncate">{eng.firstName} {eng.lastName}</p>
+                          <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{eng.email}</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className={cn(
@@ -864,7 +863,7 @@ export default function ServiceManagerPage() {
                           </span>
                           <button
                             onClick={() => openEditModal(eng)}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-[#2563eb] hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
                             title="Edit engineer"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -874,13 +873,13 @@ export default function ServiceManagerPage() {
                       {eng.engineerPincodes && eng.engineerPincodes.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {eng.engineerPincodes.map(p => (
-                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-[#2563eb]">
+                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-primary">
                               <MapPin className="w-2.5 h-2.5" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-[11px] text-gray-400 italic">No pincodes assigned</p>
+                        <p className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary italic">No pincodes assigned</p>
                       )}
                     </div>
                   ))}
@@ -893,26 +892,26 @@ export default function ServiceManagerPage() {
           {pageView === "locations" && (
             <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Locations</h2>
-                <p className="text-sm text-gray-500">Manage your service zones — {myPincodes.length} pincode{myPincodes.length !== 1 ? "s" : ""}</p>
+                <h2 className="text-lg font-bold text-content dark:text-content-dark">Locations</h2>
+                <p className="text-sm text-content-secondary dark:text-content-dark-secondary">Manage your service zones — {myPincodes.length} pincode{myPincodes.length !== 1 ? "s" : ""}</p>
               </div>
 
               {/* Add service zones card */}
-              <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-4 space-y-4">
+              <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-4">
                 {/* Header + mode toggle */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Service Zones</p>
-                  <div className="flex rounded-lg border border-[#e2e8f0] overflow-hidden text-xs">
+                  <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider">Add Service Zones</p>
+                  <div className="flex rounded-lg border border-line dark:border-line-dark overflow-hidden text-xs">
                     <button type="button"
                       onClick={() => setLocMode("browse")}
                       className={cn("px-3 py-1.5 font-semibold transition-colors",
-                        locMode === "browse" ? "bg-[#2563eb] text-white" : "bg-white text-gray-500 hover:bg-gray-50")}>
+                        locMode === "browse" ? "bg-primary text-white" : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary hover:bg-surface dark:hover:bg-surface-dark")}>
                       Browse
                     </button>
                     <button type="button"
                       onClick={() => { setLocMode("custom"); setCustomError(""); }}
-                      className={cn("px-3 py-1.5 font-semibold transition-colors border-l border-[#e2e8f0]",
-                        locMode === "custom" ? "bg-[#2563eb] text-white" : "bg-white text-gray-500 hover:bg-gray-50")}>
+                      className={cn("px-3 py-1.5 font-semibold transition-colors border-l border-line dark:border-line-dark",
+                        locMode === "custom" ? "bg-primary text-white" : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary hover:bg-surface dark:hover:bg-surface-dark")}>
                       Custom
                     </button>
                   </div>
@@ -926,20 +925,20 @@ export default function ServiceManagerPage() {
                     <div className="space-y-3">
                       {/* Pincode */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Pincode *</label>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode *</label>
                         <div className="relative">
                           <input type="text" inputMode="numeric" maxLength={6}
                             placeholder="e.g. 600001"
                             value={customForm.code}
                             onChange={e => setCustomForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
                             className={cn(
-                              "w-full px-3 py-2 rounded-lg text-sm border bg-gray-50 text-gray-900 focus:outline-none focus:ring-2",
+                              "w-full px-3 py-2 rounded-lg text-sm border bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2",
                               isDuplicate
                                 ? "border-amber-400 focus:ring-amber-200 focus:border-amber-400"
-                                : "border-[#e2e8f0] focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                                : "border-line dark:border-line-dark focus:ring-primary/20 focus:border-primary"
                             )} />
                           {customValidating && !isDuplicate && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#2563eb]" />
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
                           )}
                           {isDuplicate && (
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded">
@@ -947,7 +946,7 @@ export default function ServiceManagerPage() {
                             </span>
                           )}
                         </div>
-                        {customValidating && !isDuplicate && <p className="text-xs text-gray-400 mt-1">Looking up pincode…</p>}
+                        {customValidating && !isDuplicate && <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-1">Looking up pincode…</p>}
                         {isDuplicate && (
                           <p className="text-xs text-amber-600 mt-1">
                             {trimmedCode} is already in your service zones.
@@ -956,32 +955,32 @@ export default function ServiceManagerPage() {
                       </div>
                       {/* Place */}
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Place / Area *</label>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Place / Area *</label>
                         <input type="text" placeholder="e.g. Adyar"
                           value={customForm.place}
                           onChange={e => setCustomForm(f => ({ ...f, place: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                       </div>
                       {/* District + State side-by-side */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">District *</label>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">District *</label>
                           <input type="text" placeholder="e.g. Chennai"
                             value={customForm.district}
                             onChange={e => setCustomForm(f => ({ ...f, district: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">State *</label>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State *</label>
                           <input type="text" placeholder="e.g. Tamil Nadu"
                             value={customForm.state}
                             onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                         </div>
                       </div>
                       {customError && <p className="text-xs text-red-500">{customError}</p>}
                       <button onClick={handleSaveCustom} disabled={savingCustom || isDuplicate}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                         {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                         Add Custom Pincode
                       </button>
@@ -993,11 +992,11 @@ export default function ServiceManagerPage() {
                 {locMode === "browse" && <>
                 {/* Step 1 — State */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">State</label>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State</label>
                   <select
                     value={locState}
                     onChange={e => { setLocState(e.target.value); setLocDistrict(""); setLocSelected([]); }}
-                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]">
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     <option value="">Select state…</option>
                     {getStates().map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -1006,11 +1005,11 @@ export default function ServiceManagerPage() {
                 {/* Step 2 — District */}
                 {locState && (
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">District</label>
+                    <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">District</label>
                     <select
                       value={locDistrict}
                       onChange={e => { setLocDistrict(e.target.value); setLocSelected([]); }}
-                      className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]">
+                      className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
                       <option value="">Select district…</option>
                       {getDistricts(locState).map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
@@ -1023,7 +1022,7 @@ export default function ServiceManagerPage() {
                   const available = getPincodes(locState, locDistrict);
                   return (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-2">Pincodes</label>
+                      <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">Pincodes</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
                         {available.map(p => {
                           const alreadySaved = existing.has(p.code);
@@ -1039,11 +1038,11 @@ export default function ServiceManagerPage() {
                                 alreadySaved
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-not-allowed opacity-60"
                                   : isChosen
-                                    ? "border-[#2563eb] bg-blue-50 text-[#2563eb] font-semibold"
-                                    : "border-[#e2e8f0] bg-gray-50 text-gray-700 hover:border-[#2563eb]/40 hover:bg-blue-50/50"
+                                    ? "border-primary bg-blue-50 text-primary font-semibold"
+                                    : "border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary/40 hover:bg-blue-50/50"
                               )}>
                               <span className="font-mono font-bold shrink-0">{p.code}</span>
-                              <span className="truncate text-gray-500">{p.name}</span>
+                              <span className="truncate text-content-tertiary dark:text-content-dark-tertiary">{p.name}</span>
                               {alreadySaved && <span className="ml-auto shrink-0 text-emerald-500">✓</span>}
                             </button>
                           );
@@ -1056,7 +1055,7 @@ export default function ServiceManagerPage() {
                 {/* Selected chips */}
                 {locSelected.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-600">{locSelected.length} selected</p>
+                    <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">{locSelected.length} selected</p>
                     <div className="flex flex-wrap gap-2">
                       {locSelected.map(p => (
                         <span key={p.code}
@@ -1076,7 +1075,7 @@ export default function ServiceManagerPage() {
 
                 <button onClick={handleSaveLocations}
                   disabled={savingLocations || locSelected.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                   {savingLocations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Save {locSelected.length > 0 ? `${locSelected.length} ` : ""}Zone{locSelected.length !== 1 ? "s" : ""}
                 </button>
@@ -1085,7 +1084,7 @@ export default function ServiceManagerPage() {
 
               {/* Pincode list */}
               {myPincodes.length === 0 ? (
-                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm py-16 flex flex-col items-center text-gray-400">
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
                   <MapPin className="w-10 h-10 mb-3 opacity-40" />
                   <p className="text-sm">No locations yet</p>
                   <p className="text-xs mt-1">Add your first service zone above</p>
@@ -1095,22 +1094,22 @@ export default function ServiceManagerPage() {
                   {myPincodes.map(p => {
                     const isEditing = editingPincode?.id === p.id;
                     return (
-                      <div key={p.id} className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm p-3.5 space-y-3">
+                      <div key={p.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-3.5 space-y-3">
                         {!isEditing ? (
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-blue-50 text-[#2563eb] border border-blue-200">
+                              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-blue-50 text-primary border border-blue-200">
                                 {p.code}
                               </span>
-                              <p className="text-xs text-gray-600 truncate">{[p.place, p.district, p.state].filter(Boolean).join(", ") || "—"}</p>
+                              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{[p.place, p.district, p.state].filter(Boolean).join(", ") || "—"}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => openEditPincode(p)}
-                                className="p-2 rounded-lg text-gray-400 hover:text-[#2563eb] hover:bg-blue-50 transition-colors" title="Edit">
+                                className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors" title="Edit">
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => handleDeletePincode(p.id)} disabled={deletingPincodeId === p.id}
-                                className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
+                                className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
                                 {deletingPincodeId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                               </button>
                             </div>
@@ -1121,28 +1120,28 @@ export default function ServiceManagerPage() {
                               <input type="text" inputMode="numeric" maxLength={6}
                                 value={editPincodeForm.code}
                                 onChange={e => setEditPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                               <input type="text" placeholder="Place"
                                 value={editPincodeForm.place}
                                 onChange={e => setEditPincodeForm(f => ({ ...f, place: e.target.value }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                               <input type="text" placeholder="District"
                                 value={editPincodeForm.district}
                                 onChange={e => setEditPincodeForm(f => ({ ...f, district: e.target.value }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                               <input type="text" placeholder="State"
                                 value={editPincodeForm.state}
                                 onChange={e => setEditPincodeForm(f => ({ ...f, state: e.target.value }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                             </div>
                             <div className="flex items-center gap-2">
                               <button onClick={handleSavePincodeEdit} disabled={savingPincodeEdit}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
                                 {savingPincodeEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                 Save
                               </button>
                               <button onClick={() => setEditingPincode(null)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                                 Cancel
                               </button>
                             </div>
@@ -1162,10 +1161,10 @@ export default function ServiceManagerPage() {
       {/* ═══════════════════ ADD ENGINEER MODAL ═══════════════════ */}
       {showAddEngineer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-[#e2e8f0]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e2e8f0]">
-              <h3 className="text-base font-bold text-gray-900">Add Engineer</h3>
-              <button onClick={() => setShowAddEngineer(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+              <h3 className="text-base font-bold text-content dark:text-content-dark">Add Engineer</h3>
+              <button onClick={() => setShowAddEngineer(false)} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1173,36 +1172,36 @@ export default function ServiceManagerPage() {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
                   <input type="text" value={newEng.firstName} onChange={e => setNewEng(p => ({ ...p, firstName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     placeholder="Arun" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
                   <input type="text" value={newEng.lastName} onChange={e => setNewEng(p => ({ ...p, lastName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     placeholder="Kumar" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Email / Phone *</label>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Email / Phone *</label>
                 <input type="text" value={newEng.email} onChange={e => setNewEng(p => ({ ...p, email: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   placeholder="arun@example.com" />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Password *</label>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Password *</label>
                 <input type="password" value={newEng.password} onChange={e => setNewEng(p => ({ ...p, password: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   placeholder="Min 8 characters" />
               </div>
 
               {myPincodes.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-2">Assign Pincodes *</label>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">Assign Pincodes *</label>
                   <div className="flex flex-wrap gap-2">
                     {myPincodes.map(p => {
                       const selected = newEng.pincodeIds.includes(p.id);
@@ -1220,8 +1219,8 @@ export default function ServiceManagerPage() {
                           className={cn(
                             "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                             selected
-                              ? "bg-[#2563eb] text-white border-[#2563eb]"
-                              : "bg-white text-gray-600 border-[#e2e8f0] hover:border-[#2563eb] hover:text-[#2563eb]"
+                              ? "bg-primary text-white border-primary"
+                              : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary border-line dark:border-line-dark hover:border-primary hover:text-primary"
                           )}>
                           <MapPin className="w-3 h-3" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code} — {p.code}
                         </button>
@@ -1232,13 +1231,13 @@ export default function ServiceManagerPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e2e8f0] bg-gray-50 rounded-b-2xl">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
               <button onClick={() => setShowAddEngineer(false)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-colors">
+                className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                 Cancel
               </button>
               <button onClick={handleAddEngineer} disabled={addingEngineer}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                 {addingEngineer && <Loader2 className="w-4 h-4 animate-spin" />}
                 Add Engineer
               </button>
@@ -1261,61 +1260,61 @@ export default function ServiceManagerPage() {
         return (
           <>
             <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} />
-            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white border-l border-[#e2e8f0] shadow-xl overflow-y-auto">
-              <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-5 py-3 border-b border-[#e2e8f0]">
+            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-surface-card dark:bg-surface-dark-card border-l border-line dark:border-line-dark shadow-xl overflow-y-auto">
+              <div className="sticky top-0 bg-surface-card dark:bg-surface-dark-card z-10 flex items-center justify-between px-5 py-3 border-b border-line dark:border-line-dark">
                 <div className="flex items-center gap-2 min-w-0">
-                  {t.ticketNumber && <span className="text-xs font-mono text-gray-400">#{t.ticketNumber}</span>}
+                  {t.ticketNumber && <span className="text-xs font-mono text-content-tertiary dark:text-content-dark-tertiary">#{t.ticketNumber}</span>}
                   <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
                   {ageBadge && (
                     <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold", ageBadge.color)}>{ageBadge.label}</span>
                   )}
                 </div>
-                <button onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                <button onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} className="p-1 text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary"><X className="w-5 h-5" /></button>
               </div>
 
               <div className="px-5 py-4 space-y-4">
                 {/* Customer */}
                 {customerDisplay && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Customer</p>
-                    <p className="text-sm font-semibold text-gray-900">{customerDisplay}</p>
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Customer</p>
+                    <p className="text-sm font-semibold text-content dark:text-content-dark">{customerDisplay}</p>
                   </div>
                 )}
 
                 {/* Issue */}
                 {(t.issueDescription || t.problemDescription) && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Issue</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{t.issueDescription || t.problemDescription}</p>
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Issue</p>
+                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary whitespace-pre-wrap">{t.issueDescription || t.problemDescription}</p>
                   </div>
                 )}
 
                 {/* Address */}
                 {(t.machineAddress1 || t.machineAddress2 || t.pincode || parsed.location) && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Address</p>
-                    {t.machineAddress1 && <p className="text-xs text-gray-800">{t.machineAddress1}</p>}
-                    {t.machineAddress2 && <p className="text-xs text-gray-600">{t.machineAddress2}</p>}
-                    {t.pincode && <p className="text-xs text-gray-500">{t.pincode.code} · {[t.pincode.place, t.pincode.district, t.pincode.state].filter(Boolean).join(", ")}</p>}
-                    {!t.machineAddress1 && !t.machineAddress2 && !t.pincode && parsed.location && <p className="text-xs text-gray-800">{parsed.location}</p>}
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Address</p>
+                    {t.machineAddress1 && <p className="text-xs text-content dark:text-content-dark">{t.machineAddress1}</p>}
+                    {t.machineAddress2 && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{t.machineAddress2}</p>}
+                    {t.pincode && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{t.pincode.code} · {[t.pincode.place, t.pincode.district, t.pincode.state].filter(Boolean).join(", ")}</p>}
+                    {!t.machineAddress1 && !t.machineAddress2 && !t.pincode && parsed.location && <p className="text-xs text-content dark:text-content-dark">{parsed.location}</p>}
                   </div>
                 )}
 
                 {/* Machine */}
                 {(t.machineName || t.machineSerialNumber || t.machineProductCode) && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Machine</p>
-                    {t.machineName && <p className="text-xs text-gray-800">{t.machineName}</p>}
-                    {t.machineSerialNumber && <p className="text-xs text-gray-500">S/N: {t.machineSerialNumber}</p>}
-                    {t.machineProductCode && <p className="text-xs text-gray-500">Product: {t.machineProductCode}</p>}
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Machine</p>
+                    {t.machineName && <p className="text-xs text-content dark:text-content-dark">{t.machineName}</p>}
+                    {t.machineSerialNumber && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">S/N: {t.machineSerialNumber}</p>}
+                    {t.machineProductCode && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Product: {t.machineProductCode}</p>}
                   </div>
                 )}
 
                 {/* Invoice / Warranty */}
                 {(t.machineInvoiceNo || t.machineInvoiceDate || t.machineWarranty != null) && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Invoice / Warranty</p>
-                    <div className="flex flex-wrap gap-x-4 text-xs text-gray-600">
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Invoice / Warranty</p>
+                    <div className="flex flex-wrap gap-x-4 text-xs text-content-secondary dark:text-content-dark-secondary">
                       {t.machineInvoiceNo && <span>Invoice: {t.machineInvoiceNo}</span>}
                       {t.machineInvoiceDate && <span>Date: {t.machineInvoiceDate}</span>}
                       {t.machineWarranty != null && <span>Warranty: {t.machineWarranty}mo</span>}
@@ -1326,23 +1325,23 @@ export default function ServiceManagerPage() {
                 {/* Phone */}
                 {(t.phoneNumber || parsed.phone) && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Phone</p>
-                    <p className="text-xs text-gray-800">{t.phoneNumber || parsed.phone}</p>
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Phone</p>
+                    <p className="text-xs text-content dark:text-content-dark">{t.phoneNumber || parsed.phone}</p>
                   </div>
                 )}
 
                 {/* Assigned Engineer */}
                 {t.assignedEngineer && (
                   <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Engineer</p>
-                    <p className="text-xs text-[#2563eb] font-medium">👷 {t.assignedEngineer.firstName} {t.assignedEngineer.lastName ?? ""}</p>
+                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Engineer</p>
+                    <p className="text-xs text-primary font-medium">👷 {t.assignedEngineer.firstName} {t.assignedEngineer.lastName ?? ""}</p>
                   </div>
                 )}
 
                 {/* Meta */}
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Details</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500">
+                  <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-1">Details</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-content-secondary dark:text-content-dark-secondary">
                     <span>Source: {t.dealer ? `Dealer — ${t.dealer.firstName} ${t.dealer.lastName ?? ""}`.trim() : "Direct"}</span>
                     <span>Created: {formatRelativeTime(new Date(t.createdAt))}</span>
                     {t.responseTimeHours != null && <span>Response: {t.responseTimeHours}h</span>}
@@ -1352,7 +1351,7 @@ export default function ServiceManagerPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col gap-3 pt-3 border-t border-[#e2e8f0]">
+                <div className="flex flex-col gap-3 pt-3 border-t border-line dark:border-line-dark">
                   {/* Change Engineer — only for non-closed tickets */}
                   {t.status !== "CLOSED" && (() => {
                     const ticketPincode = t.pincode;
@@ -1368,7 +1367,7 @@ export default function ServiceManagerPage() {
                       <div className="space-y-2">
                         {!drawerReassign ? (
                           <button onClick={() => setDrawerReassign(true)}
-                            className="flex items-center gap-1 text-xs text-[#2563eb] hover:text-[#1d4ed8] font-medium transition-colors">
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-medium transition-colors">
                             <UserCheck className="w-3.5 h-3.5" />
                             {t.assignedEngineer ? "Change Engineer" : "Assign Engineer"}
                           </button>
@@ -1391,12 +1390,12 @@ export default function ServiceManagerPage() {
                                   setDrawerTicket(null);
                                 }}
                                 disabled={assigningId === t.id}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors">
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
                                 {assigningId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
                                 Confirm
                               </button>
                               <button onClick={() => setDrawerConfirmEng(null)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                                 Back
                               </button>
                             </div>
@@ -1404,25 +1403,25 @@ export default function ServiceManagerPage() {
                         ) : (
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold text-gray-500">
+                              <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
                                 Select Engineer
                                 {ticketPincode && (
-                                  <span className="ml-1 font-normal text-gray-400">
+                                  <span className="ml-1 font-normal text-content-tertiary dark:text-content-dark-tertiary">
                                     (Zone: {ticketPincode.code})
                                   </span>
                                 )}
                               </p>
-                              <button onClick={() => setDrawerReassign(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                              <button onClick={() => setDrawerReassign(false)} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary">Cancel</button>
                             </div>
                             {matched.length === 0 ? (
                               <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2 text-center">
                                 No engineer assigned to zone {ticketPincode?.code ?? "—"}
                               </p>
                             ) : (
-                              <div className="border border-[#e2e8f0] rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                              <div className="border border-line dark:border-line-dark rounded-lg overflow-hidden max-h-48 overflow-y-auto">
                                 {matched.map(eng => (
                                   <button key={eng.id} onClick={() => setDrawerConfirmEng(eng)}
-                                    className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 border-b border-[#e2e8f0] last:border-b-0">
+                                    className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2 border-b border-line dark:border-line-dark last:border-b-0">
                                     <span className="flex items-center gap-1 min-w-0">
                                       <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
                                       <span className="truncate">{eng.firstName} {eng.lastName}</span>
@@ -1446,7 +1445,7 @@ export default function ServiceManagerPage() {
                   })()}
 
                   <button onClick={() => { if (isArchived) { handleUnarchive(t.id); } else { handleArchive(t.id); } setDrawerTicket(null); }}
-                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                    className="flex items-center gap-1 text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
                     <Archive className="w-3.5 h-3.5" /> {isArchived ? "Unarchive" : "Archive"}
                   </button>
                 </div>
@@ -1459,13 +1458,13 @@ export default function ServiceManagerPage() {
       {/* ═══════════════════ EDIT ENGINEER MODAL ═══════════════════ */}
       {editingEng && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-[#e2e8f0]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e2e8f0]">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
               <div>
-                <h3 className="text-base font-bold text-gray-900">Edit Engineer</h3>
-                <p className="text-xs text-gray-500">{editingEng.email}</p>
+                <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Engineer</h3>
+                <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{editingEng.email}</p>
               </div>
-              <button onClick={closeEditModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={closeEditModal} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1474,32 +1473,32 @@ export default function ServiceManagerPage() {
               {/* Name */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
                   <input type="text" value={editForm.firstName} onChange={e => setEditForm(p => ({ ...p, firstName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
                   <input type="text" value={editForm.lastName} onChange={e => setEditForm(p => ({ ...p, lastName: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]" />
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                 </div>
               </div>
 
               {/* New password (optional) */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">New Password <span className="font-normal text-gray-400">(leave blank to keep current)</span></label>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">New Password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(leave blank to keep current)</span></label>
                 <input type="password" value={editForm.newPassword} onChange={e => setEditForm(p => ({ ...p, newPassword: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm border border-[#e2e8f0] bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb]"
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   placeholder="Min 8 characters" />
               </div>
 
               {/* Pincode multi-select — only manager's own pincodes */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">
                   Assigned Pincodes
                 </label>
                 {myPincodes.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic py-2">You have no pincodes assigned yet.</p>
+                  <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary italic py-2">You have no pincodes assigned yet.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {myPincodes.map(p => {
@@ -1518,8 +1517,8 @@ export default function ServiceManagerPage() {
                           className={cn(
                             "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                             selected
-                              ? "bg-[#2563eb] text-white border-[#2563eb]"
-                              : "bg-white text-gray-600 border-[#e2e8f0] hover:border-[#2563eb] hover:text-[#2563eb]"
+                              ? "bg-primary text-white border-primary"
+                              : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary border-line dark:border-line-dark hover:border-primary hover:text-primary"
                           )}>
                           <MapPin className="w-3 h-3" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code} — {p.code}
                         </button>
@@ -1530,13 +1529,13 @@ export default function ServiceManagerPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#e2e8f0] bg-gray-50 rounded-b-2xl">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
               <button onClick={closeEditModal}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-200 transition-colors">
+                className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                 Cancel
               </button>
               <button onClick={handleSaveEdit} disabled={savingEdit}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors shadow-sm">
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                 {savingEdit && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save Changes
               </button>
