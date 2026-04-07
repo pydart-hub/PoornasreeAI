@@ -701,59 +701,37 @@ export default function ServiceManagerPage() {
                                   const ticketPincodeId = ticket.pincode?.id;
                                   const matched = ticketPincodeId
                                     ? sortedEngineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincodeId))
-                                    : [];
-                                  const others = ticketPincodeId
-                                    ? sortedEngineers.filter(e => !e.engineerPincodes?.some(p => p.id === ticketPincodeId))
                                     : sortedEngineers;
-                                  const hasMatched = matched.length > 0;
+                                  // fallback to all engineers if no one covers this zone
+                                  const displayList = matched.length > 0 ? matched : sortedEngineers;
+                                  const isFallback = ticketPincodeId && matched.length === 0;
 
                                   return (
                                     <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-white border border-[#e2e8f0] shadow-lg overflow-hidden max-h-64 overflow-y-auto">
                                       <div className="px-3 py-1.5 border-b border-[#e2e8f0]">
                                         <p className="text-xs font-bold text-gray-500">Select Engineer</p>
-                                        {ticketPincodeId && <p className="text-[10px] text-gray-400">{hasMatched ? "Zone-matched first" : "No zone match"}</p>}
+                                        {isFallback && <p className="text-[10px] text-amber-500">No zone match — showing all</p>}
                                       </div>
                                       {sortedEngineers.length === 0 ? (
                                         <p className="px-3 py-2 text-xs text-gray-400 text-center">No engineers</p>
                                       ) : (
-                                        <>
-                                          {matched.map(eng => (
-                                            <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                              className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 bg-emerald-50">
-                                              <span className="flex items-center gap-1 min-w-0">
-                                                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                                                <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                              </span>
-                                              {eng.activeTickets !== undefined && (
-                                                <span className={cn(
-                                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
-                                                  eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                                    : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                                      : "bg-red-100 text-red-700"
-                                                )}>{eng.activeTickets}</span>
-                                              )}
-                                            </button>
-                                          ))}
-                                          {hasMatched && others.length > 0 && (
-                                            <div className="px-3 py-1 border-t border-[#e2e8f0] bg-gray-50">
-                                              <p className="text-[10px] font-medium text-gray-400">Others</p>
-                                            </div>
-                                          )}
-                                          {others.map(eng => (
-                                            <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                              className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
+                                        displayList.map(eng => (
+                                          <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                            className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
+                                            <span className="flex items-center gap-1 min-w-0">
+                                              <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
                                               <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                              {eng.activeTickets !== undefined && (
-                                                <span className={cn(
-                                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
-                                                  eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                                    : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                                      : "bg-red-100 text-red-700"
-                                                )}>{eng.activeTickets}</span>
-                                              )}
-                                            </button>
-                                          ))}
-                                        </>
+                                            </span>
+                                            {eng.activeTickets !== undefined && (
+                                              <span className={cn(
+                                                "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                                eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                  : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                    : "bg-red-100 text-red-700"
+                                              )}>{eng.activeTickets}</span>
+                                            )}
+                                          </button>
+                                        ))
                                       )}
                                     </div>
                                   );
@@ -1204,12 +1182,15 @@ export default function ServiceManagerPage() {
                       const selected = newEng.pincodeIds.includes(p.id);
                       return (
                         <button key={p.id} type="button"
-                          onClick={() => setNewEng(prev => ({
-                            ...prev,
-                            pincodeIds: selected
-                              ? prev.pincodeIds.filter(x => x !== p.id)
-                              : [...prev.pincodeIds, p.id],
-                          }))}
+                          onClick={() => setNewEng(prev => {
+                            const isSelected = prev.pincodeIds.includes(p.id);
+                            return {
+                              ...prev,
+                              pincodeIds: isSelected
+                                ? prev.pincodeIds.filter(x => x !== p.id)
+                                : [...prev.pincodeIds, p.id],
+                            };
+                          })}
                           className={cn(
                             "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                             selected
@@ -1407,12 +1388,15 @@ export default function ServiceManagerPage() {
                       const selected = editForm.pincodeIds.includes(p.id);
                       return (
                         <button key={p.id} type="button"
-                          onClick={() => setEditForm(prev => ({
-                            ...prev,
-                            pincodeIds: selected
-                              ? prev.pincodeIds.filter(x => x !== p.id)
-                              : [...prev.pincodeIds, p.id],
-                          }))}
+                          onClick={() => setEditForm(prev => {
+                            const isSelected = prev.pincodeIds.includes(p.id);
+                            return {
+                              ...prev,
+                              pincodeIds: isSelected
+                                ? prev.pincodeIds.filter(x => x !== p.id)
+                                : [...prev.pincodeIds, p.id],
+                            };
+                          })}
                           className={cn(
                             "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                             selected
