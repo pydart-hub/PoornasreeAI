@@ -698,24 +698,38 @@ export default function ServiceManagerPage() {
                                 </button>
 
                                 {dropdownOpen === ticket.id && (() => {
-                                  const ticketPincodeId = ticket.pincode?.id;
-                                  const matched = ticketPincodeId
-                                    ? sortedEngineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincodeId))
-                                    : sortedEngineers;
-                                  // fallback to all engineers if no one covers this zone
-                                  const displayList = matched.length > 0 ? matched : sortedEngineers;
-                                  const isFallback = ticketPincodeId && matched.length === 0;
+                                  const ticketPincode = ticket.pincode;
+                                  // Match by both id and code for robustness
+                                  const matched = ticketPincode
+                                    ? sortedEngineers.filter(e =>
+                                        e.engineerPincodes?.some(p =>
+                                          p.id === ticketPincode.id || p.code === ticketPincode.code
+                                        )
+                                      )
+                                    : sortedEngineers; // no pincode on ticket → show all
+
+                                  const hasTicketPincode = !!ticketPincode;
+                                  const noZoneEngineer = hasTicketPincode && matched.length === 0;
 
                                   return (
                                     <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-white border border-[#e2e8f0] shadow-lg overflow-hidden max-h-64 overflow-y-auto">
                                       <div className="px-3 py-1.5 border-b border-[#e2e8f0]">
                                         <p className="text-xs font-bold text-gray-500">Select Engineer</p>
-                                        {isFallback && <p className="text-[10px] text-amber-500">No zone match — showing all</p>}
+                                        {hasTicketPincode && (
+                                          <p className="text-[10px] text-gray-400">
+                                            Zone: {ticketPincode.code}{ticketPincode.place ? ` · ${ticketPincode.place}` : ""}
+                                          </p>
+                                        )}
                                       </div>
                                       {sortedEngineers.length === 0 ? (
-                                        <p className="px-3 py-2 text-xs text-gray-400 text-center">No engineers</p>
+                                        <p className="px-3 py-2 text-xs text-gray-400 text-center">No engineers in your team</p>
+                                      ) : noZoneEngineer ? (
+                                        <div className="px-3 py-3 text-center">
+                                          <p className="text-xs font-semibold text-amber-600">No engineer assigned to zone {ticketPincode!.code}</p>
+                                          <p className="text-[10px] text-gray-400 mt-0.5">Assign a pincode to an engineer in Team tab first</p>
+                                        </div>
                                       ) : (
-                                        displayList.map(eng => (
+                                        matched.map(eng => (
                                           <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
                                             className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2">
                                             <span className="flex items-center gap-1 min-w-0">
