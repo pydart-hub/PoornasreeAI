@@ -46,11 +46,11 @@ interface ServiceTicket {
   phoneNumber?: string | null;
 }
 
-const STATUS_CONFIG: Record<TicketStatus, { dot: string; label: string; bg: string; border: string; text: string }> = {
-  ASSIGNED:    { dot: "bg-blue-500",    label: "New",        bg: "",                border: "border-l-blue-500",    text: "text-blue-600" },
-  IN_PROGRESS: { dot: "bg-amber-500",   label: "On going",   bg: "bg-orange-50/50", border: "border-l-amber-500",   text: "text-amber-600" },
-  PENDING_OTP: { dot: "bg-purple-500",  label: "Verify OTP", bg: "bg-purple-50/50", border: "border-l-purple-500",  text: "text-purple-600" },
-  CLOSED:      { dot: "bg-emerald-500", label: "Done",       bg: "",                border: "border-l-emerald-500", text: "text-emerald-600" },
+const STATUS_CONFIG: Record<TicketStatus, { label: string; badgeBg: string; badgeText: string; dot: string }> = {
+  ASSIGNED:    { label: "New",         badgeBg: "bg-blue-100",   badgeText: "text-blue-700",   dot: "bg-blue-500"    },
+  IN_PROGRESS: { label: "In Progress", badgeBg: "bg-amber-100",  badgeText: "text-amber-700",  dot: "bg-amber-500"   },
+  PENDING_OTP: { label: "Verify OTP",  badgeBg: "bg-purple-100", badgeText: "text-purple-700", dot: "bg-purple-500"  },
+  CLOSED:      { label: "Done",        badgeBg: "bg-green-100",  badgeText: "text-green-700",  dot: "bg-emerald-500" },
 };
 
 const TABS: { key: TicketStatus; label: string }[] = [
@@ -80,11 +80,12 @@ function parseDescription(desc: string) {
   };
 }
 
-// ── Age badge helper ───────────────────────────────────────────────────
-function getAgeBadge(ageHours: number) {
-  if (ageHours > 24) return { color: "bg-red-100 text-red-700", label: `${ageHours}h` };
-  if (ageHours >= 6) return { color: "bg-amber-100 text-amber-700", label: `${ageHours}h` };
-  return { color: "bg-gray-100 text-gray-600", label: `${ageHours}h` };
+// ── Left accent border by age ─────────────────────────────────────────
+function getAccentBorder(ageHours?: number): string {
+  if (typeof ageHours !== "number") return "border-l-4 border-l-gray-100";
+  if (ageHours > 24) return "border-l-4 border-l-red-500";
+  if (ageHours >= 6) return "border-l-4 border-l-amber-400";
+  return "border-l-4 border-l-gray-100";
 }
 
 // ── OTP handling moved to /service/[id] work screen ──────────────────
@@ -192,86 +193,91 @@ export default function ServiceDashboard() {
       [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
       ticket.pincode?.code,
     ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
-    const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
-    const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
+    const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
     const isBusy = actionLoading === ticket.id;
 
     return (
       <div key={ticket.id}
         className={cn(
-          "bg-white rounded-xl border border-gray-200 border-l-[3px] p-3 flex flex-col gap-1.5 transition-shadow hover:shadow-md",
-          statusCfg.border,
-          statusCfg.bg
+          "bg-white rounded-2xl border border-gray-100 shadow-sm",
+          "hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99]",
+          "transition-all duration-200 p-4 flex flex-col space-y-2",
+          getAccentBorder(ticket.ageHours)
         )}>
-        {/* Row 1: Issue title + Status badge */}
+
+        {/* TOP: Issue title + Status pill */}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2 flex-1 min-w-0">
+          <h3 className="font-semibold text-sm text-gray-900 leading-tight line-clamp-2 flex-1 min-w-0">
             {issueText || ticket.problemDescription.slice(0, 60)}
           </h3>
-          <span className="flex items-center gap-1 text-[11px] font-medium shrink-0 mt-px">
+          <span className={cn(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0",
+            statusCfg.badgeBg, statusCfg.badgeText
+          )}>
             <span className={cn("w-1.5 h-1.5 rounded-full", statusCfg.dot)} />
-            <span className={statusCfg.text}>{statusCfg.label}</span>
+            {statusCfg.label}
           </span>
         </div>
 
-        {/* Row 2: Location + Time */}
-        <div className="flex items-center justify-between gap-2">
-          {locationShort ? (
-            <div className="flex items-center gap-1 text-xs text-gray-500 min-w-0">
+        {/* MIDDLE: Location, Customer, Machine, Time */}
+        <div className="space-y-1">
+          {locationShort && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <MapPin className="w-3 h-3 shrink-0 text-gray-400" />
               <span className="truncate">{locationShort}</span>
             </div>
-          ) : <span />}
-          <div className="flex items-center gap-1 text-xs text-gray-400 shrink-0">
+          )}
+          {customerName && (
+            <div className="flex items-center gap-1.5">
+              <User className="w-3 h-3 shrink-0 text-gray-400" />
+              <span className="text-sm text-gray-700 font-medium truncate">{customerName}</span>
+            </div>
+          )}
+          {machineDisplay && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span className="text-[13px] leading-none shrink-0">🛠</span>
+              <span className="truncate">{machineDisplay}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1 text-[10px] text-gray-400 pt-0.5">
             <Clock className="w-3 h-3" />
             <span>{formatRelativeTime(new Date(ticket.createdAt))}</span>
-            {ageBadge && (
-              <span className={cn("px-1 py-px rounded text-[9px] font-bold leading-none ml-0.5", ageBadge.color)}>
-                {ageBadge.label}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Row 3: Customer */}
-        {customerName && (
-          <p className="text-xs text-gray-600 leading-tight truncate">{customerName}</p>
-        )}
-
-        {/* Row 4: Machine */}
-        {machineDisplay && (
-          <div className="flex items-center gap-1 text-xs text-gray-400">
-            <span className="shrink-0">🛠</span>
-            <span className="truncate">{machineDisplay}</span>
-          </div>
-        )}
-
-        {/* Action Button */}
+        {/* BOTTOM: Primary action */}
         {ticket.status === "ASSIGNED" && (
-          <button onClick={() => { handleAction(ticket.id, "start"); router.push(`/service/${ticket.id}`); }} disabled={isBusy}
-            className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
-            {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+          <button
+            onClick={() => { handleAction(ticket.id, "start"); router.push(`/service/${ticket.id}`); }}
+            disabled={isBusy}
+            className="w-full h-11 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
+            {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             Start Work
           </button>
         )}
         {ticket.status === "IN_PROGRESS" && (
-          <button onClick={() => router.push(`/service/${ticket.id}`)}
-            className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 transition-all flex items-center justify-center gap-1.5">
-            <ArrowRight className="w-3.5 h-3.5" />
+          <button
+            onClick={() => router.push(`/service/${ticket.id}`)}
+            className="w-full h-11 rounded-xl text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
+            <ArrowRight className="w-4 h-4" />
             Continue Work
           </button>
         )}
         {ticket.status === "PENDING_OTP" && (
-          <button onClick={() => router.push(`/service/${ticket.id}`)}
-            className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 transition-all flex items-center justify-center gap-1.5 animate-pulse">
-            <KeyRound className="w-3.5 h-3.5" />
+          <button
+            onClick={() => router.push(`/service/${ticket.id}`)}
+            className="w-full h-11 rounded-xl text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
+            <KeyRound className="w-4 h-4" />
             Verify OTP
           </button>
         )}
         {ticket.status === "CLOSED" && (
-          <div className="flex items-center gap-1 mt-0.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-xs font-medium text-emerald-600">Completed</span>
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-600">Completed</span>
           </div>
         )}
       </div>
@@ -298,17 +304,17 @@ export default function ServiceDashboard() {
       {/* ═══════════════════ TABS (segmented control) ═══════════════════ */}
       <div className="shrink-0 bg-white border-b border-gray-100 px-4 py-2">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-0.5 p-0.5 bg-gray-100 rounded-lg">
+          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-full">
             {TABS.map(tab => {
               const count = tabCounts[tab.key] ?? 0;
               const isActive = activeTab === tab.key;
               return (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   className={cn(
-                    "flex-1 py-1.5 text-xs font-semibold rounded-md transition-all text-center leading-tight",
+                    "flex-1 py-1.5 text-xs font-semibold rounded-full transition-all text-center leading-tight",
                     isActive
                       ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-400 hover:text-gray-500"
+                      : "text-gray-400 hover:text-gray-600"
                   )}>
                   {tab.label}
                   {count > 0 && (
@@ -338,7 +344,7 @@ export default function ServiceDashboard() {
               <p className="text-xs mt-0.5">Pull down to refresh</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredTickets.map(renderCard)}
             </div>
           )}
