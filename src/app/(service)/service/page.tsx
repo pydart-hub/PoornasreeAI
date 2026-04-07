@@ -6,20 +6,19 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
-  LogOut,
   RefreshCw,
   Ticket,
   Play,
   KeyRound,
   CheckCircle2,
   Loader2,
-  X,
   ArrowRight,
   MapPin,
   Clock,
   Briefcase,
   Home,
   User,
+  LogOut,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 
@@ -88,78 +87,7 @@ function getAgeBadge(ageHours: number) {
   return { color: "bg-gray-100 text-gray-600", label: `${ageHours}h` };
 }
 
-// ── OTP Modal ──────────────────────────────────────────────────────────
-function OtpModal({
-  ticketId,
-  onClose,
-  onSuccess,
-}: {
-  ticketId: string;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async () => {
-    if (otp.length !== 4) { setError("OTP must be 4 digits"); return; }
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/verify-otp`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: otp }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Verification failed"); return; }
-      onSuccess();
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-gray-200">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">Verify OTP</h2>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="px-5 py-5 space-y-4">
-          <p className="text-sm text-gray-500">Enter the 4-digit code from the customer.</p>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
-            placeholder="0000"
-            className="w-full text-center text-3xl font-mono tracking-[0.3em] rounded-xl px-4 py-4 border border-gray-200 bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-          />
-          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
-        </div>
-        <div className="flex gap-2 px-5 pb-5">
-          <button onClick={onClose}
-            className="flex-1 h-11 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
-            Cancel
-          </button>
-          <button onClick={handleSubmit} disabled={loading || otp.length !== 4}
-            className="flex-1 h-11 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-            Verify &amp; Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ── OTP handling moved to /service/[id] work screen ──────────────────
 
 // ═══════════════════════════════════════════════════════════════════════
 export default function ServiceDashboard() {
@@ -169,7 +97,6 @@ export default function ServiceDashboard() {
   const [activeTab, setActiveTab] = useState<TicketStatus>("ASSIGNED");
   const [allTickets, setAllTickets] = useState<ServiceTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
-  const [otpModalTicketId, setOtpModalTicketId] = useState<string | null>(null);
 
   // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -237,11 +164,6 @@ export default function ServiceDashboard() {
       if (res.ok) await fetchTickets();
     } catch { /* non-fatal */ }
     finally { setActionLoading(null); }
-  }, [fetchTickets]);
-
-  const handleOtpSuccess = useCallback(() => {
-    setOtpModalTicketId(null);
-    fetchTickets();
   }, [fetchTickets]);
 
   const handleRefresh = () => { setTicketsLoading(true); fetchTickets(); };
@@ -326,21 +248,21 @@ export default function ServiceDashboard() {
 
         {/* Action Button */}
         {ticket.status === "ASSIGNED" && (
-          <button onClick={() => handleAction(ticket.id, "start")} disabled={isBusy}
+          <button onClick={() => { handleAction(ticket.id, "start"); router.push(`/service/${ticket.id}`); }} disabled={isBusy}
             className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
             {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
             Start Work
           </button>
         )}
         {ticket.status === "IN_PROGRESS" && (
-          <button onClick={() => handleAction(ticket.id, "otp")} disabled={isBusy}
-            className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
-            {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-            Request OTP
+          <button onClick={() => router.push(`/service/${ticket.id}`)}
+            className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 transition-all flex items-center justify-center gap-1.5">
+            <ArrowRight className="w-3.5 h-3.5" />
+            Continue Work
           </button>
         )}
         {ticket.status === "PENDING_OTP" && (
-          <button onClick={() => setOtpModalTicketId(ticket.id)}
+          <button onClick={() => router.push(`/service/${ticket.id}`)}
             className="w-full h-9 mt-0.5 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 transition-all flex items-center justify-center gap-1.5 animate-pulse">
             <KeyRound className="w-3.5 h-3.5" />
             Verify OTP
@@ -358,15 +280,6 @@ export default function ServiceDashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-
-      {/* OTP Modal */}
-      {otpModalTicketId && (
-        <OtpModal
-          ticketId={otpModalTicketId}
-          onClose={() => setOtpModalTicketId(null)}
-          onSuccess={handleOtpSuccess}
-        />
-      )}
 
       {/* ═══════════════════ HEADER ═══════════════════ */}
       <header className="shrink-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100">
