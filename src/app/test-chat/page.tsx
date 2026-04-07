@@ -34,6 +34,24 @@ function fmt(d: Date) {
   return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
+/** Render WhatsApp-style *bold* markdown safely */
+function renderText(text: string) {
+  const lines = text.split("\n");
+  return lines.map((line, i) => {
+    const parts = line.split(/(\*[^*]+\*)/g);
+    return (
+      <span key={i}>
+        {parts.map((part, j) =>
+          part.startsWith("*") && part.endsWith("*") && part.length > 2
+            ? <strong key={j}>{part.slice(1, -1)}</strong>
+            : part
+        )}
+        {i < lines.length - 1 && "\n"}
+      </span>
+    );
+  });
+}
+
 export default function TestChatPage() {
   const [phoneNumber, setPhoneNumber] = useState("919876543210");
   const [inputMessage, setInputMessage] = useState("");
@@ -129,8 +147,6 @@ export default function TestChatPage() {
     if (e.key === "Enter") sendMessage();
   }
 
-  const QUICK_CHIPS = ["Hi", "Skip", "Yes", "No", "Help", "Machine not turning on", "No display", "Vibration"];
-
   return (
     <div className="flex flex-col h-[100dvh] bg-[#e5ddd5] dark:bg-[#0d1117]">
 
@@ -152,7 +168,15 @@ export default function TestChatPage() {
           <Settings className="w-4 h-4 text-white/80" />
         </button>
         <button
-          onClick={() => { setMessages([]); setInputMessage(""); knownCountRef.current = 0; }}
+          onClick={async () => {
+            setMessages([]);
+            setInputMessage("");
+            try {
+              const r = await fetch(`${BASE_URL}/api/simulate/history/${encodeURIComponent(phoneNumber.trim())}`);
+              const d = await r.json();
+              knownCountRef.current = (d.messages || []).length;
+            } catch { knownCountRef.current = 999999; }
+          }}
           className="p-2 rounded-full hover:bg-white/10 transition-colors"
           title="Reset chat"
         >
@@ -232,7 +256,7 @@ export default function TestChatPage() {
                     </span>
                   )}
 
-                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.text}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{renderText(msg.text)}</p>
                   <p className={`text-[10px] mt-0.5 text-right ${isUser ? "text-green-700/60 dark:text-green-300/50" : "text-gray-400 dark:text-gray-500"}`}>
                     {fmt(msg.ts)}
                     {isUser && <span className="ml-1 text-blue-500">✓✓</span>}
@@ -297,20 +321,6 @@ export default function TestChatPage() {
         )}
 
         <div ref={bottomRef} />
-      </div>
-
-      {/* ── Quick chips ── */}
-      <div className="shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto scrollbar-none">
-        {QUICK_CHIPS.map((chip) => (
-          <button
-            key={chip}
-            onClick={() => sendMessage(chip)}
-            disabled={loading}
-            className="shrink-0 text-xs px-3 py-1.5 rounded-full border border-[#075e54]/30 dark:border-[#25d366]/30 bg-white dark:bg-gray-800 text-[#075e54] dark:text-[#25d366] hover:bg-[#075e54]/5 dark:hover:bg-[#25d366]/10 active:scale-95 transition-all disabled:opacity-40 font-medium"
-          >
-            {chip}
-          </button>
-        ))}
       </div>
 
       {/* ── Input area ── */}
