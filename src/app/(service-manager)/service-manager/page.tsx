@@ -653,6 +653,7 @@ export default function ServiceManagerPage() {
 
                         {/* ── Row 3: Location · Time ── */}
                         <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
+                          {locationShort ? <>
                             <span className="shrink-0">📍</span>
                             <span className="truncate">{locationShort}</span>
                           </> : (
