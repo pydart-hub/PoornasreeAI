@@ -15,9 +15,7 @@ import {
   Ticket,
   UserCheck,
   Users,
-  CheckCircle2,
   AlertCircle,
-  Activity,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -36,7 +34,6 @@ import { getSocket } from "@/lib/socket-client";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
-type TicketTabKey = "unassigned" | "assigned" | "in_progress" | "closed" | "archived";
 type DateRange = "all" | "today" | "7days" | "30days";
 type PageView = "tickets" | "team" | "locations";
 
