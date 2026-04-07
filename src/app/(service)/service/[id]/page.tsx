@@ -14,7 +14,6 @@ import {
   KeyRound,
   CheckCircle2,
   Loader2,
-  X,
   Camera,
   StickyNote,
   Clock,
