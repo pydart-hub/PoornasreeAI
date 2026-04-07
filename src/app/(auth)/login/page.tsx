@@ -2,9 +2,8 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, Mail, Lock, Monitor, Users, BarChart3, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Monitor, Users, BarChart3 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 // ── Feature list shown on the left hero panel ─────────────────────────
@@ -77,10 +76,10 @@ export default function LoginPage() {
     <>
       {/* ═══════════════════════════════════════════════
           MOBILE VIEW  (< md)
-          Full-screen dark green → white sheet slides up
+          Green header → white card slides up from below
       ═══════════════════════════════════════════════ */}
       <div
-        className="md:hidden relative min-h-[100dvh] overflow-hidden"
+        className="md:hidden h-[100dvh] flex flex-col overflow-hidden"
         style={{ background: "linear-gradient(160deg, #0d2e1b 0%, #0a2416 50%, #071c10 100%)" }}
       >
         {/* Radial glow */}
@@ -89,8 +88,8 @@ export default function LoginPage() {
           style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(34,197,94,0.12) 0%, transparent 70%)" }}
         />
 
-        {/* Green hero — visible above the white sheet */}
-        <div className="relative z-10 flex flex-col items-center gap-3 pt-14 px-6">
+        {/* Green hero — sits above the white card, never overlaps */}
+        <div className="relative z-10 shrink-0 flex flex-col items-center gap-3 pt-12 pb-8 px-6">
           <div className="relative w-14 h-14">
             <Image src="/flower.png" alt="Poornasree" fill className="object-contain" priority />
           </div>
@@ -98,16 +97,16 @@ export default function LoginPage() {
             <p className="text-xl font-black text-white">Poornasree®</p>
             <p className="text-[10px] tracking-[0.2em] text-white/40 uppercase mt-0.5">Equipments</p>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30 mt-1">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs text-emerald-300 font-medium">AI-Powered Service Platform</span>
           </div>
         </div>
 
-        {/* White form sheet — slides up from bottom on mount */}
+        {/* White form card — slides up from below the green area */}
         <div
           className={[
-            "absolute inset-x-0 bottom-0 bg-white rounded-t-[2rem] px-6 pt-6 pb-10 min-h-[70vh] flex flex-col overflow-y-auto",
+            "relative z-10 flex-1 bg-white rounded-[2rem] mx-2 mb-2 px-6 pt-6 pb-8 flex flex-col overflow-y-auto",
             "transition-transform duration-700 ease-out",
             formVisible ? "translate-y-0" : "translate-y-full",
           ].join(" ")}
@@ -192,12 +191,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="flex justify-center mt-8">
-            <Link href="/" className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-              <ArrowLeft className="w-3 h-3" />
-              Back to Home
-            </Link>
-          </div>
         </div>
       </div>
 
@@ -367,16 +360,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Back to home */}
-            <div className="flex justify-center mt-8">
-              <Link
-                href="/"
-                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                Back to Home
-              </Link>
-            </div>
+
           </div>
         </div>
       </div>
