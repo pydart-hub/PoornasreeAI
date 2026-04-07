@@ -220,7 +220,7 @@ async function handleManualPlace(sessionId: string, meta: SessionMeta, text: str
   return makeReply("Please enter your pincode (6 digits):");
 }
 
-// ── API_PINCODE → fetch pincode location → confirm ───────────────────────
+// ── API_PINCODE → fetch pincode location → confirm place ────────────────
 async function handleApiPincode(
   sessionId: string,
   _phoneNumber: string,
@@ -266,15 +266,13 @@ async function handleApiPincode(
   await updateSession(sessionId, "API_PINCODE_CONFIRM", updatedMeta);
 
   const locationLine = locationStr
-    ? `📍 *${text}* — ${locationStr}`
-    : `📍 Pincode: *${text}*`;
+    ? `📍 *${locationStr}*`
+    : `📍 Pincode *${text}* (location not found)`;
 
-  return makeReply(
-    `${locationLine}\n\nIs this your pincode?\n\n1. Yes ✅\n2. No, re-enter ❌`
-  );
+  return makeReply(`${locationLine}\n\nIs this your location?\n\n1. Yes ✅\n2. No, re-enter ❌`);
 }
 
-// ── API_PINCODE_CONFIRM ──────────────────────────────────────────────────
+// ── API_PINCODE_CONFIRM ──────────────────────────────────
 async function handleApiPincodeConfirm(
   sessionId: string,
   meta: SessionMeta,
@@ -316,7 +314,7 @@ async function handleApiComplaint(
   return createTicketFromAPI(sessionId, phoneNumber, updatedMeta);
 }
 
-// ── MANUAL_PINCODE → fetch location → confirm ────────────────────────────
+// ── MANUAL_PINCODE → fetch location → confirm place ──────────────────
 async function handleManualPincode(
   sessionId: string,
   _phoneNumber: string,
@@ -362,15 +360,13 @@ async function handleManualPincode(
   await updateSession(sessionId, "MANUAL_PINCODE_CONFIRM", updatedMeta);
 
   const locationLine = locationStr
-    ? `📍 *${text}* — ${locationStr}`
-    : `📍 Pincode: *${text}*`;
+    ? `📍 *${locationStr}*`
+    : `📍 Pincode *${text}* (location not found)`;
 
-  return makeReply(
-    `${locationLine}\n\nIs this your pincode?\n\n1. Yes ✅\n2. No, re-enter ❌`
-  );
+  return makeReply(`${locationLine}\n\nIs this your location?\n\n1. Yes ✅\n2. No, re-enter ❌`);
 }
 
-// ── MANUAL_PINCODE_CONFIRM ───────────────────────────────────────────────
+// ── MANUAL_PINCODE_CONFIRM ─────────────────────────────────
 async function handleManualPincodeConfirm(
   sessionId: string,
   meta: SessionMeta,
