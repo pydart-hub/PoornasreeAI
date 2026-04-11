@@ -21,16 +21,17 @@ import {
   ChevronUp,
   X,
   Search,
-  Archive,
-  RotateCcw,
   Plus,
   MapPin,
   Pencil,
   Trash2,
   Save,
+  RotateCcw,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
+import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
+import { getAgeBadge, STATUS_BADGE, parseTicketDescription } from "@/components/service-manager/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
@@ -84,20 +85,7 @@ interface ServiceTicket {
 
 
 
-// ── Urgency helpers ────────────────────────────────────────────────────
-function getAgeBadge(ageHours: number) {
-  if (ageHours > 24) return { color: "bg-red-100 text-red-700", label: `${ageHours}h`, urgency: "Critical" };
-  if (ageHours >= 6) return { color: "bg-orange-100 text-orange-700", label: `${ageHours}h`, urgency: "Urgent" };
-  return { color: "bg-emerald-100 text-emerald-700", label: `${ageHours}h`, urgency: "" };
-}
-
-const STATUS_BADGE: Record<TicketStatus, { label: string; variant: "info" | "warning" | "default" | "success" | "error" }> = {
-  OPEN:        { label: "Open",        variant: "error" },
-  ASSIGNED:    { label: "Assigned",    variant: "info" },
-  IN_PROGRESS: { label: "In Progress", variant: "warning" },
-  PENDING_OTP: { label: "Pending OTP", variant: "default" },
-  CLOSED:      { label: "Closed",      variant: "success" },
-};
+// ── Urgency helpers (imported from @/components/service-manager/utils) ──
 
 function isWithinDateRange(createdAt: string, range: DateRange): boolean {
   if (range === "all") return true;
@@ -106,26 +94,6 @@ function isWithinDateRange(createdAt: string, range: DateRange): boolean {
   if (range === "7days") return diffDays <= 7;
   if (range === "30days") return diffDays <= 30;
   return true;
-}
-
-// ── Parse structured problemDescription from chat-created tickets ──────────
-function parseTicketDescription(desc: string) {
-  const pairs: Record<string, string> = {};
-  for (const line of desc.split("\n")) {
-    const m = line.match(/^([^:\n]+?):\s*(.+)$/);
-    if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
-  }
-  const isStructured = Object.keys(pairs).length >= 2;
-  return {
-    isStructured,
-    customerName: pairs["customer"] || pairs["customer name"] || undefined,
-    location:
-      pairs["location"] ||
-      [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||
-      [pairs["place"], pairs["district"], pairs["state"]].filter(Boolean).join(", ") ||
-      undefined,
-    phone: pairs["phone"] || undefined,
-  };
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -153,8 +121,8 @@ export default function ServiceManagerPage() {
 
   const [drawerTicket, setDrawerTicket] = useState<ServiceTicket | null>(null);
   const [closedCollapsed, setClosedCollapsed] = useState(true);
-  const [drawerReassign, setDrawerReassign] = useState(false);
-  const [drawerConfirmEng, setDrawerConfirmEng] = useState<Engineer | null>(null);
+  const [, setDrawerReassign] = useState(false);
+  const [, setDrawerConfirmEng] = useState<Engineer | null>(null);
 
   // ── Filter state ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -1250,211 +1218,19 @@ export default function ServiceManagerPage() {
       {/* Close dropdown on outside click */}
       {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
 
-      {/* ═══════════════════ TICKET DETAIL DRAWER ═══════════════════ */}
-      {drawerTicket && (() => {
-        const t = drawerTicket;
-        const parsed = parseTicketDescription(t.problemDescription);
-        const customerDisplay = t.machineCustomer || parsed.customerName;
-        const isArchived = archivedIds.has(t.id);
-        const cfg = STATUS_BADGE[t.status];
-        const ageBadge = typeof t.ageHours === "number" ? getAgeBadge(t.ageHours) : null;
-        return (
-          <>
-            <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]" onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} />
-            <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-surface-card dark:bg-surface-dark-card border-l border-line dark:border-line-dark shadow-xl overflow-y-auto">
-              <div className="sticky top-0 bg-surface-card dark:bg-surface-dark-card z-10 flex items-center justify-between px-5 py-3 border-b border-line dark:border-line-dark">
-                <div className="flex items-center gap-2 min-w-0">
-                  {t.ticketNumber && <span className="text-xs font-mono text-content-tertiary dark:text-content-dark-tertiary">#{t.ticketNumber}</span>}
-                  <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
-                  {ageBadge && (
-                    <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold", ageBadge.color)}>{ageBadge.label}</span>
-                  )}
-                </div>
-                <button onClick={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }} className="p-1 text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary"><X className="w-5 h-5" /></button>
-              </div>
-
-              <div className="px-5 py-4 space-y-4">
-                {/* Customer */}
-                {customerDisplay && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Customer</p>
-                    <p className="text-sm font-semibold text-content dark:text-content-dark">{customerDisplay}</p>
-                  </div>
-                )}
-
-                {/* Issue */}
-                {(t.issueDescription || t.problemDescription) && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Issue</p>
-                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary whitespace-pre-wrap">{t.issueDescription || t.problemDescription}</p>
-                  </div>
-                )}
-
-                {/* Address */}
-                {(t.machineAddress1 || t.machineAddress2 || t.pincode || parsed.location) && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Address</p>
-                    {t.machineAddress1 && <p className="text-xs text-content dark:text-content-dark">{t.machineAddress1}</p>}
-                    {t.machineAddress2 && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{t.machineAddress2}</p>}
-                    {t.pincode && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{t.pincode.code} · {[t.pincode.place, t.pincode.district, t.pincode.state].filter(Boolean).join(", ")}</p>}
-                    {!t.machineAddress1 && !t.machineAddress2 && !t.pincode && parsed.location && <p className="text-xs text-content dark:text-content-dark">{parsed.location}</p>}
-                  </div>
-                )}
-
-                {/* Machine */}
-                {(t.machineName || t.machineSerialNumber || t.machineProductCode) && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Machine</p>
-                    {t.machineName && <p className="text-xs text-content dark:text-content-dark">{t.machineName}</p>}
-                    {t.machineSerialNumber && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">S/N: {t.machineSerialNumber}</p>}
-                    {t.machineProductCode && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Product: {t.machineProductCode}</p>}
-                  </div>
-                )}
-
-                {/* Invoice / Warranty */}
-                {(t.machineInvoiceNo || t.machineInvoiceDate || t.machineWarranty != null) && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Invoice / Warranty</p>
-                    <div className="flex flex-wrap gap-x-4 text-xs text-content-secondary dark:text-content-dark-secondary">
-                      {t.machineInvoiceNo && <span>Invoice: {t.machineInvoiceNo}</span>}
-                      {t.machineInvoiceDate && <span>Date: {t.machineInvoiceDate}</span>}
-                      {t.machineWarranty != null && <span>Warranty: {t.machineWarranty}mo</span>}
-                    </div>
-                  </div>
-                )}
-
-                {/* Phone */}
-                {(t.phoneNumber || parsed.phone) && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Phone</p>
-                    <p className="text-xs text-content dark:text-content-dark">{t.phoneNumber || parsed.phone}</p>
-                  </div>
-                )}
-
-                {/* Assigned Engineer */}
-                {t.assignedEngineer && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-0.5">Engineer</p>
-                    <p className="text-xs text-primary font-medium">👷 {t.assignedEngineer.firstName} {t.assignedEngineer.lastName ?? ""}</p>
-                  </div>
-                )}
-
-                {/* Meta */}
-                <div>
-                  <p className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-1">Details</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-content-secondary dark:text-content-dark-secondary">
-                    <span>Source: {t.dealer ? `Dealer — ${t.dealer.firstName} ${t.dealer.lastName ?? ""}`.trim() : "Direct"}</span>
-                    <span>Created: {formatRelativeTime(new Date(t.createdAt))}</span>
-                    {t.responseTimeHours != null && <span>Response: {t.responseTimeHours}h</span>}
-                    {t.durationHours != null && <span>Duration: {t.durationHours}h</span>}
-                    {t.ageHours != null && <span>Age: {t.ageHours}h</span>}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-3 pt-3 border-t border-line dark:border-line-dark">
-                  {/* Change Engineer — only for non-closed tickets */}
-                  {t.status !== "CLOSED" && (() => {
-                    const ticketPincode = t.pincode;
-                    const matched = ticketPincode
-                      ? sortedEngineers.filter(e =>
-                          e.engineerPincodes?.some(p =>
-                            p.id === ticketPincode.id || p.code === ticketPincode.code
-                          )
-                        )
-                      : sortedEngineers;
-
-                    return (
-                      <div className="space-y-2">
-                        {!drawerReassign ? (
-                          <button onClick={() => setDrawerReassign(true)}
-                            className="flex items-center gap-1 text-xs text-primary hover:text-primary-hover font-medium transition-colors">
-                            <UserCheck className="w-3.5 h-3.5" />
-                            {t.assignedEngineer ? "Change Engineer" : "Assign Engineer"}
-                          </button>
-                        ) : drawerConfirmEng ? (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                            <p className="text-xs font-semibold text-amber-800">
-                              {t.assignedEngineer ? "Reassign" : "Assign"} to {drawerConfirmEng.firstName} {drawerConfirmEng.lastName ?? ""}?
-                            </p>
-                            {t.assignedEngineer && (
-                              <p className="text-[10px] text-amber-600">
-                                Currently: {t.assignedEngineer.firstName} {t.assignedEngineer.lastName ?? ""}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={async () => {
-                                  await handleAssignEngineer(t.id, drawerConfirmEng.id);
-                                  setDrawerReassign(false);
-                                  setDrawerConfirmEng(null);
-                                  setDrawerTicket(null);
-                                }}
-                                disabled={assigningId === t.id}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
-                                {assigningId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                                Confirm
-                              </button>
-                              <button onClick={() => setDrawerConfirmEng(null)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
-                                Back
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
-                                Select Engineer
-                                {ticketPincode && (
-                                  <span className="ml-1 font-normal text-content-tertiary dark:text-content-dark-tertiary">
-                                    (Zone: {ticketPincode.code})
-                                  </span>
-                                )}
-                              </p>
-                              <button onClick={() => setDrawerReassign(false)} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary">Cancel</button>
-                            </div>
-                            {matched.length === 0 ? (
-                              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2 text-center">
-                                No engineer assigned to zone {ticketPincode?.code ?? "—"}
-                              </p>
-                            ) : (
-                              <div className="border border-line dark:border-line-dark rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                                {matched.map(eng => (
-                                  <button key={eng.id} onClick={() => setDrawerConfirmEng(eng)}
-                                    className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2 border-b border-line dark:border-line-dark last:border-b-0">
-                                    <span className="flex items-center gap-1 min-w-0">
-                                      <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                                      <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                    </span>
-                                    {eng.activeTickets !== undefined && (
-                                      <span className={cn(
-                                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
-                                        eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                          : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                            : "bg-red-100 text-red-700"
-                                      )}>{eng.activeTickets}</span>
-                                    )}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  <button onClick={() => { if (isArchived) { handleUnarchive(t.id); } else { handleArchive(t.id); } setDrawerTicket(null); }}
-                    className="flex items-center gap-1 text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
-                    <Archive className="w-3.5 h-3.5" /> {isArchived ? "Unarchive" : "Archive"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        );
-      })()}
+      {/* ═══════════════════ TICKET DECISION PANEL ═══════════════════ */}
+      {drawerTicket && (
+        <TicketDrawer
+          ticket={drawerTicket}
+          engineers={sortedEngineers}
+          isArchived={archivedIds.has(drawerTicket.id)}
+          assigningId={assigningId}
+          onClose={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }}
+          onAssignEngineer={handleAssignEngineer}
+          onArchive={handleArchive}
+          onUnarchive={handleUnarchive}
+        />
+      )}
 
       {/* ═══════════════════ EDIT ENGINEER MODAL ═══════════════════ */}
       {editingEng && (
