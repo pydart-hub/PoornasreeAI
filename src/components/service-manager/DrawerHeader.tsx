@@ -17,8 +17,10 @@ export function DrawerHeader({ ticket, customerName, onClose }: DrawerHeaderProp
   const priority = getPriorityFromAge(ticket.ageHours);
 
   const city = ticket.pincode?.place || ticket.pincode?.district || null;
-  const issueTitle = ticket.issueDescription
-    ? (ticket.issueDescription.length > 60 ? ticket.issueDescription.slice(0, 60) + "…" : ticket.issueDescription)
+  // problemDescription = actual complaint; issueDescription = metadata
+  const complaint = ticket.problemDescription || null;
+  const issueTitle = complaint
+    ? (complaint.length > 60 ? complaint.slice(0, 60) + "…" : complaint)
     : null;
 
   // SLA overdue indicator

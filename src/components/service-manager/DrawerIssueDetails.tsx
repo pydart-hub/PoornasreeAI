@@ -7,7 +7,7 @@ interface DrawerIssueDetailsProps {
 }
 
 export function DrawerIssueDetails({ ticket }: DrawerIssueDetailsProps) {
-  const hasIssueData = ticket.issueDescription || ticket.problemDescription || ticket.machineName || ticket.machineSerialNumber;
+  const hasIssueData = ticket.problemDescription || ticket.machineName || ticket.machineSerialNumber;
   if (!hasIssueData) return null;
 
   return (
@@ -24,12 +24,12 @@ export function DrawerIssueDetails({ ticket }: DrawerIssueDetailsProps) {
           </div>
         )}
 
-        {/* Description */}
-        {(ticket.issueDescription || ticket.problemDescription) && (
+        {/* Complaint (from problemDescription — the actual customer issue) */}
+        {ticket.problemDescription && (
           <div>
-            <span className="text-[10px] font-medium text-content-tertiary dark:text-content-dark-tertiary uppercase block mb-0.5">Description</span>
+            <span className="text-[10px] font-medium text-content-tertiary dark:text-content-dark-tertiary uppercase block mb-0.5">Complaint</span>
             <p className="text-xs text-content-secondary dark:text-content-dark-secondary leading-relaxed whitespace-pre-wrap">
-              {ticket.issueDescription || ticket.problemDescription}
+              {ticket.problemDescription}
             </p>
           </div>
         )}

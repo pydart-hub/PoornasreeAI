@@ -7,18 +7,18 @@ import { parseTicketDescription } from "./utils";
 
 interface DrawerCustomerInfoProps {
   ticket: ServiceTicket;
+  resolvedName?: string;
 }
 
-export function DrawerCustomerInfo({ ticket }: DrawerCustomerInfoProps) {
+export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoProps) {
   const [addressOpen, setAddressOpen] = useState(false);
-  const parsed = parseTicketDescription(ticket.problemDescription);
+  const issueMeta = parseTicketDescription(ticket.issueDescription || "");
+  const descMeta = parseTicketDescription(ticket.problemDescription || "");
 
-  const customerName = ticket.machineCustomer || parsed.customerName || ticket.customer?.firstName
-    ? `${ticket.customer?.firstName ?? ""} ${ticket.customer?.lastName ?? ""}`.trim()
-    : null;
-  const phone = ticket.phoneNumber || parsed.phone;
+  const customerName = resolvedName || ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || null;
+  const phone = ticket.phoneNumber || issueMeta.phone || descMeta.phone;
 
-  const hasAddress = ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode || parsed.location;
+  const hasAddress = ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode || issueMeta.location || descMeta.location;
 
   if (!customerName && !phone && !hasAddress) return null;
 
@@ -66,8 +66,8 @@ export function DrawerCustomerInfo({ ticket }: DrawerCustomerInfoProps) {
                 {ticket.pincode && (
                   <p>{ticket.pincode.code} · {[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>
                 )}
-                {!ticket.machineAddress1 && !ticket.machineAddress2 && !ticket.pincode && parsed.location && (
-                  <p>{parsed.location}</p>
+                {!ticket.machineAddress1 && !ticket.machineAddress2 && !ticket.pincode && (issueMeta.location || descMeta.location) && (
+                  <p>{issueMeta.location || descMeta.location}</p>
                 )}
               </div>
             )}

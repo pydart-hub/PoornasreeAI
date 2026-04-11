@@ -35,11 +35,15 @@ export function getSLAStatus(hours: number | null | undefined, threshold: number
   return { breached: true, label: `BREACHED (+${Math.round(hours - threshold)}h)`, color: "text-red-600 dark:text-red-400" };
 }
 
-// ── Parse structured problemDescription from chat-created tickets ──
+// ── Parse structured description from chat-created tickets ──
+// issueDescription uses comma-separated "Key: Val, Key: Val" format;
+// problemDescription may use newlines. Handle both.
 export function parseTicketDescription(desc: string) {
   const pairs: Record<string, string> = {};
-  for (const line of desc.split("\n")) {
-    const m = line.match(/^([^:\n]+?):\s*(.+)$/);
+  // Split by newlines first, then by commas for each segment
+  const segments = desc.split(/\n/).flatMap(line => line.split(/,(?=\s*[A-Za-z]+\s*:)/));
+  for (const seg of segments) {
+    const m = seg.match(/^\s*([^:]+?):\s*(.+)$/);
     if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
   }
   const isStructured = Object.keys(pairs).length >= 2;
@@ -52,5 +56,6 @@ export function parseTicketDescription(desc: string) {
       [pairs["place"], pairs["district"], pairs["state"]].filter(Boolean).join(", ") ||
       undefined,
     phone: pairs["phone"] || undefined,
+    pincode: pairs["pincode"] || undefined,
   };
 }

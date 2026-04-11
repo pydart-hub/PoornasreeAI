@@ -27,9 +27,11 @@ export function TicketDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const assignmentRef = useRef<HTMLDivElement>(null);
 
-  const parsed = parseTicketDescription(ticket.problemDescription);
-  const customerName = ticket.machineCustomer || parsed.customerName ||
-    (ticket.customer ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : undefined);
+  // issueDescription holds structured metadata ("Customer: X, Location: Y, ...")
+  // problemDescription holds the actual complaint text
+  const issueMeta = parseTicketDescription(ticket.issueDescription || "");
+  const descMeta = parseTicketDescription(ticket.problemDescription || "");
+  const customerName = ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || undefined;
 
   // Close on Escape
   useEffect(() => {
@@ -89,7 +91,7 @@ export function TicketDrawer({
           <DrawerIssueDetails ticket={ticket} />
 
           {/* ── 6. Customer Info ── */}
-          <DrawerCustomerInfo ticket={ticket} />
+          <DrawerCustomerInfo ticket={ticket} resolvedName={customerName} />
 
           {/* ── 7. SLA / Performance ── */}
           <DrawerSLA ticket={ticket} />
