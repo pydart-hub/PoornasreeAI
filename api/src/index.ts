@@ -13,7 +13,7 @@ import supportRoutes from "./routes/support.routes";
 import salesRoutes from "./routes/sales.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import troubleshootingRoutes from "./routes/troubleshooting.routes";
-import simulateRoutes from "./routes/simulate.routes";
+import whatsappRoutes from "./routes/whatsapp.routes";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
 import { protect } from "./middleware/auth";
@@ -39,7 +39,7 @@ app.use("/api/auth",    authRoutes);
 
 // ── Public endpoints (no auth) — must be registered BEFORE the broad chatRoutes
 // mount below, which runs `protect` on ALL /api/* requests.
-app.use("/api/simulate",        simulateRoutes);
+app.use("/api/whatsapp",        whatsappRoutes);
 app.use("/api/tickets",         ticketRoutes);
 app.use("/api/troubleshooting", troubleshootingRoutes);
 

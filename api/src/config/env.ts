@@ -45,4 +45,10 @@ export const env = {
   // sameSite:"lax" is safe; the browser only ever talks to port 80 (Next.js).
   COOKIE_SECURE: false,
   COOKIE_SAMESITE: "lax" as "lax" | "strict",
+
+  // ── WhatsApp Cloud API ──────────────────────
+  // Optional — set in .env. Required for real WhatsApp messages via Meta webhook.
+  WA_PHONE_NUMBER_ID: process.env.WA_PHONE_NUMBER_ID || "",
+  WA_ACCESS_TOKEN:    process.env.WA_ACCESS_TOKEN    || "",
+  WA_VERIFY_TOKEN:    process.env.WA_VERIFY_TOKEN    || "",
 } as const;
