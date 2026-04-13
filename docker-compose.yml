@@ -83,6 +83,9 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
+      WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
+      WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
+      WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN:-}
     volumes:
       - api_uploads:/app/uploads
       - ./public/Doc/training.json:/app/data/training.json:ro
