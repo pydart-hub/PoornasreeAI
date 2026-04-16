@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma";
 import { env } from "../config/env";
@@ -139,4 +140,49 @@ export async function logoutUser(_req: Request, res: Response): Promise<void> {
     sameSite: env.COOKIE_SAMESITE,
   });
   res.json({ message: "Logged out" });
+}
+
+// ── Set Password (engineer self-onboarding) ──────
+// Called with a one-time token sent via WhatsApp. No authentication required.
+export async function setPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      res.status(400).json({ error: "token and password are required" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" });
+      return;
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await prisma.user.findFirst({
+      where: {
+        setPasswordToken: tokenHash,
+        setPasswordTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      res.status(400).json({ error: "Invalid or expired link. Please ask your manager to resend." });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        setPasswordToken: null,
+        setPasswordTokenExpiry: null,
+      },
+    });
+
+    res.status(200).json({ message: "Password set successfully. You can now log in." });
+  } catch (err) {
+    console.error("setPassword error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }

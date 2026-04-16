@@ -4,27 +4,26 @@
 
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 import ExcelJS from "exceljs";
 import * as WhatsAppService from "../services/whatsapp.service";
+import { env } from "../config/env";
 
 const SALT_ROUNDS = 12;
 
 // ── POST /api/manager/engineers ───────────────────────────────────────────
 // Service manager creates a new service_engineer linked to themselves.
 // Optional: pincodeIds array.
+// The engineer sets their own password via a one-time WhatsApp link (no password in request).
 export async function createEngineer(req: Request, res: Response): Promise<void> {
   try {
     const managerId = req.user!.userId;
-    const { email, password, firstName, lastName, pincodeIds, whatsappNumber } = req.body;
+    const { email, firstName, lastName, pincodeIds, whatsappNumber } = req.body;
 
-    if (!email || !password || !firstName) {
-      res.status(400).json({ error: "email, password and firstName are required" });
-      return;
-    }
-    if (password.length < 8) {
-      res.status(400).json({ error: "Password must be at least 8 characters" });
+    if (!email || !firstName) {
+      res.status(400).json({ error: "email and firstName are required" });
       return;
     }
 
@@ -35,15 +34,25 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    // Account is locked until engineer sets their own password via the WhatsApp link.
+    const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
+
+    // Generate a one-time set-password token (32 random bytes → hex).
+    // Store only the SHA-256 hash in the DB for security.
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
     const engineer = await prisma.user.create({
       data: {
         email: normalizedEmail,
-        passwordHash,
+        passwordHash: unusablePasswordHash,
         firstName: firstName.trim(),
         lastName: lastName?.trim() ?? null,
         role: "service_engineer",
         managerId,
+        setPasswordToken: tokenHash,
+        setPasswordTokenExpiry: tokenExpiry,
         ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim() } : {}),
         ...(pincodeIds && pincodeIds.length > 0
           ? { engineerPincodes: { connect: (pincodeIds as string[]).map((id: string) => ({ id })) } }
@@ -62,18 +71,22 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
       },
     });
 
-    // Send WhatsApp greeting to the new engineer (fire-and-forget)
+    // Send WhatsApp greeting with set-password link (fire-and-forget)
     if (engineer.whatsappNumber) {
       const manager = engineer.manager;
       const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
+      const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
       const greeting = [
         `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
         "",
         `You've been registered as a Service Engineer by ${managerName}.`,
         "",
-        "You'll receive ticket assignments and updates here on WhatsApp.",
+        "To get started, please set your password by clicking the link below:",
+        setPasswordUrl,
         "",
-        `Login credentials: ${engineer.email}`,
+        `Your login email: ${engineer.email}`,
+        "",
+        "You'll receive ticket assignments and updates here on WhatsApp.",
         "",
         "Thank you! 🙏",
       ].join("\n");

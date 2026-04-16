@@ -46,6 +46,10 @@ export const env = {
   COOKIE_SECURE: false,
   COOKIE_SAMESITE: "lax" as "lax" | "strict",
 
+  // ── Frontend URL ────────────────────────────
+  // Used to build links (e.g. set-password) sent via WhatsApp.
+  FRONTEND_URL: optional("FRONTEND_URL", "https://poornasree.pydart.com"),
+
   // ── WhatsApp Cloud API ──────────────────────
   // Optional — set in .env. Required for real WhatsApp messages via Meta webhook.
   WA_PHONE_NUMBER_ID: process.env.WA_PHONE_NUMBER_ID || "",

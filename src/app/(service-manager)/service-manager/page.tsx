@@ -157,7 +157,7 @@ export default function ServiceManagerPage() {
 
   // ── Team modal state — Add ──
   const [showAddEngineer, setShowAddEngineer] = useState(false);
-  const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", password: "", whatsappNumber: "", pincodeIds: [] as string[] });
+  const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [addingEngineer, setAddingEngineer] = useState(false);
 
   // ── Team modal state — Edit ──
@@ -414,8 +414,8 @@ export default function ServiceManagerPage() {
   };
 
   const handleAddEngineer = async () => {
-    if (!newEng.firstName.trim() || !newEng.email.trim() || !newEng.password.trim()) {
-      setError("Name, email/phone, and password are required");
+    if (!newEng.firstName.trim() || !newEng.email.trim()) {
+      setError("Name and email are required");
       return;
     }
     if (myPincodes.length > 0 && newEng.pincodeIds.length === 0) {
@@ -430,7 +430,6 @@ export default function ServiceManagerPage() {
           firstName: newEng.firstName.trim(),
           lastName: newEng.lastName.trim() || undefined,
           email: newEng.email.trim(),
-          password: newEng.password,
           whatsappNumber: newEng.whatsappNumber.trim() || undefined,
           pincodeIds: newEng.pincodeIds,
         }),
@@ -438,7 +437,7 @@ export default function ServiceManagerPage() {
       if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add engineer"); }
       else {
         setShowAddEngineer(false);
-        setNewEng({ firstName: "", lastName: "", email: "", password: "", whatsappNumber: "", pincodeIds: [] });
+        setNewEng({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
         await fetchData();
       }
     } catch { setError("Network error"); }
@@ -1363,11 +1362,8 @@ export default function ServiceManagerPage() {
                 <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">International format — greeting will be sent on registration</p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Password *</label>
-                <input type="password" value={newEng.password} onChange={e => setNewEng(p => ({ ...p, password: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  placeholder="Min 8 characters" />
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 px-3 py-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+                🔗 A set-password link will be sent to the engineer via WhatsApp after registration.
               </div>
 
               {myPincodes.length > 0 && (
