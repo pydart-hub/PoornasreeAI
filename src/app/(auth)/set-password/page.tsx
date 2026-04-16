@@ -4,7 +4,6 @@ import { useState, useEffect, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
-import api from "@/lib/api";
 
 function SetPasswordForm() {
   const router = useRouter();
@@ -45,7 +44,15 @@ function SetPasswordForm() {
 
     setLoading(true);
     try {
-      await api.post("/auth/set-password", { token, password });
+      const res = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Invalid or expired link. Please ask your manager to resend.");
+      }
       setSuccess(true);
       setTimeout(() => router.replace("/login"), 3000);
     } catch (err: unknown) {
