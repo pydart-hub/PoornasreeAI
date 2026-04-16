@@ -1338,15 +1338,15 @@ export default function ServiceManagerPage() {
       {/* ═══════════════════ ADD ENGINEER MODAL ═══════════════════ */}
       {showAddEngineer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark shrink-0">
               <h3 className="text-base font-bold text-content dark:text-content-dark">Add Engineer</h3>
               <button onClick={() => setShowAddEngineer(false)} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
@@ -1416,7 +1416,7 @@ export default function ServiceManagerPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl shrink-0">
               <button onClick={() => setShowAddEngineer(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                 Cancel

@@ -70,8 +70,7 @@ function SetPasswordForm() {
       <div className="md:hidden min-h-screen flex flex-col bg-emerald-700">
         {/* Top brand bar */}
         <div className="flex flex-col items-center pt-12 pb-6 px-6">
-          <Image src="/images/logo.png" alt="Poornasree" width={56} height={56} className="rounded-xl mb-3" />
-          <h1 className="text-white text-2xl font-bold tracking-tight">Poornasree AI</h1>
+          <Image src="/fulllogo.png" alt="Poornasree Equipments" width={200} height={80} className="mb-3" />
           <p className="text-emerald-200 text-sm mt-1">Set your password to get started</p>
         </div>
 
@@ -128,8 +127,7 @@ function SetPasswordForm() {
       <div className="hidden md:flex min-h-screen">
         {/* Left green panel */}
         <div className="w-1/2 bg-gradient-to-br from-emerald-700 to-emerald-900 flex flex-col items-center justify-center px-12">
-          <Image src="/images/logo.png" alt="Poornasree" width={72} height={72} className="rounded-2xl mb-6" />
-          <h1 className="text-white text-3xl font-bold tracking-tight text-center">Poornasree AI</h1>
+          <Image src="/fulllogo.png" alt="Poornasree Equipments" width={280} height={112} className="mb-6 brightness-0 invert" />
           <p className="text-emerald-200 text-base mt-3 text-center max-w-xs">
             Set up your account to start receiving and managing service tickets.
           </p>
