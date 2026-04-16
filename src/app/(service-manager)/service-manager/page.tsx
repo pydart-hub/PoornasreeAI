@@ -190,6 +190,7 @@ export default function ServiceManagerPage() {
   const [editDealerForm, setEditDealerForm] = useState({ firstName: "", lastName: "", newPassword: "", warrantyMonths: "" as string });
   const [savingDealerEdit, setSavingDealerEdit] = useState(false);
   const [deletingDealerId, setDeletingDealerId] = useState<string | null>(null);
+  const [deletingEngineerId, setDeletingEngineerId] = useState<string | null>(null);
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -943,6 +944,23 @@ export default function ServiceManagerPage() {
                             title="Edit engineer"
                           >
                             <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete engineer ${eng.firstName} ${eng.lastName}? This cannot be undone.`)) return;
+                              setDeletingEngineerId(eng.id);
+                              try {
+                                const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
+                                if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to delete engineer"); }
+                                else { await fetchData(); }
+                              } catch { setError("Network error"); }
+                              finally { setDeletingEngineerId(null); }
+                            }}
+                            disabled={deletingEngineerId === eng.id}
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Delete engineer"
+                          >
+                            {deletingEngineerId === eng.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                           </button>
                         </div>
                       </div>

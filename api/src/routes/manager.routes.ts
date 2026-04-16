@@ -8,6 +8,7 @@ import {
   createEngineer,
   listMyEngineers,
   updateMyEngineer,
+  deleteEngineer,
   setEngineerPincodes,
   listMyPincodes,
   createMyPincode,
@@ -29,6 +30,7 @@ router.use(authorize("service_manager"));
 router.post("/engineers",                   createEngineer);
 router.get("/engineers",                    listMyEngineers);
 router.patch("/engineers/:id",              updateMyEngineer);
+router.delete("/engineers/:id",             deleteEngineer);
 router.patch("/engineers/:id/pincodes",     setEngineerPincodes);
 
 // Pincodes (manager-owned CRUD)

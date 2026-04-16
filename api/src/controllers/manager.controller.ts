@@ -193,6 +193,34 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
   }
 }
 
+// ── DELETE /api/manager/engineers/:id ────────────────────────────────────
+// Manager deletes one of their own engineers. Unlinks tickets before deletion.
+export async function deleteEngineer(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const engineerId = String(req.params.id);
+
+    const engineer = await prisma.user.findUnique({ where: { id: engineerId } });
+    if (!engineer || engineer.role !== "service_engineer" || engineer.managerId !== managerId) {
+      res.status(404).json({ error: "Engineer not found" });
+      return;
+    }
+
+    // Unassign engineer from any open tickets before deleting
+    await prisma.ticket.updateMany({
+      where: { assignedEngineerId: engineerId },
+      data: { assignedEngineerId: null, status: "OPEN" },
+    });
+
+    await prisma.user.delete({ where: { id: engineerId } });
+
+    res.json({ message: "Engineer deleted" });
+  } catch (err) {
+    console.error("deleteEngineer error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 // ── PATCH /api/manager/engineers/:id/pincodes ─────────────────────────────
 // Replace the engineer's pincode assignments.
 export async function setEngineerPincodes(req: Request, res: Response): Promise<void> {
