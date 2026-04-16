@@ -39,7 +39,6 @@ const ROLES = [
   { value: "service_manager",  label: "Service Manager" },
   { value: "service_engineer", label: "Field Engineer" },
   { value: "sales",            label: "Sales" },
-  { value: "dealer",           label: "Dealer" },
   { value: "customer_service", label: "Customer Service" },
   { value: "admin",            label: "Administrator" },
 ] as const;

@@ -18,6 +18,9 @@ model User {
   role             String             @default("customer")
   createdAt        DateTime           @default(now())
 
+  // Dealer warranty (months) — only relevant for dealer role
+  warrantyMonths   Int?
+
   // Pincode assignment (for engineers and dealers — legacy single-pincode FK)
   pincodeId        String?
   pincode          Pincode?           @relation("UserPincode", fields: [pincodeId], references: [id])

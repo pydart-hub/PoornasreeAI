@@ -27,6 +27,9 @@ import {
   Trash2,
   Save,
   RotateCcw,
+  Filter,
+  Download,
+  Store,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
@@ -36,7 +39,7 @@ import { getAgeBadge, STATUS_BADGE, parseTicketDescription } from "@/components/
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "team" | "locations";
+type PageView = "tickets" | "team" | "locations" | "dealers";
 
 interface PincodeInfo {
   id: string;
@@ -53,6 +56,16 @@ interface Engineer {
   email: string;
   activeTickets?: number;
   engineerPincodes?: PincodeInfo[];
+}
+
+interface Dealer {
+  id: string;
+  firstName: string;
+  lastName?: string | null;
+  email: string;
+  warrantyMonths?: number | null;
+  createdAt: string;
+  ticketCount?: number;
 }
 
 interface ServiceTicket {
@@ -127,6 +140,10 @@ export default function ServiceManagerPage() {
   // ── Filter state ──
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [dealerFilter, setDealerFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
+  const [complaintFilter, setComplaintFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -162,6 +179,16 @@ export default function ServiceManagerPage() {
   const [customValidating, setCustomValidating] = useState(false);
   const [savingCustom, setSavingCustom] = useState(false);
   const [customError, setCustomError] = useState("");
+
+  // ── Dealer state ──
+  const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [showAddDealer, setShowAddDealer] = useState(false);
+  const [newDealer, setNewDealer] = useState({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" as string });
+  const [addingDealer, setAddingDealer] = useState(false);
+  const [editingDealer, setEditingDealer] = useState<Dealer | null>(null);
+  const [editDealerForm, setEditDealerForm] = useState({ firstName: "", lastName: "", newPassword: "", warrantyMonths: "" as string });
+  const [savingDealerEdit, setSavingDealerEdit] = useState(false);
+  const [deletingDealerId, setDeletingDealerId] = useState<string | null>(null);
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -330,8 +357,8 @@ export default function ServiceManagerPage() {
     setArchivedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
   };
 
-  const resetFilters = () => { setSearchQuery(""); setDateRange("all"); };
-  const hasActiveFilters = searchQuery !== "" || dateRange !== "all";
+  const resetFilters = () => { setSearchQuery(""); setDateRange("all"); setDealerFilter(""); setModelFilter(""); setComplaintFilter(""); };
+  const hasActiveFilters = searchQuery !== "" || dateRange !== "all" || dealerFilter !== "" || modelFilter !== "" || complaintFilter !== "";
 
   // ── Auth guard ──
   useEffect(() => {
@@ -341,14 +368,16 @@ export default function ServiceManagerPage() {
   // ── Data fetching ──
   const fetchData = useCallback(async () => {
     try {
-      const [ticketsRes, engineersRes, pincodesRes] = await Promise.all([
+      const [ticketsRes, engineersRes, pincodesRes, dealersRes] = await Promise.all([
         fetch("/api/tickets", { credentials: "include" }),
         fetch("/api/manager/engineers", { credentials: "include" }),
         fetch("/api/manager/pincodes", { credentials: "include" }),
+        fetch("/api/manager/dealers", { credentials: "include" }),
       ]);
       if (ticketsRes.ok) { const { tickets: d } = await ticketsRes.json(); setTickets(d ?? []); }
       if (engineersRes.ok) { const { engineers: d } = await engineersRes.json(); setEngineers(d ?? []); }
       if (pincodesRes.ok) { const { pincodes: d } = await pincodesRes.json(); setMyPincodes(d ?? []); }
+      if (dealersRes.ok) { const { dealers: d } = await dealersRes.json(); setDealers(d ?? []); }
     } catch { setError("Failed to load data"); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -420,8 +449,20 @@ export default function ServiceManagerPage() {
     [engineers]
   );
 
+  // ── Filter dropdown options (derived from tickets) ──
+  const dealerOptions = useMemo(() => {
+    const names = tickets
+      .map(t => t.dealer ? `${t.dealer.firstName}${t.dealer.lastName ? " " + t.dealer.lastName : ""}`.trim() : null)
+      .filter((v): v is string => !!v);
+    return Array.from(new Set(names)).sort();
+  }, [tickets]);
 
-
+  const modelOptions = useMemo(() => {
+    const models = tickets
+      .map(t => t.machineName || t.machineProductCode || null)
+      .filter((v): v is string => !!v);
+    return Array.from(new Set(models)).sort();
+  }, [tickets]);
   // ── Grouped tickets for decision-focused view ──
   const ticketGroups = useMemo(() => {
     let pool = tickets.filter(t => !archivedIds.has(t.id));
@@ -435,13 +476,29 @@ export default function ServiceManagerPage() {
         return tn.includes(q) || ce.includes(q) || cn.includes(q);
       });
     }
+    // Dealer name filter
+    if (dealerFilter) {
+      pool = pool.filter(t => {
+        const dn = t.dealer ? `${t.dealer.firstName}${t.dealer.lastName ? " " + t.dealer.lastName : ""}`.trim() : "";
+        return dn === dealerFilter;
+      });
+    }
+    // Model of product filter
+    if (modelFilter) {
+      pool = pool.filter(t => (t.machineName || t.machineProductCode || "") === modelFilter);
+    }
+    // Complaint free-text filter
+    if (complaintFilter.trim()) {
+      const cf = complaintFilter.trim().toLowerCase();
+      pool = pool.filter(t => t.problemDescription.toLowerCase().includes(cf));
+    }
     const sortByAge = (a: ServiceTicket, b: ServiceTicket) => (b.ageHours ?? 0) - (a.ageHours ?? 0);
     const urgent = pool.filter(t => (t.ageHours ?? 0) > 6 && t.status !== "CLOSED").sort(sortByAge);
     const unassigned = pool.filter(t => t.status === "OPEN" && (t.ageHours ?? 0) <= 6).sort(sortByAge);
     const inProgress = pool.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status) && (t.ageHours ?? 0) <= 6).sort(sortByAge);
     const closed = pool.filter(t => t.status === "CLOSED").sort(sortByAge);
     return { urgent, unassigned, inProgress, closed };
-  }, [tickets, archivedIds, dateRange, searchQuery]);
+  }, [tickets, archivedIds, dateRange, searchQuery, dealerFilter, modelFilter, complaintFilter]);
 
   if (authLoading || loading) return <LoadingScreen />;
   if (!user) return null;
@@ -500,6 +557,7 @@ export default function ServiceManagerPage() {
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-5 h-5 sm:w-4 sm:h-4" />, count: total },
               { key: "team" as PageView, label: "Team", icon: <Users className="w-5 h-5 sm:w-4 sm:h-4" />, count: engineers.length },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-5 h-5 sm:w-4 sm:h-4" />, count: myPincodes.length },
+              { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-5 h-5 sm:w-4 sm:h-4" />, count: dealers.length },
             ]).map(nav => (
               <button key={nav.key} onClick={() => setPageView(nav.key)}
                 className={cn(
@@ -555,8 +613,69 @@ export default function ServiceManagerPage() {
                   {hasActiveFilters && (
                     <button onClick={resetFilters} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary"><RotateCcw className="w-3 h-3" /></button>
                   )}
+                  <button onClick={() => setShowFilters(f => !f)}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors",
+                      showFilters ? "bg-primary text-white" : "text-content-tertiary dark:text-content-dark-tertiary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"
+                    )}>
+                    <Filter className="w-3 h-3" /> Filters
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/manager/export/tickets", { credentials: "include" });
+                        if (!res.ok) { setError("Export failed"); return; }
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `tickets_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      } catch { setError("Export failed"); }
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-content-tertiary dark:text-content-dark-tertiary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                    <Download className="w-3 h-3" /> Export
+                  </button>
                 </div>
               </div>
+
+              {/* ── Advanced Filters Panel ── */}
+              {showFilters && (
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-lg border border-line dark:border-line-dark shadow-sm p-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Dealer name dropdown */}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-content-secondary dark:text-content-dark-secondary mb-1 uppercase tracking-wide">Dealer</label>
+                      <select value={dealerFilter} onChange={e => setDealerFilter(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-md text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary">
+                        <option value="">All Dealers</option>
+                        {dealerOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    {/* Model of product dropdown */}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-content-secondary dark:text-content-dark-secondary mb-1 uppercase tracking-wide">Model</label>
+                      <select value={modelFilter} onChange={e => setModelFilter(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-md text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary">
+                        <option value="">All Models</option>
+                        {modelOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                    {/* Complaint free-text */}
+                    <div>
+                      <label className="block text-[10px] font-semibold text-content-secondary dark:text-content-dark-secondary mb-1 uppercase tracking-wide">Complaint</label>
+                      <input type="text" value={complaintFilter} onChange={e => setComplaintFilter(e.target.value)}
+                        placeholder="Search complaint..."
+                        className="w-full px-2.5 py-1.5 rounded-md text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-tertiary dark:placeholder:text-content-dark-tertiary focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
+                    </div>
+                  </div>
+                  {(dealerFilter || modelFilter || complaintFilter) && (
+                    <button onClick={() => { setDealerFilter(""); setModelFilter(""); setComplaintFilter(""); }}
+                      className="mt-2 text-xs text-primary hover:underline">Clear all filters</button>
+                  )}
+                </div>
+              )}
 
               {/* ── Grouped Ticket Sections ── */}
               {(() => {
@@ -564,19 +683,16 @@ export default function ServiceManagerPage() {
                 const totalVisible = urgent.length + unassignedGroup.length + inProgressGroup.length + closedGroup.length;
 
                 const renderTicketCard = (ticket: ServiceTicket) => {
-                  const cfg = STATUS_BADGE[ticket.status];
                   const canAssign = ticket.status === "OPEN";
-                  const isAssigned = ticket.status !== "OPEN" && ticket.status !== "CLOSED" && !!ticket.assignedEngineer;
-                  const ageBadge = typeof ticket.ageHours === "number" ? getAgeBadge(ticket.ageHours) : null;
                   const isArchived = archivedIds.has(ticket.id);
                   const parsed = parseTicketDescription(ticket.problemDescription);
-                  const customerDisplay = ticket.machineCustomer || parsed.customerName;
+                  const customerDisplay = ticket.machineCustomer || parsed.customerName || ticket.customer?.firstName;
                   const locationShort = [
                     [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
                     ticket.pincode?.code,
                   ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
-                  const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
-                  const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
+                  const complaintDisplay = ticket.problemDescription;
+                  const isPending = ticket.status === "OPEN" && !ticket.assignedEngineer;
 
                   const borderColor = (ticket.ageHours ?? 0) > 24
                     ? "border-l-red-500"
@@ -586,17 +702,18 @@ export default function ServiceManagerPage() {
 
                   return (
                     <div key={ticket.id}
+                      onClick={() => setDrawerTicket(ticket)}
                       className={cn(
-                        "bg-surface-card dark:bg-surface-dark-card rounded-md border border-line dark:border-line-dark border-l-[3px] overflow-hidden transition-shadow hover:shadow-md shadow-sm",
+                        "bg-surface-card dark:bg-surface-dark-card rounded-md border border-line dark:border-line-dark border-l-[3px] overflow-hidden transition-shadow hover:shadow-md shadow-sm cursor-pointer",
                         borderColor
                       )}>
-                      <div className="p-3 space-y-1">
+                      <div className="p-3 space-y-1.5">
 
-                        {/* ── Row 1: Customer | Status + Age badge ── */}
+                        {/* ── Row 1: Ticket Number (bold) + Customer Name ── */}
                         <div className="flex items-center justify-between gap-2 min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
                             {ticket.ticketNumber && (
-                              <span className="text-[11px] font-mono text-content-tertiary dark:text-content-dark-tertiary shrink-0">#{ticket.ticketNumber}</span>
+                              <span className="text-sm font-bold text-primary shrink-0">#{ticket.ticketNumber}</span>
                             )}
                             {customerDisplay ? (
                               <span className="font-semibold text-sm text-content dark:text-content-dark leading-tight truncate">{customerDisplay}</span>
@@ -604,22 +721,27 @@ export default function ServiceManagerPage() {
                               <span className="text-sm text-content-tertiary dark:text-content-dark-tertiary italic leading-tight">No customer</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Badge variant={cfg.variant} dot>{cfg.label}</Badge>
-                            {ageBadge && (
-                              <span className={cn("text-[11px] px-1.5 py-0.5 rounded font-semibold leading-none", ageBadge.color)}>
-                                {ageBadge.label}
-                              </span>
-                            )}
-                          </div>
+                          {isPending && (
+                            <span className="text-[11px] px-2 py-0.5 rounded font-semibold leading-none bg-amber-100 text-amber-700 border border-amber-300 shrink-0">
+                              Pending
+                            </span>
+                          )}
                         </div>
 
-                        {/* ── Row 2: Issue (1 line) ── */}
-                        {issueDisplay && (
-                          <p className="text-sm text-content-secondary dark:text-content-dark-secondary leading-tight truncate">{issueDisplay}</p>
+                        {/* ── Row 2: Serial Number ── */}
+                        {ticket.machineSerialNumber && (
+                          <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
+                            <span className="shrink-0">🔢</span>
+                            <span className="font-mono font-medium">S/N: {ticket.machineSerialNumber}</span>
+                          </div>
                         )}
 
-                        {/* ── Row 3: Location · Time ── */}
+                        {/* ── Row 3: Complaint (1 line) ── */}
+                        {complaintDisplay && (
+                          <p className="text-sm text-content-secondary dark:text-content-dark-secondary leading-tight truncate">{complaintDisplay}</p>
+                        )}
+
+                        {/* ── Row 4: Location + Pincode · Time raised ── */}
                         <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
                           {locationShort ? <>
                             <span className="shrink-0">📍</span>
@@ -636,32 +758,9 @@ export default function ServiceManagerPage() {
                           </>}
                         </div>
 
-                        {/* ── Row 4: Machine ── */}
-                        {machineDisplay && (
-                          <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
-                            <span className="shrink-0">🛠</span>
-                            <span className="truncate">{machineDisplay}</span>
-                          </div>
-                        )}
-
-                        {/* ── Row 5: Actions ── */}
-                        <div className="flex items-center justify-between pt-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {isAssigned && ticket.assignedEngineer && (
-                              <span className="inline-flex items-center gap-1 text-xs text-primary font-medium truncate max-w-[180px]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
-                              </span>
-                            )}
-                            {ticket.updatedAt && (
-                              <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary shrink-0">{formatRelativeTime(new Date(ticket.updatedAt))}</span>
-                            )}
-                            <button onClick={() => setDrawerTicket(ticket)}
-                              className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-primary transition-colors shrink-0">
-                              Details
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
+                        {/* ── Row 5: Assign action (for OPEN tickets only) ── */}
+                        <div className="flex items-center justify-end pt-1">
+                          <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                             {canAssign && !isArchived && (
                               <div className="relative">
                                 <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
@@ -1124,6 +1223,89 @@ export default function ServiceManagerPage() {
             </section>
           )}
 
+          {/* ═══════════════════ DEALERS VIEW ═══════════════════ */}
+          {pageView === "dealers" && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealers</h2>
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{dealers.length} dealer{dealers.length !== 1 ? "s" : ""}</p>
+                </div>
+                <button onClick={() => setShowAddDealer(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
+                  <Plus className="w-4 h-4" /> Add Dealer
+                </button>
+              </div>
+
+              {dealers.length === 0 ? (
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
+                  <Store className="w-10 h-10 mb-3 opacity-40" />
+                  <p className="text-sm">No dealers yet</p>
+                  <button onClick={() => setShowAddDealer(true)} className="mt-2 text-xs text-primary hover:underline">Add your first dealer</button>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {dealers.map(dlr => (
+                    <div key={dlr.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-2 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-content dark:text-content-dark truncate">{dlr.firstName} {dlr.lastName}</p>
+                          <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{dlr.email}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {dlr.warrantyMonths && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
+                              {dlr.warrantyMonths}m warranty
+                            </span>
+                          )}
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-surface-secondary dark:bg-surface-dark-secondary text-content-secondary dark:text-content-dark-secondary">
+                            {dlr.ticketCount ?? 0} tickets
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
+                          Added {formatRelativeTime(new Date(dlr.createdAt))}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingDealer(dlr);
+                              setEditDealerForm({
+                                firstName: dlr.firstName,
+                                lastName: dlr.lastName ?? "",
+                                newPassword: "",
+                                warrantyMonths: dlr.warrantyMonths != null ? String(dlr.warrantyMonths) : "",
+                              });
+                            }}
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
+                            title="Edit dealer">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setDeletingDealerId(dlr.id);
+                              try {
+                                const res = await fetch(`/api/manager/dealers/${dlr.id}`, { method: "DELETE", credentials: "include" });
+                                if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to delete dealer"); }
+                                else { await fetchData(); }
+                              } catch { setError("Network error"); }
+                              finally { setDeletingDealerId(null); }
+                            }}
+                            disabled={deletingDealerId === dlr.id}
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Delete dealer">
+                            {deletingDealerId === dlr.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
         </div>
       </main>
 
@@ -1314,6 +1496,176 @@ export default function ServiceManagerPage() {
               <button onClick={handleSaveEdit} disabled={savingEdit}
                 className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                 {savingEdit && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════ ADD DEALER MODAL ═══════════════════ */}
+      {showAddDealer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+              <h3 className="text-base font-bold text-content dark:text-content-dark">Add Dealer</h3>
+              <button onClick={() => setShowAddDealer(false)} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
+                  <input type="text" value={newDealer.firstName} onChange={e => setNewDealer(p => ({ ...p, firstName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Rajan" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
+                  <input type="text" value={newDealer.lastName} onChange={e => setNewDealer(p => ({ ...p, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Kumar" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Email *</label>
+                <input type="email" value={newDealer.email} onChange={e => setNewDealer(p => ({ ...p, email: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="dealer@example.com" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Password *</label>
+                <input type="password" value={newDealer.password} onChange={e => setNewDealer(p => ({ ...p, password: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="Min 8 characters" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Warranty Period</label>
+                <select value={newDealer.warrantyMonths} onChange={e => setNewDealer(p => ({ ...p, warrantyMonths: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                  <option value="">Select warranty months…</option>
+                  {[6, 12, 13, 15, 18, 24, 36].map(m => (
+                    <option key={m} value={String(m)}>{m} months</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
+              <button onClick={() => setShowAddDealer(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                Cancel
+              </button>
+              <button
+                disabled={addingDealer}
+                onClick={async () => {
+                  if (!newDealer.firstName.trim() || !newDealer.email.trim() || !newDealer.password.trim()) {
+                    setError("Name, email, and password are required"); return;
+                  }
+                  setAddingDealer(true);
+                  try {
+                    const res = await fetch("/api/manager/dealers", {
+                      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                      body: JSON.stringify({
+                        firstName: newDealer.firstName.trim(),
+                        lastName: newDealer.lastName.trim() || undefined,
+                        email: newDealer.email.trim(),
+                        password: newDealer.password,
+                        warrantyMonths: newDealer.warrantyMonths ? Number(newDealer.warrantyMonths) : undefined,
+                      }),
+                    });
+                    if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add dealer"); }
+                    else {
+                      setShowAddDealer(false);
+                      setNewDealer({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" });
+                      await fetchData();
+                    }
+                  } catch { setError("Network error"); }
+                  finally { setAddingDealer(false); }
+                }}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
+                {addingDealer && <Loader2 className="w-4 h-4 animate-spin" />}
+                Add Dealer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════ EDIT DEALER MODAL ═══════════════════ */}
+      {editingDealer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+              <div>
+                <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Dealer</h3>
+                <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{editingDealer.email}</p>
+              </div>
+              <button onClick={() => setEditingDealer(null)} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
+                  <input type="text" value={editDealerForm.firstName} onChange={e => setEditDealerForm(p => ({ ...p, firstName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
+                  <input type="text" value={editDealerForm.lastName} onChange={e => setEditDealerForm(p => ({ ...p, lastName: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">New Password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(leave blank to keep)</span></label>
+                <input type="password" value={editDealerForm.newPassword} onChange={e => setEditDealerForm(p => ({ ...p, newPassword: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="Min 8 characters" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Warranty Period</label>
+                <select value={editDealerForm.warrantyMonths} onChange={e => setEditDealerForm(p => ({ ...p, warrantyMonths: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                  <option value="">No warranty</option>
+                  {[6, 12, 13, 15, 18, 24, 36].map(m => (
+                    <option key={m} value={String(m)}>{m} months</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
+              <button onClick={() => setEditingDealer(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                Cancel
+              </button>
+              <button
+                disabled={savingDealerEdit}
+                onClick={async () => {
+                  if (!editingDealer || !editDealerForm.firstName.trim()) { setError("First name is required"); return; }
+                  setSavingDealerEdit(true);
+                  try {
+                    const body: Record<string, unknown> = {};
+                    if (editDealerForm.firstName.trim() !== editingDealer.firstName) body.firstName = editDealerForm.firstName.trim();
+                    if (editDealerForm.lastName.trim() !== (editingDealer.lastName ?? "")) body.lastName = editDealerForm.lastName.trim();
+                    if (editDealerForm.newPassword.trim()) body.newPassword = editDealerForm.newPassword;
+                    const wm = editDealerForm.warrantyMonths ? Number(editDealerForm.warrantyMonths) : null;
+                    if (wm !== (editingDealer.warrantyMonths ?? null)) body.warrantyMonths = wm;
+                    if (Object.keys(body).length > 0) {
+                      const res = await fetch(`/api/manager/dealers/${editingDealer.id}`, {
+                        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+                        body: JSON.stringify(body),
+                      });
+                      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to update dealer"); setSavingDealerEdit(false); return; }
+                    }
+                    setEditingDealer(null);
+                    await fetchData();
+                  } catch { setError("Network error"); }
+                  finally { setSavingDealerEdit(false); }
+                }}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
+                {savingDealerEdit && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save Changes
               </button>
             </div>

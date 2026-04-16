@@ -6,6 +6,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
+import ExcelJS from "exceljs";
 
 const SALT_ROUNDS = 12;
 
@@ -378,5 +379,258 @@ export async function deleteMyPincode(req: Request, res: Response): Promise<void
   } catch (err) {
     console.error("deleteMyPincode error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Dealer CRUD — Service Manager creates/manages dealers
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── POST /api/manager/dealers ─────────────────────────────────────────────
+export async function createDealer(req: Request, res: Response): Promise<void> {
+  try {
+    const { email, password, firstName, lastName, warrantyMonths } = req.body;
+
+    if (!email || !password || !firstName) {
+      res.status(400).json({ error: "email, password and firstName are required" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters" });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      res.status(409).json({ error: "An account with this email already exists" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const dealer = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        firstName: firstName.trim(),
+        lastName: lastName?.trim() ?? null,
+        role: "dealer",
+        warrantyMonths: warrantyMonths != null ? Number(warrantyMonths) : null,
+      },
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        role: true, warrantyMonths: true, createdAt: true,
+      },
+    });
+
+    res.status(201).json({ dealer });
+  } catch (err) {
+    console.error("createDealer error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── GET /api/manager/dealers ──────────────────────────────────────────────
+export async function listDealers(req: Request, res: Response): Promise<void> {
+  try {
+    const dealers = await prisma.user.findMany({
+      where: { role: "dealer" },
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        warrantyMonths: true, createdAt: true,
+        _count: { select: { dealerTickets: true } },
+      },
+      orderBy: { firstName: "asc" },
+    });
+
+    const result = dealers.map(d => ({
+      ...d,
+      ticketCount: d._count.dealerTickets,
+    }));
+
+    res.json({ dealers: result });
+  } catch (err) {
+    console.error("listDealers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── PATCH /api/manager/dealers/:id ────────────────────────────────────────
+export async function updateDealer(req: Request, res: Response): Promise<void> {
+  try {
+    const dealerId = String(req.params.id);
+    const { firstName, lastName, newPassword, warrantyMonths } = req.body;
+
+    const dealer = await prisma.user.findUnique({ where: { id: dealerId } });
+    if (!dealer || dealer.role !== "dealer") {
+      res.status(404).json({ error: "Dealer not found" });
+      return;
+    }
+
+    const data: Record<string, unknown> = {};
+    if (firstName) data.firstName = firstName.trim();
+    if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
+    if (warrantyMonths !== undefined) data.warrantyMonths = warrantyMonths != null ? Number(warrantyMonths) : null;
+    if (newPassword) {
+      if (newPassword.length < 8) {
+        res.status(400).json({ error: "Password must be at least 8 characters" });
+        return;
+      }
+      data.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    }
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: dealerId },
+      data,
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        role: true, warrantyMonths: true, createdAt: true,
+      },
+    });
+
+    res.json({ dealer: updated });
+  } catch (err) {
+    console.error("updateDealer error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── DELETE /api/manager/dealers/:id ───────────────────────────────────────
+export async function deleteDealer(req: Request, res: Response): Promise<void> {
+  try {
+    const dealerId = String(req.params.id);
+
+    const dealer = await prisma.user.findUnique({ where: { id: dealerId } });
+    if (!dealer || dealer.role !== "dealer") {
+      res.status(404).json({ error: "Dealer not found" });
+      return;
+    }
+
+    // Cascade: unlink dealer's tickets, then delete user
+    await prisma.ticket.updateMany({
+      where: { dealerId },
+      data: { dealerId: null },
+    });
+    await prisma.user.delete({ where: { id: dealerId } });
+
+    res.json({ message: "Dealer deleted" });
+  } catch (err) {
+    console.error("deleteDealer error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Export — Excel (.xlsx) ticket data for operations tracking
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── GET /api/manager/export/tickets ───────────────────────────────────────
+export async function exportTickets(req: Request, res: Response): Promise<void> {
+  try {
+    const tickets = await prisma.ticket.findMany({
+      include: {
+        customer: { select: { email: true, firstName: true, lastName: true } },
+        dealer: { select: { email: true, firstName: true, lastName: true, warrantyMonths: true } },
+        assignedEngineer: { select: { email: true, firstName: true, lastName: true } },
+        assignedManager: { select: { email: true, firstName: true, lastName: true } },
+        pincode: { select: { code: true, place: true, district: true, state: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Tickets");
+
+    sheet.columns = [
+      { header: "Ticket Number", key: "ticketNumber", width: 22 },
+      { header: "Status", key: "status", width: 14 },
+      { header: "Customer Name", key: "customerName", width: 22 },
+      { header: "Customer Phone", key: "customerPhone", width: 16 },
+      { header: "Customer Email", key: "customerEmail", width: 26 },
+      { header: "Dealer Name", key: "dealerName", width: 20 },
+      { header: "Machine Name", key: "machineName", width: 20 },
+      { header: "Serial Number", key: "serialNumber", width: 20 },
+      { header: "Product Code", key: "productCode", width: 16 },
+      { header: "Warranty (months)", key: "warranty", width: 16 },
+      { header: "Place", key: "place", width: 16 },
+      { header: "District", key: "district", width: 16 },
+      { header: "State", key: "state", width: 16 },
+      { header: "Pincode", key: "pincode", width: 10 },
+      { header: "Engineer", key: "engineer", width: 20 },
+      { header: "Manager", key: "manager", width: 20 },
+      { header: "Problem Description", key: "problem", width: 40 },
+      { header: "Created At", key: "createdAt", width: 20 },
+      { header: "Assigned At", key: "assignedAt", width: 20 },
+      { header: "Closed At", key: "closedAt", width: 20 },
+      { header: "Response Time (hrs)", key: "responseTime", width: 18 },
+      { header: "Resolution Time (hrs)", key: "resolutionTime", width: 18 },
+      { header: "OTP Verified", key: "otpVerified", width: 12 },
+    ];
+
+    // Style header row
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, size: 11 };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF4472C4" },
+    };
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+
+    for (const t of tickets) {
+      const createdAt = new Date(t.createdAt);
+      const responseTimeHrs = t.firstEngineeredAt
+        ? ((new Date(t.firstEngineeredAt).getTime() - createdAt.getTime()) / 3600000).toFixed(1)
+        : "";
+      const resolutionTimeHrs = t.closedAt
+        ? ((new Date(t.closedAt).getTime() - createdAt.getTime()) / 3600000).toFixed(1)
+        : "";
+
+      sheet.addRow({
+        ticketNumber: t.ticketNumber,
+        status: t.status,
+        customerName: t.customer ? `${t.customer.firstName} ${t.customer.lastName ?? ""}`.trim() : "",
+        customerPhone: t.phoneNumber ?? "",
+        customerEmail: t.customer?.email ?? "",
+        dealerName: t.dealer ? `${t.dealer.firstName} ${t.dealer.lastName ?? ""}`.trim() : "",
+        machineName: t.machineName ?? "",
+        serialNumber: t.machineSerialNumber ?? "",
+        productCode: t.machineProductCode ?? "",
+        warranty: t.machineWarranty ?? (t.dealer as { warrantyMonths?: number } | null)?.warrantyMonths ?? "",
+        place: t.pincode?.place ?? t.place ?? "",
+        district: t.pincode?.district ?? t.district ?? "",
+        state: t.pincode?.state ?? t.state ?? "",
+        pincode: t.pincode?.code ?? "",
+        engineer: t.assignedEngineer ? `${t.assignedEngineer.firstName} ${t.assignedEngineer.lastName ?? ""}`.trim() : "",
+        manager: t.assignedManager ? `${t.assignedManager.firstName} ${t.assignedManager.lastName ?? ""}`.trim() : "",
+        problem: t.problemDescription,
+        createdAt: t.createdAt.toISOString().replace("T", " ").slice(0, 19),
+        assignedAt: t.firstEngineeredAt ? t.firstEngineeredAt.toISOString().replace("T", " ").slice(0, 19) : "",
+        closedAt: t.closedAt ? t.closedAt.toISOString().replace("T", " ").slice(0, 19) : "",
+        responseTime: responseTimeHrs,
+        resolutionTime: resolutionTimeHrs,
+        otpVerified: t.otpVerified ? "Yes" : "No",
+      });
+    }
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="tickets_export_${new Date().toISOString().slice(0, 10)}.xlsx"`,
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("exportTickets error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
   }
 }

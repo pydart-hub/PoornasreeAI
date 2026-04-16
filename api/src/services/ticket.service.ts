@@ -51,6 +51,63 @@ function generateTicketNumber(): string {
   return `TKT-${dateStr}-${suffix}`;
 }
 
+// ── autoAssignEngineer ───────────────────────────────────────────────────
+// Attempts to auto-assign an engineer to a ticket based on pincode matching
+// and workload (least active tickets). Returns the assigned engineerId or null.
+export async function autoAssignEngineer(
+  ticketId: string,
+  pincodeId: string,
+): Promise<{ assigned: boolean; engineerId?: string }> {
+  // Find all engineers covering this pincode
+  const engineers = await prisma.user.findMany({
+    where: {
+      role: "service_engineer",
+      engineerPincodes: { some: { id: pincodeId } },
+    },
+    select: {
+      id: true,
+      _count: {
+        select: {
+          engineerTickets: {
+            where: {
+              status: {
+                in: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS, TicketStatus.PENDING_OTP],
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (engineers.length === 0) {
+    return { assigned: false };
+  }
+
+  // Sort by active ticket count ascending (least loaded first)
+  engineers.sort((a, b) => a._count.engineerTickets - b._count.engineerTickets);
+  const bestEngineer = engineers[0];
+
+  // Atomic conditional update: only if still OPEN and no engineer assigned
+  const result = await prisma.ticket.updateMany({
+    where: {
+      id:                 ticketId,
+      status:             TicketStatus.OPEN,
+      assignedEngineerId: null,
+    },
+    data: {
+      assignedEngineerId: bestEngineer.id,
+      status:             TicketStatus.ASSIGNED,
+    },
+  });
+
+  if (result.count === 1) {
+    return { assigned: true, engineerId: bestEngineer.id };
+  }
+
+  return { assigned: false };
+}
+
 // ── createTicket ─────────────────────────────────────────────────────────
 export async function createTicket(data: {
   customerId:         string;
@@ -128,7 +185,7 @@ export async function createTicket(data: {
     ownerId = defaultManager?.id ?? null;
   }
 
-  return prisma.ticket.create({
+  const ticket = await prisma.ticket.create({
     data: {
       ticketNumber,
       ownerType,
@@ -155,6 +212,26 @@ export async function createTicket(data: {
     },
     include: TICKET_INCLUDE,
   });
+
+  // Attempt auto-assignment if ticket has a pincode and is manager-routed
+  if (data.pincodeId && ownerType === TicketOwnerType.MANAGER) {
+    try {
+      const result = await autoAssignEngineer(ticket.id, data.pincodeId);
+      if (result.assigned) {
+        // Re-fetch with updated assignment
+        const updated = await prisma.ticket.findUnique({
+          where: { id: ticket.id },
+          include: TICKET_INCLUDE,
+        });
+        if (updated) return updated;
+      }
+    } catch (err) {
+      // Non-blocking: auto-assign failure should not break ticket creation
+      console.error(`[createTicket] auto-assign failed for ticket ${ticket.ticketNumber}:`, err);
+    }
+  }
+
+  return ticket;
 }
 
 // ── listTickets ───────────────────────────────────────────────────────────

@@ -14,6 +14,11 @@ import {
   createMyPincodesBatch,
   updateMyPincode,
   deleteMyPincode,
+  createDealer,
+  listDealers,
+  updateDealer,
+  deleteDealer,
+  exportTickets,
 } from "../controllers/manager.controller";
 
 const router = Router();
@@ -32,5 +37,14 @@ router.post("/pincodes/batch",              createMyPincodesBatch);
 router.post("/pincodes",                    createMyPincode);
 router.patch("/pincodes/:id",               updateMyPincode);
 router.delete("/pincodes/:id",              deleteMyPincode);
+
+// Dealers
+router.post("/dealers",                     createDealer);
+router.get("/dealers",                      listDealers);
+router.patch("/dealers/:id",                updateDealer);
+router.delete("/dealers/:id",               deleteDealer);
+
+// Export
+router.get("/export/tickets",               exportTickets);
 
 export default router;
