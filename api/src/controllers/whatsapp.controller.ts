@@ -93,6 +93,19 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   const text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
 
+  // ── Check if sender is a service engineer ──
+  const engineer = await prisma.user.findFirst({
+    where: { whatsappNumber: from, role: "service_engineer" },
+    select: { id: true, firstName: true },
+  });
+
+  if (engineer) {
+    await handleEngineerMessage(from, text, engineer);
+    return;
+  }
+
+  // ── Customer flow — existing FSM ──
+
   // Persist user message
   if (text) {
     await prisma.simulateMessage.create({
@@ -112,4 +125,99 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     // Send reply via WhatsApp
     await WhatsAppService.sendMessage(from, result.message);
   }
+}
+
+// ── Engineer-specific WhatsApp handler ────────────────────────────────────
+// Engineers get a different experience — ticket status, assignment info, etc.
+async function handleEngineerMessage(
+  from: string,
+  text: string,
+  engineer: { id: string; firstName: string },
+): Promise<void> {
+  const upperText = text.toUpperCase().trim();
+
+  if (upperText === "MENU" || upperText === "HI" || upperText === "HELLO" || upperText === "START") {
+    const reply = [
+      `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.`,
+      "",
+      "Available commands:",
+      "📋 *TICKETS* — View your assigned tickets",
+      "📊 *STATUS* — Quick ticket count summary",
+      "❓ *HELP* — Show this menu again",
+    ].join("\n");
+    await WhatsAppService.sendMessage(from, reply);
+    return;
+  }
+
+  if (upperText === "TICKETS") {
+    const tickets = await prisma.ticket.findMany({
+      where: {
+        assignedEngineerId: engineer.id,
+        status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
+      },
+      select: {
+        ticketNumber: true,
+        status: true,
+        problemDescription: true,
+        customer: { select: { firstName: true, lastName: true } },
+        pincode: { select: { code: true, place: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    if (tickets.length === 0) {
+      await WhatsAppService.sendMessage(from, "✅ You have no active tickets right now. Great job!");
+      return;
+    }
+
+    const lines = tickets.map((t, i) => {
+      const customer = t.customer ? `${t.customer.firstName} ${t.customer.lastName ?? ""}`.trim() : "Unknown";
+      const loc = t.pincode ? `${t.pincode.place ?? ""} ${t.pincode.code}`.trim() : "";
+      const desc = t.problemDescription ? t.problemDescription.slice(0, 50) : "";
+      return `${i + 1}. *${t.ticketNumber}* (${t.status})\n   👤 ${customer}${loc ? ` · 📍 ${loc}` : ""}${desc ? `\n   ${desc}` : ""}`;
+    });
+
+    const reply = [`📋 *Your Active Tickets (${tickets.length}):*`, "", ...lines].join("\n");
+    await WhatsAppService.sendMessage(from, reply);
+    return;
+  }
+
+  if (upperText === "STATUS") {
+    const counts = await prisma.ticket.groupBy({
+      by: ["status"],
+      where: { assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP", "CLOSED"] } },
+      _count: { _all: true },
+    });
+
+    const get = (s: string) => counts.find(c => c.status === s)?._count._all ?? 0;
+    const reply = [
+      `📊 *Ticket Summary for ${engineer.firstName}:*`,
+      "",
+      `🔵 Assigned: ${get("ASSIGNED")}`,
+      `🟡 In Progress: ${get("IN_PROGRESS")}`,
+      `🟠 Pending OTP: ${get("PENDING_OTP")}`,
+      `✅ Closed: ${get("CLOSED")}`,
+    ].join("\n");
+    await WhatsAppService.sendMessage(from, reply);
+    return;
+  }
+
+  if (upperText === "HELP") {
+    const reply = [
+      `🔧 *Engineer Commands:*`,
+      "",
+      "📋 *TICKETS* — View your assigned tickets",
+      "📊 *STATUS* — Quick ticket count summary",
+      "❓ *HELP* — Show this menu",
+    ].join("\n");
+    await WhatsAppService.sendMessage(from, reply);
+    return;
+  }
+
+  // Default — unrecognized command
+  await WhatsAppService.sendMessage(
+    from,
+    `Hi ${engineer.firstName}, I didn't understand that. Type *HELP* to see available commands.`,
+  );
 }

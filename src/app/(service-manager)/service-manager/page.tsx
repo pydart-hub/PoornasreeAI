@@ -29,6 +29,7 @@ import {
   Filter,
   Download,
   Store,
+  Phone,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
@@ -38,7 +39,7 @@ import { parseTicketDescription } from "@/components/service-manager/utils";
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "team" | "locations" | "dealers";
+type PageView = "tickets" | "engineers" | "locations" | "dealers";
 
 interface PincodeInfo {
   id: string;
@@ -53,6 +54,7 @@ interface Engineer {
   firstName: string;
   lastName?: string | null;
   email: string;
+  whatsappNumber?: string | null;
   activeTickets?: number;
   engineerPincodes?: PincodeInfo[];
 }
@@ -155,12 +157,12 @@ export default function ServiceManagerPage() {
 
   // ── Team modal state — Add ──
   const [showAddEngineer, setShowAddEngineer] = useState(false);
-  const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", password: "", pincodeIds: [] as string[] });
+  const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", password: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [addingEngineer, setAddingEngineer] = useState(false);
 
   // ── Team modal state — Edit ──
   const [editingEng, setEditingEng] = useState<Engineer | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] as string[] });
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
 
   // ── Locations state ──
@@ -195,13 +197,14 @@ export default function ServiceManagerPage() {
       firstName: eng.firstName,
       lastName: eng.lastName ?? "",
       newPassword: "",
+      whatsappNumber: eng.whatsappNumber ?? "",
       pincodeIds: eng.engineerPincodes?.map(p => p.id) ?? [],
     });
   };
 
   const closeEditModal = () => {
     setEditingEng(null);
-    setEditForm({ firstName: "", lastName: "", newPassword: "", pincodeIds: [] });
+    setEditForm({ firstName: "", lastName: "", newPassword: "", whatsappNumber: "", pincodeIds: [] });
   };
 
   // ── Custom pincode API lookup (optional, graceful) ──
@@ -323,6 +326,7 @@ export default function ServiceManagerPage() {
       const basicBody: Record<string, string | undefined> = {};
       if (editForm.firstName.trim() !== editingEng.firstName) basicBody.firstName = editForm.firstName.trim();
       if (editForm.lastName.trim() !== (editingEng.lastName ?? "")) basicBody.lastName = editForm.lastName.trim();
+      if (editForm.whatsappNumber.trim() !== (editingEng.whatsappNumber ?? "")) basicBody.whatsappNumber = editForm.whatsappNumber.trim();
       if (editForm.newPassword.trim()) {
         if (editForm.newPassword.length < 8) { setError("Password must be at least 8 characters"); setSavingEdit(false); return; }
         basicBody.newPassword = editForm.newPassword;
@@ -427,13 +431,14 @@ export default function ServiceManagerPage() {
           lastName: newEng.lastName.trim() || undefined,
           email: newEng.email.trim(),
           password: newEng.password,
+          whatsappNumber: newEng.whatsappNumber.trim() || undefined,
           pincodeIds: newEng.pincodeIds,
         }),
       });
       if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add engineer"); }
       else {
         setShowAddEngineer(false);
-        setNewEng({ firstName: "", lastName: "", email: "", password: "", pincodeIds: [] });
+        setNewEng({ firstName: "", lastName: "", email: "", password: "", whatsappNumber: "", pincodeIds: [] });
         await fetchData();
       }
     } catch { setError("Network error"); }
@@ -554,7 +559,7 @@ export default function ServiceManagerPage() {
           <div className="fixed bottom-0 inset-x-0 z-30 flex items-center bg-surface-card dark:bg-surface-dark-card border-t border-line dark:border-line-dark sm:static sm:inset-x-auto sm:bottom-auto sm:z-auto sm:rounded-xl sm:border sm:shadow-sm sm:p-1">
             {([
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-5 h-5 sm:w-4 sm:h-4" />, count: total },
-              { key: "team" as PageView, label: "Team", icon: <Users className="w-5 h-5 sm:w-4 sm:h-4" />, count: engineers.length },
+              { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-5 h-5 sm:w-4 sm:h-4" />, count: engineers.length },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-5 h-5 sm:w-4 sm:h-4" />, count: myPincodes.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-5 h-5 sm:w-4 sm:h-4" />, count: dealers.length },
             ]).map(nav => (
@@ -889,7 +894,7 @@ export default function ServiceManagerPage() {
           )}
 
           {/* ═══════════════════ TEAM VIEW ═══════════════════ */}
-          {pageView === "team" && (
+          {pageView === "engineers" && (
             <section className="space-y-4">
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -918,6 +923,11 @@ export default function ServiceManagerPage() {
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-content dark:text-content-dark truncate">{eng.firstName} {eng.lastName}</p>
                           <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{eng.email}</p>
+                          {eng.whatsappNumber && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3" /> {eng.whatsappNumber}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className={cn(
@@ -1343,6 +1353,17 @@ export default function ServiceManagerPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
+                  <input type="text" value={newEng.whatsappNumber} onChange={e => setNewEng(p => ({ ...p, whatsappNumber: e.target.value }))}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="91XXXXXXXXXX" />
+                </div>
+                <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">International format — greeting will be sent on registration</p>
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Password *</label>
                 <input type="password" value={newEng.password} onChange={e => setNewEng(p => ({ ...p, password: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -1448,6 +1469,17 @@ export default function ServiceManagerPage() {
                 <input type="password" value={editForm.newPassword} onChange={e => setEditForm(p => ({ ...p, newPassword: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   placeholder="Min 8 characters" />
+              </div>
+
+              {/* WhatsApp Number */}
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
+                  <input type="text" value={editForm.whatsappNumber} onChange={e => setEditForm(p => ({ ...p, whatsappNumber: e.target.value }))}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="91XXXXXXXXXX" />
+                </div>
               </div>
 
               {/* Pincode multi-select — only manager's own pincodes */}

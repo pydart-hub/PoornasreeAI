@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 import ExcelJS from "exceljs";
+import * as WhatsAppService from "../services/whatsapp.service";
 
 const SALT_ROUNDS = 12;
 
@@ -16,7 +17,7 @@ const SALT_ROUNDS = 12;
 export async function createEngineer(req: Request, res: Response): Promise<void> {
   try {
     const managerId = req.user!.userId;
-    const { email, password, firstName, lastName, pincodeIds } = req.body;
+    const { email, password, firstName, lastName, pincodeIds, whatsappNumber } = req.body;
 
     if (!email || !password || !firstName) {
       res.status(400).json({ error: "email, password and firstName are required" });
@@ -43,6 +44,7 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
         lastName: lastName?.trim() ?? null,
         role: "service_engineer",
         managerId,
+        ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim() } : {}),
         ...(pincodeIds && pincodeIds.length > 0
           ? { engineerPincodes: { connect: (pincodeIds as string[]).map((id: string) => ({ id })) } }
           : {}),
@@ -52,12 +54,33 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
         email: true,
         firstName: true,
         lastName: true,
+        whatsappNumber: true,
         role: true,
         createdAt: true,
         manager: { select: { id: true, firstName: true, lastName: true } },
         engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
       },
     });
+
+    // Send WhatsApp greeting to the new engineer (fire-and-forget)
+    if (engineer.whatsappNumber) {
+      const manager = engineer.manager;
+      const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
+      const greeting = [
+        `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
+        "",
+        `You've been registered as a Service Engineer by ${managerName}.`,
+        "",
+        "You'll receive ticket assignments and updates here on WhatsApp.",
+        "",
+        `Login credentials: ${engineer.email}`,
+        "",
+        "Thank you! 🙏",
+      ].join("\n");
+      WhatsAppService.sendMessage(engineer.whatsappNumber, greeting).catch((err) =>
+        console.error("[manager] Failed to send engineer greeting:", err),
+      );
+    }
 
     res.status(201).json({ engineer });
   } catch (err) {
@@ -79,6 +102,7 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
         email: true,
         firstName: true,
         lastName: true,
+        whatsappNumber: true,
         createdAt: true,
         engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
         _count: {
@@ -114,7 +138,7 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
   try {
     const managerId = req.user!.userId;
     const engineerId = String(req.params.id);
-    const { firstName, lastName, newPassword } = req.body;
+    const { firstName, lastName, newPassword, whatsappNumber } = req.body;
 
     const engineer = await prisma.user.findUnique({ where: { id: engineerId } });
     if (!engineer || engineer.role !== "service_engineer") {
@@ -129,6 +153,7 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     const data: Record<string, unknown> = {};
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
+    if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim() || null;
     if (newPassword) {
       if (newPassword.length < 8) {
         res.status(400).json({ error: "Password must be at least 8 characters" });
@@ -145,7 +170,7 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     const updated = await prisma.user.update({
       where: { id: engineerId },
       data,
-      select: { id: true, email: true, firstName: true, lastName: true, role: true },
+      select: { id: true, email: true, firstName: true, lastName: true, whatsappNumber: true, role: true },
     });
 
     res.json({ engineer: updated });
