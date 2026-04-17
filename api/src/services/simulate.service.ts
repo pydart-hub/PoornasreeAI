@@ -1,13 +1,20 @@
-﻿// ── Simulate Service (Simplified Test Chat FSM) ──────────────────────────
+﻿// ── Simulate Service (WhatsApp Customer Chat FSM) ────────────────────────
 //
 // Flow overview:
-//   GREETING       → any message → ask for serial number
-//   SERIAL_INPUT   → normalize serial → call Passtest API
-//                    → success: show machine details → MACHINE_CONFIRM
-//                    → failure: show warning → MANUAL_NAME
-//   MACHINE_CONFIRM → "1" (Yes) → create ticket (auto-route) → COMPLETED
-//                    → "2" (No)  → MANUAL_NAME
-//   MANUAL_NAME     → MANUAL_PLACE → MANUAL_PINCODE → create ticket → COMPLETED
+//   GREETING        → check registration → greet or ask phone
+//   ASK_PHONE       → validate 10-digit → lookup → MAIN_MENU or re-ask
+//   MAIN_MENU       → route to selected option
+//   VIEW_PRODUCTS   → display product list → back to menu
+//   COMPLAINT_NAME  → collect name → COMPLAINT_PINCODE
+//   COMPLAINT_PINCODE → 6-digit pincode → fetch place → COMPLAINT_PINCODE_CONFIRM
+//   COMPLAINT_PINCODE_CONFIRM → confirm place → COMPLAINT_SERIAL
+//   COMPLAINT_SERIAL → serial number → Passtest API → MACHINE_CONFIRM or COMPLAINT_PRODUCT
+//   MACHINE_CONFIRM  → confirm machine → COMPLAINT_PRODUCT
+//   COMPLAINT_PRODUCT → select product → COMPLAINT_ISSUE
+//   COMPLAINT_ISSUE   → free-text complaint → create ticket → COMPLETED
+//   CHECK_STATUS      → show active tickets → back to menu
+//   FEEDBACK_RATING   → 1-5 rating → FEEDBACK_SATISFIED
+//   FEEDBACK_SATISFIED → yes/no → COMPLETED
 //
 // Global commands (any state): MENU (restart), BYE (close)
 
@@ -18,51 +25,52 @@ import { io } from "../lib/socket";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
-  serialNumber?:   string;
-  machineData?:    PasstestMachine | null;
-  manualName?:     string;
-  manualPlace?:    string;
-  manualPincode?:  string;
-  manualDistrict?: string;
-  manualState?:    string;
-  complaint?:      string;
-  pincodeDisplay?: string;
+  customerName?:    string;
+  customerPhone?:   string;
+  serialNumber?:    string;
+  machineData?:     PasstestMachine | null;
+  manualName?:      string;
+  manualPlace?:     string;
+  manualPincode?:   string;
+  manualDistrict?:  string;
+  manualState?:     string;
+  complaint?:       string;
+  pincodeDisplay?:  string;
+  selectedProduct?: string;
+  feedbackTicketId?: string;
 };
 
-// ── Complaint options ────────────────────────────────────────────────────
-const COMPLAINTS = [
-  "Machine not turning on",
-  "No display / blank screen",
-  "Vibration / unusual noise",
-  "Overheating",
-  "Button / control not responding",
-  "Error code on display",
-  "Physical damage",
-  "Other",
-];
-
-function complaintsMessage(): string {
-  return (
-    "Please select your complaint:\n\n" +
-    COMPLAINTS.map((c, i) => `${i + 1}. ${c}`).join("\n")
-  );
-}
-
 // ── Static messages ───────────────────────────────────────────────────────
-const GREETING_MSG =
-  "Hello 👋\nWelcome to Poornasree Support 🤖\n\n" +
-  "Please enter your machine serial number:";
+const NOT_REGISTERED_MSG =
+  `📱 This mobile number is not registered with us.\n\n` +
+  `If you are a Registered Customer, please provide your registered 10 digit mobile number.\n\n` +
+  `Eg. 9633503333\n\n` +
+  `Else type *SKIP* to Continue. 👇`;
+
+const MAIN_MENU_MSG =
+  `Hello,\n\n` +
+  `Welcome to Poornasree HelpDesk. 🤖📲\n\n` +
+  `📜 Here are the options for you. 👇\n\n` +
+  `1️⃣ View Our Products\n` +
+  `2️⃣ Complaint Registration\n` +
+  `3️⃣ Complaint Status\n` +
+  `4️⃣ Product Installation\n` +
+  `5️⃣ Speak to Support`;
 
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function handleMessage(phoneNumber: string, message: string) {
   const text = message.trim();
-
-  // ── Global navigation commands ──────────────────────────────────────────────────
   const upper = text.toUpperCase();
+
+  // ── Global navigation commands (any state except feedback) ──────────────
   if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESET") {
     const s = await getOrCreateSession(phoneNumber);
-    await updateSession(s.id, "SERIAL_INPUT", {});
-    return makeReply(GREETING_MSG);
+    const meta: SessionMeta = (s.metadata as SessionMeta) ?? {};
+    // If in feedback flow, don't interrupt
+    if (s.state === "FEEDBACK_RATING" || s.state === "FEEDBACK_SATISFIED") {
+      return routeState(s, phoneNumber, text, meta);
+    }
+    return startGreeting(phoneNumber);
   }
 
   if (upper === "BYE") {
@@ -77,6 +85,36 @@ export async function handleMessage(phoneNumber: string, message: string) {
   return routeState(session, phoneNumber, text, meta);
 }
 
+// ── Greeting / Registration check ─────────────────────────────────────────
+async function startGreeting(phoneNumber: string) {
+  const session = await getOrCreateSession(phoneNumber);
+
+  // Check if this phone has raised a ticket before
+  const existingTicket = await prisma.ticket.findFirst({
+    where: { phoneNumber },
+    orderBy: { createdAt: "desc" },
+    select: {
+      machineCustomer: true,
+      phoneNumber: true,
+      pincode: { select: { place: true, code: true } },
+    },
+  });
+
+  if (existingTicket) {
+    const name = existingTicket.machineCustomer || "Customer";
+    const meta: SessionMeta = { customerName: name, customerPhone: phoneNumber };
+    await updateSession(session.id, "MAIN_MENU", meta);
+    return makeReply(
+      `Welcome back, ${name}! 👋\n\n` +
+      MAIN_MENU_MSG
+    );
+  }
+
+  // Not registered
+  await updateSession(session.id, "ASK_PHONE", {});
+  return makeReply(NOT_REGISTERED_MSG);
+}
+
 // ── State router ──────────────────────────────────────────────────────────
 async function routeState(
   session: { id: string; state: string },
@@ -87,151 +125,204 @@ async function routeState(
   switch (session.state) {
     case "GREETING":
     case "COMPLETED":
-      // Fresh start or restart → ask for serial
-      await updateSession(session.id, "SERIAL_INPUT", {});
-      return makeReply(GREETING_MSG);
+      return startGreeting(phoneNumber);
 
-    case "SERIAL_INPUT":
-      return handleSerialInput(session.id, meta, text);
+    case "ASK_PHONE":
+      return handleAskPhone(session.id, phoneNumber, text);
+
+    case "MAIN_MENU":
+      return handleMainMenu(session.id, phoneNumber, meta, text);
+
+    case "VIEW_PRODUCTS":
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(MAIN_MENU_MSG);
+
+    case "COMPLAINT_NAME":
+      return handleComplaintName(session.id, meta, text);
+
+    case "COMPLAINT_PINCODE":
+      return handleComplaintPincode(session.id, meta, text);
+
+    case "COMPLAINT_PINCODE_CONFIRM":
+      return handleComplaintPincodeConfirm(session.id, meta, text);
+
+    case "COMPLAINT_SERIAL":
+      return handleComplaintSerial(session.id, meta, text);
 
     case "MACHINE_CONFIRM":
-      return handleMachineConfirm(session.id, phoneNumber, meta, text);
+      return handleMachineConfirm(session.id, meta, text);
 
-    case "MANUAL_NAME":
-      return handleManualName(session.id, meta, text);
+    case "COMPLAINT_PRODUCT":
+      return handleComplaintProduct(session.id, meta, text);
 
-    case "MANUAL_PLACE":
-      return handleManualPlace(session.id, meta, text);
+    case "COMPLAINT_ISSUE":
+      return handleComplaintIssue(session.id, phoneNumber, meta, text);
 
-    case "API_PINCODE":
-      return handleApiPincode(session.id, phoneNumber, meta, text);
+    case "CHECK_STATUS":
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(MAIN_MENU_MSG);
 
-    case "API_PINCODE_CONFIRM":
-      return handleApiPincodeConfirm(session.id, meta, text);
+    case "INSTALLATION_INFO":
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(MAIN_MENU_MSG);
 
-    case "API_COMPLAINT":
-      return handleApiComplaint(session.id, phoneNumber, meta, text);
+    case "FEEDBACK_RATING":
+      return handleFeedbackRating(session.id, meta, text);
 
-    case "MANUAL_PINCODE":
-      return handleManualPincode(session.id, phoneNumber, meta, text);
-
-    case "MANUAL_PINCODE_CONFIRM":
-      return handleManualPincodeConfirm(session.id, meta, text);
-
-    case "MANUAL_COMPLAINT":
-      return handleManualComplaint(session.id, phoneNumber, meta, text);
+    case "FEEDBACK_SATISFIED":
+      return handleFeedbackSatisfied(session.id, meta, text);
 
     default:
-      await updateSession(session.id, "SERIAL_INPUT", {});
-      return makeReply(GREETING_MSG);
+      return startGreeting(phoneNumber);
   }
 }
 
-// ── SERIAL_INPUT ──────────────────────────────────────────────────────────
-async function handleSerialInput(sessionId: string, _meta: SessionMeta, text: string) {
-  // Normalize: trim + uppercase only. Do NOT force any prefix.
-  const serial = text.replace(/\s+/g, "").toUpperCase();
-  console.log(`[simulate] Serial received: "${text}" → normalized: "${serial}"`);
+// ── ASK_PHONE ─────────────────────────────────────────────────────────────
+async function handleAskPhone(sessionId: string, chatPhone: string, text: string) {
+  const upper = text.toUpperCase().trim();
 
-  if (serial.length < 1) {
-    return makeReply("Please enter your machine serial number:");
+  if (upper === "SKIP" || upper === "0") {
+    const meta: SessionMeta = { customerPhone: chatPhone };
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(MAIN_MENU_MSG);
   }
 
-  // Call Passtest API
-  let machineData: PasstestMachine | null = null;
-  try {
-    machineData = await fetchMachineBySerial(serial);
-    console.log(`[simulate] API result for "${serial}":`, machineData ? "FOUND" : "NOT FOUND");
-  } catch (err) {
-    console.error(`[simulate] API error for "${serial}":`, (err as Error).message);
-    // API error — continue to manual flow
-  }
-
-  if (machineData) {
-    // Look up admin Machine table for a friendly model name
-    let adminModelName: string | undefined;
-    try {
-      const adminMachine = await prisma.machine.findUnique({ where: { serialNumber: serial } });
-      if (adminMachine?.modelName) adminModelName = adminMachine.modelName;
-    } catch { /* non-blocking */ }
-
-    const displayName = adminModelName || machineData.m_model || "N/A";
-    const newMeta: SessionMeta = { serialNumber: serial, machineData };
-    await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
+  const digits = text.replace(/\D/g, "");
+  if (digits.length !== 10) {
     return makeReply(
-      `✅ We found your machine details:\n\n` +
-      `👤 Customer: ${machineData.customer || "N/A"}\n` +
-      `🔧 Machine Name: ${displayName}\n` +
-      `📍 Location: ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
-      `Is this your machine?\n\n` +
-      `1. Yes ✅\n` +
-      `2. No ❌`
+      `⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333\n\nOr type *SKIP* to continue as a new customer.`
     );
   }
 
-  // API failed or machine not found → manual flow
-  console.log(`[simulate] No machine data for "${serial}" — entering manual flow`);
-  const newMeta: SessionMeta = { serialNumber: serial, machineData: null };
-  await updateSession(sessionId, "MANUAL_NAME", newMeta);
+  const lookupPhone = digits.startsWith("91") ? digits : `91${digits}`;
+  const ticket = await prisma.ticket.findFirst({
+    where: { OR: [{ phoneNumber: lookupPhone }, { phoneNumber: digits }] },
+    orderBy: { createdAt: "desc" },
+    select: { machineCustomer: true, phoneNumber: true },
+  });
+
+  if (ticket) {
+    const name = ticket.machineCustomer || "Customer";
+    const meta: SessionMeta = { customerName: name, customerPhone: digits };
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(`✅ Found! Welcome back, ${name}! 👋\n\n` + MAIN_MENU_MSG);
+  }
+
+  return makeReply(`❌ No records found for this number.\n\nPlease try another number or type *SKIP* to continue as a new customer.`);
+}
+
+// ── MAIN_MENU ─────────────────────────────────────────────────────────────
+async function handleMainMenu(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const choice = text.trim();
+
+  if (choice === "1") {
+    return showProducts(sessionId, meta);
+  }
+  if (choice === "2") {
+    if (meta.customerName) {
+      await updateSession(sessionId, "COMPLAINT_PINCODE", meta);
+      return makeReply(`👤 Name: *${meta.customerName}*\n\nPlease enter your pincode (6 digits):`);
+    }
+    await updateSession(sessionId, "COMPLAINT_NAME", meta);
+    return makeReply("Please enter your full name:");
+  }
+  if (choice === "3") {
+    return showTicketStatus(sessionId, phoneNumber, meta);
+  }
+  if (choice === "4") {
+    await updateSession(sessionId, "INSTALLATION_INFO", meta);
+    return makeReply(
+      `🔧 *Product Installation*\n\n` +
+      `For product installation requests, please contact our service team:\n\n` +
+      `📞 Call: +91 9633503333\n📧 Email: service@poornasree.com\n\n` +
+      `Or register a complaint with option *2️⃣ Complaint Registration* and mention "Installation" as the issue.\n\n` +
+      `Reply *MENU* to go back.`
+    );
+  }
+  if (choice === "5") {
+    await updateSession(sessionId, "COMPLETED", meta);
+    return makeReply(
+      `📞 *Speak to Support*\n\nOur support team will reach out to you shortly.\n\n` +
+      `You can also reach us at:\n📞 +91 9633503333\n📧 support@poornasree.com\n\n` +
+      `Reply *MENU* to go back to main menu.`
+    );
+  }
+
+  return makeReply(`Please select a valid option (1-5):\n\n${MAIN_MENU_MSG}`);
+}
+
+// ── VIEW_PRODUCTS ─────────────────────────────────────────────────────────
+async function showProducts(sessionId: string, meta: SessionMeta) {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  let productList: string;
+  if (products.length > 0) {
+    productList = products.map((p, i) => `${i + 1}. ${p.name}`).join("\n");
+  } else {
+    productList =
+      "1. Milk Analyzer\n2. VIBRO Stirrer\n3. Water Pump\n4. Motor Controller\n5. Display Unit";
+  }
+
+  await updateSession(sessionId, "VIEW_PRODUCTS", meta);
   return makeReply(
-    "⚠️ We couldn't fetch machine details. Please continue manually.\n\n" +
-    "Please enter your name:"
+    `📦 *Our Products:*\n\n${productList}\n\nReply *MENU* to go back to main menu.\nReply *2* to register a complaint.`
   );
 }
 
-// ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
-async function handleMachineConfirm(
-  sessionId: string,
-  phoneNumber: string,
-  meta: SessionMeta,
-  text: string,
-) {
-  if (text === "1" || /^yes/i.test(text)) {
-    // Yes — ask for pincode (API does not provide it)
-    await updateSession(sessionId, "API_PINCODE", meta);
-    return makeReply("Please enter your pincode (6 digits):");
+// ── CHECK_STATUS ──────────────────────────────────────────────────────────
+async function showTicketStatus(sessionId: string, phoneNumber: string, meta: SessionMeta) {
+  const lookupPhones = [phoneNumber];
+  if (meta.customerPhone && meta.customerPhone !== phoneNumber) {
+    lookupPhones.push(meta.customerPhone);
+    lookupPhones.push(`91${meta.customerPhone}`);
   }
-  if (text === "2" || /^no/i.test(text)) {
-    // No — fall to manual flow (keep serial)
-    await updateSession(sessionId, "MANUAL_NAME", {
-      serialNumber: meta.serialNumber,
-      machineData: null,
-    });
-    return makeReply("Please enter your name:");
+
+  const tickets = await prisma.ticket.findMany({
+    where: { phoneNumber: { in: lookupPhones } },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { ticketNumber: true, status: true, problemDescription: true, machineName: true, createdAt: true },
+  });
+
+  if (tickets.length === 0) {
+    await updateSession(sessionId, "CHECK_STATUS", meta);
+    return makeReply(`📋 No tickets found for your number.\n\nReply *2* to register a new complaint.\nReply *MENU* to go back.`);
   }
-  return makeReply("Please reply:\n1. Yes ✅\n2. No ❌");
+
+  const statusEmoji: Record<string, string> = {
+    OPEN: "🔵", ASSIGNED: "🟡", IN_PROGRESS: "🟠", PENDING_OTP: "🟣", CLOSED: "✅",
+  };
+
+  const lines = tickets.map((t, i) => {
+    const emoji = statusEmoji[t.status] || "⚪";
+    const date = t.createdAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const complaint = t.problemDescription?.slice(0, 40) || "—";
+    return `${i + 1}. *${t.ticketNumber}*\n   ${emoji} ${t.status}\n   📅 ${date}\n   📝 ${complaint}`;
+  });
+
+  await updateSession(sessionId, "CHECK_STATUS", meta);
+  return makeReply(`📋 *Your Tickets (${tickets.length}):*\n\n` + lines.join("\n\n") + `\n\nReply *MENU* to go back.`);
 }
 
-// ── MANUAL_NAME ───────────────────────────────────────────────────────────
-async function handleManualName(sessionId: string, meta: SessionMeta, text: string) {
+// ── COMPLAINT_NAME ────────────────────────────────────────────────────────
+async function handleComplaintName(sessionId: string, meta: SessionMeta, text: string) {
   if (text.length < 2) {
     return makeReply("Please enter your full name (at least 2 characters):");
   }
-  await updateSession(sessionId, "MANUAL_PLACE", { ...meta, manualName: text });
-  return makeReply("Please enter your location:");
-}
-
-// ── MANUAL_PLACE ──────────────────────────────────────────────────────────
-async function handleManualPlace(sessionId: string, meta: SessionMeta, text: string) {
-  if (text.length < 2) {
-    return makeReply("Please enter your location:");
-  }
-  await updateSession(sessionId, "MANUAL_PINCODE", { ...meta, manualPlace: text });
+  const updatedMeta = { ...meta, manualName: text, customerName: text };
+  await updateSession(sessionId, "COMPLAINT_PINCODE", updatedMeta);
   return makeReply("Please enter your pincode (6 digits):");
 }
 
-// ── API_PINCODE → fetch pincode location → confirm place ────────────────
-async function handleApiPincode(
-  sessionId: string,
-  _phoneNumber: string,
-  meta: SessionMeta,
-  text: string,
-) {
+// ── COMPLAINT_PINCODE ─────────────────────────────────────────────────────
+async function handleComplaintPincode(sessionId: string, meta: SessionMeta, text: string) {
   if (!/^\d{6}$/.test(text)) {
     return makeReply("Please enter a valid 6-digit pincode (numbers only):");
   }
 
-  // Enrich from India Pincode API
   let district: string | undefined;
   let stateName: string | undefined;
   let place: string | undefined;
@@ -263,7 +354,7 @@ async function handleApiPincode(
     pincodeDisplay: locationStr || text,
   };
 
-  await updateSession(sessionId, "API_PINCODE_CONFIRM", updatedMeta);
+  await updateSession(sessionId, "COMPLAINT_PINCODE_CONFIRM", updatedMeta);
 
   const locationLine = locationStr
     ? `📍 *${locationStr}*`
@@ -272,148 +363,189 @@ async function handleApiPincode(
   return makeReply(`${locationLine}\n\nIs this your location?\n\n1. Yes ✅\n2. No, re-enter ❌`);
 }
 
-// ── API_PINCODE_CONFIRM ──────────────────────────────────
-async function handleApiPincodeConfirm(
-  sessionId: string,
-  meta: SessionMeta,
-  text: string,
-) {
+// ── COMPLAINT_PINCODE_CONFIRM ─────────────────────────────────────────────
+async function handleComplaintPincodeConfirm(sessionId: string, meta: SessionMeta, text: string) {
   if (text === "1" || /^yes/i.test(text)) {
-    await updateSession(sessionId, "API_COMPLAINT", meta);
-    return makeReply(complaintsMessage());
+    await updateSession(sessionId, "COMPLAINT_SERIAL", meta);
+    return makeReply("Please enter your machine serial number:");
   }
   if (text === "2" || /^no/i.test(text)) {
-    await updateSession(sessionId, "API_PINCODE", {
-      ...meta,
-      manualPincode:  undefined,
-      manualPlace:    undefined,
-      manualDistrict: undefined,
-      manualState:    undefined,
-      pincodeDisplay: undefined,
+    await updateSession(sessionId, "COMPLAINT_PINCODE", {
+      ...meta, manualPincode: undefined, manualPlace: undefined, manualDistrict: undefined, manualState: undefined, pincodeDisplay: undefined,
     });
     return makeReply("Please enter your pincode (6 digits):");
   }
   return makeReply("Please reply:\n1. Yes ✅\n2. No, re-enter ❌");
 }
 
-// ── API_COMPLAINT → create ticket ────────────────────────────────────────
-async function handleApiComplaint(
-  sessionId: string,
-  phoneNumber: string,
-  meta: SessionMeta,
-  text: string,
-) {
-  // Accept complaint by number OR by matching the label text (from button tap)
-  const byText   = COMPLAINTS.findIndex((c) => c.toLowerCase() === text.toLowerCase());
-  const byNumber = parseInt(text, 10) - 1;
-  const index    = byText >= 0 ? byText : byNumber;
-  if (isNaN(index) || index < 0 || index >= COMPLAINTS.length) {
-    return makeReply(`${complaintsMessage()}\n\nPlease select a valid option (1-${COMPLAINTS.length}):`);
-  }
-  const updatedMeta = { ...meta, complaint: COMPLAINTS[index] };
-  return createTicketFromAPI(sessionId, phoneNumber, updatedMeta);
-}
+// ── COMPLAINT_SERIAL ──────────────────────────────────────────────────────
+async function handleComplaintSerial(sessionId: string, meta: SessionMeta, text: string) {
+  const serial = text.replace(/\s+/g, "").toUpperCase();
+  console.log(`[simulate] Serial received: "${text}" → normalized: "${serial}"`);
 
-// ── MANUAL_PINCODE → fetch location → confirm place ──────────────────
-async function handleManualPincode(
-  sessionId: string,
-  _phoneNumber: string,
-  meta: SessionMeta,
-  text: string,
-) {
-  if (!/^\d{6}$/.test(text)) {
-    return makeReply("Please enter a valid 6-digit pincode (numbers only):");
+  if (serial.length < 1) {
+    return makeReply("Please enter your machine serial number:");
   }
 
-  // Auto-detect location from India Pincode API
-  let district: string | undefined;
-  let stateName: string | undefined;
-  let place = meta.manualPlace;
+  let machineData: PasstestMachine | null = null;
   try {
-    const response = await fetch(`https://api.postalpincode.in/pincode/${text}`);
-    const data = await response.json();
-    if (
-      Array.isArray(data) &&
-      data[0]?.Status === "Success" &&
-      Array.isArray(data[0]?.PostOffice) &&
-      data[0].PostOffice.length > 0
-    ) {
-      const po = data[0].PostOffice[0];
-      place     = po.Name     || place;
-      district  = po.District || undefined;
-      stateName = po.State    || undefined;
-    }
-  } catch {
-    // Non-blocking
+    machineData = await fetchMachineBySerial(serial);
+    console.log(`[simulate] API result for "${serial}":`, machineData ? "FOUND" : "NOT FOUND");
+  } catch (err) {
+    console.error(`[simulate] API error for "${serial}":`, (err as Error).message);
   }
 
-  const locationStr = [place, district, stateName].filter(Boolean).join(", ");
-  const updatedMeta: SessionMeta = {
-    ...meta,
-    manualPincode:  text,
-    manualPlace:    place,
-    manualDistrict: district,
-    manualState:    stateName,
-    pincodeDisplay: locationStr || text,
-  };
+  if (machineData) {
+    let adminModelName: string | undefined;
+    try {
+      const adminMachine = await prisma.machine.findUnique({ where: { serialNumber: serial } });
+      if (adminMachine?.modelName) adminModelName = adminMachine.modelName;
+    } catch { /* non-blocking */ }
 
-  await updateSession(sessionId, "MANUAL_PINCODE_CONFIRM", updatedMeta);
+    const displayName = adminModelName || machineData.m_model || "N/A";
+    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData };
+    await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
+    return makeReply(
+      `✅ Machine found!\n\n` +
+      `👤 Customer: ${machineData.customer || "N/A"}\n` +
+      `🔧 Model: ${displayName}\n` +
+      `📍 Location: ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
+      `Is this your machine?\n\n1. Yes ✅\n2. No ❌`
+    );
+  }
 
-  const locationLine = locationStr
-    ? `📍 *${locationStr}*`
-    : `📍 Pincode *${text}* (location not found)`;
-
-  return makeReply(`${locationLine}\n\nIs this your location?\n\n1. Yes ✅\n2. No, re-enter ❌`);
+  console.log(`[simulate] No machine data for "${serial}" — continuing`);
+  const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData: null };
+  return showProductSelection(sessionId, newMeta);
 }
 
-// ── MANUAL_PINCODE_CONFIRM ─────────────────────────────────
-async function handleManualPincodeConfirm(
-  sessionId: string,
-  meta: SessionMeta,
-  text: string,
-) {
+// ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
+async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
   if (text === "1" || /^yes/i.test(text)) {
-    await updateSession(sessionId, "MANUAL_COMPLAINT", meta);
-    return makeReply(complaintsMessage());
+    return showProductSelection(sessionId, meta);
   }
   if (text === "2" || /^no/i.test(text)) {
-    await updateSession(sessionId, "MANUAL_PINCODE", {
-      ...meta,
-      manualPincode:  undefined,
-      manualPlace:    undefined,
-      manualDistrict: undefined,
-      manualState:    undefined,
-      pincodeDisplay: undefined,
-    });
-    return makeReply("Please enter your pincode (6 digits):");
+    const clearedMeta = { ...meta, serialNumber: undefined, machineData: null as PasstestMachine | null };
+    return showProductSelection(sessionId, clearedMeta);
   }
-  return makeReply("Please reply:\n1. Yes ✅\n2. No, re-enter ❌");
+  return makeReply("Please reply:\n1. Yes ✅\n2. No ❌");
 }
 
-// ── MANUAL_COMPLAINT → create ticket ─────────────────────────────────────
-async function handleManualComplaint(
-  sessionId: string,
-  phoneNumber: string,
-  meta: SessionMeta,
-  text: string,
-) {
-  // Accept complaint by number OR by matching the label text (from button tap)
-  const byText   = COMPLAINTS.findIndex((c) => c.toLowerCase() === text.toLowerCase());
-  const byNumber = parseInt(text, 10) - 1;
-  const index    = byText >= 0 ? byText : byNumber;
-  if (isNaN(index) || index < 0 || index >= COMPLAINTS.length) {
-    return makeReply(`${complaintsMessage()}\n\nPlease select a valid option (1-${COMPLAINTS.length}):`);
+// ── COMPLAINT_PRODUCT (show product list for selection) ───────────────────
+async function showProductSelection(sessionId: string, meta: SessionMeta) {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  let productNames: string[];
+  if (products.length > 0) {
+    productNames = products.map(p => p.name);
+  } else {
+    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
   }
-  const updatedMeta = { ...meta, complaint: COMPLAINTS[index] };
+
+  const productList = productNames.map((p, i) => `${i + 1}. ${p}`).join("\n");
+  await updateSession(sessionId, "COMPLAINT_PRODUCT", meta);
+  return makeReply(`📦 *Select your product from the list:*\n\n${productList}\n\nReply with the number of your product.`);
+}
+
+async function handleComplaintProduct(sessionId: string, meta: SessionMeta, text: string) {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  let productNames: string[];
+  if (products.length > 0) {
+    productNames = products.map(p => p.name);
+  } else {
+    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
+  }
+
+  const index = parseInt(text, 10) - 1;
+  if (isNaN(index) || index < 0 || index >= productNames.length) {
+    const productList = productNames.map((p, i) => `${i + 1}. ${p}`).join("\n");
+    return makeReply(`Please select a valid product number:\n\n${productList}`);
+  }
+
+  const selectedProduct = productNames[index];
+  const updatedMeta = { ...meta, selectedProduct };
+  await updateSession(sessionId, "COMPLAINT_ISSUE", updatedMeta);
+
+  return makeReply(
+    `✅ Product: *${selectedProduct}*\n\n` +
+    `To register a Complaint, please reply with your issue description.\n\n` +
+    `Example: *LED blinking continuously* or *Overheating during use*`
+  );
+}
+
+// ── COMPLAINT_ISSUE (free-text complaint) ─────────────────────────────────
+async function handleComplaintIssue(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  if (text.length < 3) {
+    return makeReply("Please describe your issue in at least a few words:");
+  }
+
+  const updatedMeta = { ...meta, complaint: text };
+
+  if (meta.machineData) {
+    return createTicketFromAPI(sessionId, phoneNumber, updatedMeta);
+  }
   return createTicketManual(sessionId, phoneNumber, updatedMeta);
 }
 
+// ── FEEDBACK_RATING ───────────────────────────────────────────────────────
+async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: string) {
+  const rating = parseInt(text, 10);
+  if (isNaN(rating) || rating < 1 || rating > 5) {
+    return makeReply(
+      `Please rate the service from 1 to 5:\n\n1️⃣ Poor | 2️⃣ Fair | 3️⃣ Good | 4️⃣ Very Good | 5️⃣ Excellent`
+    );
+  }
+
+  if (meta.feedbackTicketId) {
+    await prisma.ticket.update({
+      where: { id: meta.feedbackTicketId },
+      data: { feedbackRating: rating, feedbackSubmittedAt: new Date() },
+    }).catch(() => {});
+  }
+
+  await updateSession(sessionId, "FEEDBACK_SATISFIED", meta);
+  return makeReply(
+    `Thank you for rating us ${"⭐".repeat(rating)}!\n\nAre you satisfied with the service?\n\n1. Yes ✅\n2. No ❌`
+  );
+}
+
+// ── FEEDBACK_SATISFIED ────────────────────────────────────────────────────
+async function handleFeedbackSatisfied(sessionId: string, meta: SessionMeta, text: string) {
+  if (text !== "1" && text !== "2" && !/^(yes|no)/i.test(text)) {
+    return makeReply("Please reply:\n1. Yes ✅\n2. No ❌");
+  }
+
+  const satisfied = text === "1" || /^yes/i.test(text);
+  const comment = satisfied ? "Satisfied" : "Not satisfied";
+
+  if (meta.feedbackTicketId) {
+    await prisma.ticket.update({
+      where: { id: meta.feedbackTicketId },
+      data: { feedbackComment: comment },
+    }).catch(() => {});
+  }
+
+  await updateSession(sessionId, "COMPLETED", {});
+
+  if (satisfied) {
+    return makeReply(
+      `🎉 We're glad you're satisfied!\n\nThank you for your valuable feedback. 🙏\n\nReply *MENU* to go back to main menu.`
+    );
+  }
+  return makeReply(
+    `We're sorry to hear that. 😔\n\nYour feedback has been noted. Our team will work to improve.\n\nThank you for letting us know. 🙏\n\nReply *MENU* to go back to main menu.`
+  );
+}
+
 // ── Ticket creation: from API data ────────────────────────────────────────
-async function createTicketFromAPI(
-  sessionId: string,
-  phoneNumber: string,
-  meta: SessionMeta,
-) {
+async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta: SessionMeta) {
   const adminUser = await prisma.user.findFirst({ where: { role: "admin" } });
   if (!adminUser) {
     return makeReply("Service temporarily unavailable. Please try again later.");
@@ -421,8 +553,9 @@ async function createTicketFromAPI(
 
   const md = meta.machineData!;
   const serial = meta.serialNumber ?? "";
+  const productName = meta.selectedProduct || md.m_model || "";
+  const complaintText = meta.complaint || "Service request via chat";
 
-  // Match customer name against dealer table (case-insensitive)
   let resolvedDealerId: string | undefined;
   if (md.customer?.trim()) {
     const customerName = md.customer.trim().toLowerCase();
@@ -445,7 +578,6 @@ async function createTicketFromAPI(
     console.log(`[simulate] No customer name in API data — routing to MANAGER`);
   }
 
-  // Resolve or create Pincode record from pincode collected in chat
   let pincodeId: string | undefined;
   if (meta.manualPincode) {
     let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.manualPincode } });
@@ -464,16 +596,15 @@ async function createTicketFromAPI(
 
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
-    problemDescription:  meta.complaint || `Service request via chat for serial ${serial}`,
-    issueDescription:    `Customer: ${md.customer || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}${meta.pincodeDisplay ? ` (${meta.pincodeDisplay})` : ""}`,
-    machineName:         md.m_model || undefined,
+    problemDescription:  `${productName ? productName + ": " : ""}${complaintText}`,
+    issueDescription:    `Customer: ${md.customer || meta.manualName || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || meta.pincodeDisplay || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}${meta.pincodeDisplay ? ` (${meta.pincodeDisplay})` : ""}`,
+    machineName:         md.m_model || productName || undefined,
     machineSerialNumber: serial,
     pincodeId,
     phoneNumber,
     dealerId:            resolvedDealerId,
   });
 
-  // Emit to the correct room based on routing
   if (ticket.ownerType === "DEALER" && ticket.ownerId) {
     io?.to(`dealer:${ticket.ownerId}`).emit("ticket:new", ticket);
   } else {
@@ -483,26 +614,27 @@ async function createTicketFromAPI(
   await updateSession(sessionId, "COMPLETED", {});
 
   return makeReply(
-    `✅ Your request has been registered successfully.\n\n` +
-    `🎫 Ticket: *${ticket.ticketNumber}*\n\n` +
+    `✅ Your complaint has been registered successfully!\n\n` +
+    `🎫 Ticket: *${ticket.ticketNumber}*\n` +
+    `📦 Product: ${productName || "N/A"}\n` +
+    `📝 Issue: ${complaintText}\n` +
+    `📍 Location: ${meta.pincodeDisplay || "N/A"}\n\n` +
     `Our service engineer will contact you shortly.\n\n` +
     `Thank you for choosing Poornasree Support 😊\n\n` +
-    `Reply MENU to go back to main menu.`
+    `Reply *MENU* to go back to main menu.`
   );
 }
 
 // ── Ticket creation: manual entry ─────────────────────────────────────────
-async function createTicketManual(
-  sessionId: string,
-  phoneNumber: string,
-  meta: SessionMeta,
-) {
+async function createTicketManual(sessionId: string, phoneNumber: string, meta: SessionMeta) {
   const adminUser = await prisma.user.findFirst({ where: { role: "admin" } });
   if (!adminUser) {
     return makeReply("Service temporarily unavailable. Please try again later.");
   }
 
-  // Resolve or create Pincode record
+  const productName = meta.selectedProduct || "";
+  const complaintText = meta.complaint || "Manual service request via chat";
+
   let pincodeId: string | undefined;
   if (meta.manualPincode) {
     let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.manualPincode } });
@@ -519,11 +651,11 @@ async function createTicketManual(
     pincodeId = pincodeRecord.id;
   }
 
-  // Manual flow → always routes to MANAGER (no API data for dealer match)
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
-    problemDescription:  meta.complaint || `Manual service request via chat`,
-    issueDescription:    `Customer: ${meta.manualName || "N/A"}, Location: ${[meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}`,
+    problemDescription:  `${productName ? productName + ": " : ""}${complaintText}`,
+    issueDescription:    `Customer: ${meta.manualName || meta.customerName || "N/A"}, Location: ${[meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}`,
+    machineName:         productName || undefined,
     machineSerialNumber: meta.serialNumber || undefined,
     pincodeId,
     phoneNumber,
@@ -537,11 +669,14 @@ async function createTicketManual(
   await updateSession(sessionId, "COMPLETED", {});
 
   return makeReply(
-    `✅ Your request has been registered successfully.\n\n` +
-    `🎫 Ticket: *${ticket.ticketNumber}*\n\n` +
+    `✅ Your complaint has been registered successfully!\n\n` +
+    `🎫 Ticket: *${ticket.ticketNumber}*\n` +
+    `📦 Product: ${productName || "N/A"}\n` +
+    `📝 Issue: ${complaintText}\n` +
+    `📍 Location: ${meta.pincodeDisplay || "N/A"}\n\n` +
     `Our service engineer will contact you shortly.\n\n` +
     `Thank you for choosing Poornasree Support 😊\n\n` +
-    `Reply MENU to go back to main menu.`
+    `Reply *MENU* to go back to main menu.`
   );
 }
 
@@ -579,4 +714,34 @@ export async function getHistory(phoneNumber: string) {
     orderBy: { createdAt: "asc" },
     select:  { id: true, role: true, content: true, createdAt: true },
   });
+}
+
+// ── Trigger feedback flow after ticket closure ────────────────────────────
+// Called externally (from ticket.controller verifyOTP) to start feedback collection
+export async function startFeedbackFlow(phoneNumber: string, ticketId: string, ticketNumber: string) {
+  let session = await prisma.conversationSession.findFirst({
+    where: { phoneNumber },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const meta: SessionMeta = { feedbackTicketId: ticketId };
+
+  if (session) {
+    await updateSession(session.id, "FEEDBACK_RATING", meta);
+  } else {
+    session = await prisma.conversationSession.create({
+      data: { phoneNumber, state: "FEEDBACK_RATING", metadata: meta as object },
+    });
+  }
+
+  return (
+    `✅ Your service ticket *${ticketNumber}* has been closed successfully!\n\n` +
+    `We'd love your feedback! 🙏\n\n` +
+    `How would you rate the service? (1-5)\n\n` +
+    `1️⃣ Poor\n` +
+    `2️⃣ Fair\n` +
+    `3️⃣ Good\n` +
+    `4️⃣ Very Good\n` +
+    `5️⃣ Excellent`
+  );
 }

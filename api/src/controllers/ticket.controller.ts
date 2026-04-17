@@ -7,6 +7,8 @@ import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import { io } from "../lib/socket";
 import prisma from "../lib/prisma";
 import * as TicketService from "../services/ticket.service";
+import { startFeedbackFlow } from "../services/simulate.service";
+import * as WhatsAppService from "../services/whatsapp.service";
 
 
 // ── POST /api/tickets ─────────────────────────────────────────────────────
@@ -237,6 +239,21 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
       ticketId: ticket.id,
       ticketNumber: ticket.ticketNumber,
     });
+
+    // Send feedback request via WhatsApp to the customer's phone
+    if (ticket.phoneNumber && WhatsAppService.isConfigured()) {
+      try {
+        const feedbackMsg = await startFeedbackFlow(ticket.phoneNumber, ticket.id, ticket.ticketNumber);
+        await WhatsAppService.sendMessage(ticket.phoneNumber, feedbackMsg);
+
+        // Persist the feedback message in chat history
+        await prisma.simulateMessage.create({
+          data: { phoneNumber: ticket.phoneNumber, role: "assistant", content: feedbackMsg },
+        });
+      } catch (err) {
+        console.error("[verifyOTP] Failed to send feedback request:", (err as Error).message);
+      }
+    }
 
     res.json({ message: "Ticket closed successfully", ticket });
   } catch (err: unknown) {

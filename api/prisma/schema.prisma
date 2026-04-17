@@ -249,6 +249,7 @@ model Ticket {
 
   // Feedback
   feedbackRating     Int?      // 1–5
+  feedbackComment    String?   @db.Text  // satisfaction notes / yes-no
   feedbackSubmittedAt DateTime?
 
   // Timestamps
