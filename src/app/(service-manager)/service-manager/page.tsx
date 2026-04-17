@@ -1003,7 +1003,7 @@ export default function ServiceManagerPage() {
                           </button>
                           <button
                             onClick={async () => {
-                              if (!confirm(`Delete engineer ${eng.firstName} ${eng.lastName}? This cannot be undone.`)) return;
+                              if (!confirm(`To delete ${eng.firstName} ${eng.lastName}, make sure all their tickets are reassigned to another engineer first.\n\nProceed with deletion?`)) return;
                               setDeletingEngineerId(eng.id);
                               try {
                                 const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
@@ -1011,9 +1011,9 @@ export default function ServiceManagerPage() {
                                   const data = await res.json();
                                   if (data.activeTickets?.length > 0) {
                                     const list = data.activeTickets
-                                      .map((t: { ticketNumber: string; status: string }) => `${t.ticketNumber} (${t.status})`)
+                                      .map((t: { ticketNumber: string; status: string }) => `${t.ticketNumber}`)
                                       .join(", ");
-                                    setError(`Cannot delete — reassign these tickets first: ${list}`);
+                                    setError(`To delete this engineer, please reassign their active ticket(s) to another engineer first: ${list}`);
                                   } else {
                                     setError(data.error || "Failed to delete engineer");
                                   }
