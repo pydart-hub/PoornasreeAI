@@ -281,7 +281,7 @@ export async function getTicket(id: string) {
 // Admin or service_manager assigns an engineer to an OPEN ticket.
 // Single-manager system: requires ownerType=MANAGER, no per-ticket manager assignment.
 // Uses an atomic conditional updateMany to prevent race conditions.
-export async function assignEngineer(ticketId: string, engineerId: string) {
+export async function assignEngineer(ticketId: string, engineerId: string, assignedBy?: string) {
   // Single atomic write: succeeds only when status=OPEN, ownerType=MANAGER, and no engineer yet
   const result = await prisma.ticket.updateMany({
     where: {
@@ -290,7 +290,11 @@ export async function assignEngineer(ticketId: string, engineerId: string) {
       ownerType:          TicketOwnerType.MANAGER,
       assignedEngineerId: null,
     },
-    data: { assignedEngineerId: engineerId, status: TicketStatus.ASSIGNED },
+    data: {
+      assignedEngineerId: engineerId,
+      status:             TicketStatus.ASSIGNED,
+      ...(assignedBy ? { assignedManagerId: assignedBy } : {}),
+    },
   });
 
   if (result.count === 1) {

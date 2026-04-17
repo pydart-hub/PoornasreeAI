@@ -179,7 +179,7 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
       }
     }
 
-    const ticket = await TicketService.assignEngineer(id, engineerId);
+    const ticket = await TicketService.assignEngineer(id, engineerId, req.user!.userId);
     io?.to(`user:${engineerId}`).emit("ticket:assigned", { ticketId: id });
     res.json({ ticket });
   } catch (err: unknown) {

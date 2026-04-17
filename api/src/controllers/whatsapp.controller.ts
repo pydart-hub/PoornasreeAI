@@ -159,8 +159,14 @@ async function handleEngineerMessage(
         ticketNumber: true,
         status: true,
         problemDescription: true,
+        issueDescription: true,
+        machineName: true,
+        machineSerialNumber: true,
+        machineCustomer: true,
+        updatedAt: true,
         customer: { select: { firstName: true, lastName: true } },
         pincode: { select: { code: true, place: true } },
+        assignedManager: { select: { firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 10,
@@ -172,10 +178,31 @@ async function handleEngineerMessage(
     }
 
     const lines = tickets.map((t, i) => {
-      const customer = t.customer ? `${t.customer.firstName} ${t.customer.lastName ?? ""}`.trim() : "Unknown";
-      const loc = t.pincode ? `${t.pincode.place ?? ""} ${t.pincode.code}`.trim() : "";
-      const desc = t.problemDescription ? t.problemDescription.slice(0, 50) : "";
-      return `${i + 1}. *${t.ticketNumber}* (${t.status})\n   👤 ${customer}${loc ? ` · 📍 ${loc}` : ""}${desc ? `\n   ${desc}` : ""}`;
+      const customerName = t.machineCustomer
+        || (t.customer ? `${t.customer.firstName} ${t.customer.lastName ?? ""}`.trim() : "Unknown");
+      const place = t.pincode?.place ?? "";
+      const pincode = t.pincode?.code ?? "";
+      const product = t.machineName ?? "—";
+      const serial = t.machineSerialNumber ?? "—";
+      const complaint = t.issueDescription || (t.problemDescription ? t.problemDescription.slice(0, 80) : "—");
+      const assignedBy = t.assignedManager
+        ? `${t.assignedManager.firstName} ${t.assignedManager.lastName ?? ""}`.trim()
+        : "—";
+      const assignedAt = t.updatedAt
+        ? t.updatedAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+          + ", " + t.updatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+        : "—";
+
+      return [
+        `${i + 1}. *${t.ticketNumber}* (${t.status})`,
+        `   👤 Name: ${customerName}`,
+        `   📍 Place: ${place}${place && pincode ? " | " : ""}Pincode: ${pincode}`,
+        `   🔧 Product: ${product}`,
+        `   🔑 S/N: ${serial}`,
+        `   📅 Assigned: ${assignedAt}`,
+        `   📝 Complaint: ${complaint}`,
+        `   👨‍💼 Assigned by: ${assignedBy}`,
+      ].join("\n");
     });
 
     const reply = [`📋 *Your Active Tickets (${tickets.length}):*`, "", ...lines].join("\n");

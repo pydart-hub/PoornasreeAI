@@ -203,7 +203,6 @@ export default function ServiceDashboard() {
       [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
       ticket.pincode?.code,
     ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
-    const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
     const isBusy = actionLoading === ticket.id;
 
     return (
@@ -220,11 +219,16 @@ export default function ServiceDashboard() {
           getAccentBorder(ticket.ageHours)
         )}>
 
-        {/* TOP: Issue title + Status pill */}
+        {/* TOP: Ticket number + Issue title + Status pill */}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-sm text-gray-900 leading-tight line-clamp-2 flex-1 min-w-0">
-            {issueText || ticket.problemDescription.slice(0, 60)}
-          </h3>
+          <div className="flex flex-col flex-1 min-w-0">
+            {ticket.ticketNumber && (
+              <span className="text-[10px] font-mono text-gray-400 mb-0.5">#{ticket.ticketNumber}</span>
+            )}
+            <h3 className="font-semibold text-sm text-gray-900 leading-tight line-clamp-2">
+              {issueText || ticket.problemDescription.slice(0, 60)}
+            </h3>
+          </div>
           <span className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0",
             statusCfg.badgeBg, statusCfg.badgeText
@@ -234,7 +238,7 @@ export default function ServiceDashboard() {
           </span>
         </div>
 
-        {/* MIDDLE: Location, Customer, Machine, Time */}
+        {/* MIDDLE: Location, Customer, Product, S/N, Time, Assigned by */}
         <div className="space-y-1">
           {locationShort && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -248,16 +252,30 @@ export default function ServiceDashboard() {
               <span className="text-sm text-gray-700 font-medium truncate">{customerName}</span>
             </div>
           )}
-          {machineDisplay && (
+          {ticket.machineName && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
-              <span className="text-[13px] leading-none shrink-0">🛠</span>
-              <span className="truncate">{machineDisplay}</span>
+              <Briefcase className="w-3 h-3 shrink-0 text-gray-400" />
+              <span className="truncate">{ticket.machineName}</span>
+            </div>
+          )}
+          {ticket.machineSerialNumber && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span className="text-[11px] font-semibold text-gray-400 shrink-0">S/N</span>
+              <span className="truncate font-mono">{ticket.machineSerialNumber}</span>
             </div>
           )}
           <div className="flex items-center gap-1 text-[10px] text-gray-400 pt-0.5">
             <Clock className="w-3 h-3" />
-            <span>{formatRelativeTime(new Date(ticket.createdAt))}</span>
+            <span>Assigned {formatRelativeTime(new Date(ticket.updatedAt))}</span>
           </div>
+          {ticket.assignedManager && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <User className="w-3 h-3 shrink-0" />
+              <span className="truncate">
+                By {ticket.assignedManager.firstName} {ticket.assignedManager.lastName ?? ""}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* BOTTOM: Primary action */}
