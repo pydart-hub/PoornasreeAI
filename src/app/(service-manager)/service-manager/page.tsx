@@ -7,6 +7,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
+import { useIsMobile } from "@/lib/useMediaQuery";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
   LogOut,
@@ -30,6 +32,8 @@ import {
   Download,
   Store,
   Phone,
+  Menu,
+  PanelLeftClose,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
@@ -127,7 +131,13 @@ export default function ServiceManagerPage() {
 
   // ── Navigation state ──
   const [pageView, setPageView] = useState<PageView>("tickets");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
 
+  // ── Responsive ──
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   // ── Ticket interaction state ──
   const [assigningId, setAssigningId] = useState<string | null>(null);
@@ -517,34 +527,105 @@ export default function ServiceManagerPage() {
   // Render
   // ══════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
+    <div className="flex h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
 
-      {/* ═══════════════════ HEADER ═══════════════════ */}
-      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark shadow-sm">
-        <div className="flex items-center gap-3">
-          <Logo className="h-8 w-auto" />
-          <div className="min-w-0">
-            <h1 className="text-base font-bold text-content dark:text-content-dark leading-tight truncate">Service Manager</h1>
-            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{user.firstName} {user.lastName}</p>
+      {/* ═══════════════════ SIDEBAR ═══════════════════ */}
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
+          <Logo variant="full" size="sm" />
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
+          <div className="flex items-center gap-3">
+            <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{user.firstName} {user.lastName}</p>
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">Service Manager</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button onClick={handleRefresh} disabled={refreshing}
-            className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
-            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-          </button>
-          <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
-          <button onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors">
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+          <div className="pt-1 pb-1 px-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary mb-2">
+              Manage
+            </p>
+            {([
+              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" />, count: total },
+              { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-3.5 h-3.5" />, count: engineers.length },
+              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
+              { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
+            ]).map((nav) => (
+              <button
+                key={nav.key}
+                onClick={() => { setPageView(nav.key); if (isMobile) setSidebarOpen(false); }}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                  pageView === nav.key
+                    ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                    : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                )}
+              >
+                {nav.icon}
+                {nav.label}
+                <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
+                  {nav.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </nav>
+        <div className="px-4 py-3 border-t border-line dark:border-line-dark space-y-2 shrink-0">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Theme</span>
+            <ThemeToggle />
+          </div>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-content-secondary dark:text-content-dark-secondary hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
+          >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
+            Logout
           </button>
         </div>
-      </header>
+      </ResponsiveSidebar>
+
+      {/* ═══════════════════ CONTENT ═══════════════════ */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* ═══════════════════ HEADER ═══════════════════ */}
+        <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors shrink-0"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <Logo className="h-8 w-auto" />
+            <div className="min-w-0">
+              <h1 className="text-base font-bold text-content dark:text-content-dark leading-tight truncate">Service Manager</h1>
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{user.firstName} {user.lastName}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handleRefresh} disabled={refreshing}
+              className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            </button>
+            <button onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
+        </header>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-24 sm:pb-4 space-y-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-6 space-y-4">
 
           {/* ── Error banner ── */}
           {error && (
@@ -554,31 +635,6 @@ export default function ServiceManagerPage() {
               <button onClick={() => setError("")} className="p-0.5"><X className="w-4 h-4" /></button>
             </div>
           )}
-
-          {/* ═══════════════════ PAGE-LEVEL NAVIGATION ═══════════════════ */}
-          <div className="fixed bottom-0 inset-x-0 z-30 flex items-center bg-surface-card dark:bg-surface-dark-card border-t border-line dark:border-line-dark sm:static sm:inset-x-auto sm:bottom-auto sm:z-auto sm:rounded-xl sm:border sm:shadow-sm sm:p-1">
-            {([
-              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-5 h-5 sm:w-4 sm:h-4" />, count: total },
-              { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-5 h-5 sm:w-4 sm:h-4" />, count: engineers.length },
-              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-5 h-5 sm:w-4 sm:h-4" />, count: myPincodes.length },
-              { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-5 h-5 sm:w-4 sm:h-4" />, count: dealers.length },
-            ]).map(nav => (
-              <button key={nav.key} onClick={() => setPageView(nav.key)}
-                className={cn(
-                  "flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-2.5 rounded-none sm:rounded-lg text-sm font-semibold transition-all",
-                  pageView === nav.key
-                    ? "bg-primary text-white sm:shadow-sm"
-                    : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark hover:bg-surface dark:hover:bg-surface-dark"
-                )}>
-                {nav.icon}
-                <span className="text-[10px] sm:text-sm">{nav.label}</span>
-                <span className={cn(
-                  "text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-bold",
-                  pageView === nav.key ? "bg-white/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-secondary dark:text-content-dark-secondary"
-                )}>{nav.count}</span>
-              </button>
-            ))}
-          </div>
 
           {/* ═══════════════════ TICKETS VIEW ═══════════════════ */}
           {pageView === "tickets" && (
@@ -1334,6 +1390,7 @@ export default function ServiceManagerPage() {
 
         </div>
       </main>
+      </div>
 
       {/* ═══════════════════ ADD ENGINEER MODAL ═══════════════════ */}
       {showAddEngineer && (

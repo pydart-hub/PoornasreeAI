@@ -8,6 +8,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
+import { useIsMobile } from "@/lib/useMediaQuery";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
   LogOut,
@@ -20,6 +22,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Menu,
+  PanelLeftClose,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -101,6 +105,14 @@ export default function DealerPage() {
     machineName: "",
     machineSerial: "",
   });
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  // ── Responsive ──
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   // Auth guard
   useEffect(() => {
@@ -185,41 +197,95 @@ export default function DealerPage() {
   const closedCount = tickets.filter((t) => t.status === "CLOSED").length;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Logo className="h-7 sm:h-8 w-auto shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-content dark:text-content-dark truncate">Dealer Portal</p>
-            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">
-              {user.firstName} {user.lastName}
-            </p>
+    <div className="flex h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
+
+      {/* ── Sidebar ── */}
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
+          <Logo variant="full" size="sm" />
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
+          <div className="flex items-center gap-3">
+            <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{user.firstName} {user.lastName}</p>
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">Dealer</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <ThemeToggle />
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-          </button>
-          <span className="hidden sm:block">
-            <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
-          </span>
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+          <div className="pt-1 pb-1 px-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary mb-2">
+              Dealer Portal
+            </p>
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300">
+              <Ticket className="w-3.5 h-3.5" />
+              My Tickets
+              <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
+                {tickets.length}
+              </span>
+            </div>
+          </div>
+        </nav>
+        <div className="px-4 py-3 border-t border-line dark:border-line-dark space-y-2 shrink-0">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Theme</span>
+            <ThemeToggle />
+          </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-content-secondary dark:text-content-dark-secondary hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
+            Logout
           </button>
         </div>
-      </header>
+      </ResponsiveSidebar>
 
-      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      {/* ── Content ── */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* ── Header ──────────────────────────────────────────────── */}
+        <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <Logo className="h-7 sm:h-8 w-auto shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-content dark:text-content-dark truncate">Dealer Portal</p>
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">
+                {user.firstName} {user.lastName}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+            >
+              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
 
         {/* Alerts */}
         {error && (
@@ -497,7 +563,8 @@ export default function DealerPage() {
             </div>
           )}
         </section>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
