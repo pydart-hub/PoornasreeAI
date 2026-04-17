@@ -1007,8 +1007,17 @@ export default function ServiceManagerPage() {
                               setDeletingEngineerId(eng.id);
                               try {
                                 const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
-                                if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to delete engineer"); }
-                                else { await fetchData(); }
+                                if (!res.ok) {
+                                  const data = await res.json();
+                                  if (data.activeTickets?.length > 0) {
+                                    const list = data.activeTickets
+                                      .map((t: { ticketNumber: string; status: string }) => `${t.ticketNumber} (${t.status})`)
+                                      .join(", ");
+                                    setError(`Cannot delete — reassign these tickets first: ${list}`);
+                                  } else {
+                                    setError(data.error || "Failed to delete engineer");
+                                  }
+                                } else { await fetchData(); }
                               } catch { setError("Network error"); }
                               finally { setDeletingEngineerId(null); }
                             }}

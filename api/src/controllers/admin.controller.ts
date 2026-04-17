@@ -115,6 +115,24 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Block deletion of a service engineer who still has active tickets
+    if (user.role === "service_engineer") {
+      const activeTickets = await prisma.ticket.findMany({
+        where: {
+          assignedEngineerId: id,
+          status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
+        },
+        select: { id: true, ticketNumber: true, status: true },
+      });
+      if (activeTickets.length > 0) {
+        res.status(400).json({
+          error: `Cannot delete — ${activeTickets.length} active ticket(s) are still assigned to this engineer. Reassign them first.`,
+          activeTickets,
+        });
+        return;
+      }
+    }
+
     // Delete in a transaction, manually removing related records that lack
     // onDelete: Cascade in the schema to avoid FK constraint violations.
     await prisma.$transaction(async (tx) => {

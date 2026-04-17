@@ -206,11 +206,22 @@ export async function deleteEngineer(req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Unassign engineer from any open tickets before deleting
-    await prisma.ticket.updateMany({
-      where: { assignedEngineerId: engineerId },
-      data: { assignedEngineerId: null, status: "OPEN" },
+    // Block deletion if any tickets are actively in flight
+    const activeTickets = await prisma.ticket.findMany({
+      where: {
+        assignedEngineerId: engineerId,
+        status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
+      },
+      select: { id: true, ticketNumber: true, status: true },
     });
+
+    if (activeTickets.length > 0) {
+      res.status(400).json({
+        error: `Cannot delete — ${activeTickets.length} active ticket(s) are still assigned to this engineer. Reassign them to another engineer first.`,
+        activeTickets,
+      });
+      return;
+    }
 
     await prisma.user.delete({ where: { id: engineerId } });
 
