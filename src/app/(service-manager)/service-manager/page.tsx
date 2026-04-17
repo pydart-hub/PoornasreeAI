@@ -1003,7 +1003,7 @@ export default function ServiceManagerPage() {
                           </button>
                           <button
                             onClick={async () => {
-                              if (!confirm(`To delete ${eng.firstName} ${eng.lastName}, make sure all their tickets are reassigned to another engineer first.\n\nProceed with deletion?`)) return;
+                              if (!confirm(`To delete ${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}, make sure all their tickets are reassigned to another engineer first.\n\nProceed with deletion?`)) return;
                               setDeletingEngineerId(eng.id);
                               try {
                                 const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
