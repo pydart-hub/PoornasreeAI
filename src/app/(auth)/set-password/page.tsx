@@ -26,7 +26,7 @@ function SetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50">
         <div className="text-center p-8">
           <p className="text-red-600 font-medium">Invalid link. No token found.</p>
           <p className="text-gray-500 text-sm mt-2">Please ask your manager to resend the setup link.</p>
@@ -67,7 +67,7 @@ function SetPasswordForm() {
       {/* ═══════════════════════════════════════════════
           MOBILE VIEW  (< md)
       ═══════════════════════════════════════════════ */}
-      <div className="md:hidden min-h-screen flex flex-col bg-emerald-700">
+      <div className="md:hidden min-h-[100dvh] flex flex-col bg-emerald-700">
         {/* Top brand bar */}
         <div className="flex flex-col items-center pt-12 pb-6 px-6">
           <Image src="/fulllogo.png" alt="Poornasree Equipments" width={200} height={80} className="mb-3" />
@@ -124,7 +124,7 @@ function SetPasswordForm() {
       {/* ═══════════════════════════════════════════════
           DESKTOP VIEW  (≥ md) — left green panel + right form
       ═══════════════════════════════════════════════ */}
-      <div className="hidden md:flex min-h-screen">
+      <div className="hidden md:flex min-h-[100dvh]">
         {/* Left green panel */}
         <div className="w-1/2 bg-gradient-to-br from-emerald-700 to-emerald-900 flex flex-col items-center justify-center px-12">
           <Image src="/fulllogo.png" alt="Poornasree Equipments" width={280} height={112} className="mb-6 brightness-0 invert" />

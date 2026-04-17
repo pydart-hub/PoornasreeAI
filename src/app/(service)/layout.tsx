@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function ServiceLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div data-layout="service" className="min-h-screen service-shell">
+    <div data-layout="service" className="min-h-[100dvh] service-shell">
       {children}
     </div>
   );

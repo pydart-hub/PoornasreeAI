@@ -9,7 +9,9 @@ import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { useIsMobile } from "@/lib/useMediaQuery";
 import { getCustomerAnalytics, type CustomerAnalytics } from "@/lib/api";
 import { getSocket, closeSocket } from "@/lib/socket-client";
 import {
@@ -67,7 +69,7 @@ export default function CustomerServiceDashboard() {
   const { user, isLoading: authLoading, logout } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<"queue" | "analytics">("queue");
 
   // ── Support Queue state ────────────────────────────────────────────
@@ -91,15 +93,8 @@ export default function CustomerServiceDashboard() {
 
   // ── Responsive ─────────────────────────────────────────────────────
   useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -229,17 +224,10 @@ export default function CustomerServiceDashboard() {
   const showQueueDetail = tab === "queue" && activeSupportId !== null;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-surface dark:bg-surface-dark">
+    <div className="h-[100dvh] flex overflow-hidden bg-surface dark:bg-surface-dark">
 
-      {/* ── SIDEBAR ─────────────────────────────────────────────── */}
-      <aside
-        className={cn(
-          "flex flex-col h-full bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 ease-in-out shrink-0",
-          isMobile ? "fixed inset-y-0 left-0 z-40 w-[240px] max-w-[75vw]" : "relative",
-          !sidebarOpen && (isMobile ? "-translate-x-full" : "w-0 overflow-hidden border-r-0"),
-          sidebarOpen && "w-[240px]"
-        )}
-      >
+      {/* ── SIDEBAR ───────────────────────────────────────── */}
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={240}>
         {/* Logo */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
           <Logo variant="full" size="sm" />
@@ -321,12 +309,7 @@ export default function CustomerServiceDashboard() {
             </button>
           </div>
         </div>
-      </aside>
-
-      {/* Sidebar backdrop (mobile) */}
-      {isMobile && sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-      )}
+      </ResponsiveSidebar>
 
       {/* ── MAIN ────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden">

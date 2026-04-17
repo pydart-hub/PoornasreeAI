@@ -54,8 +54,9 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen } from "@/components/ui";
+import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/lib/useMediaQuery";
 import MachinesTab from "@/components/admin/MachinesTab";
 import TemplatesTab from "@/components/admin/TemplatesTab";
 import BrandingTab from "@/components/admin/BrandingTab";
@@ -127,7 +128,7 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "machines" | "templates" | "branding" | "rdvideos" | "tickets">("documents");
 
   // Users state
@@ -198,15 +199,8 @@ export default function AdminPage() {
 
   // ── Responsive ──────────────────────────────
   useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   // ── Auth guard ───────────────────────────────
   useEffect(() => {
@@ -470,17 +464,10 @@ export default function AdminPage() {
   if (!user) return null;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-surface dark:bg-surface-dark">
+    <div className="h-[100dvh] flex overflow-hidden bg-surface dark:bg-surface-dark">
 
       {/* ── Sidebar ── */}
-      <aside
-        className={cn(
-          "flex flex-col h-full bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 ease-in-out shrink-0",
-          isMobile ? "fixed inset-y-0 left-0 z-40 w-[260px] max-w-[75vw]" : "relative",
-          !sidebarOpen && (isMobile ? "-translate-x-full" : "w-0 overflow-hidden border-r-0"),
-          sidebarOpen && "w-[260px]"
-        )}
-      >
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
           <Logo variant="full" size="sm" />
           <button
@@ -634,11 +621,7 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
-      </aside>
-
-      {isMobile && sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-      )}
+      </ResponsiveSidebar>
 
       {/* ── Main ── */}
       <main className="flex-1 overflow-y-auto scrollbar-thin">

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function DealerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div data-layout="dealer" className="min-h-screen dealer-shell">
+    <div data-layout="dealer" className="min-h-[100dvh] dealer-shell">
       {children}
     </div>
   );

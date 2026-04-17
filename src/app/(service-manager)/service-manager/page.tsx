@@ -517,7 +517,7 @@ export default function ServiceManagerPage() {
   // Render
   // ══════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-screen bg-surface dark:bg-surface-dark overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
 
       {/* ═══════════════════ HEADER ═══════════════════ */}
       <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark shadow-sm">

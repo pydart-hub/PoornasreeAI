@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function ServiceManagerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div data-layout="service-manager" className="min-h-screen service-manager-shell">
+    <div data-layout="service-manager" className="min-h-[100dvh] service-manager-shell">
       {children}
     </div>
   );

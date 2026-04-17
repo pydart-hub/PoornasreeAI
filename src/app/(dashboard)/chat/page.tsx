@@ -6,6 +6,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatWindow from "@/components/chat/ChatWindow";
 import { LoadingScreen } from "@/components/ui";
+import { useIsMobile } from "@/lib/useMediaQuery";
 import type { Message, Conversation, VideoResource } from "@/types/chat";
 export type { Message, Conversation, VideoResource };
 
@@ -38,21 +39,14 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
 
   // ── Responsive detection ────────────────────────────────────────
   useEffect(() => {
-    const check = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setSidebarOpen(false);
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   // ── Auth guard ──────────────────────────────────────────────────
   useEffect(() => {
@@ -221,26 +215,17 @@ export default function ChatPage() {
   if (!user) return null;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-surface dark:bg-surface-dark">
+    <div className="h-[100dvh] flex overflow-hidden bg-surface dark:bg-surface-dark">
       {/* Sidebar */}
       <ChatSidebar
         conversations={conversations}
         activeId={activeConversationId}
         isOpen={sidebarOpen}
-        isMobile={isMobile}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         onSelect={selectConversation}
         onNew={createNewConversation}
         onDelete={deleteConversation}
       />
-
-      {/* Mobile overlay */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
 
       {/* Main chat area */}
       <ChatWindow

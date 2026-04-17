@@ -8,3 +8,5 @@ export { Avatar } from "./Avatar";
 export { Badge } from "./Badge";
 export { Card } from "./Card";
 export { default as LanguageSelector } from "./LanguageSelector";
+export { default as ResponsiveSidebar } from "./ResponsiveSidebar";
+export { default as ResponsiveTable } from "./ResponsiveTable";

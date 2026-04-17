@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
+import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
 import { cn } from "@/lib/utils";
 import { getSocket, closeSocket } from "@/lib/socket-client";
 import { LANGUAGES, LANG_BCP47 } from "@/lib/languages";
@@ -163,7 +164,6 @@ export default function CustomerChatPage() {
   // ── History sidebar ────────────────────────────────────────────────────────
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ConversationHistoryItem[]>([]);
-  const [isMobile, setIsMobile] = useState(false);
 
   // ── Draggable support widget ───────────────────────────────────────────────
   const [supportPos, setSupportPos] = useState({ x: 0, y: 0 });
@@ -549,14 +549,6 @@ export default function CustomerChatPage() {
   // Keep messages ref current for language translation effect
   messagesRef.current = messages;
 
-  // ── Mobile detection ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
   // ── Language change → translate all existing assistant messages ─────────────────
   useEffect(() => {
     if (prevLangRef.current === language) return;
@@ -601,20 +593,10 @@ export default function CustomerChatPage() {
   if (!user) return null;
 
   return (
-    <div className="h-screen flex bg-surface dark:bg-surface-dark overflow-hidden">
-
-      {/* ── History Sidebar overlay (mobile) ── */}
-      {historySidebarOpen && isMobile && (
-        <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm" onClick={() => setHistorySidebarOpen(false)} />
-      )}
+    <div className="h-[100dvh] flex bg-surface dark:bg-surface-dark overflow-hidden">
 
       {/* ── History Sidebar ── */}
-      <aside className={cn(
-        "flex flex-col bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 z-40 overflow-hidden",
-        isMobile
-          ? cn("fixed inset-y-0 left-0 w-72 shadow-2xl", historySidebarOpen ? "translate-x-0" : "-translate-x-full")
-          : cn("relative shrink-0", historySidebarOpen ? "w-64" : "w-0")
-      )}>
+      <ResponsiveSidebar open={historySidebarOpen} onClose={() => setHistorySidebarOpen(false)} width={256}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0" style={{ minWidth: "16rem" }}>
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
@@ -668,7 +650,7 @@ export default function CustomerChatPage() {
             ))
           )}
         </div>
-      </aside>
+      </ResponsiveSidebar>
 
       {/* ── Main content area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -933,7 +915,7 @@ export default function CustomerChatPage() {
           Fixed bottom-left — separate from support chat widget              */}
       <div className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50 flex flex-col items-start gap-3">
         {showServicePanel && (
-          <div className="w-[calc(100vw-2rem)] sm:w-96 rounded-2xl shadow-2xl border border-violet-200 dark:border-violet-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70vh] sm:max-h-[560px]">
+          <div className="w-[min(calc(100vw-2rem),24rem)] sm:w-96 rounded-2xl shadow-2xl border border-violet-200 dark:border-violet-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70dvh] sm:max-h-[560px]">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-violet-700 to-violet-500">
               <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
@@ -1025,7 +1007,7 @@ export default function CustomerChatPage() {
 
         {/* ── Panel ────────────────────────────────────────────────────────── */}
         {showSupportPanel && (
-          <div className="w-[calc(100vw-2rem)] sm:w-96 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70vh] sm:max-h-[520px]">
+          <div className="w-[min(calc(100vw-2rem),24rem)] sm:w-96 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70dvh] sm:max-h-[520px]">
 
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-700 to-blue-500">

@@ -225,7 +225,7 @@ export default function ChatWindow({
       )}
 
       {/* ── Input area ── */}
-      <div className="shrink-0 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark p-4">
+      <div className="shrink-0 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark p-3 sm:p-4 safe-bottom">
         <form
           onSubmit={handleSubmit}
           className="max-w-3xl mx-auto"

@@ -10,6 +10,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Logo, ThemeToggle, Avatar } from "@/components/ui";
+import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { cn, truncate } from "@/lib/utils";
 import type { Conversation } from "@/types/chat";
@@ -18,7 +19,6 @@ interface ChatSidebarProps {
   conversations: Conversation[];
   activeId: string | null;
   isOpen: boolean;
-  isMobile: boolean;
   onToggle: () => void;
   onSelect: (id: string) => void;
   onNew: () => void;
@@ -29,7 +29,6 @@ export default function ChatSidebar({
   conversations,
   activeId,
   isOpen,
-  isMobile,
   onToggle,
   onSelect,
   onNew,
@@ -73,15 +72,7 @@ export default function ChatSidebar({
   if (olderItems.length) groups.push({ label: "Older", items: olderItems });
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col h-full bg-surface-sidebar dark:bg-surface-dark-sidebar border-r border-line dark:border-line-dark transition-all duration-300 ease-in-out",
-        isMobile
-          ? "fixed inset-y-0 left-0 z-40 w-[280px]"
-          : "relative w-[280px] shrink-0",
-        !isOpen && (isMobile ? "-translate-x-full" : "w-0 overflow-hidden border-r-0")
-      )}
-    >
+    <ResponsiveSidebar open={isOpen} onClose={onToggle} width={280}>
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-line dark:border-line-dark shrink-0">
         <Logo variant="icon" size="sm" />
@@ -211,6 +202,6 @@ export default function ChatSidebar({
           </button>
         </div>
       </div>
-    </aside>
+    </ResponsiveSidebar>
   );
 }

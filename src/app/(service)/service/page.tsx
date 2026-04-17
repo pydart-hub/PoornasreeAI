@@ -301,7 +301,7 @@ export default function ServiceDashboard() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-gray-50 overflow-hidden">
 
       {/* ═══════════════════ HEADER ═══════════════════ */}
       <header className="shrink-0 bg-white px-4 pt-4 pb-2 border-b border-gray-100">

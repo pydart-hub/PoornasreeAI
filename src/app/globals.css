@@ -53,7 +53,7 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
-    font-size: 17px;
+    font-size: 16px;
   }
 
   body {
@@ -110,6 +110,16 @@
   }
   .dark .scrollbar-thin {
     scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
+  }
+
+  /* Constrain content width on ultra-wide screens */
+  .page-container {
+    @apply max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Safe-area padding for notched devices (iPhone X+) */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 

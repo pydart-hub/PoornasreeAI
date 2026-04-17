@@ -294,7 +294,7 @@ export default function WorkExecutionScreen() {
   const mapsUrl = locationFull ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationFull)}` : "";
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-[100dvh] bg-gray-50">
       {/* ═══ STICKY HEADER ════════════════════════════════════════════ */}
       <header className="shrink-0 bg-white border-b border-gray-100 px-4 pt-3 pb-2">
         <div className="max-w-xl mx-auto">
