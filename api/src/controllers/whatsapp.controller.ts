@@ -184,7 +184,7 @@ async function handleEngineerMessage(
       const pincode = t.pincode?.code ?? "";
       const product = t.machineName ?? "—";
       const serial = t.machineSerialNumber ?? "—";
-      const complaint = t.issueDescription || (t.problemDescription ? t.problemDescription.slice(0, 80) : "—");
+      const complaint = t.problemDescription ? t.problemDescription.slice(0, 100) : "—";
       const assignedBy = t.assignedManager
         ? `${t.assignedManager.firstName} ${t.assignedManager.lastName ?? ""}`.trim()
         : "—";

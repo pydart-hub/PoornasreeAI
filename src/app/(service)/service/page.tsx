@@ -196,7 +196,7 @@ export default function ServiceDashboard() {
   const renderCard = (ticket: ServiceTicket, index: number = 0) => {
     const parsed = parseDescription(ticket.problemDescription);
     const statusCfg = STATUS_CONFIG[ticket.status];
-    const issueText = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
+    const issueText = ticket.problemDescription || null;
     const customerName = ticket.machineCustomer || parsed.customerName
       || (ticket.customer ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
     const locationShort = [
