@@ -55,6 +55,7 @@ export interface TicketDrawerProps {
   assigningId: string | null;
   onClose: () => void;
   onAssignEngineer: (ticketId: string, engineerId: string) => Promise<void>;
+  onCancelAssignment: (ticketId: string) => Promise<void>;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
 }

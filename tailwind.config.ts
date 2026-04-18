@@ -101,6 +101,7 @@ const config: Config = {
         "slide-up": "slideUp 0.3s ease-out",
         "slide-in-left": "slideInLeft 0.3s ease-out",
         "slide-in-right": "slideInRight 0.3s ease-out",
+        "scale-in": "scaleIn 0.2s ease-out",
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "spin-slow": "spin 2s linear infinite",
         "bounce-dot": "bounceDot 1.4s infinite ease-in-out both",
@@ -122,6 +123,10 @@ const config: Config = {
         slideInRight: {
           "0%": { opacity: "0", transform: "translateX(20px)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        scaleIn: {
+          "0%": { opacity: "0", transform: "scale(0.95)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
         },
         bounceDot: {
           "0%, 80%, 100%": { transform: "scale(0)" },

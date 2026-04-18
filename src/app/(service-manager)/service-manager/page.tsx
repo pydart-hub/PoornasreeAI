@@ -424,6 +424,16 @@ export default function ServiceManagerPage() {
     finally { setAssigningId(null); }
   };
 
+  const handleCancelAssignment = async (ticketId: string) => {
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/unassign-engineer`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to cancel assignment"); }
+      else await fetchData();
+    } catch { setError("Network error"); }
+  };
+
   const handleAddEngineer = async () => {
     if (!newEng.firstName.trim() || !newEng.email.trim()) {
       setError("Name and email are required");
@@ -1509,6 +1519,7 @@ export default function ServiceManagerPage() {
           assigningId={assigningId}
           onClose={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }}
           onAssignEngineer={handleAssignEngineer}
+          onCancelAssignment={handleCancelAssignment}
           onArchive={handleArchive}
           onUnarchive={handleUnarchive}
         />

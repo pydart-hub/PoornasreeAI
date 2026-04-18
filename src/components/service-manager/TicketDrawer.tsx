@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Archive, RotateCcw } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import type { TicketDrawerProps } from "./types";
@@ -13,6 +13,7 @@ import { DrawerIssueDetails } from "./DrawerIssueDetails";
 import { DrawerCustomerInfo } from "./DrawerCustomerInfo";
 import { DrawerSLA } from "./DrawerSLA";
 import { DrawerAttachments } from "./DrawerAttachments";
+import { ReassignModal } from "./ReassignModal";
 
 export function TicketDrawer({
   ticket,
@@ -21,11 +22,13 @@ export function TicketDrawer({
   assigningId,
   onClose,
   onAssignEngineer,
+  onCancelAssignment,
   onArchive,
   onUnarchive,
 }: TicketDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const assignmentRef = useRef<HTMLDivElement>(null);
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [cancellingAssignment, setCancellingAssignment] = useState(false);
 
   // issueDescription holds structured metadata ("Customer: X, Location: Y, ...")
   // problemDescription holds the actual complaint text
@@ -35,14 +38,22 @@ export function TicketDrawer({
 
   // Close on Escape
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") { if (showReassignModal) setShowReassignModal(false); else onClose(); } };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, showReassignModal]);
 
   const handleAssign = async (ticketId: string, engineerId: string) => {
     await onAssignEngineer(ticketId, engineerId);
-    onClose();
+  };
+
+  const handleCancelAssignment = async () => {
+    setCancellingAssignment(true);
+    try {
+      await onCancelAssignment(ticket.id);
+    } finally {
+      setCancellingAssignment(false);
+    }
   };
 
   return (
@@ -68,7 +79,9 @@ export function TicketDrawer({
         {/* ── 2. Action Bar ── */}
         <DrawerActionBar
           ticket={ticket}
-          onReassign={() => assignmentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+          onReassign={() => setShowReassignModal(true)}
+          onCancelAssignment={handleCancelAssignment}
+          cancellingAssignment={cancellingAssignment}
         />
 
         {/* ── Scrollable Content ── */}
@@ -78,14 +91,12 @@ export function TicketDrawer({
           <DrawerTimeline ticket={ticket} />
 
           {/* ── 4. Assignment ── */}
-          <div ref={assignmentRef}>
-            <DrawerAssignment
-              ticket={ticket}
-              engineers={engineers}
-              assigningId={assigningId}
-              onAssignEngineer={handleAssign}
-            />
-          </div>
+          <DrawerAssignment
+            ticket={ticket}
+            engineers={engineers}
+            assigningId={assigningId}
+            onAssignEngineer={handleAssign}
+          />
 
           {/* ── 5. Issue Details ── */}
           <DrawerIssueDetails ticket={ticket} />
@@ -124,6 +135,17 @@ export function TicketDrawer({
           </div>
         </div>
       </div>
+
+      {/* ── Reassign Modal ── */}
+      {showReassignModal && (
+        <ReassignModal
+          ticket={ticket}
+          engineers={engineers}
+          assigningId={assigningId}
+          onAssignEngineer={handleAssign}
+          onClose={() => setShowReassignModal(false)}
+        />
+      )}
     </>
   );
 }

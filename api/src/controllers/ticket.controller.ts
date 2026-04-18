@@ -190,6 +190,19 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
   }
 }
 
+// ── PATCH /api/tickets/:id/unassign-engineer ──────────────────────────────
+// Manager or admin removes the assigned engineer, reverting ticket to OPEN.
+export async function unassignEngineer(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const ticket = await TicketService.unassignEngineer(id);
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
 // ── PATCH /api/tickets/:id/start ──────────────────────────────────────────
 // Engineer sets ticket to IN_PROGRESS.
 export async function startWork(req: Request, res: Response): Promise<void> {

@@ -9,6 +9,7 @@ import {
   listTickets,
   getTicket,
   assignEngineer,
+  unassignEngineer,
   startWork,
   requestOTP,
   verifyOTP,
@@ -31,6 +32,9 @@ router.get("/:id", authorize("admin", "service_manager", "service_engineer", "se
 
 // ASSIGN ENGINEER: service_manager or admin
 router.patch("/:id/assign-engineer", authorize("service_manager", "admin"), assignEngineer);
+
+// UNASSIGN ENGINEER: service_manager or admin
+router.patch("/:id/unassign-engineer", authorize("service_manager", "admin"), unassignEngineer);
 
 // ── Engineer lifecycle ────────────────────────────────────────────────────
 // START WORK: assigned service_engineer or admin

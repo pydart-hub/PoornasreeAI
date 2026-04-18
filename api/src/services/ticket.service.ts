@@ -313,6 +313,32 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
   throw Object.assign(new Error("Engineer can only be assigned to tickets in OPEN status"), { status: 400 });
 }
 
+// ── unassignEngineer ──────────────────────────────────────────────────────
+// Manager or admin removes the assigned engineer, reverting ticket to OPEN.
+// Only allowed when ticket is in ASSIGNED status (before work has started).
+export async function unassignEngineer(ticketId: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot modify a closed ticket"), { status: 400 });
+  }
+  if (!ticket.assignedEngineerId) {
+    throw Object.assign(new Error("No engineer is assigned to this ticket"), { status: 400 });
+  }
+  if (ticket.status !== TicketStatus.ASSIGNED) {
+    throw Object.assign(new Error(`Cannot cancel assignment when ticket is ${ticket.status}. Only ASSIGNED tickets can be unassigned.`), { status: 400 });
+  }
+
+  return prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      assignedEngineerId: null,
+      status: TicketStatus.OPEN,
+    },
+    include: TICKET_INCLUDE,
+  });
+}
+
 // ── startWork ─────────────────────────────────────────────────────────────
 // Engineer marks a ticket IN_PROGRESS. Records firstEngineeredAt.
 export async function startWork(ticketId: string, engineerId: string, isAdmin = false) {
