@@ -82,16 +82,23 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // Only process text messages
-  if (msg.type !== "text") {
+  // Only process text and interactive (button reply) messages
+  let text = "";
+  if (msg.type === "text") {
+    text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
+  } else if (msg.type === "interactive") {
+    const interactive = msg.interactive as Record<string, unknown> | undefined;
+    if (interactive?.type === "button_reply") {
+      const reply = interactive.button_reply as Record<string, unknown> | undefined;
+      text = String(reply?.id ?? reply?.title ?? "").trim();
+    }
+  } else {
     await WhatsAppService.sendMessage(
       from,
       "⚠️ Sorry, I can only process text messages. Please type *MENU* to see options.",
     );
     return;
   }
-
-  const text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
 
   // ── Check if sender is a service engineer ──
   const engineer = await prisma.user.findFirst({
@@ -122,8 +129,12 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       data: { phoneNumber: from, role: "bot", content: result.message },
     });
 
-    // Send reply via WhatsApp
-    await WhatsAppService.sendMessage(from, result.message);
+    // Send reply via WhatsApp — use interactive buttons when available
+    if (result.buttons && result.buttons.length > 0) {
+      await WhatsAppService.sendInteractiveButtons(from, result.message, result.buttons);
+    } else {
+      await WhatsAppService.sendMessage(from, result.message);
+    }
   }
 }
 

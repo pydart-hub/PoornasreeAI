@@ -53,15 +53,6 @@ interface PincodeInfo {
   state?: string | null;
 }
 
-interface AssignedTicketSummary {
-  id: string;
-  ticketNumber?: string;
-  status: TicketStatus;
-  problemDescription: string;
-  machineCustomer?: string | null;
-  createdAt: string;
-}
-
 interface Engineer {
   id: string;
   firstName: string;
@@ -69,7 +60,6 @@ interface Engineer {
   email: string;
   whatsappNumber?: string | null;
   activeTickets?: number;
-  assignedTickets?: AssignedTicketSummary[];
   engineerPincodes?: PincodeInfo[];
 }
 
@@ -211,7 +201,6 @@ export default function ServiceManagerPage() {
   const [savingDealerEdit, setSavingDealerEdit] = useState(false);
   const [deletingDealerId, setDeletingDealerId] = useState<string | null>(null);
   const [deletingEngineerId, setDeletingEngineerId] = useState<string | null>(null);
-  const [expandedEngineerId, setExpandedEngineerId] = useState<string | null>(null);
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -1060,50 +1049,6 @@ export default function ServiceManagerPage() {
                         </div>
                       ) : (
                         <p className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary italic">No pincodes assigned</p>
-                      )}
-
-                      {/* Assigned Tickets Toggle */}
-                      {(eng.assignedTickets?.length ?? 0) > 0 && (
-                        <div>
-                          <button
-                            onClick={() => setExpandedEngineerId(expandedEngineerId === eng.id ? null : eng.id)}
-                            className="flex items-center gap-1 text-xs font-medium text-primary dark:text-blue-400 hover:text-primary-hover transition-colors"
-                          >
-                            {expandedEngineerId === eng.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            View {eng.assignedTickets!.length} assigned ticket{eng.assignedTickets!.length !== 1 ? "s" : ""}
-                          </button>
-                          {expandedEngineerId === eng.id && (
-                            <div className="mt-2 space-y-1.5">
-                              {eng.assignedTickets!.map(t => (
-                                <div
-                                  key={t.id}
-                                  onClick={() => {
-                                    const match = tickets.find(tk => tk.id === t.id);
-                                    if (match) { setDrawerTicket(match); setPageView("tickets"); }
-                                  }}
-                                  className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary cursor-pointer transition-colors"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-semibold text-content dark:text-content-dark truncate">
-                                      {t.ticketNumber || t.id.slice(0, 8)}
-                                    </p>
-                                    <p className="text-[10px] text-content-secondary dark:text-content-dark-secondary truncate">
-                                      {t.machineCustomer || t.problemDescription}
-                                    </p>
-                                  </div>
-                                  <span className={cn(
-                                    "text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap shrink-0",
-                                    t.status === "ASSIGNED" ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400"
-                                      : t.status === "IN_PROGRESS" ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
-                                        : "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400"
-                                  )}>
-                                    {t.status.replace("_", " ")}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
                       )}
                     </div>
                   ))}

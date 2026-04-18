@@ -118,22 +118,6 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
         whatsappNumber: true,
         createdAt: true,
         engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
-        engineerTickets: {
-          where: {
-            status: {
-              in: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS, TicketStatus.PENDING_OTP],
-            },
-          },
-          select: {
-            id: true,
-            ticketNumber: true,
-            status: true,
-            problemDescription: true,
-            machineCustomer: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: "desc" },
-        },
         _count: {
           select: {
             engineerTickets: {
@@ -152,7 +136,6 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
     const result = engineers.map(e => ({
       ...e,
       activeTickets: e._count.engineerTickets,
-      assignedTickets: e.engineerTickets,
     }));
 
     res.json({ engineers: result });

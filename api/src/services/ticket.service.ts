@@ -315,7 +315,7 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
 
 // ── unassignEngineer ──────────────────────────────────────────────────────
 // Manager or admin removes the assigned engineer, reverting ticket to OPEN.
-// Allowed for any non-closed ticket that has an engineer assigned.
+// Only allowed when ticket is in ASSIGNED status (before work has started).
 export async function unassignEngineer(ticketId: string) {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
@@ -325,13 +325,15 @@ export async function unassignEngineer(ticketId: string) {
   if (!ticket.assignedEngineerId) {
     throw Object.assign(new Error("No engineer is assigned to this ticket"), { status: 400 });
   }
+  if (ticket.status !== TicketStatus.ASSIGNED) {
+    throw Object.assign(new Error(`Cannot cancel assignment when ticket is ${ticket.status}. Only ASSIGNED tickets can be unassigned.`), { status: 400 });
+  }
 
   return prisma.ticket.update({
     where: { id: ticketId },
     data: {
       assignedEngineerId: null,
       status: TicketStatus.OPEN,
-      firstEngineeredAt: null,
     },
     include: TICKET_INCLUDE,
   });

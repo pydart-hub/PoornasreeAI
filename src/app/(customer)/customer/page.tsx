@@ -1,697 +1,537 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import {
   Send,
-  Mic,
-  MicOff,
-  LogOut,
-  Sparkles,
-  Square,
-  ThumbsUp,
-  ThumbsDown,
-  User,
   Bot,
-  Volume2,
-  VolumeX,
+  User,
   Globe,
-  Youtube,
-  Headphones,
+  ArrowLeft,
   CheckCircle2,
-  X,
-  History,
-  Plus,
-  MessageSquare,
-  Trash2,
-  Wrench,
-  ClipboardList,
+  Loader2,
+  Phone,
+  MapPin,
+  Package,
+  AlertCircle,
 } from "lucide-react";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { Logo, Avatar, ThemeToggle, LoadingScreen } from "@/components/ui";
-import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
+import { Logo, ThemeToggle } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { getSocket, closeSocket } from "@/lib/socket-client";
-import { LANGUAGES, LANG_BCP47 } from "@/lib/languages";
+import { LANGUAGES } from "@/lib/languages";
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // TYPES
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-type Message = {
+interface ChatButton {
+  label: string;
+  value: string;
+}
+
+interface ChatMessage {
+  id: string;
   role: "user" | "assistant";
   content: string;
-};
+  buttons?: ChatButton[];
+}
 
-interface VideoResource {
+type ChatState =
+  | "IDLE"
+  | "ASK_PHONE"
+  | "ASK_NAME"
+  | "MENU"
+  | "VIEW_PRODUCTS"
+  | "COMPLAINT_FORM"
+  | "COMPLAINT_ASK_PHONE"
+  | "CHECK_STATUS"
+  | "CHECK_STATUS_ASK_PHONE"
+  | "INSTALLATION_INFO"
+  | "SPEAK_SUPPORT";
+
+interface CustomerInfo {
+  name: string;
+  phone: string;
+  verified: boolean;
+}
+
+interface ProductItem {
   id: string;
-  title: string;
+  name: string;
   description?: string | null;
-  youtubeUrl: string;
-  keywords: string;
 }
 
-interface ChatMessage extends Message {
-  id: string;
-  videos?: VideoResource[];
-}
-
-interface SupportMessageItem {
-  id: string;
-  senderId: string;
-  content: string;
+interface TicketItem {
+  ticketNumber: string;
+  status: string;
+  problemDescription: string;
+  machineName?: string | null;
   createdAt: string;
-  sender: { id: string; firstName: string; lastName?: string; role: string };
 }
 
-interface SupportRequestState {
-  id: string;
-  status: "pending" | "active" | "resolved";
-  problem: string;
-  machineName?: string;
-  engineer?: { id: string; firstName: string; lastName?: string } | null;
-}
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// STATIC MESSAGES
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-interface ConversationHistoryItem {
-  id: string;
-  title: string | null;
-  updatedAt: string;
-  messages: { id: string; role: string; content: string; createdAt: string }[];
-}
+const NOT_REGISTERED_MSG =
+  `ðŸ“± This mobile number is not registered with us.\n\n` +
+  `If you are a Registered Customer, please provide your registered 10 digit mobile number.\n\n` +
+  `Eg. 9633503333\n\n` +
+  `Else Click Skip Button to Continue. ðŸ‘‡`;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AI API
-// ─────────────────────────────────────────────────────────────────────────────
+const MENU_BUTTONS: ChatButton[] = [
+  { label: "1ï¸âƒ£ View Our Products", value: "1" },
+  { label: "2ï¸âƒ£ Complaint Registration", value: "2" },
+  { label: "3ï¸âƒ£ Complaint Status", value: "3" },
+  { label: "4ï¸âƒ£ Product Installation", value: "4" },
+  { label: "5ï¸âƒ£ Speak to Support", value: "5" },
+];
 
-async function sendMessageToAI(conversationId: string, content: string, language?: string, productContext?: string | null): Promise<{ content: string; videos: VideoResource[] }> {
-  const res = await fetch("/api/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ conversationId, content, language, ...(productContext ? { productContext } : {}) }),
-  });
-  if (!res.ok) throw new Error("API error");
-  const data = await res.json();
-  return { content: data.assistantMessage.content, videos: data.videos ?? [] };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REMOVED — mock AI responses were here
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WELCOME MESSAGE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function makeWelcome(name: string): ChatMessage {
+function makeMenuMessage(name?: string): ChatMessage {
+  const greeting = name ? `Hello ${name},` : "Hello,";
   return {
-    id: "welcome",
+    id: `menu-${Date.now()}`,
     role: "assistant",
-    content: `Hello ${name}! 👋 I'm **Poornasree AI**, your personal product assistant.\n\nI can provide step-by-step troubleshooting for all milk analyzer products. Pick a topic above or describe your issue — I'll guide you through it.`,
+    content: `${greeting}\n\nWelcome to poornasreeHelpDesk.ðŸ¤–ðŸ“²\n\nðŸ“œ Here are the options for you.ðŸ‘‡`,
+    buttons: MENU_BUTTONS,
   };
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CustomerChatPage() {
-  const router = useRouter();
-  const { user, logout, isLoading } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [liked, setLiked] = useState<Record<string, boolean | null>>({});
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [chatState, setChatState] = useState<ChatState>("IDLE");
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({ name: "", phone: "", verified: false });
   const [language, setLanguage] = useState<string>("en");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // ── Service Ticket state ────────────────────────────────────────────────
-  const [showServicePanel, setShowServicePanel] = useState(false);
-  const [serviceForm, setServiceForm] = useState({ problem: "", machineName: "" });
-  const [serviceSubmitting, setServiceSubmitting] = useState(false);
-  const [serviceSuccess, setServiceSuccess] = useState("");
-  const [myTickets, setMyTickets] = useState<Array<{ id: string; ticketNumber?: string; status: string; problemDescription: string; machineName?: string | null; createdAt: string }>>([]);
+  // Complaint form state
+  const [complaintForm, setComplaintForm] = useState({
+    name: "", phone: "", pincode: "", serialNumber: "", product: "", issue: "",
+  });
+  const [complaintPincodeInfo, setComplaintPincodeInfo] = useState<{ place?: string; district?: string; state?: string } | null>(null);
+  const [complaintSerialInfo, setComplaintSerialInfo] = useState<{ model?: string; customer?: string; location?: string } | null>(null);
+  const [complaintProducts, setComplaintProducts] = useState<ProductItem[]>([]);
+  const [complaintSubmitting, setComplaintSubmitting] = useState(false);
+  const [pincodeValidating, setPincodeValidating] = useState(false);
+  const [serialValidating, setSerialValidating] = useState(false);
 
-  // ── Support / Human escalation state ─────────────────────────────────────
-  const [engineerOnline, setEngineerOnline] = useState(false);
-  const [showSupportPanel, setShowSupportPanel] = useState(false);
-  const [supportRequest, setSupportRequest] = useState<SupportRequestState | null>(null);
-  const [supportMessages, setSupportMessages] = useState<SupportMessageItem[]>([]);
-  const [supportInput, setSupportInput] = useState("");
-  const [supportSending, setSupportSending] = useState(false);
-  const [supportFormProblem, setSupportFormProblem] = useState("");
-  const [supportFormMachine, setSupportFormMachine] = useState("");
-  const [supportSubmitting, setSupportSubmitting] = useState(false);
-  const [unreadSupport, setUnreadSupport] = useState(0);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Voice input state ─────────────────────────────────────────────────────
-  const [isRecording, setIsRecording] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  // ── Translation state ──────────────────────────────────────────────────────
-  const [translatedContent, setTranslatedContent] = useState<Record<string, string>>({});
-  const [translating, setTranslating] = useState(false);
-  const translationCacheRef = useRef<Record<string, Record<string, string>>>({});
-  const messagesRef = useRef<ChatMessage[]>([]);
-  const prevLangRef = useRef<string>('en');
-
-  // ── History sidebar ────────────────────────────────────────────────────────
-  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
-  const [conversationHistory, setConversationHistory] = useState<ConversationHistoryItem[]>([]);
-
-  // ── Draggable support widget ───────────────────────────────────────────────
-  const [supportPos, setSupportPos] = useState({ x: 0, y: 0 });
-  const supportDragData = useRef<{ origX: number; origY: number; mouseX: number; mouseY: number } | null>(null);
-  const isDraggingWidget = useRef(false);
-
-  const showSupportPanelRef = useRef(false);
-
-  const endRef     = useRef<HTMLDivElement>(null);
-  const supportEndRef = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLInputElement>(null);
-
-  const createConversation = async (title?: string) => {
-    const res = await fetch("/api/conversations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ title: title?.trim().slice(0, 60) || "New Chat" }),
-    });
-    if (!res.ok) throw new Error("Failed to create conversation");
-    const data = await res.json();
-    setConversationId(data.conversation.id);
-    return data.conversation.id as string;
-  };
-
-  const loadConversationHistory = useCallback(async () => {
-    try {
-      const res = await fetch('/api/conversations', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setConversationHistory(data.conversations || []);
-      }
-    } catch { /* non-fatal */ }
-  }, []); // eslint-disable-line
-
-  const deleteConversation = async (id: string) => {
-    try {
-      const res = await fetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
-      if (res.ok) {
-        setConversationHistory((prev) => prev.filter((c) => c.id !== id));
-        if (conversationId === id) handleReset();
-      }
-    } catch { /* non-fatal */ }
-  };
-
-  // Redirect if not authenticated or not customer
-  useEffect(() => {
-    if (!isLoading) {
-      if (!user) { router.replace("/customer-login"); return; }
-      if (user.role !== "customer") { router.replace("/"); return; }
-      setMessages([makeWelcome(user.firstName)]);
-      // Restore the most recent conversation instead of always creating a new one.
-      // A new conversation is only created lazily when the user sends their first message.
-      fetch('/api/conversations', { credentials: 'include' })
-        .then((r) => r.ok ? r.json() : { conversations: [] })
-        .then((d) => {
-          const history: ConversationHistoryItem[] = d.conversations || [];
-          setConversationHistory(history);
-          if (history.length > 0) {
-            const latest = history[0];
-            const msgs: ChatMessage[] = latest.messages.map((m) => ({
-              id: m.id,
-              role: m.role as 'user' | 'assistant',
-              content: m.content,
-            }));
-            if (msgs.length > 0) {
-              setMessages(msgs);
-              setConversationId(latest.id);
-            }
-          }
-        })
-        .catch(console.error);
-    }
-  }, [user, isLoading, router, loadConversationHistory]); // eslint-disable-line
-
-  // ── Socket.IO: engineer presence + support events ────────────────────────
-  useEffect(() => {
-    if (!user || user.role !== "customer") return;
-
-    const sock = getSocket({ userId: user.id, role: user.role, name: user.firstName });
-
-    sock.on("engineer:status", ({ isOnline }: { isOnline: boolean }) => {
-      setEngineerOnline(isOnline);
-    });
-
-    sock.on("request:accepted", ({ requestId, engineer }: { requestId: string; engineer: SupportRequestState["engineer"] }) => {
-      setSupportRequest((prev) =>
-        prev?.id === requestId ? { ...prev, status: "active", engineer } : prev
-      );
-      // Auto-open the chat panel so the customer knows they've been connected
-      setShowSupportPanel(true);
-    });
-
-    sock.on("chat:message", ({ message }: { requestId: string; message: SupportMessageItem }) => {
-      // Server delivers only to this client's room — no requestId guard needed
-      setSupportMessages((prev) => [...prev, message]);
-      if (!showSupportPanelRef.current) setUnreadSupport((c) => c + 1);
-    });
-
-    sock.on("request:resolved", ({ requestId }: { requestId: string }) => {
-      if (supportRequest?.id === requestId) {
-        setSupportRequest((prev) => prev ? { ...prev, status: "resolved" } : prev);
-      }
-    });
-
-    return () => {
-      sock.off("engineer:status");
-      sock.off("request:accepted");
-      sock.off("chat:message");
-      sock.off("request:resolved");
-      closeSocket();
-    };
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // When support request becomes active, join its socket room
-  useEffect(() => {
-    if (supportRequest?.status === "active" && user) {
-      const sock = getSocket({ userId: user.id, role: user.role, name: user.firstName });
-      sock.emit("support:join", supportRequest.id);
-      loadSupportMessages(supportRequest.id);
-    }
-  }, [supportRequest?.status]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadSupportMessages = useCallback(async (requestId: string) => {
-    try {
-      const res = await fetch(`/api/support/requests/${requestId}/messages`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setSupportMessages(data.messages);
-      }
-    } catch { /* non-fatal */ }
-  }, []);
-
-  // ── Translation function (en→target) ─────────────────────────────────────────
-  const translateText = useCallback(async (text: string, targetLang: string): Promise<string> => {
-    if (targetLang === 'en' || !text.trim()) return text;
-    if (translationCacheRef.current[targetLang]?.[text]) return translationCacheRef.current[targetLang][text];
-    try {
-      const chunks: string[] = [];
-      let rem = text;
-      while (rem.length > 0) { chunks.push(rem.slice(0, 490)); rem = rem.slice(490); }
-      const parts = await Promise.all(chunks.map(async (ch) => {
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=en|${targetLang}`);
-        const d = await res.json();
-        return (d.responseData?.translatedText as string) || ch;
-      }));
-      const result = parts.join('');
-      if (!translationCacheRef.current[targetLang]) translationCacheRef.current[targetLang] = {};
-      translationCacheRef.current[targetLang][text] = result;
-      return result;
-    } catch { return text; }
-  }, []); // eslint-disable-line
-
-  // ── Translate non-English text TO English (for AI query) ─────────────────────
-  const translateToEnglish = useCallback(async (text: string, sourceLang: string): Promise<string> => {
-    if (sourceLang === 'en' || !text.trim()) return text;
-    try {
-      const chunks: string[] = [];
-      let rem = text;
-      while (rem.length > 0) { chunks.push(rem.slice(0, 490)); rem = rem.slice(490); }
-      const parts = await Promise.all(chunks.map(async (ch) => {
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=${sourceLang}|en`);
-        const d = await res.json();
-        return (d.responseData?.translatedText as string) || ch;
-      }));
-      return parts.join('');
-    } catch { return text; }
-  }, []); // eslint-disable-line
-
-  // ── Select conversation from history ───────────────────────────────────────────────
-  const selectConversation = useCallback((conv: ConversationHistoryItem) => {
-    const msgs: ChatMessage[] = conv.messages.map((m) => ({
-      id: m.id,
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
-    setMessages(msgs.length > 0 ? msgs : [makeWelcome(user?.firstName ?? 'there')]);
-    setConversationId(conv.id);
-    setTranslatedContent({});
-    setHistorySidebarOpen(false);
-  }, []); // eslint-disable-line
-
+  // ── Scroll to bottom on new messages ────────────────────────────────────
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, isLoading]);
 
-  useEffect(() => {
-    supportEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [supportMessages]);
+  // ── Helper: add message ─────────────────────────────────────────────────
+  const addBotMessage = useCallback((content: string, buttons?: ChatButton[]) => {
+    setMessages((prev) => [...prev, {
+      id: `bot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      role: "assistant",
+      content,
+      buttons,
+    }]);
+  }, []);
 
-  // Keep ref in sync with state so socket handlers can read it without stale closure
-  useEffect(() => {
-    showSupportPanelRef.current = showSupportPanel;
-    if (showSupportPanel) setUnreadSupport(0);
-  }, [showSupportPanel]);
+  const addUserMessage = useCallback((content: string) => {
+    setMessages((prev) => [...prev, {
+      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      role: "user",
+      content,
+    }]);
+  }, []);
 
-  const sendMessage = async (text: string) => {
-    if (!text.trim() || isTyping) return;
-    const trimmed = text.trim();
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setVoiceTranscript("");
-    setIsTyping(true);
-    const abort = new AbortController();
-    abortRef.current = abort;
+  // ── Show menu ───────────────────────────────────────────────────────────
+  const showMenu = useCallback((name?: string) => {
+    setMessages((prev) => [...prev, makeMenuMessage(name)]);
+    setChatState("MENU");
+  }, []);
+
+  // ── Phone lookup ────────────────────────────────────────────────────────
+  const lookupPhone = useCallback(async (phone: string): Promise<{ found: boolean; name?: string }> => {
     try {
-      // Use first user message as conversation title
-      const convId = conversationId ?? await createConversation(trimmed);
-      // Translate the query to English so the AI (trained on English docs) understands it
-      const englishQuery = language !== 'en' ? await translateToEnglish(trimmed, language) : trimmed;
-      if (abort.signal.aborted) return;
-      const { content: answer, videos } = await sendMessageToAI(convId, englishQuery, language);
-      if (abort.signal.aborted) return;
-      const botId = (Date.now() + 1).toString();
-      setMessages((prev) => [
-        ...prev,
-        { id: botId, role: "assistant", content: answer, videos: videos.length > 0 ? videos : undefined },
-      ]);
-      loadConversationHistory().catch(console.error);
-    } catch {
-      if (abort.signal.aborted) return;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: "Sorry, I couldn't process your request. Please try again.",
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
-      abortRef.current = null;
-    }
-  };
-
-  const stopGeneration = () => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-      abortRef.current = null;
-    }
-    setIsTyping(false);
-  };
-
-  const handleSubmit = (e: FormEvent) => { e.preventDefault(); sendMessage(input); };
-  const handleReset = () => {
-    if (user) {
-      setMessages([makeWelcome(user.firstName)]);
-      setConversationId(null);
-      setSpeakingId(null);
-      setSupportRequest(null);
-      setSupportMessages([]);
-      setShowSupportPanel(false);
-      setTranslatedContent({});
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-      // Conversation created lazily on first message — no need to pre-create here
-      loadConversationHistory().catch(console.error);
-    }
-  };
-
-  // ── Service ticket creation ───────────────────────────────────────────────
-  const fetchMyTickets = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tickets", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setMyTickets(data.tickets ?? []);
-      }
+      const res = await fetch("/api/customer-chat/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      if (res.ok) return res.json();
     } catch { /* non-fatal */ }
+    return { found: false };
   }, []);
 
-  // Load customer’s own service tickets on mount
-  useEffect(() => { if (user) fetchMyTickets(); }, [user, fetchMyTickets]);
+  // ── Open complaint form ─────────────────────────────────────────────────
+  const openComplaintForm = useCallback(async (phoneOverride?: string) => {
+    addBotMessage("📝 Please fill in the complaint details below:");
+    setChatState("COMPLAINT_FORM");
 
-  const handleCreateServiceTicket = async () => {
-    if (!serviceForm.problem.trim()) return;
-    setServiceSubmitting(true);
-    setServiceSuccess("");
+    // Fetch products for dropdown
     try {
-      const res = await fetch("/api/tickets", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          problemDescription: serviceForm.problem.trim(),
-          machineName: serviceForm.machineName.trim() || undefined,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setServiceSuccess(`Ticket ${data.ticket?.ticketNumber ?? "submitted"}! A service engineer will be dispatched to you.`);
-        setServiceForm({ problem: "", machineName: "" });
-        await fetchMyTickets();
-      }
-    } finally {
-      setServiceSubmitting(false);
+      const res = await fetch("/api/customer-chat/products");
+      const data = await res.json();
+      setComplaintProducts(data.products || []);
+    } catch {
+      setComplaintProducts([
+        { id: "1", name: "Milk Analyzer" },
+        { id: "2", name: "VIBRO Stirrer" },
+        { id: "3", name: "Water Pump" },
+        { id: "4", name: "Motor Controller" },
+        { id: "5", name: "Display Unit" },
+      ]);
     }
-  };
 
-  // ── Support request creation ──────────────────────────────────────────────
-  const handleCreateSupportRequest = async () => {
-    if (!conversationId || !supportFormProblem.trim()) return;
-    setSupportSubmitting(true);
+    setComplaintForm({
+      name: customerInfo.name || "",
+      phone: phoneOverride || customerInfo.phone || "",
+      pincode: "",
+      serialNumber: "",
+      product: "",
+      issue: "",
+    });
+    setComplaintPincodeInfo(null);
+    setComplaintSerialInfo(null);
+  }, [customerInfo, addBotMessage]);
+
+  // ── Fetch and show tickets ──────────────────────────────────────────────
+  const fetchAndShowTickets = useCallback(async (phone: string) => {
+    setIsLoading(true);
     try {
-      const res = await fetch("/api/support/requests", {
-        method:  "POST",
+      const res = await fetch("/api/customer-chat/ticket-status", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          conversationId,
-          problem:     supportFormProblem.trim(),
-          machineName: supportFormMachine.trim() || undefined,
-        }),
+        body: JSON.stringify({ phone }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setSupportRequest({
-          id:          data.request.id,
-          status:      "pending",
-          problem:     data.request.problem,
-          machineName: data.request.machineName,
-          engineer:    null,
+      const data = await res.json();
+      const tickets: TicketItem[] = data.tickets || [];
+
+      if (tickets.length === 0) {
+        addBotMessage(
+          "📋 No tickets found for your number.\n\nYou can register a new complaint with option 2️⃣.",
+          [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
+        );
+      } else {
+        const statusEmoji: Record<string, string> = {
+          OPEN: "🔵", ASSIGNED: "🟡", IN_PROGRESS: "🟠", PENDING_OTP: "🟣", CLOSED: "✅",
+        };
+        const lines = tickets.map((t, i) => {
+          const emoji = statusEmoji[t.status] || "⚪";
+          const date = new Date(t.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+          const complaint = t.problemDescription?.slice(0, 40) || "—";
+          return `${i + 1}. *${t.ticketNumber}*\n   ${emoji} ${t.status.replace(/_/g, " ")}\n   📅 ${date}\n   📝 ${complaint}`;
         });
-        setSupportFormProblem("");
-        setSupportFormMachine("");
+        addBotMessage(
+          `📋 *Your Tickets (${tickets.length}):*\n\n${lines.join("\n\n")}`,
+          [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
+        );
       }
-    } finally {
-      setSupportSubmitting(false);
+    } catch {
+      addBotMessage("Sorry, couldn't fetch ticket status. Please try again.", [{ label: "⬅️ Back to Menu", value: "__MENU__" }]);
     }
-  };
+    setIsLoading(false);
+    setChatState("CHECK_STATUS");
+  }, [addBotMessage]);
 
-  // ── Send message to engineer ──────────────────────────────────────────────
-  const handleSendSupportMessage = async () => {
-    if (!supportInput.trim() || !supportRequest || supportSending) return;
-    const text = supportInput.trim();
-    setSupportInput("");
-    setSupportSending(true);
+  // ── Handle chat message (state machine) ─────────────────────────────────
+  const handleChatMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    switch (chatState) {
+      case "IDLE": {
+        addUserMessage(trimmed);
+        addBotMessage(NOT_REGISTERED_MSG, [{ label: "Skip ⏭️", value: "__SKIP__" }]);
+        setChatState("ASK_PHONE");
+        break;
+      }
+
+      case "ASK_PHONE": {
+        if (trimmed === "__SKIP__") {
+          addUserMessage("Skip");
+          showMenu();
+          return;
+        }
+
+        addUserMessage(trimmed);
+        const digits = trimmed.replace(/\D/g, "");
+        if (digits.length !== 10) {
+          addBotMessage(
+            "⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333\n\nOr Click Skip Button to Continue. 👇",
+            [{ label: "Skip ⏭️", value: "__SKIP__" }]
+          );
+          return;
+        }
+
+        setIsLoading(true);
+        const result = await lookupPhone(digits);
+        setIsLoading(false);
+
+        if (result.found && result.name) {
+          setCustomerInfo({ name: result.name, phone: digits, verified: true });
+          addBotMessage(`✅ Welcome back, ${result.name}! 👋\n\nYour phone number has been verified.`);
+          showMenu(result.name);
+        } else {
+          setCustomerInfo((prev) => ({ ...prev, phone: digits }));
+          addBotMessage("👤 Please enter your name:");
+          setChatState("ASK_NAME");
+        }
+        break;
+      }
+
+      case "ASK_NAME": {
+        addUserMessage(trimmed);
+        if (trimmed.length < 2) {
+          addBotMessage("Please enter your full name (at least 2 characters):");
+          return;
+        }
+        setCustomerInfo((prev) => ({ ...prev, name: trimmed, verified: false }));
+        addBotMessage(`✅ Thank you, ${trimmed}! Your phone number ${customerInfo.phone} has been noted.`);
+        showMenu(trimmed);
+        break;
+      }
+
+      case "MENU": {
+        addUserMessage(trimmed);
+        const choice = trimmed;
+
+        if (choice === "1") {
+          setIsLoading(true);
+          try {
+            const res = await fetch("/api/customer-chat/products");
+            const data = await res.json();
+            const products: ProductItem[] = data.products || [];
+            const productList = products.map((p: ProductItem, i: number) => `${i + 1}. ${p.name}`).join("\n");
+            addBotMessage(
+              `📦 *Our Products:*\n\n${productList}\n\nClick Back to Menu to return.`,
+              [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
+            );
+          } catch {
+            addBotMessage("Sorry, couldn't load products. Please try again.", [{ label: "⬅️ Back to Menu", value: "__MENU__" }]);
+          }
+          setIsLoading(false);
+          setChatState("VIEW_PRODUCTS");
+          return;
+        }
+
+        if (choice === "2") {
+          if (!customerInfo.phone) {
+            addBotMessage("📱 To register a complaint, please provide your 10-digit mobile number first:");
+            setChatState("COMPLAINT_ASK_PHONE");
+            return;
+          }
+          openComplaintForm();
+          return;
+        }
+
+        if (choice === "3") {
+          if (!customerInfo.phone) {
+            addBotMessage("📱 To check complaint status, please provide your 10-digit mobile number:");
+            setChatState("CHECK_STATUS_ASK_PHONE");
+            return;
+          }
+          await fetchAndShowTickets(customerInfo.phone);
+          return;
+        }
+
+        if (choice === "4") {
+          addBotMessage(
+            `🔧 *Product Installation*\n\n` +
+            `For product installation requests, please contact our service team:\n\n` +
+            `📞 Call: +91 9633503333\n📧 Email: service@poornasree.com\n\n` +
+            `Or register a complaint with option 2️⃣ Complaint Registration and mention "Installation" as the issue.`,
+            [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
+          );
+          setChatState("INSTALLATION_INFO");
+          return;
+        }
+
+        if (choice === "5") {
+          addBotMessage(
+            `📞 *Speak to Support*\n\nOur support team will reach out to you shortly.\n\n` +
+            `You can also reach us at:\n📞 +91 9633503333\n📧 support@poornasree.com`,
+            [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
+          );
+          setChatState("SPEAK_SUPPORT");
+          return;
+        }
+
+        addBotMessage("Please select a valid option (1-5):", MENU_BUTTONS);
+        break;
+      }
+
+      case "VIEW_PRODUCTS":
+      case "INSTALLATION_INFO":
+      case "SPEAK_SUPPORT":
+      case "CHECK_STATUS": {
+        if (trimmed === "__MENU__") {
+          addUserMessage("Back to Menu");
+          showMenu(customerInfo.name || undefined);
+          return;
+        }
+        addUserMessage(trimmed);
+        addBotMessage("Click Back to Menu to return.", [{ label: "⬅️ Back to Menu", value: "__MENU__" }]);
+        break;
+      }
+
+      case "COMPLAINT_ASK_PHONE": {
+        addUserMessage(trimmed);
+        const digits = trimmed.replace(/\D/g, "");
+        if (digits.length !== 10) {
+          addBotMessage("⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333");
+          return;
+        }
+        setCustomerInfo((prev) => ({ ...prev, phone: digits }));
+
+        setIsLoading(true);
+        const result = await lookupPhone(digits);
+        setIsLoading(false);
+        if (result.found && result.name) {
+          setCustomerInfo({ name: result.name, phone: digits, verified: true });
+          addBotMessage(`✅ Verified: ${result.name}`);
+        }
+
+        openComplaintForm(digits);
+        break;
+      }
+
+      case "CHECK_STATUS_ASK_PHONE": {
+        addUserMessage(trimmed);
+        const digits = trimmed.replace(/\D/g, "");
+        if (digits.length !== 10) {
+          addBotMessage("⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333");
+          return;
+        }
+        setCustomerInfo((prev) => ({ ...prev, phone: digits }));
+        await fetchAndShowTickets(digits);
+        break;
+      }
+
+      case "COMPLAINT_FORM": {
+        if (trimmed === "__MENU__") {
+          addUserMessage("Back to Menu");
+          showMenu(customerInfo.name || undefined);
+          return;
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  }, [chatState, customerInfo, addUserMessage, addBotMessage, showMenu, lookupPhone, openComplaintForm, fetchAndShowTickets]);
+
+  // ── Validate pincode ────────────────────────────────────────────────────
+  const validatePincode = useCallback(async (pincode: string) => {
+    if (!/^\d{6}$/.test(pincode)) { setComplaintPincodeInfo(null); return; }
+    setPincodeValidating(true);
     try {
-      await fetch(`/api/support/requests/${supportRequest.id}/messages`, {
-        method:  "POST",
+      const res = await fetch("/api/customer-chat/validate-pincode", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify({ pincode }),
       });
-    } finally {
-      setSupportSending(false);
-    }
-  };
-
-  // ── TTS: stop any audio if user unmounts ─────────────────────────────────
-  useEffect(() => {
-    return () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } };
+      const data = await res.json();
+      if (data.valid) {
+        setComplaintPincodeInfo({ place: data.place, district: data.district, state: data.state });
+      } else {
+        setComplaintPincodeInfo(null);
+      }
+    } catch { setComplaintPincodeInfo(null); }
+    setPincodeValidating(false);
   }, []);
 
-  // speak() — ONE system: always uses the /api/tts backend proxy (node-gtts).
-  // Works for ALL Indian languages (en/hi/mr/bn/te) consistently across all browsers.
-  const handleSpeak = (msgId: string, text: string) => {
-    if (typeof window === "undefined") return;
+  // ── Validate serial number ──────────────────────────────────────────────
+  const validateSerial = useCallback(async (serial: string) => {
+    if (!serial.trim()) { setComplaintSerialInfo(null); return; }
+    setSerialValidating(true);
+    try {
+      const res = await fetch("/api/customer-chat/validate-serial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serialNumber: serial }),
+      });
+      const data = await res.json();
+      if (data.found) {
+        setComplaintSerialInfo(data.machine);
+      } else {
+        setComplaintSerialInfo(null);
+      }
+    } catch { setComplaintSerialInfo(null); }
+    setSerialValidating(false);
+  }, []);
 
-    // Stop current audio
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+  // ── Submit complaint ────────────────────────────────────────────────────
+  const handleSubmitComplaint = useCallback(async () => {
+    const { name, phone, pincode, product, issue, serialNumber } = complaintForm;
+    if (!name.trim() || !phone.trim() || !pincode.trim() || !product.trim() || !issue.trim()) return;
 
-    // Toggle off if same message
-    if (speakingId === msgId) { setSpeakingId(null); return; }
+    setComplaintSubmitting(true);
+    try {
+      const res = await fetch("/api/customer-chat/complaint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), pincode: pincode.trim(), serialNumber: serialNumber.trim() || undefined, product: product.trim(), issue: issue.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        addBotMessage(
+          `✅ Your complaint has been registered successfully!\n\n` +
+          `🎫 Ticket: *${data.ticketNumber}*\n` +
+          `📦 Product: ${product.trim()}\n` +
+          `📝 Issue: ${issue.trim()}\n\n` +
+          `A service engineer will be assigned to you shortly.`,
+          [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
+        );
+        setChatState("CHECK_STATUS");
+      } else {
+        addBotMessage(`❌ ${data.error || "Failed to submit complaint. Please try again."}`, [{ label: "⬅️ Back to Menu", value: "__MENU__" }]);
+        setChatState("CHECK_STATUS");
+      }
+    } catch {
+      addBotMessage("❌ Failed to submit complaint. Please try again.", [{ label: "⬅️ Back to Menu", value: "__MENU__" }]);
+      setChatState("CHECK_STATUS");
+    }
+    setComplaintSubmitting(false);
+  }, [complaintForm, addBotMessage]);
 
-    const cleanText = text
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/[#`*_~]/g, "")
-      .replace(/\n+/g, ". ")
-      .trim();
-    if (!cleanText) return;
-
-    const isoLang = (LANG_BCP47[language] || "en-US").split("-")[0];
-    const url = `/api/tts?lang=${isoLang}&text=${encodeURIComponent(cleanText.slice(0, 500))}`;
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    setSpeakingId(msgId);
-    audio.onended = () => { setSpeakingId(null); audioRef.current = null; };
-    audio.onerror = () => { setSpeakingId(null); audioRef.current = null; };
-    audio.play().catch(() => setSpeakingId(null));
+  // ── Handle text input submit ────────────────────────────────────────────
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    handleChatMessage(input);
+    setInput("");
   };
 
-  // Keep messages ref current for language translation effect
-  messagesRef.current = messages;
-
-  // ── Language change → translate all existing assistant messages ─────────────────
-  useEffect(() => {
-    if (prevLangRef.current === language) return;
-    prevLangRef.current = language;
-    if (language === 'en') { setTranslatedContent({}); return; }
-    const toTranslate = messagesRef.current.filter((m) => m.role === 'assistant' && m.content);
-    if (!toTranslate.length) return;
-    setTranslating(true);
-    Promise.all(toTranslate.map(async (m) => {
-      const t = await translateText(m.content, language);
-      return [m.id, t] as [string, string];
-    })).then((pairs) => {
-      setTranslatedContent(Object.fromEntries(pairs));
-      setTranslating(false);
-    }).catch(() => setTranslating(false));
-  }, [language, translateText]); // eslint-disable-line
-
-  // ── Drag: attach global mouse/touch move listeners ────────────────────────────
-  useEffect(() => {
-    const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!supportDragData.current) return;
-      const pt = 'touches' in e ? (e as TouchEvent).touches[0] : (e as MouseEvent);
-      const dx = pt.clientX - supportDragData.current.mouseX;
-      const dy = pt.clientY - supportDragData.current.mouseY;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isDraggingWidget.current = true;
-      setSupportPos({ x: supportDragData.current.origX + dx, y: supportDragData.current.origY + dy });
-    };
-    const onUp = () => { supportDragData.current = null; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-    };
-  }, []); // eslint-disable-line
-
-  if (isLoading) return <LoadingScreen message="Loading your portal…" />;
-  if (!user) return null;
+  // ── Complaint form is valid? ────────────────────────────────────────────
+  const isComplaintValid =
+    complaintForm.name.trim().length >= 2 &&
+    complaintForm.phone.replace(/\D/g, "").length === 10 &&
+    /^\d{6}$/.test(complaintForm.pincode) &&
+    complaintForm.product.trim() !== "" &&
+    complaintForm.issue.trim().length >= 3;
 
   return (
-    <div className="h-[100dvh] flex bg-surface dark:bg-surface-dark overflow-hidden">
-
-      {/* ── History Sidebar ── */}
-      <ResponsiveSidebar open={historySidebarOpen} onClose={() => setHistorySidebarOpen(false)} width={256}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0" style={{ minWidth: "16rem" }}>
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
-            <span className="text-sm font-semibold text-content dark:text-content-dark">Chat History</span>
-          </div>
-          <button onClick={() => setHistorySidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
-            <X className="w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
-          </button>
-        </div>
-        <div className="p-3 shrink-0" style={{ minWidth: "16rem" }}>
-          <button
-            onClick={() => { handleReset(); setHistorySidebarOpen(false); }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-line dark:border-line-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover text-content dark:text-content-dark text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Chat
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-2 py-1 scrollbar-thin" style={{ minWidth: "16rem" }}>
-          {conversationHistory.length === 0 ? (
-            <div className="flex flex-col items-center py-12 px-4 text-center gap-3">
-              <MessageSquare className="w-8 h-8 text-content-secondary/30 dark:text-content-dark-secondary/30" />
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">No previous chats yet</p>
-            </div>
-          ) : (
-            conversationHistory.map((conv) => (
-              <div
-                key={conv.id}
-                className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-lg text-xs transition-colors mb-0.5 flex items-center gap-2 group",
-                  conversationId === conv.id
-                    ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300"
-                    : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-                )}
-              >
-                <button
-                  onClick={() => selectConversation(conv)}
-                  className="flex items-center gap-2 flex-1 min-w-0"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-40" />
-                  <span className="truncate flex-1">{conv.title || "Untitled Chat"}</span>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
-                  className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                  title="Delete chat"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </ResponsiveSidebar>
-
-      {/* ── Main content area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-surface dark:bg-surface-dark overflow-hidden">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="shrink-0 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark px-2 sm:px-4 py-2 sm:py-3 flex items-center gap-1.5 sm:gap-3 sticky top-0 z-20">
-        <button
-          onClick={() => setHistorySidebarOpen((v) => !v)}
-          className="p-1.5 sm:p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
-          title="Chat History"
-        >
-          <History className="w-5 h-5" />
-        </button>
         <Logo variant="full" size="sm" className="hidden sm:flex" />
         <Logo variant="icon" size="sm" className="flex sm:hidden" />
 
-        {/* Product title */}
         <div className="hidden md:flex flex-col -ml-1">
           <span className="text-sm font-semibold text-content dark:text-content-dark leading-tight">
-            AI Support Assistant
+            Poornasree HelpDesk
           </span>
           <span className="text-[10px] text-content-secondary dark:text-content-dark-secondary leading-none">
-            Powered by Poornasree AI
+            Customer Support 🤖📲
           </span>
         </div>
 
-        {/* Status pill — AI online */}
+        {/* Status pill */}
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 ml-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">AI Online</span>
-        </div>
-
-        {/* Engineer online status */}
-        <div className={cn(
-          "hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium",
-          engineerOnline
-            ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400"
-            : "bg-surface-tertiary dark:bg-surface-dark-tertiary border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary"
-        )}>
-          <span className={cn("h-1.5 w-1.5 rounded-full", engineerOnline ? "bg-blue-500 animate-pulse" : "bg-gray-400")} />
-          {engineerOnline ? "Support Online" : "Support Offline"}
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Online</span>
         </div>
 
         <div className="flex-1" />
@@ -704,7 +544,7 @@ export default function CustomerChatPage() {
           >
             <Globe className="w-3.5 h-3.5" />
             {LANGUAGES.find((l) => l.code === language)?.flag}{" "}
-            <span className="hidden sm:inline">{translating ? <span className="animate-pulse">…</span> : LANGUAGES.find((l) => l.code === language)?.label}</span>
+            <span className="hidden sm:inline">{LANGUAGES.find((l) => l.code === language)?.label}</span>
           </button>
           {langMenuOpen && (
             <>
@@ -730,65 +570,55 @@ export default function CustomerChatPage() {
         </div>
 
         <div className="hidden sm:block"><ThemeToggle /></div>
-
-        <div className="hidden sm:flex items-center gap-2">
-          <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
-          <span className="text-sm font-medium text-content dark:text-content-dark hidden md:block">
-            {user.firstName}
-          </span>
-        </div>
-
-        <button
-          onClick={() => { logout(); router.replace("/customer-login"); }}
-          className="p-1.5 sm:p-2 rounded-xl text-content-secondary dark:text-content-dark-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
-          title="Logout"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
       </header>
 
       {/* ── Messages ──────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-4 scrollbar-thin">
-
         <div className="max-w-2xl mx-auto w-full space-y-4">
           {messages.map((msg) => (
             <MessageBubble
               key={msg.id}
               msg={msg}
-              liked={liked[msg.id]}
-              onLike={(v) => setLiked((prev) => ({ ...prev, [msg.id]: v }))}
-              videos={msg.videos}
-              speakingId={speakingId}
-              onSpeak={handleSpeak}
-              translatedContent={translatedContent[msg.id]}
+              onButtonClick={(val) => handleChatMessage(val)}
             />
           ))}
 
-          {/* Typing indicator + stop button */}
-          {isTyping && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-end gap-2">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary-400/10 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-primary dark:text-primary-300" />
-                </div>
-                <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                  <div className="flex items-center gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <span
-                        key={i}
-                        className="block w-2 h-2 rounded-full bg-primary/60 dark:bg-primary-400/60 animate-bounce"
-                        style={{ animationDelay: `${i * 150}ms` }}
-                      />
-                    ))}
-                  </div>
+          {/* Complaint form inline */}
+          {chatState === "COMPLAINT_FORM" && (
+            <ComplaintForm
+              form={complaintForm}
+              setForm={setComplaintForm}
+              pincodeInfo={complaintPincodeInfo}
+              serialInfo={complaintSerialInfo}
+              products={complaintProducts}
+              onValidatePincode={validatePincode}
+              onValidateSerial={validateSerial}
+              onSubmit={handleSubmitComplaint}
+              onCancel={() => { showMenu(customerInfo.name || undefined); }}
+              isValid={isComplaintValid}
+              submitting={complaintSubmitting}
+              pincodeValidating={pincodeValidating}
+              serialValidating={serialValidating}
+            />
+          )}
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex items-end gap-2">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary-400/10 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-primary dark:text-primary-300" />
+              </div>
+              <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="block w-2 h-2 rounded-full bg-primary/60 dark:bg-primary-400/60 animate-bounce"
+                      style={{ animationDelay: `${i * 150}ms` }}
+                    />
+                  ))}
                 </div>
               </div>
-              <button
-                onClick={stopGeneration}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-medium transition-colors"
-              >
-                <Square className="w-3 h-3 fill-current" /> Stop
-              </button>
             </div>
           )}
 
@@ -798,435 +628,41 @@ export default function CustomerChatPage() {
 
       {/* ── Input ─────────────────────────────────────────────────────────── */}
       <footer className="shrink-0 border-t border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card px-3 sm:px-6 py-3">
-        {/* Voice recording banner */}
-        {isRecording && (
-          <div className="max-w-2xl mx-auto mb-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-            <span className="text-xs font-medium text-red-600 dark:text-red-400 shrink-0">Listening...</span>
-            <span className="text-xs text-content dark:text-content-dark truncate flex-1">{voiceTranscript || "Speak now…"}</span>
-            <button
-              type="button"
-              onClick={() => { if (recognitionRef.current) recognitionRef.current.stop(); }}
-              className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 shrink-0"
-            >
-              Stop & Send
-            </button>
-          </div>
-        )}
         <form
           onSubmit={handleSubmit}
           className="max-w-2xl mx-auto flex items-center gap-2"
         >
           <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-surface dark:bg-surface-dark border border-line dark:border-line-dark focus-within:border-primary dark:focus-within:border-primary-400 transition-colors">
-            <Sparkles className="w-4 h-4 text-primary dark:text-primary-300 shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a product or describe your issue…"
-              className="flex-1 bg-transparent text-base sm:text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary outline-none"
+              placeholder={
+                chatState === "IDLE" ? "Type Hi to start…" :
+                chatState === "ASK_PHONE" ? "Enter your 10-digit mobile number…" :
+                chatState === "ASK_NAME" ? "Enter your name…" :
+                chatState === "COMPLAINT_FORM" ? "Fill in the form above…" :
+                "Type a message…"
+              }
+              disabled={chatState === "COMPLAINT_FORM"}
+              className="flex-1 bg-transparent text-base sm:text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary outline-none disabled:opacity-50"
             />
           </div>
-          {/* Voice input — WhatsApp / ChatGPT style: tap to start, tap to stop + send */}
-          <button
-            type="button"
-            onClick={() => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const w = window as any;
-              const SpeechRecognitionAPI = w.SpeechRecognition || w.webkitSpeechRecognition;
-              if (!SpeechRecognitionAPI) { alert("Speech recognition is not supported in this browser."); return; }
-              if (isRecording && recognitionRef.current) {
-                // Stop recording: recognition.onend will fire and auto-send
-                recognitionRef.current.stop();
-                return;
-              }
-              const recog = new SpeechRecognitionAPI();
-              recog.lang = LANG_BCP47[language] || "en-US";
-              recog.continuous = true;
-              recog.interimResults = true;
-              recog.maxAlternatives = 1;
-              let finalTranscript = "";
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              recog.onresult = (e: any) => {
-                let interim = "";
-                for (let i = e.resultIndex; i < e.results.length; i++) {
-                  const t = e.results[i][0].transcript;
-                  if (e.results[i].isFinal) { finalTranscript += t; } else { interim += t; }
-                }
-                const shown = (finalTranscript + interim).trim();
-                setVoiceTranscript(shown);
-                setInput(shown);
-              };
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              recog.onerror = (e: any) => {
-                setIsRecording(false);
-                setVoiceTranscript("");
-                if (e.error === "not-allowed" || e.error === "permission-denied") {
-                  alert("Microphone access denied. Please allow microphone permission in your browser settings.");
-                } else if (e.error === "network") {
-                  alert("Voice input requires a secure (HTTPS) connection.");
-                }
-              };
-              recog.onend = () => {
-                setIsRecording(false);
-                recognitionRef.current = null;
-                // Auto-send the final transcript
-                const toSend = finalTranscript.trim();
-                if (toSend) {
-                  setInput("");
-                  setVoiceTranscript("");
-                  sendMessage(toSend);
-                }
-              };
-              recognitionRef.current = recog;
-              setVoiceTranscript("");
-              recog.start();
-              setIsRecording(true);
-            }}
-            className={cn(
-              "p-2.5 rounded-xl border transition-all",
-              isRecording
-                ? "border-red-400 bg-red-500 text-white shadow-lg shadow-red-500/30 scale-110"
-                : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-            )}
-            title={isRecording ? "Tap to stop & send" : "Voice input"}
-          >
-            {isRecording ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
-          </button>
           <button
             type="submit"
-            disabled={isTyping || input.trim() === ""}
+            disabled={input.trim() === "" || chatState === "COMPLAINT_FORM"}
             className="p-2.5 rounded-xl bg-primary text-white hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>
         </form>
-
         <div className="max-w-2xl mx-auto mt-2">
           <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-            Poornasree AI · v1.0
+            Poornasree HelpDesk · v1.0
           </p>
         </div>
       </footer>
-      </div>{/* end main content */}
-
-      {/* ── Service Request Widget ──────────────────────────────────────────
-          Fixed bottom-left — separate from support chat widget              */}
-      <div className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50 flex flex-col items-start gap-3">
-        {showServicePanel && (
-          <div className="w-[min(calc(100vw-2rem),24rem)] sm:w-96 rounded-2xl shadow-2xl border border-violet-200 dark:border-violet-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70dvh] sm:max-h-[560px]">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-violet-700 to-violet-500">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <Wrench className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white leading-tight">On-Site Service Request</p>
-                <p className="text-[11px] text-violet-100 leading-tight mt-0.5">Request a technician visit</p>
-              </div>
-              <button onClick={() => setShowServicePanel(false)} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors shrink-0">
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {serviceSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs leading-relaxed flex gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />{serviceSuccess}
-                </div>
-              )}
-              <div className="space-y-3">
-                <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                  Describe the issue and a service engineer will be assigned to visit your location.
-                </p>
-                <textarea
-                  value={serviceForm.problem}
-                  onChange={(e) => setServiceForm(f => ({ ...f, problem: e.target.value }))}
-                  placeholder="Describe the problem…"
-                  rows={3}
-                  className="w-full text-base sm:text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                />
-                <input
-                  value={serviceForm.machineName}
-                  onChange={(e) => setServiceForm(f => ({ ...f, machineName: e.target.value }))}
-                  placeholder="Machine / product name (optional)"
-                  className="w-full text-base sm:text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-                />
-                <button
-                  onClick={handleCreateServiceTicket}
-                  disabled={!serviceForm.problem.trim() || serviceSubmitting}
-                  className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {serviceSubmitting ? "Submitting…" : "Submit Service Request"}
-                </button>
-              </div>
-              {myTickets.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary flex items-center gap-1.5">
-                    <ClipboardList className="w-3 h-3" /> Your Requests
-                  </p>
-                  {myTickets.map(t => (
-                    <div key={t.id} className="rounded-xl border border-line dark:border-line-dark p-3 bg-surface dark:bg-surface-dark space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-content dark:text-content-dark truncate">
-                          {t.ticketNumber ? `#${t.ticketNumber}` : `#${t.id.slice(0, 8).toUpperCase()}`}
-                        </p>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                          t.status === "CLOSED" ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" :
-                          t.status === "IN_PROGRESS" || t.status === "PENDING_OTP" ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400" :
-                          "bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400"
-                        }`}>{t.status.replace(/_/g, " ")}</span>
-                      </div>
-                      <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary line-clamp-2">{t.problemDescription}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        <button
-          onClick={() => setShowServicePanel(v => !v)}
-          className={`relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-colors duration-200 ${
-            showServicePanel ? "bg-violet-700" : "bg-violet-600 hover:bg-violet-700"
-          }`}
-          title="Request On-Site Service"
-        >
-          <Wrench className="w-6 h-6 text-white" />
-        </button>
-      </div>
-
-      {/* ── Floating Support Widget ─────────────────────────────────────────
-          Fixed bottom-right — standard live-chat widget pattern.
-          Launcher button always visible; panel opens above it.              */}
-      <div
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3 touch-none select-none"
-        style={{ transform: `translate(${supportPos.x}px, ${supportPos.y}px)` }}
-      >
-
-        {/* ── Panel ────────────────────────────────────────────────────────── */}
-        {showSupportPanel && (
-          <div className="w-[min(calc(100vw-2rem),24rem)] sm:w-96 rounded-2xl shadow-2xl border border-blue-200 dark:border-blue-500/30 overflow-hidden bg-surface-card dark:bg-surface-dark-card flex flex-col max-h-[70dvh] sm:max-h-[520px]">
-
-            {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-700 to-blue-500">
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                <Headphones className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white leading-tight truncate">
-                  {supportRequest?.status === "active" && supportRequest.engineer
-                    ? `${supportRequest.engineer.firstName}${supportRequest.engineer.lastName ? " " + supportRequest.engineer.lastName : ""}`
-                    : "Service Support"}
-                </p>
-                <p className="text-[11px] text-blue-100 leading-tight mt-0.5">
-                  {supportRequest?.status === "active"
-                    ? "Connected · Customer Service"
-                    : supportRequest?.status === "pending"
-                    ? "Waiting for an engineer…"
-                    : engineerOnline
-                    ? "Engineers available now"
-                    : "Leave a message — we'll respond"}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowSupportPanel(false)}
-                className="p-1.5 rounded-lg hover:bg-white/20 transition-colors shrink-0"
-                title="Close"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto">
-
-              {/* No request — submission form */}
-              {!supportRequest && (
-                <div className="p-4 space-y-3">
-                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                    Describe your issue and our customer service team will assist you.
-                  </p>
-                  <textarea
-                    value={supportFormProblem}
-                    onChange={(e) => setSupportFormProblem(e.target.value)}
-                    placeholder="Describe your issue…"
-                    rows={3}
-                    className="w-full text-base sm:text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  />
-                  <input
-                    value={supportFormMachine}
-                    onChange={(e) => setSupportFormMachine(e.target.value)}
-                    placeholder="Machine / product name (optional)"
-                    className="w-full text-base sm:text-sm rounded-xl px-3 py-2.5 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  />
-                  <button
-                    onClick={handleCreateSupportRequest}
-                    disabled={!supportFormProblem.trim() || supportSubmitting || !conversationId}
-                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {supportSubmitting ? "Submitting…" : "Start Support Chat"}
-                  </button>
-                </div>
-              )}
-
-              {/* Pending — waiting for engineer */}
-              {supportRequest?.status === "pending" && (
-                <div className="p-6 flex flex-col items-center gap-4 text-center">
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-                      <Headphones className="w-8 h-8 text-amber-500" />
-                    </div>
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 border-2 border-surface-card dark:border-surface-dark-card animate-pulse" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-content dark:text-content-dark">
-                      Connecting you to an engineer…
-                    </p>
-                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
-                      {engineerOnline
-                        ? "An engineer will accept your request shortly."
-                        : "Engineers are currently offline — your request has been queued."}
-                    </p>
-                  </div>
-                  <div className="w-full rounded-xl border border-line dark:border-line-dark p-3 text-left bg-surface dark:bg-surface-dark space-y-1">
-                    <p className="text-[11px] font-semibold text-content dark:text-content-dark">Your request:</p>
-                    <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary leading-relaxed">
-                      {supportRequest.problem}
-                    </p>
-                    {supportRequest.machineName && (
-                      <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary">
-                        Machine: <span className="font-medium">{supportRequest.machineName}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Active — real-time chat messages */}
-              {supportRequest?.status === "active" && (
-                <div className="px-3 py-3 space-y-2.5 overflow-y-auto" style={{ maxHeight: 320 }}>
-                  {supportMessages.length === 0 ? (
-                    <div className="flex flex-col items-center gap-2 py-10 text-center">
-                      <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                      </div>
-                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                        Engineer connected. Start your conversation.
-                      </p>
-                    </div>
-                  ) : (
-                    supportMessages.map((m) => {
-                      const isMe = m.senderId === user?.id;
-                      return (
-                        <div key={m.id} className={cn("flex gap-2", isMe && "justify-end")}>
-                          {!isMe && (
-                            <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                                {m.sender.firstName[0].toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <div className={cn(
-                            "max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed",
-                            isMe
-                              ? "bg-blue-600 text-white rounded-br-sm"
-                              : "bg-surface dark:bg-surface-dark text-content dark:text-content-dark border border-line dark:border-line-dark rounded-bl-sm"
-                          )}>
-                            {m.content}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={supportEndRef} />
-                </div>
-              )}
-
-              {/* Resolved */}
-              {supportRequest?.status === "resolved" && (
-                <div className="p-6 flex flex-col items-center gap-3 text-center">
-                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-content dark:text-content-dark">Issue Resolved!</p>
-                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
-                      Your support session has ended.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => { setSupportRequest(null); setShowSupportPanel(false); setSupportMessages([]); }}
-                    className="text-xs px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Chat input — only when active */}
-            {supportRequest?.status === "active" && (
-              <div className="flex gap-2 px-3 py-3 border-t border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-                <input
-                  value={supportInput}
-                  onChange={(e) => setSupportInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendSupportMessage()}
-                  placeholder="Message engineer…"
-                  className="flex-1 text-base sm:text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
-                <button
-                  onClick={handleSendSupportMessage}
-                  disabled={!supportInput.trim() || supportSending}
-                  className="p-2.5 rounded-xl bg-blue-600 text-white disabled:opacity-50 hover:bg-blue-700 transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Launcher button ───────────────────────────────────────────────── */}
-        <button
-          onClick={() => { if (!isDraggingWidget.current) setShowSupportPanel((v) => !v); }}
-          onMouseDown={(e) => {
-            isDraggingWidget.current = false;
-            supportDragData.current = { origX: supportPos.x, origY: supportPos.y, mouseX: e.clientX, mouseY: e.clientY };
-          }}
-          onTouchStart={(e) => {
-            isDraggingWidget.current = false;
-            supportDragData.current = { origX: supportPos.x, origY: supportPos.y, mouseX: e.touches[0].clientX, mouseY: e.touches[0].clientY };
-          }}
-          className={cn(
-            "relative w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-colors duration-200 cursor-grab active:cursor-grabbing",
-            showSupportPanel ? "bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
-          )}
-          title="Drag to move · Click to open support"
-        >
-          <Headphones className="w-6 h-6 text-white" />
-
-          {/* Status dot */}
-          <span className={cn(
-            "absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white",
-            supportRequest?.status === "active"
-              ? "bg-emerald-400 animate-pulse"
-              : supportRequest?.status === "pending"
-              ? "bg-amber-400 animate-pulse"
-              : engineerOnline
-              ? "bg-emerald-400"
-              : "bg-gray-400"
-          )} />
-
-          {/* Unread badge */}
-          {unreadSupport > 0 && !showSupportPanel && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-md">
-              {unreadSupport > 9 ? "9+" : unreadSupport}
-            </span>
-          )}
-        </button>
-      </div>
     </div>
   );
 }
@@ -1237,23 +673,11 @@ export default function CustomerChatPage() {
 
 function MessageBubble({
   msg,
-  liked,
-  onLike,
-  videos,
-  speakingId,
-  onSpeak,
-  translatedContent,
+  onButtonClick,
 }: {
   msg: ChatMessage;
-  liked: boolean | null | undefined;
-  onLike: (v: boolean) => void;
-  videos?: VideoResource[];
-  speakingId: string | null;
-  onSpeak: (msgId: string, text: string) => void;
-  translatedContent?: string;
+  onButtonClick: (value: string) => void;
 }) {
-  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
-
   if (msg.role === "user") {
     return (
       <div className="flex justify-end gap-2 items-end">
@@ -1267,124 +691,228 @@ function MessageBubble({
     );
   }
 
-  const isSpeaking = speakingId === msg.id;
-
-  // Assistant message
   return (
     <div className="flex items-end gap-2">
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary-400/10 flex items-center justify-center">
         <Bot className="w-4 h-4 text-primary dark:text-primary-300" />
       </div>
       <div className="flex-1 space-y-2.5 max-w-[90%] sm:max-w-[80%]">
-
         {/* Main text bubble */}
         <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-sm">
           <p className="text-sm text-content dark:text-content-dark whitespace-pre-line leading-relaxed">
-            {(translatedContent || msg.content).replace(/\*\*(.*?)\*\*/g, "$1")}
+            {msg.content.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
           </p>
         </div>
 
-        {/* Admin-uploaded video recommendations */}
-        {videos && videos.length > 0 && msg.id !== "welcome" && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider pl-1">Related Videos</p>
-            {videos.map((v) => {
-              const videoId = (() => {
-                try {
-                  const u = new URL(v.youtubeUrl);
-                  if (u.hostname === "youtu.be") return u.pathname.slice(1);
-                  return u.searchParams.get("v") ?? "";
-                } catch { return ""; }
-              })();
-              const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
-              const isPlaying = playingVideoId === v.id;
-              return (
-                <div key={v.id} className="rounded-xl border border-red-200 dark:border-red-500/30 overflow-hidden">
-                  {isPlaying && videoId ? (
-                    <div className="w-full aspect-video">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-                        title={v.title}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="w-full h-full"
-                      />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPlayingVideoId(v.id)}
-                      className="flex items-center gap-2.5 p-2.5 w-full text-left bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors group/vid"
-                    >
-                      <div className="relative shrink-0">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={v.title} className="w-16 h-11 object-cover rounded-lg bg-red-100 dark:bg-red-500/20" />
-                        ) : (
-                          <div className="w-16 h-11 rounded-lg bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
-                            <Youtube className="w-5 h-5 text-red-500" />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-7 h-7 rounded-full bg-red-600/90 flex items-center justify-center shadow">
-                            <svg viewBox="0 0 24 24" fill="white" className="w-3.5 h-3.5 pl-0.5"><path d="M8 5v14l11-7z"/></svg>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-red-700 dark:text-red-300 line-clamp-2 leading-tight">{v.title}</p>
-                        {v.description && <p className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 line-clamp-1">{v.description}</p>}
-                      </div>
-                      <Youtube className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 opacity-70 group-hover/vid:opacity-100" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+        {/* Action buttons */}
+        {msg.buttons && msg.buttons.length > 0 && (
+          <div className="flex flex-wrap gap-2 pl-1">
+            {msg.buttons.map((btn) => (
+              <button
+                key={btn.value}
+                onClick={() => onButtonClick(btn.value)}
+                className="px-4 py-2 rounded-xl border border-primary/30 dark:border-primary-400/30 bg-primary/5 dark:bg-primary-400/5 text-primary dark:text-primary-300 text-sm font-medium hover:bg-primary/10 dark:hover:bg-primary-400/10 hover:border-primary/50 dark:hover:border-primary-400/50 transition-colors"
+              >
+                {btn.label}
+              </button>
+            ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
 
-        {/* Feedback + Audio */}
-        <div className="flex items-center gap-2 pl-1">
-          <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Was this helpful?</span>
-          <button
-            onClick={() => onLike(true)}
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              liked === true
-                ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-            )}
-          >
-            <ThumbsUp className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onLike(false)}
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              liked === false
-                ? "bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400"
-                : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-            )}
-          >
-            <ThumbsDown className="w-3.5 h-3.5" />
-          </button>
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPLAINT FORM COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 
-          {/* Audio TTS button */}
-          {msg.id !== "welcome" && (
-            <button
-              onClick={() => onSpeak(msg.id, translatedContent || msg.content)}
-              className={cn(
-                "p-1.5 rounded-lg transition-colors ml-1",
-                isSpeaking
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-              title={isSpeaking ? "Stop speaking" : "Listen to response"}
+function ComplaintForm({
+  form,
+  setForm,
+  pincodeInfo,
+  serialInfo,
+  products,
+  onValidatePincode,
+  onValidateSerial,
+  onSubmit,
+  onCancel,
+  isValid,
+  submitting,
+  pincodeValidating,
+  serialValidating,
+}: {
+  form: { name: string; phone: string; pincode: string; serialNumber: string; product: string; issue: string };
+  setForm: (fn: (prev: typeof form) => typeof form) => void;
+  pincodeInfo: { place?: string; district?: string; state?: string } | null;
+  serialInfo: { model?: string; customer?: string; location?: string } | null;
+  products: ProductItem[];
+  onValidatePincode: (pincode: string) => void;
+  onValidateSerial: (serial: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  isValid: boolean;
+  submitting: boolean;
+  pincodeValidating: boolean;
+  serialValidating: boolean;
+}) {
+  const pincodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serialTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  return (
+    <div className="flex items-end gap-2">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 dark:bg-primary-400/10 flex items-center justify-center self-start mt-1">
+        <Bot className="w-4 h-4 text-primary dark:text-primary-300" />
+      </div>
+      <div className="flex-1 max-w-[90%] sm:max-w-[80%]">
+        <div className="rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-sm p-4 space-y-3">
+          <p className="text-sm font-semibold text-content dark:text-content-dark flex items-center gap-2">
+            📝 Complaint Registration
+          </p>
+
+          {/* Name */}
+          <div>
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1 mb-1">
+              <User className="w-3 h-3" /> Name *
+            </label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Your full name"
+              className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1 mb-1">
+              <Phone className="w-3 h-3" /> Phone *
+            </label>
+            <input
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              placeholder="10-digit mobile number"
+              maxLength={10}
+              className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* Pincode */}
+          <div>
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1 mb-1">
+              <MapPin className="w-3 h-3" /> Pincode *
+            </label>
+            <input
+              value={form.pincode}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setForm((f) => ({ ...f, pincode: val }));
+                if (pincodeTimeoutRef.current) clearTimeout(pincodeTimeoutRef.current);
+                if (val.length === 6) {
+                  pincodeTimeoutRef.current = setTimeout(() => onValidatePincode(val), 300);
+                }
+              }}
+              placeholder="6-digit pincode"
+              maxLength={6}
+              className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {pincodeValidating && (
+              <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary mt-1 flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Validating…
+              </p>
+            )}
+            {pincodeInfo && (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                📍 {[pincodeInfo.place, pincodeInfo.district, pincodeInfo.state].filter(Boolean).join(", ")}
+              </p>
+            )}
+          </div>
+
+          {/* Serial Number (optional) */}
+          <div>
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1 mb-1">
+              🔧 Serial Number (optional)
+            </label>
+            <input
+              value={form.serialNumber}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm((f) => ({ ...f, serialNumber: val }));
+                if (serialTimeoutRef.current) clearTimeout(serialTimeoutRef.current);
+                if (val.trim().length >= 3) {
+                  serialTimeoutRef.current = setTimeout(() => onValidateSerial(val), 500);
+                }
+              }}
+              placeholder="Machine serial number"
+              className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {serialValidating && (
+              <p className="text-[11px] text-content-secondary dark:text-content-dark-secondary mt-1 flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Validating…
+              </p>
+            )}
+            {serialInfo && (
+              <div className="mt-1 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">✅ Machine found!</p>
+                {serialInfo.model && <p className="text-[11px] text-emerald-600 dark:text-emerald-400">🔧 Model: {serialInfo.model}</p>}
+                {serialInfo.customer && <p className="text-[11px] text-emerald-600 dark:text-emerald-400">👤 Customer: {serialInfo.customer}</p>}
+                {serialInfo.location && <p className="text-[11px] text-emerald-600 dark:text-emerald-400">📍 Location: {serialInfo.location}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Product */}
+          <div>
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1 mb-1">
+              <Package className="w-3 h-3" /> Product *
+            </label>
+            <select
+              value={form.product}
+              onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
+              className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
-              {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              <option value="">Select a product…</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Issue */}
+          <div>
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1 mb-1">
+              <AlertCircle className="w-3 h-3" /> Issue Description *
+            </label>
+            <textarea
+              value={form.issue}
+              onChange={(e) => setForm((f) => ({ ...f, issue: e.target.value }))}
+              placeholder="Describe your issue… e.g. LED blinking continuously"
+              rows={3}
+              className="w-full text-sm rounded-xl px-3 py-2 border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-2.5 rounded-xl border border-line dark:border-line-dark text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-center gap-1.5"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to Menu
             </button>
-          )}
+            <button
+              onClick={onSubmit}
+              disabled={!isValid || submitting}
+              className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary-600 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+            >
+              {submitting ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting…</>
+              ) : (
+                <><CheckCircle2 className="w-3.5 h-3.5" /> Submit Complaint</>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

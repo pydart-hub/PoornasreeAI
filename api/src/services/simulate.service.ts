@@ -41,11 +41,13 @@ type SessionMeta = {
 };
 
 // ── Static messages ───────────────────────────────────────────────────────
+const SKIP_BUTTON = { id: "SKIP", title: "Skip ⏭️" };
+
 const NOT_REGISTERED_MSG =
   `📱 This mobile number is not registered with us.\n\n` +
   `If you are a Registered Customer, please provide your registered 10 digit mobile number.\n\n` +
   `Eg. 9633503333\n\n` +
-  `Else type *SKIP* to Continue. 👇`;
+  `Or press Skip to Continue. 👇`;
 
 const MAIN_MENU_MSG =
   `Hello,\n\n` +
@@ -112,7 +114,7 @@ async function startGreeting(phoneNumber: string) {
 
   // Not registered
   await updateSession(session.id, "ASK_PHONE", {});
-  return makeReply(NOT_REGISTERED_MSG);
+  return makeReply(NOT_REGISTERED_MSG, [SKIP_BUTTON]);
 }
 
 // ── State router ──────────────────────────────────────────────────────────
@@ -190,7 +192,8 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
   const digits = text.replace(/\D/g, "");
   if (digits.length !== 10) {
     return makeReply(
-      `⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333\n\nOr type *SKIP* to continue as a new customer.`
+      `⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333\n\nOr press Skip to continue as a new customer.`,
+      [SKIP_BUTTON]
     );
   }
 
@@ -208,7 +211,7 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
     return makeReply(`✅ Found! Welcome back, ${name}! 👋\n\n` + MAIN_MENU_MSG);
   }
 
-  return makeReply(`❌ No records found for this number.\n\nPlease try another number or type *SKIP* to continue as a new customer.`);
+  return makeReply(`❌ No records found for this number.\n\nPlease try another number or press Skip to continue as a new customer.`, [SKIP_BUTTON]);
 }
 
 // ── MAIN_MENU ─────────────────────────────────────────────────────────────
@@ -682,8 +685,10 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-function makeReply(message: string) {
-  return { message };
+export type ReplyButton = { id: string; title: string };
+
+function makeReply(message: string, buttons?: ReplyButton[]) {
+  return { message, buttons };
 }
 
 async function getOrCreateSession(phoneNumber: string) {
