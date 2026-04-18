@@ -338,8 +338,7 @@ export default function CustomerChatPage() {
         if (choice === "4") {
           addBotMessage(
             `🔧 *Product Installation*\n\n` +
-            `For product installation requests, please contact our service team:\n\n` +
-            `📞 Call: +91 9633503333\n📧 Email: service@poornasree.com\n\n` +
+            `For product installation requests, please contact our service team.\n\n` +
             `Or register a complaint with option 2️⃣ Complaint Registration and mention "Installation" as the issue.`,
             [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
           );
@@ -349,8 +348,7 @@ export default function CustomerChatPage() {
 
         if (choice === "5") {
           addBotMessage(
-            `📞 *Speak to Support*\n\nOur support team will reach out to you shortly.\n\n` +
-            `You can also reach us at:\n📞 +91 9633503333\n📧 support@poornasree.com`,
+            `📞 *Speak to Support*\n\nOur support team will reach out to you shortly.`,
             [{ label: "⬅️ Back to Menu", value: "__MENU__" }]
           );
           setChatState("SPEAK_SUPPORT");
