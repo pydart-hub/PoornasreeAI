@@ -82,7 +82,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // Only process text and interactive (button reply) messages
+  // Only process text and interactive (button/list reply) messages
   let text = "";
   if (msg.type === "text") {
     text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
@@ -90,6 +90,9 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     const interactive = msg.interactive as Record<string, unknown> | undefined;
     if (interactive?.type === "button_reply") {
       const reply = interactive.button_reply as Record<string, unknown> | undefined;
+      text = String(reply?.id ?? reply?.title ?? "").trim();
+    } else if (interactive?.type === "list_reply") {
+      const reply = interactive.list_reply as Record<string, unknown> | undefined;
       text = String(reply?.id ?? reply?.title ?? "").trim();
     }
   } else {
@@ -129,8 +132,10 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       data: { phoneNumber: from, role: "bot", content: result.message },
     });
 
-    // Send reply via WhatsApp — use interactive buttons when available
-    if (result.buttons && result.buttons.length > 0) {
+    // Send reply via WhatsApp — use interactive list/buttons when available
+    if (result.list && result.list.rows?.length > 0) {
+      await WhatsAppService.sendInteractiveList(from, result.message, result.list.buttonText, result.list.rows);
+    } else if (result.buttons && result.buttons.length > 0) {
       await WhatsAppService.sendInteractiveButtons(from, result.message, result.buttons);
     } else {
       await WhatsAppService.sendMessage(from, result.message);

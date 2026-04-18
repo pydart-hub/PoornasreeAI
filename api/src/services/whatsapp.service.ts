@@ -96,3 +96,62 @@ export async function sendInteractiveButtons(
     console.error(`[whatsapp] Network error sending buttons to ${to}:`, (err as Error).message);
   }
 }
+
+/** WhatsApp interactive list-row shape. Title max 24 chars. */
+export type WaListRow = { id: string; title: string; description?: string };
+
+/** Send an interactive list message via WhatsApp Cloud API. Max 10 rows. */
+export async function sendInteractiveList(
+  to: string,
+  body: string,
+  buttonText: string,
+  rows: WaListRow[],
+): Promise<void> {
+  if (!isConfigured()) {
+    console.warn("[whatsapp] Not configured — skipping sendInteractiveList");
+    return;
+  }
+
+  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "list",
+          body: { text: body },
+          action: {
+            button: buttonText.slice(0, 20),
+            sections: [
+              {
+                title: "Options",
+                rows: rows.slice(0, 10).map((r) => ({
+                  id: r.id,
+                  title: r.title.slice(0, 24),
+                  ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+                })),
+              },
+            ],
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error(`[whatsapp] List send failed (${res.status}):`, JSON.stringify(err));
+    } else {
+      console.log(`[whatsapp] Sent list → ${to}: ${body.slice(0, 60)}…`);
+    }
+  } catch (err) {
+    console.error(`[whatsapp] Network error sending list to ${to}:`, (err as Error).message);
+  }
+}

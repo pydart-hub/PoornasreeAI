@@ -41,23 +41,45 @@ type SessionMeta = {
 };
 
 // ── Static messages ───────────────────────────────────────────────────────
-const SKIP_BUTTON = { id: "SKIP", title: "Skip ⏭️" };
+const SKIP_BUTTON: ReplyButton = { id: "SKIP", title: "Skip ⏭️" };
+const MENU_BUTTON: ReplyButton = { id: "MENU", title: "⬅️ Main Menu" };
+const COMPLAINT_BUTTON: ReplyButton = { id: "2", title: "Register Complaint" };
+const YES_NO_BUTTONS: ReplyButton[] = [
+  { id: "1", title: "Yes ✅" },
+  { id: "2", title: "No ❌" },
+];
+
+const MAIN_MENU_LIST: ReplyList = {
+  buttonText: "View Options 📋",
+  rows: [
+    { id: "1", title: "View Our Products", description: "Browse our product catalog" },
+    { id: "2", title: "Complaint Registration", description: "Register a new complaint" },
+    { id: "3", title: "Complaint Status", description: "Check existing ticket status" },
+    { id: "4", title: "Product Installation", description: "Request product installation" },
+    { id: "5", title: "Speak to Support", description: "Connect with our support team" },
+  ],
+};
+
+const RATING_LIST: ReplyList = {
+  buttonText: "Rate Service ⭐",
+  rows: [
+    { id: "1", title: "1 - Poor ⭐" },
+    { id: "2", title: "2 - Fair ⭐⭐" },
+    { id: "3", title: "3 - Good ⭐⭐⭐" },
+    { id: "4", title: "4 - Very Good ⭐⭐⭐⭐" },
+    { id: "5", title: "5 - Excellent ⭐⭐⭐⭐⭐" },
+  ],
+};
 
 const NOT_REGISTERED_MSG =
   `📱 This mobile number is not registered with us.\n\n` +
   `If you are a Registered Customer, please provide your registered 10 digit mobile number.\n\n` +
   `Eg. 9633503333\n\n` +
-  `Or press Skip to Continue. 👇`;
+  `Or press *Skip* to Continue. 👇`;
 
 const MAIN_MENU_MSG =
-  `Hello,\n\n` +
-  `Welcome to Poornasree HelpDesk. 🤖📲\n\n` +
-  `📜 Here are the options for you. 👇\n\n` +
-  `1️⃣ View Our Products\n` +
-  `2️⃣ Complaint Registration\n` +
-  `3️⃣ Complaint Status\n` +
-  `4️⃣ Product Installation\n` +
-  `5️⃣ Speak to Support`;
+  `Welcome to *Poornasree HelpDesk* 🤖📲\n\n` +
+  `Please select an option below 👇`;
 
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function handleMessage(phoneNumber: string, message: string) {
@@ -108,7 +130,9 @@ async function startGreeting(phoneNumber: string) {
     await updateSession(session.id, "MAIN_MENU", meta);
     return makeReply(
       `Welcome back, ${name}! 👋\n\n` +
-      MAIN_MENU_MSG
+      MAIN_MENU_MSG,
+      undefined,
+      MAIN_MENU_LIST
     );
   }
 
@@ -137,7 +161,7 @@ async function routeState(
 
     case "VIEW_PRODUCTS":
       await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(MAIN_MENU_MSG);
+      return makeReply(MAIN_MENU_MSG, undefined, MAIN_MENU_LIST);
 
     case "COMPLAINT_NAME":
       return handleComplaintName(session.id, meta, text);
@@ -162,11 +186,11 @@ async function routeState(
 
     case "CHECK_STATUS":
       await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(MAIN_MENU_MSG);
+      return makeReply(MAIN_MENU_MSG, undefined, MAIN_MENU_LIST);
 
     case "INSTALLATION_INFO":
       await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(MAIN_MENU_MSG);
+      return makeReply(MAIN_MENU_MSG, undefined, MAIN_MENU_LIST);
 
     case "FEEDBACK_RATING":
       return handleFeedbackRating(session.id, meta, text);
@@ -186,7 +210,7 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
   if (upper === "SKIP" || upper === "0") {
     const meta: SessionMeta = { customerPhone: chatPhone };
     await updateSession(sessionId, "MAIN_MENU", meta);
-    return makeReply(MAIN_MENU_MSG);
+    return makeReply(MAIN_MENU_MSG, undefined, MAIN_MENU_LIST);
   }
 
   const digits = text.replace(/\D/g, "");
@@ -208,10 +232,10 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
     const name = ticket.machineCustomer || "Customer";
     const meta: SessionMeta = { customerName: name, customerPhone: digits };
     await updateSession(sessionId, "MAIN_MENU", meta);
-    return makeReply(`✅ Found! Welcome back, ${name}! 👋\n\n` + MAIN_MENU_MSG);
+    return makeReply(`✅ Found! Welcome back, ${name}! 👋\n\n` + MAIN_MENU_MSG, undefined, MAIN_MENU_LIST);
   }
 
-  return makeReply(`❌ No records found for this number.\n\nPlease try another number or press Skip to continue as a new customer.`, [SKIP_BUTTON]);
+  return makeReply(`❌ No records found for this number.\n\nPlease try another number or press *Skip* to continue as a new customer.`, [SKIP_BUTTON]);
 }
 
 // ── MAIN_MENU ─────────────────────────────────────────────────────────────
@@ -237,19 +261,19 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return makeReply(
       `🔧 *Product Installation*\n\n` +
       `For product installation requests, please contact our service team.\n\n` +
-      `Or register a complaint with option *2️⃣ Complaint Registration* and mention "Installation" as the issue.\n\n` +
-      `Reply *MENU* to go back.`
+      `Or register a complaint and mention "Installation" as the issue.`,
+      [MENU_BUTTON, COMPLAINT_BUTTON]
     );
   }
   if (choice === "5") {
     await updateSession(sessionId, "COMPLETED", meta);
     return makeReply(
-      `📞 *Speak to Support*\n\nOur support team will reach out to you shortly.\n\n` +
-      `Reply *MENU* to go back to main menu.`
+      `📞 *Speak to Support*\n\nOur support team will reach out to you shortly.`,
+      [MENU_BUTTON]
     );
   }
 
-  return makeReply(`Please select a valid option (1-5):\n\n${MAIN_MENU_MSG}`);
+  return makeReply(`Please select a valid option from the menu below 👇`, undefined, MAIN_MENU_LIST);
 }
 
 // ── VIEW_PRODUCTS ─────────────────────────────────────────────────────────
@@ -269,7 +293,8 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
 
   await updateSession(sessionId, "VIEW_PRODUCTS", meta);
   return makeReply(
-    `📦 *Our Products:*\n\n${productList}\n\nReply *MENU* to go back to main menu.\nReply *2* to register a complaint.`
+    `📦 *Our Products:*\n\n${productList}`,
+    [MENU_BUTTON, COMPLAINT_BUTTON]
   );
 }
 
@@ -290,7 +315,7 @@ async function showTicketStatus(sessionId: string, phoneNumber: string, meta: Se
 
   if (tickets.length === 0) {
     await updateSession(sessionId, "CHECK_STATUS", meta);
-    return makeReply(`📋 No tickets found for your number.\n\nReply *2* to register a new complaint.\nReply *MENU* to go back.`);
+    return makeReply(`📋 No tickets found for your number.`, [MENU_BUTTON, COMPLAINT_BUTTON]);
   }
 
   const statusEmoji: Record<string, string> = {
@@ -305,7 +330,7 @@ async function showTicketStatus(sessionId: string, phoneNumber: string, meta: Se
   });
 
   await updateSession(sessionId, "CHECK_STATUS", meta);
-  return makeReply(`📋 *Your Tickets (${tickets.length}):*\n\n` + lines.join("\n\n") + `\n\nReply *MENU* to go back.`);
+  return makeReply(`📋 *Your Tickets (${tickets.length}):*\n\n` + lines.join("\n\n"), [MENU_BUTTON]);
 }
 
 // ── COMPLAINT_NAME ────────────────────────────────────────────────────────
@@ -361,7 +386,7 @@ async function handleComplaintPincode(sessionId: string, meta: SessionMeta, text
     ? `📍 *${locationStr}*`
     : `📍 Pincode *${text}* (location not found)`;
 
-  return makeReply(`${locationLine}\n\nIs this your location?\n\n1. Yes ✅\n2. No, re-enter ❌`);
+  return makeReply(`${locationLine}\n\nIs this your location?`, YES_NO_BUTTONS);
 }
 
 // ── COMPLAINT_PINCODE_CONFIRM ─────────────────────────────────────────────
@@ -376,7 +401,7 @@ async function handleComplaintPincodeConfirm(sessionId: string, meta: SessionMet
     });
     return makeReply("Please enter your pincode (6 digits):");
   }
-  return makeReply("Please reply:\n1. Yes ✅\n2. No, re-enter ❌");
+  return makeReply("Please select an option:", YES_NO_BUTTONS);
 }
 
 // ── COMPLAINT_SERIAL ──────────────────────────────────────────────────────
@@ -411,7 +436,8 @@ async function handleComplaintSerial(sessionId: string, meta: SessionMeta, text:
       `👤 Customer: ${machineData.customer || "N/A"}\n` +
       `🔧 Model: ${displayName}\n` +
       `📍 Location: ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
-      `Is this your machine?\n\n1. Yes ✅\n2. No ❌`
+      `Is this your machine?`,
+      YES_NO_BUTTONS
     );
   }
 
@@ -429,7 +455,7 @@ async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: 
     const clearedMeta = { ...meta, serialNumber: undefined, machineData: null as PasstestMachine | null };
     return showProductSelection(sessionId, clearedMeta);
   }
-  return makeReply("Please reply:\n1. Yes ✅\n2. No ❌");
+  return makeReply("Please select an option:", YES_NO_BUTTONS);
 }
 
 // ── COMPLAINT_PRODUCT (show product list for selection) ───────────────────
@@ -446,9 +472,13 @@ async function showProductSelection(sessionId: string, meta: SessionMeta) {
     productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
   }
 
-  const productList = productNames.map((p, i) => `${i + 1}. ${p}`).join("\n");
+  const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
   await updateSession(sessionId, "COMPLAINT_PRODUCT", meta);
-  return makeReply(`📦 *Select your product from the list:*\n\n${productList}\n\nReply with the number of your product.`);
+  return makeReply(
+    `📦 *Select your product:*`,
+    undefined,
+    { buttonText: "Select Product 📦", rows: productRows }
+  );
 }
 
 async function handleComplaintProduct(sessionId: string, meta: SessionMeta, text: string) {
@@ -466,8 +496,8 @@ async function handleComplaintProduct(sessionId: string, meta: SessionMeta, text
 
   const index = parseInt(text, 10) - 1;
   if (isNaN(index) || index < 0 || index >= productNames.length) {
-    const productList = productNames.map((p, i) => `${i + 1}. ${p}`).join("\n");
-    return makeReply(`Please select a valid product number:\n\n${productList}`);
+    const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
+    return makeReply(`Please select a valid product:`, undefined, { buttonText: "Select Product 📦", rows: productRows });
   }
 
   const selectedProduct = productNames[index];
@@ -500,7 +530,9 @@ async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: 
   const rating = parseInt(text, 10);
   if (isNaN(rating) || rating < 1 || rating > 5) {
     return makeReply(
-      `Please rate the service from 1 to 5:\n\n1️⃣ Poor | 2️⃣ Fair | 3️⃣ Good | 4️⃣ Very Good | 5️⃣ Excellent`
+      `Please rate the service from 1 to 5:`,
+      undefined,
+      RATING_LIST
     );
   }
 
@@ -513,14 +545,15 @@ async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: 
 
   await updateSession(sessionId, "FEEDBACK_SATISFIED", meta);
   return makeReply(
-    `Thank you for rating us ${"⭐".repeat(rating)}!\n\nAre you satisfied with the service?\n\n1. Yes ✅\n2. No ❌`
+    `Thank you for rating us ${"\u2b50".repeat(rating)}!\n\nAre you satisfied with the service?`,
+    YES_NO_BUTTONS
   );
 }
 
 // ── FEEDBACK_SATISFIED ────────────────────────────────────────────────────
 async function handleFeedbackSatisfied(sessionId: string, meta: SessionMeta, text: string) {
   if (text !== "1" && text !== "2" && !/^(yes|no)/i.test(text)) {
-    return makeReply("Please reply:\n1. Yes ✅\n2. No ❌");
+    return makeReply("Please select an option:", YES_NO_BUTTONS);
   }
 
   const satisfied = text === "1" || /^yes/i.test(text);
@@ -537,11 +570,13 @@ async function handleFeedbackSatisfied(sessionId: string, meta: SessionMeta, tex
 
   if (satisfied) {
     return makeReply(
-      `🎉 We're glad you're satisfied!\n\nThank you for your valuable feedback. 🙏\n\nReply *MENU* to go back to main menu.`
+      `🎉 We're glad you're satisfied!\n\nThank you for your valuable feedback. 🙏`,
+      [MENU_BUTTON]
     );
   }
   return makeReply(
-    `We're sorry to hear that. 😔\n\nYour feedback has been noted. Our team will work to improve.\n\nThank you for letting us know. 🙏\n\nReply *MENU* to go back to main menu.`
+    `We're sorry to hear that. 😔\n\nYour feedback has been noted. Our team will work to improve.\n\nThank you for letting us know. 🙏`,
+    [MENU_BUTTON]
   );
 }
 
@@ -621,8 +656,8 @@ async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta:
     `📝 Issue: ${complaintText}\n` +
     `📍 Location: ${meta.pincodeDisplay || "N/A"}\n\n` +
     `Our service engineer will contact you shortly.\n\n` +
-    `Thank you for choosing Poornasree Support 😊\n\n` +
-    `Reply *MENU* to go back to main menu.`
+    `Thank you for choosing Poornasree Support 😊`,
+    [MENU_BUTTON]
   );
 }
 
@@ -676,17 +711,18 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
     `📝 Issue: ${complaintText}\n` +
     `📍 Location: ${meta.pincodeDisplay || "N/A"}\n\n` +
     `Our service engineer will contact you shortly.\n\n` +
-    `Thank you for choosing Poornasree Support 😊\n\n` +
-    `Reply *MENU* to go back to main menu.`
+    `Thank you for choosing Poornasree Support 😊`,
+    [MENU_BUTTON]
   );
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 export type ReplyButton = { id: string; title: string };
+export type ReplyList = { buttonText: string; rows: Array<{ id: string; title: string; description?: string }> };
 
-function makeReply(message: string, buttons?: ReplyButton[]) {
-  return { message, buttons };
+function makeReply(message: string, buttons?: ReplyButton[], list?: ReplyList) {
+  return { message, buttons, list };
 }
 
 async function getOrCreateSession(phoneNumber: string) {
