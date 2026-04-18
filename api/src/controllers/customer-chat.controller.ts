@@ -59,7 +59,7 @@ export async function listProducts(_req: Request, res: Response) {
   const products = await prisma.product.findMany({
     where: { isActive: true },
     orderBy: { displayOrder: "asc" },
-    select: { id: true, name: true, description: true },
+    select: { id: true, name: true },
   });
 
   if (products.length > 0) {
