@@ -1,5 +1,28 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import sharp from "sharp";
+import path from "path";
+import fs from "fs";
+
+const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
+
+/** Convert an uploaded image to JPEG (WhatsApp only supports jpeg/png). Returns the new filename. */
+async function convertToJpeg(file: Express.Multer.File): Promise<string> {
+  const ext = path.extname(file.filename).toLowerCase();
+  // Already jpeg/jpg — no conversion needed
+  if (ext === ".jpg" || ext === ".jpeg") return file.filename;
+  // Already png — WhatsApp supports this too
+  if (ext === ".png") return file.filename;
+
+  const newFilename = file.filename.replace(/\.[^.]+$/, ".jpg");
+  const inputPath = path.join(UPLOADS_DIR, file.filename);
+  const outputPath = path.join(UPLOADS_DIR, newFilename);
+
+  await sharp(inputPath).jpeg({ quality: 85 }).toFile(outputPath);
+  // Remove original non-jpeg file
+  fs.unlink(inputPath, () => {});
+  return newFilename;
+}
 
 // GET /api/admin/products — list all products
 export async function listProducts(_req: Request, res: Response): Promise<void> {
@@ -15,7 +38,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  const imageFilename = req.file ? await convertToJpeg(req.file) : null;
+  const imageUrl = imageFilename ? `/uploads/${imageFilename}` : null;
 
   const product = await prisma.product.create({
     data: {
@@ -41,7 +65,8 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+  const imageFilename = req.file ? await convertToJpeg(req.file) : undefined;
+  const imageUrl = imageFilename ? `/uploads/${imageFilename}` : undefined;
 
   const updated = await prisma.product.update({
     where: { id },
