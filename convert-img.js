@@ -1,0 +1,1 @@
+﻿const sharp = require("sharp"); sharp("/app/uploads/1776678641231-767180316-12.webp").jpeg({quality:85}).toFile("/app/uploads/1776678641231-767180316-12.jpg").then(() => console.log("DONE")).catch(e => console.error(e.message))
