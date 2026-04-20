@@ -24,6 +24,7 @@ import {
   ChevronUp,
   Menu,
   PanelLeftClose,
+  Settings,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -109,6 +110,13 @@ export default function DealerPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  // Account settings
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ email: "", currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsSuccess, setSettingsSuccess] = useState("");
+  const [settingsSubmitting, setSettingsSubmitting] = useState(false);
+
   // ── Responsive ──
   useEffect(() => {
     if (isMobile) setSidebarOpen(false);
@@ -186,6 +194,60 @@ export default function DealerPage() {
     router.replace("/login");
   };
 
+  const openSettings = () => {
+    setSettingsForm({ email: user?.email ?? "", currentPassword: "", newPassword: "", confirmPassword: "" });
+    setSettingsError("");
+    setSettingsSuccess("");
+    setShowSettings(true);
+    setSidebarOpen(false);
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsError("");
+    setSettingsSuccess("");
+    const hasEmail = settingsForm.email.trim() !== (user?.email ?? "");
+    const hasPassword = settingsForm.newPassword.length > 0;
+    if (!hasEmail && !hasPassword) {
+      setSettingsError("No changes to save");
+      return;
+    }
+    if (hasPassword && settingsForm.newPassword !== settingsForm.confirmPassword) {
+      setSettingsError("New passwords do not match");
+      return;
+    }
+    if (hasPassword && settingsForm.newPassword.length < 8) {
+      setSettingsError("New password must be at least 8 characters");
+      return;
+    }
+    setSettingsSubmitting(true);
+    try {
+      const body: Record<string, string> = {};
+      if (hasEmail) body.email = settingsForm.email.trim();
+      if (hasPassword) {
+        body.currentPassword = settingsForm.currentPassword;
+        body.newPassword = settingsForm.newPassword;
+      }
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSettingsError(data.error || "Update failed");
+      } else {
+        setSettingsSuccess("Profile updated successfully!");
+        setSettingsForm(f => ({ ...f, currentPassword: "", newPassword: "", confirmPassword: "" }));
+      }
+    } catch {
+      setSettingsError("Network error. Please try again.");
+    } finally {
+      setSettingsSubmitting(false);
+    }
+  };
+
   if (authLoading || loading) return <LoadingScreen />;
   if (!user) return null;
 
@@ -231,6 +293,13 @@ export default function DealerPage() {
                 {tickets.length}
               </span>
             </div>
+            <button
+              onClick={openSettings}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors mt-1"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Account Settings
+            </button>
           </div>
         </nav>
         <div className="px-4 py-3 border-t border-line dark:border-line-dark space-y-2 shrink-0">
@@ -565,6 +634,99 @@ export default function DealerPage() {
         </section>
         </main>
       </div>
+
+      {/* ── Account Settings Modal ─────────────────────────────── */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl border border-line dark:border-line-dark">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-line dark:border-line-dark">
+              <div>
+                <h2 className="text-base font-semibold text-content dark:text-content-dark">Account Settings</h2>
+                <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">{user.email}</p>
+              </div>
+              <button onClick={() => setShowSettings(false)} className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                <X className="w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateProfile} className="p-5 space-y-4">
+              {settingsError && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />{settingsError}
+                </div>
+              )}
+              {settingsSuccess && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />{settingsSuccess}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={settingsForm.email}
+                  onChange={e => setSettingsForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-line dark:border-line-dark">
+                <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-3">Change Password <span className="font-normal">(leave blank to keep current)</span></p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1">Current Password</label>
+                    <input
+                      type="password"
+                      placeholder="Required to change password"
+                      value={settingsForm.currentPassword}
+                      onChange={e => setSettingsForm(f => ({ ...f, currentPassword: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1">New Password</label>
+                    <input
+                      type="password"
+                      placeholder="Min 8 characters"
+                      value={settingsForm.newPassword}
+                      onChange={e => setSettingsForm(f => ({ ...f, newPassword: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1">Confirm New Password</label>
+                    <input
+                      type="password"
+                      placeholder="Repeat new password"
+                      value={settingsForm.confirmPassword}
+                      onChange={e => setSettingsForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(false)}
+                  className="flex-1 px-4 py-2 text-sm rounded-xl border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={settingsSubmitting}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
+                >
+                  {settingsSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

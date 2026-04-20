@@ -186,3 +186,71 @@ export async function setPassword(req: Request, res: Response): Promise<void> {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ── Update Profile (self-service: email + password) ──
+export async function updateProfile(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = (req as any).user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    const { email, currentPassword, newPassword } = req.body;
+    const hasEmailChange = typeof email === "string" && email.trim().length > 0;
+    const hasPasswordChange = typeof newPassword === "string" && newPassword.length > 0;
+
+    if (!hasEmailChange && !hasPasswordChange) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (hasPasswordChange) {
+      if (!currentPassword) {
+        res.status(400).json({ error: "Current password is required to set a new password" });
+        return;
+      }
+      const match = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!match) {
+        res.status(400).json({ error: "Current password is incorrect" });
+        return;
+      }
+      if (newPassword.length < 8) {
+        res.status(400).json({ error: "New password must be at least 8 characters" });
+        return;
+      }
+      updateData.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    }
+
+    if (hasEmailChange) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (normalizedEmail !== user.email) {
+        const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+        if (existing) {
+          res.status(409).json({ error: "This email is already in use" });
+          return;
+        }
+        updateData.email = normalizedEmail;
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    const { passwordHash: _, ...safeUser } = updated;
+    res.json({ message: "Profile updated successfully", user: safeUser });
+  } catch (err) {
+    console.error("updateProfile error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
