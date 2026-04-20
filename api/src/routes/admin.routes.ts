@@ -23,6 +23,7 @@ import { listMachines, createMachine, updateMachine, deleteMachine, searchMachin
 import { updateBranding, uploadLogo } from "../controllers/branding.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
+import { listProducts, createProduct, updateProduct, deleteProduct } from "../controllers/product.controller";
 
 const router = Router();
 
@@ -41,6 +42,11 @@ const ALLOWED_MIME_TYPES = [
   "text/csv",
   "text/plain",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Image types (for product images, branding logo, etc.)
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
 ];
 
 // Extension → canonical MIME (fallback for browsers that report octet-stream)
@@ -50,6 +56,11 @@ const EXT_TO_MIME: Record<string, string> = {
   ".csv":  "text/csv",
   ".txt":  "text/plain",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".jpg":  "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png":  "image/png",
+  ".webp": "image/webp",
+  ".gif":  "image/gif",
 };
 
 const upload = multer({
@@ -149,5 +160,11 @@ router.delete("/templates/:id", deleteTemplate);
 router.get("/rd-videos", listRdVideos);
 router.post("/rd-videos", upload.single("file"), createRdVideo);
 router.delete("/rd-videos/:id", deleteRdVideo);
+
+// Product catalogue (admin CRUD with image upload)
+router.get("/products", listProducts);
+router.post("/products", upload.single("image"), createProduct);
+router.patch("/products/:id", upload.single("image"), updateProduct);
+router.delete("/products/:id", deleteProduct);
 
 export default router;

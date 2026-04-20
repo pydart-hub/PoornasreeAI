@@ -13,6 +13,11 @@ const nextConfig = {
         source:      "/api/:path*",
         destination: `${API_HOST}/api/:path*`,
       },
+      // Uploaded files (product images, logos, etc.)
+      {
+        source:      "/uploads/:path*",
+        destination: `${API_HOST}/uploads/:path*`,
+      },
       // Socket.IO proxy — polling + WebSocket upgrades
       {
         source:      "/socket.io",

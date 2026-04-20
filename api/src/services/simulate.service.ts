@@ -22,6 +22,7 @@ import prisma from "../lib/prisma";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
 import { io } from "../lib/socket";
+import { env } from "../config/env";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -276,65 +277,44 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   return makeReply(`Please select a valid option from the menu below 👇`, undefined, MAIN_MENU_LIST);
 }
 
-// ── Product catalog data (from poornasree.com) ───────────────────────────
-const PRODUCT_CATALOG: ProductImage[] = [
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/12.webp",
-    caption: "*LactoSure Eco SV – Connect+*\n\nAdvanced milk analyzer with connectivity features for real-time data transfer and dairy management integration.",
-  },
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/11.webp",
-    caption: "*LactoSure Eco V Connect+*\n\nPrecision milk analyzer with built-in connectivity for seamless dairy operations.",
-  },
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/17.webp",
-    caption: "*LactoSure Eco*\n\nReliable and cost-effective milk analyzer for everyday dairy testing needs.",
-  },
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/16.webp",
-    caption: "*LactoSure Eco-S*\n\nCompact milk analyzer designed for small-scale dairy farms and collection centers.",
-  },
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/13.webp",
-    caption: "*LactoSure Eco-V Milk Analyzer*\n\nVersatile milk analyzer with advanced testing capabilities for multiple parameters.",
-  },
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/15.webp",
-    caption: "*LactoSure Eco D Milk Analyzer*\n\nDual-mode milk analyzer for high-throughput dairy processing plants.",
-  },
-  {
-    url: "https://poornasree.com/wp-content/uploads/2024/10/14.webp",
-    caption: "*LactoSure Eco-SV-V4*\n\nLatest generation milk analyzer with enhanced accuracy and faster results.",
-  },
-];
-
-const CONTACT_NUMBER = "+91 94009 61291";
-
 // ── VIEW_PRODUCTS ─────────────────────────────────────────────────────────
+const DEFAULT_CONTACT = "+91 94009 61291";
+
 async function showProducts(sessionId: string, meta: SessionMeta) {
   await updateSession(sessionId, "VIEW_PRODUCTS", meta);
+
+  // Fetch admin-managed products from the database
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  if (products.length === 0) {
+    return makeReply(
+      `📦 *Our Products*\n\nNo products available at the moment. Please check back later!\n\n📞 *Contact Us:* ${DEFAULT_CONTACT}`,
+      [MENU_BUTTON, COMPLAINT_BUTTON],
+    );
+  }
+
+  // Build image array for WhatsApp (only products that have an image)
+  const baseUrl = env.FRONTEND_URL.replace(/\/$/, "");
+  const images: ProductImage[] = products
+    .filter(p => p.imageUrl)
+    .map(p => ({
+      url: p.imageUrl!.startsWith("http") ? p.imageUrl! : `${baseUrl}${p.imageUrl}`,
+      caption: `*${p.name}*${p.detail ? `\n\n${p.detail}` : ""}${p.contactNumber ? `\n\n📞 ${p.contactNumber}` : ""}`,
+    }));
+
+  // Build summary text
+  const productLines = products.map((p, i) => `${i + 1}. ${p.name}`);
+  const contactNumber = products.find(p => p.contactNumber)?.contactNumber ?? DEFAULT_CONTACT;
 
   const summary = [
     `📦 *Our Products — Poornasree Equipments*`,
     ``,
-    `We offer 5 models and 30+ variants of milk analyzers.`,
+    ...productLines,
     ``,
-    `*Milk Analyzers:*`,
-    `1. LactoSure Eco SV – Connect+`,
-    `2. LactoSure Eco V Connect+`,
-    `3. LactoSure Eco`,
-    `4. LactoSure Eco-S`,
-    `5. LactoSure Eco-V Milk Analyzer`,
-    `6. LactoSure Eco D Milk Analyzer`,
-    `7. LactoSure Eco-SV-V4`,
-    ``,
-    `*Accessories:*`,
-    `• VIBRO Ultrasonic Stirrers`,
-    `• LactoSure DPS-T Data Processing System`,
-    `• External Display Units`,
-    `• Receipt Printers`,
-    ``,
-    `📞 *Contact Us:* ${CONTACT_NUMBER}`,
+    `📞 *Contact Us:* ${contactNumber}`,
     `🌐 *Website:* poornasree.com/products`,
   ].join("\n");
 
@@ -342,7 +322,7 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
     summary,
     [MENU_BUTTON, COMPLAINT_BUTTON],
     undefined,
-    PRODUCT_CATALOG
+    images.length > 0 ? images : undefined,
   );
 }
 

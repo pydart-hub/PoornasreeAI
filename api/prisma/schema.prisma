@@ -342,14 +342,17 @@ model ConversationSession {
 }
 
 // ── Product Catalogue ────────────────────────────────────────────────────
-// Admin-managed list of products shown to customers during complaint registration.
+// Admin-managed list of products shown to customers via WhatsApp "View Our Products".
 model Product {
-  id           String   @id @default(uuid())
-  name         String
-  displayOrder Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  detail        String?  @db.Text
+  imageUrl      String?
+  contactNumber String?
+  displayOrder  Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ── Machine Registry ────────────────────────────────────────────────────
