@@ -86,6 +86,7 @@ services:
       WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
       WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
       WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN:-}
+      FRONTEND_URL: ${FRONTEND_URL:-https://poornasree.pydart.com}
     volumes:
       - api_uploads:/app/uploads
       - ./public/Doc/training.json:/app/data/training.json:ro

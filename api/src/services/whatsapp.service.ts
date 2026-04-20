@@ -190,8 +190,11 @@ export async function sendImage(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error(`[whatsapp] Image send failed (${res.status}):`, JSON.stringify(err));
+      console.error(`[whatsapp] Image URL was: ${imageUrl}`);
     } else {
-      console.log(`[whatsapp] Sent image → ${to}: ${caption?.slice(0, 40) ?? imageUrl}…`);
+      const body = await res.json().catch(() => ({}));
+      console.log(`[whatsapp] Sent image → ${to}: url=${imageUrl} caption=${caption?.slice(0, 40)}`);
+      console.log(`[whatsapp] Image send response:`, JSON.stringify(body));
     }
   } catch (err) {
     console.error(`[whatsapp] Network error sending image to ${to}:`, (err as Error).message);
