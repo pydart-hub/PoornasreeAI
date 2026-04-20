@@ -1353,6 +1353,11 @@ export default function ServiceManagerPage() {
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-content dark:text-content-dark truncate">{dlr.firstName} {dlr.lastName}</p>
                           <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{dlr.email}</p>
+                          {dlr.pincode?.place && (
+                            <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary truncate mt-0.5">
+                              {dlr.pincode.place}{dlr.pincode.state ? `, ${dlr.pincode.state}` : ""}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                           {dlr.pincode && (
