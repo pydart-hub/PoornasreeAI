@@ -69,6 +69,7 @@ interface Dealer {
   lastName?: string | null;
   email: string;
   warrantyMonths?: number | null;
+  pincode?: { code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   createdAt: string;
   ticketCount?: number;
 }
@@ -194,10 +195,10 @@ export default function ServiceManagerPage() {
   // ── Dealer state ──
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [showAddDealer, setShowAddDealer] = useState(false);
-  const [newDealer, setNewDealer] = useState({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" as string });
+  const [newDealer, setNewDealer] = useState({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" as string, pincode: "" });
   const [addingDealer, setAddingDealer] = useState(false);
   const [editingDealer, setEditingDealer] = useState<Dealer | null>(null);
-  const [editDealerForm, setEditDealerForm] = useState({ firstName: "", lastName: "", newPassword: "", warrantyMonths: "" as string });
+  const [editDealerForm, setEditDealerForm] = useState({ firstName: "", lastName: "", newPassword: "", warrantyMonths: "" as string, pincode: "" });
   const [savingDealerEdit, setSavingDealerEdit] = useState(false);
   const [deletingDealerId, setDeletingDealerId] = useState<string | null>(null);
   const [deletingEngineerId, setDeletingEngineerId] = useState<string | null>(null);
@@ -1353,7 +1354,12 @@ export default function ServiceManagerPage() {
                           <p className="text-sm font-bold text-content dark:text-content-dark truncate">{dlr.firstName} {dlr.lastName}</p>
                           <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{dlr.email}</p>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                          {dlr.pincode && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
+                              {dlr.pincode.code}
+                            </span>
+                          )}
                           {dlr.warrantyMonths && (
                             <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
                               {dlr.warrantyMonths}m warranty
@@ -1377,6 +1383,7 @@ export default function ServiceManagerPage() {
                                 lastName: dlr.lastName ?? "",
                                 newPassword: "",
                                 warrantyMonths: dlr.warrantyMonths != null ? String(dlr.warrantyMonths) : "",
+                                pincode: dlr.pincode?.code ?? "",
                               });
                             }}
                             className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
@@ -1672,6 +1679,12 @@ export default function ServiceManagerPage() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode</label>
+                <input type="text" value={newDealer.pincode} onChange={e => setNewDealer(p => ({ ...p, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="e.g. 560001" maxLength={6} />
+              </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
               <button onClick={() => setShowAddDealer(false)}
@@ -1694,12 +1707,13 @@ export default function ServiceManagerPage() {
                         email: newDealer.email.trim(),
                         password: newDealer.password,
                         warrantyMonths: newDealer.warrantyMonths ? Number(newDealer.warrantyMonths) : undefined,
+                        pincode: newDealer.pincode.trim() || undefined,
                       }),
                     });
                     if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add dealer"); }
                     else {
                       setShowAddDealer(false);
-                      setNewDealer({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" });
+                      setNewDealer({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "", pincode: "" });
                       await fetchData();
                     }
                   } catch { setError("Network error"); }
@@ -1756,6 +1770,12 @@ export default function ServiceManagerPage() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode</label>
+                <input type="text" value={editDealerForm.pincode} onChange={e => setEditDealerForm(p => ({ ...p, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="e.g. 560001" maxLength={6} />
+              </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
               <button onClick={() => setEditingDealer(null)}
@@ -1774,6 +1794,8 @@ export default function ServiceManagerPage() {
                     if (editDealerForm.newPassword.trim()) body.newPassword = editDealerForm.newPassword;
                     const wm = editDealerForm.warrantyMonths ? Number(editDealerForm.warrantyMonths) : null;
                     if (wm !== (editingDealer.warrantyMonths ?? null)) body.warrantyMonths = wm;
+                    const pc = editDealerForm.pincode.trim();
+                    if (pc !== (editingDealer.pincode?.code ?? "")) body.pincode = pc || null;
                     if (Object.keys(body).length > 0) {
                       const res = await fetch(`/api/manager/dealers/${editingDealer.id}`, {
                         method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",

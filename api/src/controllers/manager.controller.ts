@@ -466,7 +466,7 @@ export async function deleteMyPincode(req: Request, res: Response): Promise<void
 // ── POST /api/manager/dealers ─────────────────────────────────────────────
 export async function createDealer(req: Request, res: Response): Promise<void> {
   try {
-    const { email, password, firstName, lastName, warrantyMonths } = req.body;
+    const { email, password, firstName, lastName, warrantyMonths, pincode } = req.body;
 
     if (!email || !password || !firstName) {
       res.status(400).json({ error: "email, password and firstName are required" });
@@ -484,6 +484,17 @@ export async function createDealer(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Resolve pincode if provided
+    let pincodeId: string | null = null;
+    if (pincode?.trim()) {
+      const trimmedCode = pincode.trim();
+      let pc = await prisma.pincode.findUnique({ where: { code: trimmedCode } });
+      if (!pc) {
+        pc = await prisma.pincode.create({ data: { code: trimmedCode } });
+      }
+      pincodeId = pc.id;
+    }
+
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const dealer = await prisma.user.create({
       data: {
@@ -493,10 +504,12 @@ export async function createDealer(req: Request, res: Response): Promise<void> {
         lastName: lastName?.trim() ?? null,
         role: "dealer",
         warrantyMonths: warrantyMonths != null ? Number(warrantyMonths) : null,
+        pincodeId,
       },
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, warrantyMonths: true, createdAt: true,
+        pincode: { select: { code: true, place: true, district: true, state: true } },
       },
     });
 
@@ -515,6 +528,7 @@ export async function listDealers(req: Request, res: Response): Promise<void> {
       select: {
         id: true, email: true, firstName: true, lastName: true,
         warrantyMonths: true, createdAt: true,
+        pincode: { select: { code: true, place: true, district: true, state: true } },
         _count: { select: { dealerTickets: true } },
       },
       orderBy: { firstName: "asc" },
@@ -536,7 +550,7 @@ export async function listDealers(req: Request, res: Response): Promise<void> {
 export async function updateDealer(req: Request, res: Response): Promise<void> {
   try {
     const dealerId = String(req.params.id);
-    const { firstName, lastName, newPassword, warrantyMonths } = req.body;
+    const { firstName, lastName, newPassword, warrantyMonths, pincode } = req.body;
 
     const dealer = await prisma.user.findUnique({ where: { id: dealerId } });
     if (!dealer || dealer.role !== "dealer") {
@@ -548,6 +562,18 @@ export async function updateDealer(req: Request, res: Response): Promise<void> {
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
     if (warrantyMonths !== undefined) data.warrantyMonths = warrantyMonths != null ? Number(warrantyMonths) : null;
+    if (pincode !== undefined) {
+      if (pincode && pincode.trim()) {
+        const trimmedCode = pincode.trim();
+        let pc = await prisma.pincode.findUnique({ where: { code: trimmedCode } });
+        if (!pc) {
+          pc = await prisma.pincode.create({ data: { code: trimmedCode } });
+        }
+        data.pincodeId = pc.id;
+      } else {
+        data.pincodeId = null;
+      }
+    }
     if (newPassword) {
       if (newPassword.length < 8) {
         res.status(400).json({ error: "Password must be at least 8 characters" });
@@ -567,6 +593,7 @@ export async function updateDealer(req: Request, res: Response): Promise<void> {
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, warrantyMonths: true, createdAt: true,
+        pincode: { select: { code: true, place: true, district: true, state: true } },
       },
     });
 
