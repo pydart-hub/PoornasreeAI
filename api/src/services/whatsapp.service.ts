@@ -155,3 +155,45 @@ export async function sendInteractiveList(
     console.error(`[whatsapp] Network error sending list to ${to}:`, (err as Error).message);
   }
 }
+
+/** Send an image message via WhatsApp Cloud API. */
+export async function sendImage(
+  to: string,
+  imageUrl: string,
+  caption?: string,
+): Promise<void> {
+  if (!isConfigured()) {
+    console.warn("[whatsapp] Not configured — skipping sendImage");
+    return;
+  }
+
+  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "image",
+        image: {
+          link: imageUrl,
+          ...(caption ? { caption: caption.slice(0, 1024) } : {}),
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error(`[whatsapp] Image send failed (${res.status}):`, JSON.stringify(err));
+    } else {
+      console.log(`[whatsapp] Sent image → ${to}: ${caption?.slice(0, 40) ?? imageUrl}…`);
+    }
+  } catch (err) {
+    console.error(`[whatsapp] Network error sending image to ${to}:`, (err as Error).message);
+  }
+}

@@ -7,6 +7,7 @@ import prisma from "../lib/prisma";
 import { env } from "../config/env";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
+import type { ProductImage } from "../services/simulate.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -131,6 +132,14 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     await prisma.simulateMessage.create({
       data: { phoneNumber: from, role: "bot", content: result.message },
     });
+
+    // Send product images first (if any)
+    const images = (result as { images?: ProductImage[] }).images;
+    if (images && images.length > 0) {
+      for (const img of images) {
+        await WhatsAppService.sendImage(from, img.url, img.caption);
+      }
+    }
 
     // Send reply via WhatsApp — use interactive list/buttons when available
     if (result.list && result.list.rows?.length > 0) {
