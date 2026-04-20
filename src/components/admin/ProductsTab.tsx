@@ -7,6 +7,7 @@ interface Product {
   id: string;
   name: string;
   detail?: string | null;
+  price?: string | null;
   imageUrl?: string | null;
   contactNumber?: string | null;
   displayOrder: number;
@@ -30,7 +31,7 @@ export default function ProductsTab() {
   const [search, setSearch] = useState("");
 
   // Create form
-  const [form, setForm] = useState({ name: "", detail: "", contactNumber: "", displayOrder: "0" });
+  const [form, setForm] = useState({ name: "", detail: "", price: "", contactNumber: "", displayOrder: "0" });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -38,7 +39,7 @@ export default function ProductsTab() {
 
   // Edit modal
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", detail: "", contactNumber: "", displayOrder: "0" });
+  const [editForm, setEditForm] = useState({ name: "", detail: "", price: "", contactNumber: "", displayOrder: "0" });
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -71,12 +72,13 @@ export default function ProductsTab() {
       const fd = new FormData();
       fd.append("name", form.name);
       fd.append("detail", form.detail);
+      fd.append("price", form.price);
       fd.append("contactNumber", form.contactNumber);
       fd.append("displayOrder", form.displayOrder);
       if (imageFile) fd.append("image", imageFile);
 
       await apiFetch("/api/admin/products", { method: "POST", body: fd });
-      setForm({ name: "", detail: "", contactNumber: "", displayOrder: "0" });
+      setForm({ name: "", detail: "", price: "", contactNumber: "", displayOrder: "0" });
       setImageFile(null);
       setImagePreview(null);
       fetchProducts();
@@ -114,6 +116,7 @@ export default function ProductsTab() {
     setEditForm({
       name: p.name,
       detail: p.detail ?? "",
+      price: p.price ?? "",
       contactNumber: p.contactNumber ?? "",
       displayOrder: String(p.displayOrder),
     });
@@ -134,6 +137,7 @@ export default function ProductsTab() {
       const fd = new FormData();
       fd.append("name", editForm.name);
       fd.append("detail", editForm.detail);
+      fd.append("price", editForm.price);
       fd.append("contactNumber", editForm.contactNumber);
       fd.append("displayOrder", editForm.displayOrder);
       if (editImageFile) fd.append("image", editImageFile);
@@ -191,6 +195,13 @@ export default function ProductsTab() {
             placeholder="Product Name *"
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Price (e.g. \u20b925,000)"
+            value={form.price}
+            onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
             className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
           />
           <div className="flex gap-2">
@@ -273,6 +284,9 @@ export default function ProductsTab() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{p.name}</p>
+                    {p.price && (
+                      <p className="text-sm font-medium text-primary dark:text-primary-300 mt-0.5">{p.price}</p>
+                    )}
                     {p.detail && (
                       <p className="text-xs text-content-secondary dark:text-content-dark-secondary line-clamp-2 mt-0.5">{p.detail}</p>
                     )}
@@ -340,6 +354,16 @@ export default function ProductsTab() {
                   onChange={e => setEditForm(f => ({ ...f, detail: e.target.value }))}
                   rows={3}
                   className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-content-secondary">Price</label>
+                <input
+                  type="text"
+                  value={editForm.price}
+                  onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
+                  placeholder="e.g. \u20b925,000"
+                  className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
                 />
               </div>
               <div>

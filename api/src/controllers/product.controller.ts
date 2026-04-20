@@ -9,7 +9,7 @@ export async function listProducts(_req: Request, res: Response): Promise<void> 
 
 // POST /api/admin/products — create a product (multipart: image file + JSON fields)
 export async function createProduct(req: Request, res: Response): Promise<void> {
-  const { name, detail, contactNumber, displayOrder } = req.body;
+  const { name, detail, price, contactNumber, displayOrder } = req.body;
   if (!name?.trim()) {
     res.status(400).json({ error: "Product name is required" });
     return;
@@ -21,6 +21,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     data: {
       name: name.trim(),
       detail: detail?.trim() || null,
+      price: price?.trim() || null,
       imageUrl,
       contactNumber: contactNumber?.trim() || null,
       displayOrder: displayOrder ? parseInt(displayOrder, 10) : 0,
@@ -32,7 +33,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
 // PATCH /api/admin/products/:id — update a product
 export async function updateProduct(req: Request, res: Response): Promise<void> {
   const id = String(req.params.id);
-  const { name, detail, contactNumber, displayOrder, isActive } = req.body;
+  const { name, detail, price, contactNumber, displayOrder, isActive } = req.body;
 
   const existing = await prisma.product.findUnique({ where: { id } });
   if (!existing) {
@@ -47,6 +48,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     data: {
       ...(name !== undefined && { name: name.trim() }),
       ...(detail !== undefined && { detail: detail?.trim() || null }),
+      ...(price !== undefined && { price: price?.trim() || null }),
       ...(imageUrl !== undefined && { imageUrl }),
       ...(contactNumber !== undefined && { contactNumber: contactNumber?.trim() || null }),
       ...(displayOrder !== undefined && { displayOrder: parseInt(displayOrder, 10) }),

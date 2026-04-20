@@ -302,7 +302,7 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
     .filter(p => p.imageUrl)
     .map(p => ({
       url: p.imageUrl!.startsWith("http") ? p.imageUrl! : `${baseUrl}${p.imageUrl}`,
-      caption: `*${p.name}*${p.detail ? `\n\n${p.detail}` : ""}${p.contactNumber ? `\n\n📞 ${p.contactNumber}` : ""}`,
+      caption: `*${p.name}*${p.price ? `\n💰 ${p.price}` : ""}${p.detail ? `\n\n${p.detail}` : ""}${p.contactNumber ? `\n\n📞 ${p.contactNumber}` : ""}`,
     }));
 
   // Build summary text

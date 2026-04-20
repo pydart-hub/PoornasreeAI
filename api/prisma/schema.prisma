@@ -347,6 +347,7 @@ model Product {
   id            String   @id @default(uuid())
   name          String
   detail        String?  @db.Text
+  price         String?
   imageUrl      String?
   contactNumber String?
   displayOrder  Int      @default(0)
