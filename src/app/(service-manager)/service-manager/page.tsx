@@ -383,11 +383,12 @@ export default function ServiceManagerPage() {
   // ── Data fetching ──
   const fetchData = useCallback(async () => {
     try {
+      const noCache = { credentials: "include" as const, cache: "no-store" as const };
       const [ticketsRes, engineersRes, pincodesRes, dealersRes] = await Promise.all([
-        fetch("/api/tickets", { credentials: "include" }),
-        fetch("/api/manager/engineers", { credentials: "include" }),
-        fetch("/api/manager/pincodes", { credentials: "include" }),
-        fetch("/api/manager/dealers", { credentials: "include" }),
+        fetch("/api/tickets", noCache),
+        fetch("/api/manager/engineers", noCache),
+        fetch("/api/manager/pincodes", noCache),
+        fetch("/api/manager/dealers", noCache),
       ]);
       if (ticketsRes.ok) { const { tickets: d } = await ticketsRes.json(); setTickets(d ?? []); }
       if (engineersRes.ok) { const { engineers: d } = await engineersRes.json(); setEngineers(d ?? []); }

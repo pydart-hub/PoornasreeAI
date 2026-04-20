@@ -539,6 +539,7 @@ export async function listDealers(req: Request, res: Response): Promise<void> {
       ticketCount: d._count.dealerTickets,
     }));
 
+    res.setHeader("Cache-Control", "no-store");
     res.json({ dealers: result });
   } catch (err) {
     console.error("listDealers error:", err);
