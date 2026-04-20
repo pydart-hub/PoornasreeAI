@@ -89,7 +89,7 @@ const STATUS_TABS: { label: string; value: TicketStatus | "ALL" }[] = [
 
 export default function DealerPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoading: authLoading, logout, setUser } = useAuth();
 
   const [tickets, setTickets] = useState<DealerTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +239,15 @@ export default function DealerPage() {
         setSettingsError(data.error || "Update failed");
       } else {
         setSettingsSuccess("Profile updated successfully!");
-        setSettingsForm(f => ({ ...f, currentPassword: "", newPassword: "", confirmPassword: "" }));
+        setSettingsForm(f => ({ ...f, email: data.user?.email ?? f.email, currentPassword: "", newPassword: "", confirmPassword: "" }));
+        // Refresh auth context so UI reflects the change immediately
+        if (data.user) {
+          const meRes = await fetch("/api/auth/me", { credentials: "include" });
+          if (meRes.ok) {
+            const { user: fresh } = await meRes.json();
+            setUser({ ...fresh, permissions: user?.permissions, languagePref: "en", themePref: "system" });
+          }
+        }
       }
     } catch {
       setSettingsError("Network error. Please try again.");

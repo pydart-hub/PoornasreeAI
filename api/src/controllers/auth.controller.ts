@@ -247,6 +247,19 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
       data: updateData,
     });
 
+    // Re-issue JWT so the session reflects the updated user
+    const newToken = jwt.sign(
+      { userId: updated.id, role: updated.role, pincodeId: updated.pincodeId ?? null },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN } as jwt.SignOptions
+    );
+    res.cookie("token", newToken, {
+      httpOnly: true,
+      secure: env.COOKIE_SECURE,
+      sameSite: env.COOKIE_SAMESITE,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     const { passwordHash: _, ...safeUser } = updated;
     res.json({ message: "Profile updated successfully", user: safeUser });
   } catch (err) {
