@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useEffect, useCallback, FormEvent } from "react";
 import {
@@ -6,8 +6,6 @@ import {
   Bot,
   User,
   Globe,
-  ArrowLeft,
-  CheckCircle2,
   Loader2,
 } from "lucide-react";
 import { Logo, ThemeToggle } from "@/components/ui";
@@ -750,7 +748,7 @@ export default function CustomerChatPage() {
               </div>
               <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
                 <p className="text-xs text-content-secondary dark:text-content-dark-secondary flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering your complaint�
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering your complaint…
                 </p>
               </div>
             </div>
