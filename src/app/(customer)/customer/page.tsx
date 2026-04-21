@@ -270,7 +270,7 @@ export default function CustomerChatPage() {
         const lines = tickets.map((t, i) => {
           const emoji = statusEmoji[t.status] || "?";
           const date = new Date(t.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-          const complaint = t.problemDescription?.slice(0, 40) || "—";
+          const complaint = t.problemDescription?.slice(0, 40) || "ï¿½";
           return `${i + 1}. *${t.ticketNumber}*\n   ${emoji} ${t.status.replace(/_/g, " ")}\n   ?? ${date}\n   ?? ${complaint}`;
         });
         addBotMessage(
@@ -452,7 +452,7 @@ export default function CustomerChatPage() {
         addUserMessage(skipSerial ? "Skip" : trimmed);
 
         if (skipSerial) {
-          // Manual path — ask name if not known
+          // Manual path ï¿½ ask name if not known
           if (complaintDraft.name && complaintDraft.name.length >= 2) {
             addBotMessage("?? Please enter your *pincode* (6 digits):");
             setChatState("COMPLAINT_MANUAL_PINCODE");
@@ -750,7 +750,7 @@ export default function CustomerChatPage() {
               </div>
               <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
                 <p className="text-xs text-content-secondary dark:text-content-dark-secondary flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering your complaint…
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering your complaintï¿½
                 </p>
               </div>
             </div>
@@ -793,16 +793,16 @@ export default function CustomerChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={
-                chatState === "IDLE" ? "Type Hi to start…" :
-                chatState === "ASK_PHONE" ? "Enter your 10-digit mobile number…" :
-                chatState === "ASK_NAME" ? "Enter your name…" :
-                chatState === "COMPLAINT_ASK_SERIAL" ? "Enter serial number or type skip…" :
-                chatState === "COMPLAINT_CONFIRM_DETAILS" ? "Use the buttons above…" :
-                chatState === "COMPLAINT_MANUAL_NAME" ? "Enter your full name…" :
-                chatState === "COMPLAINT_MANUAL_PINCODE" ? "Enter 6-digit pincode…" :
-                chatState === "COMPLAINT_MANUAL_PRODUCT" ? "Enter product name…" :
-                chatState === "COMPLAINT_ASK_ISSUE" ? "Describe your complaint…" :
-                "Type a message…"
+                chatState === "IDLE" ? "Type Hi to startï¿½" :
+                chatState === "ASK_PHONE" ? "Enter your 10-digit mobile numberï¿½" :
+                chatState === "ASK_NAME" ? "Enter your nameï¿½" :
+                chatState === "COMPLAINT_ASK_SERIAL" ? "Enter serial number or type skipï¿½" :
+                chatState === "COMPLAINT_CONFIRM_DETAILS" ? "Use the buttons aboveï¿½" :
+                chatState === "COMPLAINT_MANUAL_NAME" ? "Enter your full nameï¿½" :
+                chatState === "COMPLAINT_MANUAL_PINCODE" ? "Enter 6-digit pincodeï¿½" :
+                chatState === "COMPLAINT_MANUAL_PRODUCT" ? "Enter product nameï¿½" :
+                chatState === "COMPLAINT_ASK_ISSUE" ? "Describe your complaintï¿½" :
+                "Type a messageï¿½"
               }
               disabled={chatState === "COMPLAINT_CONFIRM_DETAILS"}
               className="flex-1 bg-transparent text-base sm:text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary outline-none disabled:opacity-50"
@@ -818,7 +818,7 @@ export default function CustomerChatPage() {
         </form>
         <div className="max-w-2xl mx-auto mt-2">
           <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-            Poornasree HelpDesk · v1.0
+            Poornasree HelpDesk ï¿½ v1.0
           </p>
         </div>
       </footer>
