@@ -75,7 +75,7 @@ export async function listWorkReports(req: Request, res: Response): Promise<void
 // ── GET /api/work-reports/:ticketId ──────────────────────────────────────
 export async function getWorkReport(req: Request, res: Response): Promise<void> {
   const { userId, role } = req.user!;
-  const { ticketId } = req.params;
+  const ticketId = req.params.ticketId as string;
 
   try {
     const report = await prisma.workReport.findUnique({
@@ -118,7 +118,7 @@ export async function getWorkReport(req: Request, res: Response): Promise<void> 
 // Upsert work report (text + parts). Images are handled separately.
 export async function upsertWorkReport(req: Request, res: Response): Promise<void> {
   const { userId } = req.user!;
-  const { ticketId } = req.params;
+  const ticketId = req.params.ticketId as string;
   const {
     problemDiagnosed,
     workDone,
@@ -210,7 +210,7 @@ export async function upsertWorkReport(req: Request, res: Response): Promise<voi
 // ── POST /api/work-reports/:ticketId/images ───────────────────────────────
 export async function uploadReportImage(req: Request, res: Response): Promise<void> {
   const { userId } = req.user!;
-  const { ticketId } = req.params;
+  const ticketId = req.params.ticketId as string;
 
   if (!req.file) {
     res.status(400).json({ error: "No image file provided" });
@@ -263,12 +263,12 @@ export async function uploadReportImage(req: Request, res: Response): Promise<vo
 // ── DELETE /api/work-reports/:ticketId/images/:imageId ───────────────────
 export async function deleteReportImage(req: Request, res: Response): Promise<void> {
   const { userId } = req.user!;
-  const { ticketId, imageId } = req.params;
+  const ticketId = req.params.ticketId as string;
+  const imageId = req.params.imageId as string;
 
   try {
     const image = await prisma.workReportImage.findUnique({
       where: { id: imageId },
-      include: { workReport: { select: { dealerId: true, ticketId: true } } },
     });
 
     if (!image) {
@@ -276,7 +276,12 @@ export async function deleteReportImage(req: Request, res: Response): Promise<vo
       return;
     }
 
-    if (image.workReport.ticketId !== ticketId || image.workReport.dealerId !== userId) {
+    const report = await prisma.workReport.findUnique({
+      where: { id: image.workReportId },
+      select: { dealerId: true, ticketId: true },
+    });
+
+    if (!report || report.ticketId !== ticketId || report.dealerId !== userId) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
