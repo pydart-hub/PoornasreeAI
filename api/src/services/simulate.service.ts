@@ -88,7 +88,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const upper = text.toUpperCase();
 
   // ── Global navigation commands (any state except feedback) ──────────────
-  if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESET") {
+  if (upper === "MENU" || upper === "START" || upper === "RESET" || /^H[IE]+I*$/.test(upper) || /^HELL+O*$/.test(upper)) {
     const s = await getOrCreateSession(phoneNumber);
     const meta: SessionMeta = (s.metadata as SessionMeta) ?? {};
     // If in feedback flow, don't interrupt
@@ -125,21 +125,27 @@ async function startGreeting(phoneNumber: string) {
     },
   });
 
+  const GREETING_HEADER =
+    `🙏 *Welcome to Poornasree Equipments!*\n` +
+    `Your Trusted Service Partner 🔧\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
   if (existingTicket) {
     const name = existingTicket.machineCustomer || "Customer";
     const meta: SessionMeta = { customerName: name, customerPhone: phoneNumber };
     await updateSession(session.id, "MAIN_MENU", meta);
     return makeReply(
-      `Welcome back, ${name}! 👋\n\n` +
+      GREETING_HEADER +
+      `Welcome back, *${name}*! 👋\n\n` +
       MAIN_MENU_MSG,
       undefined,
       MAIN_MENU_LIST
     );
   }
 
-  // Not registered
+  // Not registered — show branded greeting then ask for registered phone
   await updateSession(session.id, "ASK_PHONE", {});
-  return makeReply(NOT_REGISTERED_MSG, [SKIP_BUTTON]);
+  return makeReply(GREETING_HEADER + NOT_REGISTERED_MSG, [SKIP_BUTTON]);
 }
 
 // ── State router ──────────────────────────────────────────────────────────
