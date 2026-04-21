@@ -15,6 +15,7 @@ import ticketRoutes from "./routes/ticket.routes";
 import troubleshootingRoutes from "./routes/troubleshooting.routes";
 import whatsappRoutes from "./routes/whatsapp.routes";
 import customerChatRoutes from "./routes/customer-chat.routes";
+import workReportRoutes from "./routes/work-report.routes";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
 import { protect } from "./middleware/auth";
@@ -55,10 +56,11 @@ app.get("/api/rd-videos", protect, listRdVideos);
 // IMPORTANT: specific prefixes MUST be mounted before the broad "/api" mount,
 // otherwise chatRoutes' protect middleware intercepts admin/support/sales
 // requests first and can cause duplicate auth checks or unexpected 401s.
-app.use("/api/admin",   adminRoutes);
-app.use("/api/manager", managerRoutes);
-app.use("/api/support", supportRoutes);
-app.use("/api/sales",   salesRoutes);
+app.use("/api/admin",        adminRoutes);
+app.use("/api/manager",      managerRoutes);
+app.use("/api/support",      supportRoutes);
+app.use("/api/sales",        salesRoutes);
+app.use("/api/work-reports", workReportRoutes);
 app.use("/api",         chatRoutes);    // broad mount — catch-all for /api/conversations, /api/messages, etc.
 
 // ── TTS proxy ─────────────────────────────────────

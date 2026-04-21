@@ -34,16 +34,24 @@ import {
   Phone,
   Menu,
   PanelLeftClose,
+  ClipboardList,
+  ShieldCheck,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
 import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
 import { parseTicketDescription } from "@/components/service-manager/utils";
+import {
+  type WorkReport,
+  type ReplacedPart,
+  type WorkReportImage,
+  listWorkReports,
+} from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "engineers" | "locations" | "dealers";
+type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports";
 
 interface PincodeInfo {
   id: string;
@@ -191,6 +199,11 @@ export default function ServiceManagerPage() {
   const [customValidating, setCustomValidating] = useState(false);
   const [savingCustom, setSavingCustom] = useState(false);
   const [customError, setCustomError] = useState("");
+
+  // ── Work Reports state ──
+  const [workReports, setWorkReports] = useState<WorkReport[]>([]);
+  const [selectedReport, setSelectedReport] = useState<WorkReport | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   // ── Dealer state ──
   const [dealers, setDealers] = useState<Dealer[]>([]);
@@ -394,6 +407,8 @@ export default function ServiceManagerPage() {
       if (engineersRes.ok) { const { engineers: d } = await engineersRes.json(); setEngineers(d ?? []); }
       if (pincodesRes.ok) { const { pincodes: d } = await pincodesRes.json(); setMyPincodes(d ?? []); }
       if (dealersRes.ok) { const { dealers: d } = await dealersRes.json(); setDealers(d ?? []); }
+      // Work reports
+      try { const reports = await listWorkReports(); setWorkReports(reports); } catch { /* non-fatal */ }
     } catch { setError("Failed to load data"); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -571,6 +586,7 @@ export default function ServiceManagerPage() {
               { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-3.5 h-3.5" />, count: engineers.length },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
+              { key: "work-reports" as PageView, label: "Work Reports", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.length },
             ]).map((nav) => (
               <button
                 key={nav.key}
@@ -1420,6 +1436,87 @@ export default function ServiceManagerPage() {
             </section>
           )}
 
+          {/* ═══════════════════ WORK REPORTS VIEW ═══════════════════ */}
+          {pageView === "work-reports" && (
+            <section className="space-y-4">
+              <div>
+                <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealer Work Reports</h2>
+                <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                  Service reports submitted by dealers during ticket resolution — {workReports.length} report{workReports.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+
+              {workReports.length === 0 ? (
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
+                  <ClipboardList className="w-10 h-10 mb-3 opacity-40" />
+                  <p className="text-sm">No work reports yet</p>
+                  <p className="text-xs mt-1">Reports appear when dealers document their service visits</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-line dark:border-line-dark shadow-sm">
+                  <table className="w-full text-xs">
+                    <thead className="bg-surface-secondary dark:bg-surface-dark-secondary">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Dealer</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Ticket #</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Machine</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Date</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Parts</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Warranty</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">View</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line dark:divide-line-dark bg-surface-card dark:bg-surface-dark-card">
+                      {workReports.map((r) => (
+                        <tr key={r.id} className="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                          <td className="px-4 py-3 font-medium text-content dark:text-content-dark">
+                            {r.dealer ? `${r.dealer.firstName}${r.dealer.lastName ? " " + r.dealer.lastName : ""}` : "—"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-primary dark:text-primary-300">
+                            {r.ticket?.ticketNumber ? `#${r.ticket.ticketNumber}` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
+                            {r.ticket?.machineName ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
+                            {new Date(r.updatedAt).toLocaleDateString("en-IN")}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full font-semibold",
+                              (r._count?.parts ?? 0) > 0
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                : "text-content-tertiary dark:text-content-dark-tertiary"
+                            )}>
+                              {r._count?.parts ?? 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {r.warrantyClaimRequested ? (
+                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                                <ShieldCheck className="w-3.5 h-3.5" /> Yes
+                              </span>
+                            ) : (
+                              <span className="text-content-tertiary dark:text-content-dark-tertiary">No</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => setSelectedReport(r)}
+                              className="px-3 py-1 rounded-lg bg-primary/10 text-primary dark:bg-primary-400/10 dark:text-primary-300 hover:bg-primary/20 transition-colors font-medium"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
         </div>
       </main>
       </div>
@@ -1820,6 +1917,163 @@ export default function ServiceManagerPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ═══════════════════ WORK REPORT DETAIL MODAL ═══════════════════ */}
+      {selectedReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-2xl border border-line dark:border-line-dark flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-content dark:text-content-dark flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-primary dark:text-primary-300" />
+                  Work Report
+                </h3>
+                <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
+                  {selectedReport.dealer ? `${selectedReport.dealer.firstName}${selectedReport.dealer.lastName ? " " + selectedReport.dealer.lastName : ""}` : "Dealer"}
+                  {selectedReport.ticket?.ticketNumber ? ` · #${selectedReport.ticket.ticketNumber}` : ""}
+                  {selectedReport.ticket?.machineName ? ` · ${selectedReport.ticket.machineName}` : ""}
+                </p>
+              </div>
+              <button onClick={() => setSelectedReport(null)} className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                <X className="w-5 h-5 text-content-secondary dark:text-content-dark-secondary" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-5 overflow-y-auto">
+              {/* Warranty badge */}
+              {selectedReport.warrantyClaimRequested && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-sm font-medium">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  Warranty claim requested for this ticket
+                </div>
+              )}
+
+              {/* Problem diagnosed */}
+              {selectedReport.problemDiagnosed ? (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Problem Diagnosed</p>
+                  <p className="text-sm text-content dark:text-content-dark leading-relaxed">{selectedReport.problemDiagnosed}</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Problem Diagnosed</p>
+                  <p className="text-sm italic text-content-tertiary dark:text-content-dark-tertiary">Not documented</p>
+                </div>
+              )}
+
+              {/* Work done */}
+              {selectedReport.workDone ? (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Work Done / Steps Taken</p>
+                  <p className="text-sm text-content dark:text-content-dark leading-relaxed">{selectedReport.workDone}</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Work Done / Steps Taken</p>
+                  <p className="text-sm italic text-content-tertiary dark:text-content-dark-tertiary">Not documented</p>
+                </div>
+              )}
+
+              {/* Parts replaced */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-2">
+                  Parts Replaced {selectedReport.parts && selectedReport.parts.length > 0 ? `(${selectedReport.parts.length})` : ""}
+                </p>
+                {selectedReport.parts && selectedReport.parts.length > 0 ? (
+                  <div className="overflow-hidden rounded-xl border border-line dark:border-line-dark">
+                    <table className="w-full text-xs">
+                      <thead className="bg-surface-secondary dark:bg-surface-dark-secondary">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-content-secondary dark:text-content-dark-secondary">Part Name</th>
+                          <th className="px-3 py-2 text-left font-semibold text-content-secondary dark:text-content-dark-secondary">Part Number</th>
+                          <th className="px-3 py-2 text-center font-semibold text-content-secondary dark:text-content-dark-secondary">Qty</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line dark:divide-line-dark bg-surface-card dark:bg-surface-dark-card">
+                        {selectedReport.parts.map((p: ReplacedPart) => (
+                          <tr key={p.id}>
+                            <td className="px-3 py-2 font-medium text-content dark:text-content-dark">{p.partName}</td>
+                            <td className="px-3 py-2 text-content-secondary dark:text-content-dark-secondary">{p.partNumber ?? "—"}</td>
+                            <td className="px-3 py-2 text-center text-content dark:text-content-dark">{p.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-content-tertiary dark:text-content-dark-tertiary">No parts recorded</p>
+                )}
+              </div>
+
+              {/* Images */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-2">
+                  Images {selectedReport.images && selectedReport.images.length > 0 ? `(${selectedReport.images.length})` : ""}
+                </p>
+                {selectedReport.images && selectedReport.images.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {selectedReport.images.map((img: WorkReportImage) => (
+                      <button
+                        key={img.id}
+                        onClick={() => setLightboxImg(img.url)}
+                        className="relative group rounded-xl overflow-hidden border border-line dark:border-line-dark hover:ring-2 hover:ring-primary/40 transition-all"
+                        title={img.fileName}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.url}
+                          alt={img.fileName}
+                          className="w-24 h-24 object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold">View</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-content-tertiary dark:text-content-dark-tertiary">No images uploaded</p>
+                )}
+              </div>
+
+              <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
+                Last updated: {new Date(selectedReport.updatedAt).toLocaleString("en-IN")}
+              </p>
+            </div>
+
+            <div className="px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl shrink-0 flex justify-end">
+              <button
+                onClick={() => setSelectedReport(null)}
+                className="px-5 py-2 rounded-xl text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors border border-line dark:border-line-dark"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════ IMAGE LIGHTBOX ═══════════════════ */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setLightboxImg(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImg}
+            alt="Part image"
+            className="max-w-full max-h-full rounded-xl object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightboxImg(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
     </div>

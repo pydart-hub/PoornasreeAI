@@ -218,3 +218,104 @@ export interface CustomerAnalytics {
 export async function getCustomerAnalytics(): Promise<CustomerAnalytics> {
   return apiFetch<CustomerAnalytics>("/api/admin/analytics/customer");
 }
+
+// ── Work Reports ─────────────────────────────────────────────────────────
+
+export interface ReplacedPart {
+  id: string;
+  partName: string;
+  partNumber?: string | null;
+  quantity: number;
+  createdAt: string;
+}
+
+export interface WorkReportImage {
+  id: string;
+  url: string;
+  fileName: string;
+  createdAt: string;
+}
+
+export interface WorkReport {
+  id: string;
+  ticketId: string;
+  dealerId: string;
+  problemDiagnosed?: string | null;
+  workDone?: string | null;
+  warrantyClaimRequested: boolean;
+  createdAt: string;
+  updatedAt: string;
+  dealer?: { id: string; firstName: string; lastName?: string | null } | null;
+  ticket?: {
+    id: string;
+    ticketNumber?: string | null;
+    machineName?: string | null;
+    machineSerialNumber?: string | null;
+    status: string;
+  } | null;
+  parts?: ReplacedPart[];
+  images?: WorkReportImage[];
+  _count?: { parts: number; images: number };
+}
+
+export interface UpsertWorkReportPayload {
+  problemDiagnosed?: string;
+  workDone?: string;
+  warrantyClaimRequested?: boolean;
+  parts?: { partName: string; partNumber?: string; quantity?: number }[];
+}
+
+/** List work reports. Dealer sees own; manager/admin see all. */
+export async function listWorkReports(): Promise<WorkReport[]> {
+  const data = await apiFetch<{ reports: WorkReport[] }>("/api/work-reports");
+  return data.reports;
+}
+
+/** Get a single work report by ticketId. */
+export async function getWorkReport(ticketId: string): Promise<WorkReport | null> {
+  try {
+    const data = await apiFetch<{ report: WorkReport }>(`/api/work-reports/${ticketId}`);
+    return data.report;
+  } catch {
+    return null;
+  }
+}
+
+/** Create or update a work report (dealer only). */
+export async function upsertWorkReport(
+  ticketId: string,
+  payload: UpsertWorkReportPayload
+): Promise<WorkReport> {
+  const data = await apiFetch<{ report: WorkReport }>(`/api/work-reports/${ticketId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return data.report;
+}
+
+/** Upload an image to a work report (dealer only). Returns the created image record. */
+export async function uploadWorkReportImage(
+  ticketId: string,
+  file: File
+): Promise<WorkReportImage> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`/api/work-reports/${ticketId}/images`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  return (data as { image: WorkReportImage }).image;
+}
+
+/** Delete an image from a work report (dealer only). */
+export async function deleteWorkReportImage(
+  ticketId: string,
+  imageId: string
+): Promise<void> {
+  await apiFetch(`/api/work-reports/${ticketId}/images/${imageId}`, {
+    method: "DELETE",
+  });
+}

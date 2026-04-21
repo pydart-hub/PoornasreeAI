@@ -56,6 +56,9 @@ model User {
 
   // R&D videos uploaded by this user
   rdVideos         RdVideo[]
+
+  // Work reports submitted by this dealer
+  workReports      WorkReport[]       @relation("DealerWorkReports")
 }
 
 model Conversation {
@@ -264,6 +267,7 @@ model Ticket {
   assignedManager    User?     @relation("ManagerTickets",   fields: [assignedManagerId],    references: [id])
   assignedEngineer   User?     @relation("EngineerTickets",  fields: [assignedEngineerId],   references: [id])
   pincode            Pincode?  @relation(fields: [pincodeId],            references: [id])
+  workReport         WorkReport?
 }
 
 // ── Simulate Message (persisted WhatsApp-simulator chat) ──────────────────
@@ -393,4 +397,48 @@ model RdVideo {
   updatedAt    DateTime @updatedAt
 
   uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+}
+
+// ── Work Report ──────────────────────────────────────────────────────────
+// Created by dealer (engineers using dealer credentials) during/after a ticket.
+// One-to-one with Ticket.
+model WorkReport {
+  id                     String   @id @default(uuid())
+  ticketId               String   @unique
+  dealerId               String
+  problemDiagnosed       String?  @db.Text
+  workDone               String?  @db.Text
+  warrantyClaimRequested Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  ticket                 Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  dealer                 User             @relation("DealerWorkReports", fields: [dealerId], references: [id])
+  parts                  ReplacedPart[]
+  images                 WorkReportImage[]
+}
+
+// ── Replaced Part ────────────────────────────────────────────────────────
+// Parts replaced during a service visit, linked to a WorkReport.
+model ReplacedPart {
+  id           String     @id @default(uuid())
+  workReportId String
+  partName     String
+  partNumber   String?
+  quantity     Int        @default(1)
+  createdAt    DateTime   @default(now())
+
+  workReport   WorkReport @relation(fields: [workReportId], references: [id], onDelete: Cascade)
+}
+
+// ── Work Report Image ────────────────────────────────────────────────────
+// Photos of replaced parts, uploaded by dealer.
+model WorkReportImage {
+  id           String     @id @default(uuid())
+  workReportId String
+  url          String
+  fileName     String
+  createdAt    DateTime   @default(now())
+
+  workReport   WorkReport @relation(fields: [workReportId], references: [id], onDelete: Cascade)
 }
