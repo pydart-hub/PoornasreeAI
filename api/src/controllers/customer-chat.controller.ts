@@ -137,12 +137,33 @@ export async function validateSerial(req: Request, res: Response) {
         if (adminMachine?.modelName) adminModelName = adminMachine.modelName;
       } catch { /* non-blocking */ }
 
+      // Dealer name matching against machineData.customer
+      let dealerId: string | undefined;
+      let dealerName: string | undefined;
+      if (machineData.customer) {
+        const customerLower = machineData.customer.trim().toLowerCase();
+        const dealers = await prisma.user.findMany({
+          where: { role: "dealer" },
+          select: { id: true, firstName: true, lastName: true },
+        });
+        const matched = dealers.find((d) => {
+          const full = [d.firstName, d.lastName].filter(Boolean).join(" ").toLowerCase();
+          return full === customerLower || d.firstName.toLowerCase() === customerLower;
+        });
+        if (matched) {
+          dealerId = matched.id;
+          dealerName = [matched.firstName, matched.lastName].filter(Boolean).join(" ");
+        }
+      }
+
       res.json({
         found: true,
         machine: {
           customer: machineData.customer || null,
           model: adminModelName || machineData.m_model || null,
           location: [machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || null,
+          dealerId: dealerId || null,
+          dealerName: dealerName || null,
         },
       });
       return;
@@ -191,7 +212,7 @@ export async function validatePincode(req: Request, res: Response) {
 // ── Submit Complaint ──────────────────────────────────────────────────────
 // POST /api/customer-chat/complaint
 export async function submitComplaint(req: Request, res: Response) {
-  const { name, phone, pincode, serialNumber, product, issue } = req.body;
+  const { name, phone, pincode, serialNumber, product, issue, dealerId: bodyDealerId } = req.body;
 
   // Validate required fields
   if (!name || typeof name !== "string" || name.trim().length < 2) {
@@ -202,9 +223,12 @@ export async function submitComplaint(req: Request, res: Response) {
     res.status(400).json({ error: "Phone must be exactly 10 digits" });
     return;
   }
-  if (!pincode || typeof pincode !== "string" || !/^\d{6}$/.test(pincode)) {
-    res.status(400).json({ error: "Pincode must be exactly 6 digits" });
-    return;
+  // Pincode is required only when no dealerId is provided (dealer path bypasses pincode routing)
+  if (!bodyDealerId) {
+    if (!pincode || typeof pincode !== "string" || !/^\d{6}$/.test(pincode)) {
+      res.status(400).json({ error: "Pincode must be exactly 6 digits" });
+      return;
+    }
   }
   if (!product || typeof product !== "string" || !product.trim()) {
     res.status(400).json({ error: "Product is required" });
@@ -217,35 +241,37 @@ export async function submitComplaint(req: Request, res: Response) {
 
   const phoneDigits = phone.replace(/\D/g, "");
 
-  // Resolve pincode record (create if not exists)
+  // Resolve pincode record (create if not exists) — skipped for dealer-routed tickets
   let pincodeId: string | undefined;
   let place: string | undefined;
   let district: string | undefined;
   let stateName: string | undefined;
 
-  try {
-    const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-    const data = await response.json();
-    if (
-      Array.isArray(data) &&
-      data[0]?.Status === "Success" &&
-      Array.isArray(data[0]?.PostOffice) &&
-      data[0].PostOffice.length > 0
-    ) {
-      const po = data[0].PostOffice[0];
-      place = po.Name || undefined;
-      district = po.District || undefined;
-      stateName = po.State || undefined;
-    }
-  } catch { /* non-blocking */ }
+  if (!bodyDealerId && pincode) {
+    try {
+      const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+      const data = await response.json();
+      if (
+        Array.isArray(data) &&
+        data[0]?.Status === "Success" &&
+        Array.isArray(data[0]?.PostOffice) &&
+        data[0].PostOffice.length > 0
+      ) {
+        const po = data[0].PostOffice[0];
+        place = po.Name || undefined;
+        district = po.District || undefined;
+        stateName = po.State || undefined;
+      }
+    } catch { /* non-blocking */ }
 
-  let pincodeRecord = await prisma.pincode.findFirst({ where: { code: pincode } });
-  if (!pincodeRecord) {
-    pincodeRecord = await prisma.pincode.create({
-      data: { code: pincode, place: place || null, district: district || null, state: stateName || null },
-    });
+    let pincodeRecord = await prisma.pincode.findFirst({ where: { code: pincode } });
+    if (!pincodeRecord) {
+      pincodeRecord = await prisma.pincode.create({
+        data: { code: pincode, place: place || null, district: district || null, state: stateName || null },
+      });
+    }
+    pincodeId = pincodeRecord.id;
   }
-  pincodeId = pincodeRecord.id;
 
   // Use admin user as customerId (same pattern as WhatsApp simulate flow)
   const adminUser = await prisma.user.findFirst({ where: { role: "admin" } });
@@ -254,19 +280,19 @@ export async function submitComplaint(req: Request, res: Response) {
     return;
   }
 
-  // Check for dealer match by customer name (same logic as simulate.service.ts)
-  let resolvedDealerId: string | undefined;
-  const customerNameLower = name.trim().toLowerCase();
-  const dealers = await prisma.user.findMany({
-    where: { role: "dealer" },
-    select: { id: true, firstName: true, lastName: true },
-  });
-  const matchedDealer = dealers.find((d) => {
-    const fullName = [d.firstName, d.lastName].filter(Boolean).join(" ").toLowerCase();
-    return fullName === customerNameLower || d.firstName.toLowerCase() === customerNameLower;
-  });
-  if (matchedDealer) {
-    resolvedDealerId = matchedDealer.id;
+  // Use explicitly provided dealerId from serial-confirm path, or fall back to name-based matching
+  let resolvedDealerId: string | undefined = bodyDealerId || undefined;
+  if (!resolvedDealerId) {
+    const customerNameLower = name.trim().toLowerCase();
+    const dealers = await prisma.user.findMany({
+      where: { role: "dealer" },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const matchedDealer = dealers.find((d) => {
+      const fullName = [d.firstName, d.lastName].filter(Boolean).join(" ").toLowerCase();
+      return fullName === customerNameLower || d.firstName.toLowerCase() === customerNameLower;
+    });
+    if (matchedDealer) resolvedDealerId = matchedDealer.id;
   }
 
   const complaintText = issue.trim();
