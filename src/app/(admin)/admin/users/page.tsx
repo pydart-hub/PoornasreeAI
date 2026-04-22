@@ -100,6 +100,7 @@ export default function UsersManagementPage() {
   const [users, setUsers]             = useState<ApiUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [search, setSearch]           = useState("");
+  const [roleFilter, setRoleFilter]   = useState<string>("all");
 
   // Delete state
   const [deletingId, setDeletingId]   = useState<string | null>(null);
@@ -283,8 +284,16 @@ export default function UsersManagementPage() {
     if (editFieldErrors[key]) setEditFieldErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
+  // ── Role counts for filter pills ────────────────────────────────────
+  const roleCounts = users.reduce<Record<string, number>>((acc, u) => {
+    acc[u.role] = (acc[u.role] ?? 0) + 1;
+    return acc;
+  }, {});
+  const presentRoles = Object.keys(roleCounts).sort();
+
   // ── Filter ───────────────────────────────────────────────────────────
   const filtered = users.filter((u) => {
+    if (roleFilter !== "all" && u.role !== roleFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -372,6 +381,40 @@ export default function UsersManagementPage() {
           </div>
         )}
 
+        {/* Role filter pills */}
+        {presentRoles.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setRoleFilter("all")}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-semibold border transition-colors",
+                roleFilter === "all"
+                  ? "bg-primary text-white border-primary"
+                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              All <span className="opacity-70 ml-0.5">({users.length})</span>
+            </button>
+            {presentRoles.map((role) => {
+              const b = getRoleBadge(role);
+              return (
+                <button
+                  key={role}
+                  onClick={() => setRoleFilter(roleFilter === role ? "all" : role)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-semibold border transition-colors",
+                    roleFilter === role
+                      ? "bg-primary text-white border-primary"
+                      : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                  )}
+                >
+                  {b.label} <span className="opacity-70 ml-0.5">({roleCounts[role]})</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Search + refresh bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
@@ -413,7 +456,7 @@ export default function UsersManagementPage() {
           <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
             <UserX className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-30" />
             <p className="text-sm font-medium text-content-secondary dark:text-content-dark-secondary">
-              {search ? "No users match your search" : "No users yet"}
+              {search || roleFilter !== "all" ? "No users match your filters" : "No users yet"}
             </p>
             {!search && (
               <button
