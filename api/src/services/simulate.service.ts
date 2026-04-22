@@ -184,9 +184,6 @@ async function routeState(
     case "COMPLAINT_DESCRIBE":
       return handleComplaintDescribe(session.id, phoneNumber, meta, text);
 
-    case "TROUBLESHOOT_ACTIVE":
-      return handleTroubleshootActive(session.id, phoneNumber, meta, text);
-
     case "TROUBLESHOOT_DONE_OPTIONS":
       return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
 
@@ -502,59 +499,41 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   const updatedMeta: SessionMeta = { ...meta, complaint: text };
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
-  const template = await findTroubleshootingTemplate(productName);
+  const template = await findTroubleshootingTemplate(text, productName);
 
   if (!template || template.steps.length === 0) {
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
     return makeReply(
       `📝 *Complaint noted:* ${text}\n\n` +
-      `😔 We were unable to find remote troubleshooting steps for this issue.\n\n` +
+      `😔 We were unable to find troubleshooting steps for this issue.\n\n` +
       `Would you like to book a service visit? Our technician will come to your location.`,
       [{ id: "BOOK_SERVICE", title: "Book Service 🔧" }, MENU_BUTTON]
     );
   }
 
-  const serial = meta.serialNumber || "MANUAL";
-  const tsSession = await prisma.troubleshootingSession.create({
-    data: {
-      phoneNumber,
-      serialNumber: serial,
-      problemType: template.problemType,
-      currentStep: 1,
-      status: "ACTIVE",
-    },
-  });
+  // Show ALL steps in one message
+  const stepsText = template.steps
+    .map((s: { stepNumber: number; stepContent: string }) => `*${s.stepNumber}.* ${s.stepContent}`)
+    .join("\n\n");
 
-  const firstStep = template.steps[0];
-  const totalSteps = template.steps.length;
-  const finalMeta: SessionMeta = { ...updatedMeta, tsSessionId: tsSession.id };
-  await updateSession(sessionId, "TROUBLESHOOT_ACTIVE", finalMeta);
+  await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
   return makeReply(
     `📝 *Complaint noted:* ${text}\n\n` +
-    `Let me guide you through some troubleshooting steps.\n\n` +
+    `Please try these troubleshooting steps:\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🔧 *Step 1 of ${totalSteps}:*\n\n${firstStep.stepContent}\n` +
+    stepsText + "\n" +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `Is the issue resolved?`,
-    YES_NO_BUTTONS
+    `Were you able to resolve the issue?`,
+    [{ id: "YES", title: "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: "Book Service 🔧" }]
   );
 }
 
-// ── TROUBLESHOOT_ACTIVE ───────────────────────────────────────────────────
-async function handleTroubleshootActive(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+// ── TROUBLESHOOT_DONE_OPTIONS ─────────────────────────────────────────────
+async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const upper = text.toUpperCase().trim();
 
-  if (!meta.tsSessionId) {
-    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
-    return showTroubleshootDone(meta);
-  }
-
   if (upper === "YES" || upper === "1") {
-    await prisma.troubleshootingSession.update({
-      where: { id: meta.tsSessionId },
-      data: { status: "COMPLETED" },
-    }).catch(() => {});
     await updateSession(sessionId, "COMPLETED", {});
     return makeReply(
       `🎉 *Issue Resolved!*\n\n` +
@@ -564,73 +543,7 @@ async function handleTroubleshootActive(sessionId: string, phoneNumber: string, 
     );
   }
 
-  if (upper !== "NO" && upper !== "2") {
-    return makeReply("Please reply *YES* if the issue is resolved or *NO* to try the next step:", YES_NO_BUTTONS);
-  }
-
-  // NO — move to next step
-  const tsSession = await prisma.troubleshootingSession.findUnique({
-    where: { id: meta.tsSessionId },
-  });
-
-  if (!tsSession || tsSession.status !== "ACTIVE") {
-    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
-    return showTroubleshootDone(meta);
-  }
-
-  const template = await prisma.troubleshootingTemplate.findUnique({
-    where: { problemType: tsSession.problemType },
-    include: { steps: { orderBy: { stepNumber: "asc" as const } } },
-  });
-
-  if (!template) {
-    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
-    return showTroubleshootDone(meta);
-  }
-
-  const totalSteps = template.steps.length;
-  const nextStep = tsSession.currentStep + 1;
-
-  if (nextStep > totalSteps) {
-    await prisma.troubleshootingSession.update({
-      where: { id: meta.tsSessionId },
-      data: { status: "ESCALATED" },
-    }).catch(() => {});
-    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
-    return showTroubleshootDone(meta);
-  }
-
-  await prisma.troubleshootingSession.update({
-    where: { id: meta.tsSessionId },
-    data: { currentStep: nextStep },
-  });
-
-  const stepRecord = template.steps.find(s => s.stepNumber === nextStep);
-  await updateSession(sessionId, "TROUBLESHOOT_ACTIVE", meta);
-
-  return makeReply(
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🔧 *Step ${nextStep} of ${totalSteps}:*\n\n${stepRecord?.stepContent || "Please restart the device and try again."}\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-    `Is the issue resolved?`,
-    YES_NO_BUTTONS
-  );
-}
-
-function showTroubleshootDone(meta: SessionMeta) {
-  return makeReply(
-    `😔 We've gone through all troubleshooting steps but the issue persists.\n\n` +
-    `Would you like us to arrange a *service visit*?\n\n` +
-    `Our technician will come to your location to fix the issue.`,
-    [{ id: "BOOK_SERVICE", title: "Book Service 🔧" }, MENU_BUTTON]
-  );
-}
-
-// ── TROUBLESHOOT_DONE_OPTIONS ─────────────────────────────────────────────
-async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
-  const upper = text.toUpperCase().trim();
-
-  if (upper === "BOOK_SERVICE" || upper === "1") {
+  if (upper === "BOOK_SERVICE" || upper === "2" || upper === "NO") {
     if (meta.tsSerialPath && meta.machineData) {
       return createTicketFromAPI(sessionId, phoneNumber, meta);
     }
@@ -638,7 +551,10 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
     return makeReply("Please enter your *full name*:");
   }
 
-  return showTroubleshootDone(meta);
+  return makeReply(
+    `Were you able to resolve the issue?`,
+    [{ id: "YES", title: "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: "Book Service 🔧" }]
+  );
 }
 
 // ── COMPLAINT_MANUAL_NAME ─────────────────────────────────────────────────
@@ -692,9 +608,32 @@ async function handleComplaintManualPincode(sessionId: string, phoneNumber: stri
 }
 
 // ── Template finder ───────────────────────────────────────────────────────
-async function findTroubleshootingTemplate(productName: string) {
-  if (productName) {
-    const match = await prisma.troubleshootingTemplate.findFirst({
+// Searches by complaint text first (against description/patterns field), then by product name.
+async function findTroubleshootingTemplate(complaintText: string, productName: string) {
+  const include = { steps: { orderBy: { stepNumber: "asc" as const } } };
+
+  // 1. Match full complaint phrase against stored patterns (description field)
+  if (complaintText.trim()) {
+    const phraseMatch = await prisma.troubleshootingTemplate.findFirst({
+      where: { isActive: true, description: { contains: complaintText.trim(), mode: "insensitive" } },
+      include,
+    });
+    if (phraseMatch && phraseMatch.steps.length > 0) return phraseMatch;
+
+    // 2. Try individual significant words (≥5 chars)
+    const words = complaintText.split(/\s+/).filter((w: string) => w.length >= 5);
+    for (const word of words) {
+      const wordMatch = await prisma.troubleshootingTemplate.findFirst({
+        where: { isActive: true, description: { contains: word, mode: "insensitive" } },
+        include,
+      });
+      if (wordMatch && wordMatch.steps.length > 0) return wordMatch;
+    }
+  }
+
+  // 3. Match by product name (title or problemType)
+  if (productName.trim()) {
+    const productMatch = await prisma.troubleshootingTemplate.findFirst({
       where: {
         isActive: true,
         OR: [
@@ -702,14 +641,12 @@ async function findTroubleshootingTemplate(productName: string) {
           { problemType: { contains: productName.toLowerCase().replace(/\s+/g, "_"), mode: "insensitive" } },
         ],
       },
-      include: { steps: { orderBy: { stepNumber: "asc" as const } } },
+      include,
     });
-    if (match) return match;
+    if (productMatch && productMatch.steps.length > 0) return productMatch;
   }
-  return prisma.troubleshootingTemplate.findFirst({
-    where: { isActive: true },
-    include: { steps: { orderBy: { stepNumber: "asc" as const } } },
-  });
+
+  return null;
 }
 
 

@@ -226,7 +226,7 @@ export async function processDocument(
 
     // { "intents": [...] }
     if (Array.isArray(parsed?.intents)) {
-      return embedStructuredEntries(
+      const result = await embedStructuredEntries(
         documentId,
         documentType,
         parsed.intents.map((intent: any) => {
@@ -239,6 +239,54 @@ export async function processDocument(
           return { searchText, answerText, tag: intent.tag ?? "" };
         })
       );
+
+      // Also upsert into TroubleshootingTemplate DB for WhatsApp bot
+      for (const intent of parsed.intents) {
+        if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
+        const response = intent.responses[0] as string;
+        const stepLines = response.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
+        const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
+        if (steps.length === 0) continue;
+        const title = (intent.tag as string)
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c: string) => c.toUpperCase());
+        const description = Array.isArray(intent.patterns)
+          ? intent.patterns.join(" | ")
+          : intent.tag;
+        try {
+          const existing = await prisma.troubleshootingTemplate.findUnique({
+            where: { problemType: intent.tag },
+          });
+          if (existing) {
+            await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
+            await prisma.troubleshootingTemplate.update({
+              where: { id: existing.id },
+              data: {
+                title,
+                description,
+                steps: {
+                  create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                },
+              },
+            });
+          } else {
+            await prisma.troubleshootingTemplate.create({
+              data: {
+                problemType: intent.tag,
+                title,
+                description,
+                steps: {
+                  create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                },
+              },
+            });
+          }
+        } catch {
+          // non-blocking — don't fail the whole upload if one intent fails
+        }
+      }
+
+      return result;
     }
 
     // Generic JSON array or object — fall through to text-chunking
