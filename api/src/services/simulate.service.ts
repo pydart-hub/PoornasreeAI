@@ -39,6 +39,8 @@ type SessionMeta = {
   pincodeDisplay?:  string;
   selectedProduct?: string;
   feedbackTicketId?: string;
+  tsSessionId?:     string;
+  tsSerialPath?:    boolean;
 };
 
 // ── Static messages ───────────────────────────────────────────────────────
@@ -170,26 +172,29 @@ async function routeState(
       await updateSession(session.id, "MAIN_MENU", meta);
       return makeReply(MAIN_MENU_MSG, undefined, MAIN_MENU_LIST);
 
-    case "COMPLAINT_NAME":
-      return handleComplaintName(session.id, meta, text);
-
-    case "COMPLAINT_PINCODE":
-      return handleComplaintPincode(session.id, meta, text);
-
-    case "COMPLAINT_PINCODE_CONFIRM":
-      return handleComplaintPincodeConfirm(session.id, meta, text);
-
-    case "COMPLAINT_SERIAL":
-      return handleComplaintSerial(session.id, meta, text);
+    case "COMPLAINT_ASK_SERIAL":
+      return handleComplaintAskSerial(session.id, phoneNumber, meta, text);
 
     case "MACHINE_CONFIRM":
       return handleMachineConfirm(session.id, meta, text);
 
     case "COMPLAINT_PRODUCT":
-      return handleComplaintProduct(session.id, meta, text);
+      return handleComplaintProduct(session.id, phoneNumber, meta, text);
 
-    case "COMPLAINT_ISSUE":
-      return handleComplaintIssue(session.id, phoneNumber, meta, text);
+    case "COMPLAINT_DESCRIBE":
+      return handleComplaintDescribe(session.id, phoneNumber, meta, text);
+
+    case "TROUBLESHOOT_ACTIVE":
+      return handleTroubleshootActive(session.id, phoneNumber, meta, text);
+
+    case "TROUBLESHOOT_DONE_OPTIONS":
+      return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
+
+    case "COMPLAINT_MANUAL_NAME":
+      return handleComplaintManualName(session.id, meta, text);
+
+    case "COMPLAINT_MANUAL_PINCODE":
+      return handleComplaintManualPincode(session.id, phoneNumber, meta, text);
 
     case "CHECK_STATUS":
       await updateSession(session.id, "MAIN_MENU", meta);
@@ -253,12 +258,13 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return showProducts(sessionId, meta);
   }
   if (choice === "2") {
-    if (meta.customerName) {
-      await updateSession(sessionId, "COMPLAINT_PINCODE", meta);
-      return makeReply(`👤 Name: *${meta.customerName}*\n\nPlease enter your pincode (6 digits):`);
-    }
-    await updateSession(sessionId, "COMPLAINT_NAME", meta);
-    return makeReply("Please enter your full name:");
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", meta);
+    return makeReply(
+      `🔧 *Complaint Registration*\n\n` +
+      `Please enter your machine serial number.\n\n` +
+      `_(You can find it on the machine label or warranty card)_`,
+      [SKIP_BUTTON]
+    );
   }
   if (choice === "3") {
     return showTicketStatus(sessionId, phoneNumber, meta);
@@ -367,18 +373,286 @@ async function showTicketStatus(sessionId: string, phoneNumber: string, meta: Se
   return makeReply(`📋 *Your Tickets (${tickets.length}):*\n\n` + lines.join("\n\n"), [MENU_BUTTON]);
 }
 
-// ── COMPLAINT_NAME ────────────────────────────────────────────────────────
-async function handleComplaintName(sessionId: string, meta: SessionMeta, text: string) {
+// ── COMPLAINT_ASK_SERIAL ──────────────────────────────────────────────────
+async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "SKIP" || upper === "0") {
+    const clearedMeta: SessionMeta = { ...meta, machineData: null, serialNumber: undefined, tsSerialPath: false };
+    return showProductSelection(sessionId, clearedMeta);
+  }
+
+  const serial = text.replace(/\s+/g, "").toUpperCase();
+  if (serial.length < 3) {
+    return makeReply(`Please enter a valid serial number or press Skip to continue:`, [SKIP_BUTTON]);
+  }
+
+  let machineData: PasstestMachine | null = null;
+  try {
+    machineData = await fetchMachineBySerial(serial);
+  } catch (err) {
+    console.error(`[simulate] API error for "${serial}":`, (err as Error).message);
+  }
+
+  if (machineData) {
+    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData, tsSerialPath: true };
+    await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
+    return makeReply(
+      `✅ *Machine Found!*\n\n` +
+      `👤 *Customer:* ${machineData.customer || "N/A"}\n` +
+      `🔧 *Model:* ${machineData.m_model || "N/A"}\n` +
+      `📍 *Address:* ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
+      `Is this your machine?`,
+      YES_NO_BUTTONS
+    );
+  }
+
+  return makeReply(
+    `❌ Serial number *${serial}* not found in our system.\n\n` +
+    `Please check and try again, or press *Skip* to continue without serial number.`,
+    [SKIP_BUTTON]
+  );
+}
+
+// ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
+async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
+  if (text === "1" || /^yes/i.test(text)) {
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+    return makeReply(
+      `📝 *Describe your complaint:*\n\n` +
+      `Please explain the issue you are facing with your machine.\n\n` +
+      `Example: _LED blinking, not heating, display not working_`
+    );
+  }
+  if (text === "2" || /^no/i.test(text)) {
+    const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
+    return showProductSelection(sessionId, clearedMeta);
+  }
+  return makeReply("Please select an option:", YES_NO_BUTTONS);
+}
+
+// ── COMPLAINT_PRODUCT (show product list) ─────────────────────────────────
+async function showProductSelection(sessionId: string, meta: SessionMeta) {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  let productNames: string[];
+  if (products.length > 0) {
+    productNames = products.map(p => p.name);
+  } else {
+    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
+  }
+
+  const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
+  await updateSession(sessionId, "COMPLAINT_PRODUCT", meta);
+  return makeReply(
+    `📦 *Select your product:*`,
+    undefined,
+    { buttonText: "Select Product 📦", rows: productRows }
+  );
+}
+
+async function handleComplaintProduct(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  let productNames: string[];
+  if (products.length > 0) {
+    productNames = products.map(p => p.name);
+  } else {
+    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
+  }
+
+  const index = parseInt(text, 10) - 1;
+  if (isNaN(index) || index < 0 || index >= productNames.length) {
+    const directMatch = productNames.find(p => p.toLowerCase().includes(text.toLowerCase()));
+    if (!directMatch) {
+      const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
+      return makeReply(`Please select a valid product:`, undefined, { buttonText: "Select Product 📦", rows: productRows });
+    }
+    const updatedMeta = { ...meta, selectedProduct: directMatch };
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
+    return makeReply(
+      `✅ *Product:* ${directMatch}\n\n` +
+      `📝 *Describe your complaint:*\n\nPlease explain the issue you are facing.\n\n` +
+      `Example: _LED blinking, not heating, display not working_`
+    );
+  }
+
+  const selectedProduct = productNames[index];
+  const updatedMeta = { ...meta, selectedProduct };
+  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
+
+  return makeReply(
+    `✅ *Product:* ${selectedProduct}\n\n` +
+    `📝 *Describe your complaint:*\n\nPlease explain the issue you are facing.\n\n` +
+    `Example: _LED blinking, not heating, display not working_`
+  );
+}
+
+// ── COMPLAINT_DESCRIBE ────────────────────────────────────────────────────
+async function handleComplaintDescribe(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  if (text.length < 3) {
+    return makeReply("Please describe your issue in at least a few words:");
+  }
+
+  const updatedMeta: SessionMeta = { ...meta, complaint: text };
+  const productName = meta.selectedProduct || meta.machineData?.m_model || "";
+  const template = await findTroubleshootingTemplate(productName);
+
+  if (!template || template.steps.length === 0) {
+    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
+    return makeReply(
+      `📝 *Complaint noted:* ${text}\n\n` +
+      `😔 We were unable to find remote troubleshooting steps for this issue.\n\n` +
+      `Would you like to book a service visit? Our technician will come to your location.`,
+      [{ id: "BOOK_SERVICE", title: "Book Service 🔧" }, MENU_BUTTON]
+    );
+  }
+
+  const serial = meta.serialNumber || "MANUAL";
+  const tsSession = await prisma.troubleshootingSession.create({
+    data: {
+      phoneNumber,
+      serialNumber: serial,
+      problemType: template.problemType,
+      currentStep: 1,
+      status: "ACTIVE",
+    },
+  });
+
+  const firstStep = template.steps[0];
+  const totalSteps = template.steps.length;
+  const finalMeta: SessionMeta = { ...updatedMeta, tsSessionId: tsSession.id };
+  await updateSession(sessionId, "TROUBLESHOOT_ACTIVE", finalMeta);
+
+  return makeReply(
+    `📝 *Complaint noted:* ${text}\n\n` +
+    `Let me guide you through some troubleshooting steps.\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🔧 *Step 1 of ${totalSteps}:*\n\n${firstStep.stepContent}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Is the issue resolved?`,
+    YES_NO_BUTTONS
+  );
+}
+
+// ── TROUBLESHOOT_ACTIVE ───────────────────────────────────────────────────
+async function handleTroubleshootActive(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const upper = text.toUpperCase().trim();
+
+  if (!meta.tsSessionId) {
+    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
+    return showTroubleshootDone(meta);
+  }
+
+  if (upper === "YES" || upper === "1") {
+    await prisma.troubleshootingSession.update({
+      where: { id: meta.tsSessionId },
+      data: { status: "COMPLETED" },
+    }).catch(() => {});
+    await updateSession(sessionId, "COMPLETED", {});
+    return makeReply(
+      `🎉 *Issue Resolved!*\n\n` +
+      `We're glad the troubleshooting helped! 😊\n\n` +
+      `Thank you for choosing Poornasree Support. 🙏`,
+      [MENU_BUTTON]
+    );
+  }
+
+  if (upper !== "NO" && upper !== "2") {
+    return makeReply("Please reply *YES* if the issue is resolved or *NO* to try the next step:", YES_NO_BUTTONS);
+  }
+
+  // NO — move to next step
+  const tsSession = await prisma.troubleshootingSession.findUnique({
+    where: { id: meta.tsSessionId },
+  });
+
+  if (!tsSession || tsSession.status !== "ACTIVE") {
+    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
+    return showTroubleshootDone(meta);
+  }
+
+  const template = await prisma.troubleshootingTemplate.findUnique({
+    where: { problemType: tsSession.problemType },
+    include: { steps: { orderBy: { stepNumber: "asc" as const } } },
+  });
+
+  if (!template) {
+    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
+    return showTroubleshootDone(meta);
+  }
+
+  const totalSteps = template.steps.length;
+  const nextStep = tsSession.currentStep + 1;
+
+  if (nextStep > totalSteps) {
+    await prisma.troubleshootingSession.update({
+      where: { id: meta.tsSessionId },
+      data: { status: "ESCALATED" },
+    }).catch(() => {});
+    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
+    return showTroubleshootDone(meta);
+  }
+
+  await prisma.troubleshootingSession.update({
+    where: { id: meta.tsSessionId },
+    data: { currentStep: nextStep },
+  });
+
+  const stepRecord = template.steps.find(s => s.stepNumber === nextStep);
+  await updateSession(sessionId, "TROUBLESHOOT_ACTIVE", meta);
+
+  return makeReply(
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🔧 *Step ${nextStep} of ${totalSteps}:*\n\n${stepRecord?.stepContent || "Please restart the device and try again."}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Is the issue resolved?`,
+    YES_NO_BUTTONS
+  );
+}
+
+function showTroubleshootDone(meta: SessionMeta) {
+  return makeReply(
+    `😔 We've gone through all troubleshooting steps but the issue persists.\n\n` +
+    `Would you like us to arrange a *service visit*?\n\n` +
+    `Our technician will come to your location to fix the issue.`,
+    [{ id: "BOOK_SERVICE", title: "Book Service 🔧" }, MENU_BUTTON]
+  );
+}
+
+// ── TROUBLESHOOT_DONE_OPTIONS ─────────────────────────────────────────────
+async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "BOOK_SERVICE" || upper === "1") {
+    if (meta.tsSerialPath && meta.machineData) {
+      return createTicketFromAPI(sessionId, phoneNumber, meta);
+    }
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply("Please enter your *full name*:");
+  }
+
+  return showTroubleshootDone(meta);
+}
+
+// ── COMPLAINT_MANUAL_NAME ─────────────────────────────────────────────────
+async function handleComplaintManualName(sessionId: string, meta: SessionMeta, text: string) {
   if (text.length < 2) {
     return makeReply("Please enter your full name (at least 2 characters):");
   }
-  const updatedMeta = { ...meta, manualName: text, customerName: text };
-  await updateSession(sessionId, "COMPLAINT_PINCODE", updatedMeta);
-  return makeReply("Please enter your pincode (6 digits):");
+  const updatedMeta: SessionMeta = { ...meta, manualName: text, customerName: text };
+  await updateSession(sessionId, "COMPLAINT_MANUAL_PINCODE", updatedMeta);
+  return makeReply("Please enter your *6-digit pincode*:");
 }
 
-// ── COMPLAINT_PINCODE ─────────────────────────────────────────────────────
-async function handleComplaintPincode(sessionId: string, meta: SessionMeta, text: string) {
+// ── COMPLAINT_MANUAL_PINCODE ──────────────────────────────────────────────
+async function handleComplaintManualPincode(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   if (!/^\d{6}$/.test(text)) {
     return makeReply("Please enter a valid 6-digit pincode (numbers only):");
   }
@@ -414,150 +688,31 @@ async function handleComplaintPincode(sessionId: string, meta: SessionMeta, text
     pincodeDisplay: locationStr || text,
   };
 
-  await updateSession(sessionId, "COMPLAINT_PINCODE_CONFIRM", updatedMeta);
-
-  const locationLine = locationStr
-    ? `📍 *${locationStr}*`
-    : `📍 Pincode *${text}* (location not found)`;
-
-  return makeReply(`${locationLine}\n\nIs this your location?`, YES_NO_BUTTONS);
-}
-
-// ── COMPLAINT_PINCODE_CONFIRM ─────────────────────────────────────────────
-async function handleComplaintPincodeConfirm(sessionId: string, meta: SessionMeta, text: string) {
-  if (text === "1" || /^yes/i.test(text)) {
-    await updateSession(sessionId, "COMPLAINT_SERIAL", meta);
-    return makeReply("Please enter your machine serial number:");
-  }
-  if (text === "2" || /^no/i.test(text)) {
-    await updateSession(sessionId, "COMPLAINT_PINCODE", {
-      ...meta, manualPincode: undefined, manualPlace: undefined, manualDistrict: undefined, manualState: undefined, pincodeDisplay: undefined,
-    });
-    return makeReply("Please enter your pincode (6 digits):");
-  }
-  return makeReply("Please select an option:", YES_NO_BUTTONS);
-}
-
-// ── COMPLAINT_SERIAL ──────────────────────────────────────────────────────
-async function handleComplaintSerial(sessionId: string, meta: SessionMeta, text: string) {
-  const serial = text.replace(/\s+/g, "").toUpperCase();
-  console.log(`[simulate] Serial received: "${text}" → normalized: "${serial}"`);
-
-  if (serial.length < 1) {
-    return makeReply("Please enter your machine serial number:");
-  }
-
-  let machineData: PasstestMachine | null = null;
-  try {
-    machineData = await fetchMachineBySerial(serial);
-    console.log(`[simulate] API result for "${serial}":`, machineData ? "FOUND" : "NOT FOUND");
-  } catch (err) {
-    console.error(`[simulate] API error for "${serial}":`, (err as Error).message);
-  }
-
-  if (machineData) {
-    let adminModelName: string | undefined;
-    try {
-      const adminMachine = await prisma.machine.findUnique({ where: { serialNumber: serial } });
-      if (adminMachine?.modelName) adminModelName = adminMachine.modelName;
-    } catch { /* non-blocking */ }
-
-    const displayName = adminModelName || machineData.m_model || "N/A";
-    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData };
-    await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
-    return makeReply(
-      `✅ Machine found!\n\n` +
-      `👤 Customer: ${machineData.customer || "N/A"}\n` +
-      `🔧 Model: ${displayName}\n` +
-      `📍 Location: ${[machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A"}\n\n` +
-      `Is this your machine?`,
-      YES_NO_BUTTONS
-    );
-  }
-
-  console.log(`[simulate] No machine data for "${serial}" — continuing`);
-  const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData: null };
-  return showProductSelection(sessionId, newMeta);
-}
-
-// ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
-async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
-  if (text === "1" || /^yes/i.test(text)) {
-    return showProductSelection(sessionId, meta);
-  }
-  if (text === "2" || /^no/i.test(text)) {
-    const clearedMeta = { ...meta, serialNumber: undefined, machineData: null as PasstestMachine | null };
-    return showProductSelection(sessionId, clearedMeta);
-  }
-  return makeReply("Please select an option:", YES_NO_BUTTONS);
-}
-
-// ── COMPLAINT_PRODUCT (show product list for selection) ───────────────────
-async function showProductSelection(sessionId: string, meta: SessionMeta) {
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
-
-  let productNames: string[];
-  if (products.length > 0) {
-    productNames = products.map(p => p.name);
-  } else {
-    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
-  }
-
-  const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
-  await updateSession(sessionId, "COMPLAINT_PRODUCT", meta);
-  return makeReply(
-    `📦 *Select your product:*`,
-    undefined,
-    { buttonText: "Select Product 📦", rows: productRows }
-  );
-}
-
-async function handleComplaintProduct(sessionId: string, meta: SessionMeta, text: string) {
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
-
-  let productNames: string[];
-  if (products.length > 0) {
-    productNames = products.map(p => p.name);
-  } else {
-    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
-  }
-
-  const index = parseInt(text, 10) - 1;
-  if (isNaN(index) || index < 0 || index >= productNames.length) {
-    const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
-    return makeReply(`Please select a valid product:`, undefined, { buttonText: "Select Product 📦", rows: productRows });
-  }
-
-  const selectedProduct = productNames[index];
-  const updatedMeta = { ...meta, selectedProduct };
-  await updateSession(sessionId, "COMPLAINT_ISSUE", updatedMeta);
-
-  return makeReply(
-    `✅ Product: *${selectedProduct}*\n\n` +
-    `To register a Complaint, please reply with your issue description.\n\n` +
-    `Example: *LED blinking continuously* or *Overheating during use*`
-  );
-}
-
-// ── COMPLAINT_ISSUE (free-text complaint) ─────────────────────────────────
-async function handleComplaintIssue(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
-  if (text.length < 3) {
-    return makeReply("Please describe your issue in at least a few words:");
-  }
-
-  const updatedMeta = { ...meta, complaint: text };
-
-  if (meta.machineData) {
-    return createTicketFromAPI(sessionId, phoneNumber, updatedMeta);
-  }
   return createTicketManual(sessionId, phoneNumber, updatedMeta);
 }
+
+// ── Template finder ───────────────────────────────────────────────────────
+async function findTroubleshootingTemplate(productName: string) {
+  if (productName) {
+    const match = await prisma.troubleshootingTemplate.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { title: { contains: productName, mode: "insensitive" } },
+          { problemType: { contains: productName.toLowerCase().replace(/\s+/g, "_"), mode: "insensitive" } },
+        ],
+      },
+      include: { steps: { orderBy: { stepNumber: "asc" as const } } },
+    });
+    if (match) return match;
+  }
+  return prisma.troubleshootingTemplate.findFirst({
+    where: { isActive: true },
+    include: { steps: { orderBy: { stepNumber: "asc" as const } } },
+  });
+}
+
+
 
 // ── FEEDBACK_RATING ───────────────────────────────────────────────────────
 async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: string) {
