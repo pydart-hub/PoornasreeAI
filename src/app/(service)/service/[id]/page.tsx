@@ -279,8 +279,9 @@ export default function WorkExecutionScreen() {
 
   // ── Derived data ───────────────────────────────────────────────────
   const parsed = parseDescription(ticket.problemDescription);
+  const parsedIssue = parseDescription(ticket.issueDescription ?? "");
   const issueText = ticket.issueDescription || (parsed.isStructured ? parsed.customerName : ticket.problemDescription);
-  const customerName = ticket.machineCustomer || parsed.customerName
+  const customerName = ticket.machineCustomer || parsedIssue.customerName || parsed.customerName
     || (ticket.customer ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
   const locationFull = [
     ticket.machineAddress1, ticket.machineAddress2,
