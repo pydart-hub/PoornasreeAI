@@ -871,14 +871,14 @@ export default function ServiceManagerPage() {
 
                                 {dropdownOpen === ticket.id && (() => {
                                   const ticketPincode = ticket.pincode;
-                                  // Match by both id and code for robustness
+                                  // Show ONLY engineers covering this ticket's zone
                                   const matched = ticketPincode
                                     ? sortedEngineers.filter(e =>
                                         e.engineerPincodes?.some(p =>
                                           p.id === ticketPincode.id || p.code === ticketPincode.code
                                         )
                                       )
-                                    : sortedEngineers; // no pincode on ticket → show all
+                                    : []; // no pincode on ticket → show no engineers
 
                                   const hasTicketPincode = !!ticketPincode;
                                   const noZoneEngineer = hasTicketPincode && matched.length === 0;
@@ -893,12 +893,17 @@ export default function ServiceManagerPage() {
                                           </p>
                                         ) : (
                                           <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                                            ⚠ No zone on ticket — engineers may not be nearby
+                                            ⚠ No zone on ticket — set a pincode first
                                           </p>
                                         )}
                                       </div>
                                       {sortedEngineers.length === 0 ? (
                                         <p className="px-3 py-2 text-xs text-content-tertiary dark:text-content-dark-tertiary text-center">No engineers in your team</p>
+                                      ) : !hasTicketPincode ? (
+                                        <div className="px-3 py-3 text-center">
+                                          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">No zone assigned to this ticket</p>
+                                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Set a pincode on the ticket before assigning an engineer</p>
+                                        </div>
                                       ) : noZoneEngineer ? (
                                         <div className="px-3 py-3 text-center">
                                           <p className="text-xs font-semibold text-amber-600">No engineer assigned to zone {ticketPincode!.code}</p>

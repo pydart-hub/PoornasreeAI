@@ -25,11 +25,11 @@ export function DrawerAssignment({ ticket, engineers, assigningId, onAssignEngin
   const hoursSinceUpdate = lastActivity ? (Date.now() - lastActivity.getTime()) / 3600000 : 0;
   const isInactive = !isClosed && hoursSinceUpdate > 48;
 
-  // Filter engineers by ticket pincode
+  // Filter engineers by ticket pincode — show ONLY zone-matched engineers
   const ticketPincode = ticket.pincode;
   const matched = ticketPincode
     ? engineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincode.id || p.code === ticketPincode.code))
-    : engineers;
+    : []; // no pincode on ticket → show no engineers
 
   const handleConfirm = async () => {
     if (!confirmEng) return;
@@ -117,14 +117,11 @@ export function DrawerAssignment({ ticket, engineers, assigningId, onAssignEngin
               Cancel
             </button>
           </div>
-          {!ticketPincode && (
-            <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded px-2 py-1">
-              ⚠ No zone assigned to this ticket — all engineers shown, verify location manually
-            </p>
-          )}
           {matched.length === 0 ? (
             <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-2 text-center">
-              No engineer assigned to zone {ticketPincode?.code ?? "—"}
+              {ticketPincode
+                ? `No engineer covers zone ${ticketPincode.code} — assign a pincode to an engineer in the Team tab first`
+                : "No zone on ticket — set a pincode on the ticket before assigning an engineer"}
             </p>
           ) : (
             <div className="border border-line dark:border-line-dark rounded-lg overflow-hidden max-h-48 overflow-y-auto">
