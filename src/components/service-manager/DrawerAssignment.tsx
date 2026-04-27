@@ -117,6 +117,11 @@ export function DrawerAssignment({ ticket, engineers, assigningId, onAssignEngin
               Cancel
             </button>
           </div>
+          {!ticketPincode && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded px-2 py-1">
+              ⚠ No zone assigned to this ticket — all engineers shown, verify location manually
+            </p>
+          )}
           {matched.length === 0 ? (
             <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-2 text-center">
               No engineer assigned to zone {ticketPincode?.code ?? "—"}

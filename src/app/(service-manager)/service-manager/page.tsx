@@ -834,6 +834,11 @@ export default function ServiceManagerPage() {
                           {locationShort ? <>
                             <span className="shrink-0">📍</span>
                             <span className="truncate">{locationShort}</span>
+                            {!ticket.pincode && (
+                              <span className="shrink-0 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/20">
+                                No zone
+                              </span>
+                            )}
                           </> : (
                             <span className="text-amber-500 font-medium flex items-center gap-0.5">
                               <AlertCircle className="w-3 h-3" /> No zone
@@ -882,9 +887,13 @@ export default function ServiceManagerPage() {
                                     <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-64 overflow-y-auto">
                                       <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
                                         <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Select Engineer</p>
-                                        {hasTicketPincode && (
+                                        {hasTicketPincode ? (
                                           <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
                                             Zone: {ticketPincode.code}{ticketPincode.place ? ` · ${ticketPincode.place}` : ""}
+                                          </p>
+                                        ) : (
+                                          <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                            ⚠ No zone on ticket — engineers may not be nearby
                                           </p>
                                         )}
                                       </div>
