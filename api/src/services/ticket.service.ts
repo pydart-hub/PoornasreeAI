@@ -368,7 +368,13 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
   if (!isAdmin && ticket.assignedEngineerId !== engineerId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
-  assertTransition(ticket.status, TicketStatus.PENDING_OTP);
+  // For a resend the ticket is already PENDING_OTP — no status transition occurs, so skip the check.
+  // For a fresh request the ticket must be IN_PROGRESS (the only permitted predecessor).
+  if (!resend) {
+    assertTransition(ticket.status, TicketStatus.PENDING_OTP);
+  } else if (ticket.status !== TicketStatus.PENDING_OTP) {
+    throw Object.assign(new Error("Ticket is not in PENDING_OTP state; cannot resend OTP."), { status: 400 });
+  }
   // Block regeneration while a valid OTP exists — unless the engineer is explicitly resending.
   if (!resend && ticket.otpCodeHash && ticket.otpExpiresAt && new Date() < ticket.otpExpiresAt) {
     throw Object.assign(new Error("An active OTP already exists. Use resend to send it again."), { status: 409 });
