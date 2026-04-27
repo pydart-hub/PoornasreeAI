@@ -362,17 +362,16 @@ export async function startWork(ticketId: string, engineerId: string, isAdmin = 
 // stores its bcrypt hash, and returns the plain code (for Postman testing).
 // In the live system, the plain code is sent to the customer via WhatsApp
 // instead of being returned in the API response.
-export async function requestOTP(ticketId: string, engineerId: string, isAdmin = false): Promise<{ otp: string; expiresAt: Date }> {
+export async function requestOTP(ticketId: string, engineerId: string, isAdmin = false, resend = false): Promise<{ otp: string; expiresAt: Date }> {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
   if (!ticket)                              throw Object.assign(new Error("Ticket not found"), { status: 404 });
   if (!isAdmin && ticket.assignedEngineerId !== engineerId) {
     throw Object.assign(new Error("You are not assigned to this ticket"), { status: 403 });
   }
   assertTransition(ticket.status, TicketStatus.PENDING_OTP);
-  // Block regeneration while a valid (non-expired) OTP already exists.
-  // Prevents resetting otpAttempts on a live OTP regardless of how status was restored.
-  if (ticket.otpCodeHash && ticket.otpExpiresAt && new Date() < ticket.otpExpiresAt) {
-    throw Object.assign(new Error("An active OTP already exists. Wait for it to expire before requesting a new one."), { status: 409 });
+  // Block regeneration while a valid OTP exists — unless the engineer is explicitly resending.
+  if (!resend && ticket.otpCodeHash && ticket.otpExpiresAt && new Date() < ticket.otpExpiresAt) {
+    throw Object.assign(new Error("An active OTP already exists. Use resend to send it again."), { status: 409 });
   }
 
   const plainCode  = String(crypto.randomInt(1000, 10000));   // 4-digit

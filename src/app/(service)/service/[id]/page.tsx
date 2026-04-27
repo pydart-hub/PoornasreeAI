@@ -207,6 +207,8 @@ export default function WorkExecutionScreen() {
     try {
       const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/otp`, {
         method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
       if (res.ok) {
         setOtpRequested(true);
@@ -216,6 +218,25 @@ export default function WorkExecutionScreen() {
     } catch { /* non-fatal */ }
     finally { setActionLoading(false); }
   }, [ticketId, fetchTicket]);
+
+  const handleResendOtp = useCallback(async () => {
+    setOtpError("");
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/otp`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resend: true }),
+      });
+      if (res.ok) {
+        addLogEntry("status", "OTP resent — new code sent to customer");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setOtpError(data.error || "Failed to resend OTP");
+      }
+    } catch { setOtpError("Network error"); }
+    finally { setActionLoading(false); }
+  }, [ticketId]);
 
   const handleVerifyOtp = useCallback(async () => {
     if (otp.length !== 4) { setOtpError("Enter 4 digits"); return; }
@@ -531,8 +552,14 @@ export default function WorkExecutionScreen() {
 
           {(ticket.status === "PENDING_OTP" || (ticket.status === "IN_PROGRESS" && otpRequested)) && (
             <section className="bg-purple-50 rounded-xl border border-purple-200 p-4 space-y-3">
-              <h3 className="text-sm font-bold text-purple-800">Verify OTP</h3>
-              <p className="text-xs text-purple-600">Enter the 4-digit code from the customer.</p>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-purple-800">Verify OTP</h3>
+                <button onClick={handleResendOtp} disabled={actionLoading}
+                  className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 disabled:opacity-40 transition-colors underline underline-offset-2">
+                  {actionLoading ? "Sending…" : "Resend OTP"}
+                </button>
+              </div>
+              <p className="text-xs text-purple-600">Enter the 4-digit code the customer received on WhatsApp.</p>
               <input
                 type="text"
                 inputMode="numeric"

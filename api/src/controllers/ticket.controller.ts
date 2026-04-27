@@ -224,7 +224,8 @@ export async function requestOTP(req: Request, res: Response): Promise<void> {
   try {
     const id      = String(req.params.id);
     const isAdmin = req.user!.role === "admin";
-    const result  = await TicketService.requestOTP(id, req.user!.userId, isAdmin);
+    const resend  = req.body?.resend === true;
+    const result  = await TicketService.requestOTP(id, req.user!.userId, isAdmin, resend);
 
     res.json({
       message:   "OTP sent to the customer via WhatsApp.",
