@@ -774,7 +774,8 @@ export default function ServiceManagerPage() {
                   const canAssign = ticket.status === "OPEN";
                   const isArchived = archivedIds.has(ticket.id);
                   const parsed = parseTicketDescription(ticket.problemDescription);
-                  const customerDisplay = ticket.machineCustomer || parsed.customerName || ticket.customer?.firstName;
+                  const parsedIssue = parseTicketDescription(ticket.issueDescription ?? "");
+                  const customerDisplay = ticket.machineCustomer || parsedIssue.customerName || parsed.customerName || ticket.customer?.firstName;
                   const locationShort = [
                     [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
                     ticket.pincode?.code,
