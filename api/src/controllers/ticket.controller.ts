@@ -219,7 +219,7 @@ export async function startWork(req: Request, res: Response): Promise<void> {
 
 // ── POST /api/tickets/:id/otp ─────────────────────────────────────────────
 // Engineer requests OTP for ticket closure.
-// Returns plain OTP now (for Postman testing). Phase C: send to customer via WhatsApp.
+// OTP is sent to the customer via WhatsApp — NOT returned in the response.
 export async function requestOTP(req: Request, res: Response): Promise<void> {
   try {
     const id      = String(req.params.id);
@@ -227,8 +227,7 @@ export async function requestOTP(req: Request, res: Response): Promise<void> {
     const result  = await TicketService.requestOTP(id, req.user!.userId, isAdmin);
 
     res.json({
-      message:   "OTP generated. Provide this code to the customer.",
-      otp:       result.otp,
+      message:   "OTP sent to the customer via WhatsApp.",
       expiresAt: result.expiresAt,
     });
   } catch (err: unknown) {

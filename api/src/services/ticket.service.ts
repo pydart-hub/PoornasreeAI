@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { fetchMachineBySerial } from "./machine.service";
+import * as WhatsAppService from "./whatsapp.service";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -389,15 +390,22 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
     },
   });
 
-  // Push OTP to simulate chat if this ticket was raised from the WhatsApp simulator
+  // Send OTP to the customer via real WhatsApp
   if (ticket.phoneNumber) {
-    await prisma.simulateMessage.create({
-      data: {
-        phoneNumber: ticket.phoneNumber,
-        role: "system",
-        content: `🔐 Your OTP for ticket ${ticket.ticketNumber} is: ${plainCode}\n\nPlease share this code with the service engineer to close your ticket.\n\nThis code expires in 30 minutes.`,
-      },
-    }).catch(() => {}); // non-blocking
+    const otpMsg = `🔐 Your OTP for ticket ${ticket.ticketNumber} is: *${plainCode}*\n\nPlease share this code with the service engineer to close your ticket.\n\nThis code expires in 30 minutes.`;
+    if (WhatsAppService.isConfigured()) {
+      // Send via Meta WhatsApp Cloud API
+      WhatsAppService.sendMessage(ticket.phoneNumber, otpMsg).catch(() => {});
+    } else {
+      // Fallback: push to simulate chat when WhatsApp is not configured
+      await prisma.simulateMessage.create({
+        data: {
+          phoneNumber: ticket.phoneNumber,
+          role: "system",
+          content: otpMsg,
+        },
+      }).catch(() => {});
+    }
   }
 
   return { otp: plainCode, expiresAt };
