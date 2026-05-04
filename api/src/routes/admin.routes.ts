@@ -20,7 +20,7 @@ import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAna
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
-import { updateBranding, uploadLogo } from "../controllers/branding.controller";
+import { updateBranding, uploadLogo, listLeads, addLead, importLeads, deleteLead, listCampaigns, createCampaign, deleteCampaign, addLeadsToCampaign, sendCampaign } from "../controllers/branding.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
 import { listProducts, createProduct, updateProduct, deleteProduct } from "../controllers/product.controller";
@@ -148,6 +148,19 @@ router.delete("/machines/:id", deleteMachine);
 // Branding (admin update)
 router.patch("/branding", updateBranding);
 router.post("/branding/logo", upload.single("file"), uploadLogo);
+
+// Marketing Leads
+router.get("/branding/leads", listLeads);
+router.post("/branding/leads", addLead);
+router.post("/branding/leads/import", upload.single("file"), importLeads);
+router.delete("/branding/leads/:id", deleteLead);
+
+// Branding Campaigns (WhatsApp bulk marketing)
+router.get("/branding/campaigns", listCampaigns);
+router.post("/branding/campaigns", upload.single("image"), createCampaign);
+router.delete("/branding/campaigns/:id", deleteCampaign);
+router.post("/branding/campaigns/:id/leads", addLeadsToCampaign);
+router.post("/branding/campaigns/:id/send", sendCampaign);
 
 // Troubleshooting templates (admin CRUD)
 router.get("/templates", listTemplates);
