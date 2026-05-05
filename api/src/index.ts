@@ -12,6 +12,7 @@ import managerRoutes from "./routes/manager.routes";
 import supportRoutes from "./routes/support.routes";
 import salesRoutes from "./routes/sales.routes";
 import ticketRoutes from "./routes/ticket.routes";
+import publicRoutes from "./routes/public.routes";
 import troubleshootingRoutes from "./routes/troubleshooting.routes";
 import whatsappRoutes from "./routes/whatsapp.routes";
 import customerChatRoutes from "./routes/customer-chat.routes";
@@ -45,6 +46,7 @@ app.use("/api/whatsapp",        whatsappRoutes);
 app.use("/api/customer-chat",   customerChatRoutes);
 app.use("/api/tickets",         ticketRoutes);
 app.use("/api/troubleshooting", troubleshootingRoutes);
+app.use("/api/public",          publicRoutes);  // no-auth data access
 
 // Public branding endpoint (no auth)
 app.get("/api/branding", getBranding);
