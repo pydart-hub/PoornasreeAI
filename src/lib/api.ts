@@ -251,6 +251,8 @@ export interface WorkReport {
     ticketNumber?: string | null;
     machineName?: string | null;
     machineSerialNumber?: string | null;
+    machineCustomer?: string | null;
+    issueDescription?: string | null;
     status: string;
   } | null;
   parts?: ReplacedPart[];

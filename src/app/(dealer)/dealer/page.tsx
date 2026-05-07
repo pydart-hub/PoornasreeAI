@@ -881,13 +881,23 @@ export default function DealerPage() {
                         )}
                       </div>
 
-                      {/* ── Engineer chip + View Details ── */}
+                      {/* ── Engineer chip + Actions ── */}
                       <div className="flex items-center gap-2 flex-wrap mt-1">
                         {ticket.assignedEngineer && (
                           <span className="flex items-center gap-1 text-xs font-medium text-primary dark:text-primary-300 bg-primary/10 px-2 py-0.5 rounded-full">
                             👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
                           </span>
                         )}
+                        <button
+                          onClick={() => {
+                            if (!isExpanded) setExpandedId(ticket.id);
+                            // scroll into view after expansion happens
+                          }}
+                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                          title="Log service performed by your engineer"
+                        >
+                          <ClipboardList className="w-3 h-3" /> Service Report
+                        </button>
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
                           className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-primary dark:hover:text-primary-300 transition-colors ml-auto"
@@ -940,13 +950,17 @@ export default function DealerPage() {
                               <p className="font-medium text-content dark:text-content-dark">{ticket.phoneNumber || parsed.phone}</p>
                             </div>
                           )}
+                          {issueDisplay && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Complaint</p>
+                              <p className="font-medium text-content dark:text-content-dark whitespace-pre-wrap">{issueDisplay}</p>
+                            </div>
+                          )}
                           <div className="text-content-secondary dark:text-content-dark-secondary">
                             <span className="opacity-60">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}
                           </div>
-                          {/* Work Report — visible once work has started */}
-                          {(ticket.status === "IN_PROGRESS" || ticket.status === "PENDING_OTP" || ticket.status === "CLOSED") && (
-                            <WorkReportSection ticketId={ticket.id} />
-                          )}
+                          {/* Work Report — always available for dealer tickets */}
+                          <WorkReportSection ticketId={ticket.id} />
                         </div>
                       )}
                     </div>

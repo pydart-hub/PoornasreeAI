@@ -586,7 +586,7 @@ export default function ServiceManagerPage() {
               { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-3.5 h-3.5" />, count: engineers.length },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
-              { key: "work-reports" as PageView, label: "Work Reports", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.length },
+              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.length },
             ]).map((nav) => (
               <button
                 key={nav.key}
@@ -1455,9 +1455,9 @@ export default function ServiceManagerPage() {
           {pageView === "work-reports" && (
             <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealer Work Reports</h2>
+                <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealer Service Updates</h2>
                 <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                  Service reports submitted by dealers during ticket resolution — {workReports.length} report{workReports.length !== 1 ? "s" : ""}
+                  Service &amp; replacement reports submitted by dealers on behalf of their engineers — {workReports.length} report{workReports.length !== 1 ? "s" : ""}
                 </p>
               </div>
 
@@ -1475,6 +1475,7 @@ export default function ServiceManagerPage() {
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Dealer</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Ticket #</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Machine</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Complaint</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Date</th>
                         <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Parts</th>
                         <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Warranty</th>
@@ -1492,6 +1493,11 @@ export default function ServiceManagerPage() {
                           </td>
                           <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
                             {r.ticket?.machineName ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary max-w-[200px]">
+                            <span className="line-clamp-2 text-xs leading-relaxed">
+                              {r.ticket?.issueDescription ?? "—"}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
                             {new Date(r.updatedAt).toLocaleDateString("en-IN")}
@@ -1957,6 +1963,23 @@ export default function ServiceManagerPage() {
             </div>
 
             <div className="px-6 py-5 space-y-5 overflow-y-auto">
+              {/* Customer complaint (original issue) */}
+              {(selectedReport.ticket?.issueDescription || selectedReport.ticket?.machineCustomer) && (
+                <div className="px-3 py-3 rounded-xl bg-surface-secondary dark:bg-surface-dark-secondary border border-line dark:border-line-dark space-y-1.5">
+                  {selectedReport.ticket?.machineCustomer && (
+                    <p className="text-xs font-semibold text-content dark:text-content-dark">
+                      👤 {selectedReport.ticket.machineCustomer}
+                    </p>
+                  )}
+                  {selectedReport.ticket?.issueDescription && (
+                    <>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary">Customer Complaint</p>
+                      <p className="text-sm text-content dark:text-content-dark leading-relaxed whitespace-pre-wrap">{selectedReport.ticket.issueDescription}</p>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Warranty badge */}
               {selectedReport.warrantyClaimRequested && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-sm font-medium">

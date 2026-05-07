@@ -58,6 +58,8 @@ export async function listWorkReports(req: Request, res: Response): Promise<void
             ticketNumber: true,
             machineName: true,
             machineSerialNumber: true,
+            machineCustomer: true,
+            issueDescription: true,
             status: true,
           },
         },
@@ -88,6 +90,8 @@ export async function getWorkReport(req: Request, res: Response): Promise<void> 
             ticketNumber: true,
             machineName: true,
             machineSerialNumber: true,
+            machineCustomer: true,
+            issueDescription: true,
             status: true,
           },
         },
@@ -145,14 +149,6 @@ export async function upsertWorkReport(req: Request, res: Response): Promise<voi
 
     if (ticket.dealerId !== userId) {
       res.status(403).json({ error: "Forbidden: ticket does not belong to your account" });
-      return;
-    }
-
-    const validStatuses = ["IN_PROGRESS", "PENDING_OTP", "CLOSED"];
-    if (!validStatuses.includes(ticket.status)) {
-      res.status(400).json({
-        error: "Work report can only be submitted for tickets that are In Progress, Pending OTP, or Closed",
-      });
       return;
     }
 
