@@ -376,6 +376,55 @@ function WorkReportSection({ ticketId }: { ticketId: string }) {
               </div>
             ))}
           </div>
+          {/* Images (edit mode) */}
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">
+              Images {report?.images && report.images.length > 0 ? `(${report.images.length})` : ""}
+            </p>
+            {report ? (
+              <>
+                {report.images && report.images.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {report.images.map((img: WorkReportImage) => (
+                      <div key={img.id} className="relative group">
+                        <a href={img.url} target="_blank" rel="noopener noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.url}
+                            alt={img.fileName}
+                            className="w-16 h-16 object-cover rounded-lg border border-line dark:border-line-dark hover:opacity-80 transition-opacity"
+                          />
+                        </a>
+                        <button
+                          onClick={() => handleDeleteImage(img.id)}
+                          disabled={deletingImgId === img.id}
+                          className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white shadow"
+                          title="Delete image"
+                        >
+                          {deletingImgId === img.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-content-secondary dark:text-content-dark-secondary italic mb-1">No images uploaded yet</p>
+                )}
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-primary dark:text-primary-300 hover:underline font-medium">
+                  {uploadingImg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                  {uploadingImg ? "Uploading..." : "Upload Image"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={uploadingImg}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
+                  />
+                </label>
+              </>
+            ) : (
+              <p className="text-content-secondary dark:text-content-dark-secondary italic">Save the report first to upload images.</p>
+            )}
+          </div>
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <button
@@ -827,7 +876,7 @@ export default function DealerPage() {
                   ticket.pincode?.code,
                 ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                 const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
-                const issueDisplay = ticket.issueDescription || (parsed.isStructured ? null : ticket.problemDescription);
+                const issueDisplay = ticket.issueDescription || null;
                 const isExpanded = expandedId === ticket.id;
                 return (
                   <div
