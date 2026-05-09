@@ -53,7 +53,7 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
         managerId,
         setPasswordToken: tokenHash,
         setPasswordTokenExpiry: tokenExpiry,
-        ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim() } : {}),
+        ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") } : {}),
         ...(pincodeIds && pincodeIds.length > 0
           ? { engineerPincodes: { connect: (pincodeIds as string[]).map((id: string) => ({ id })) } }
           : {}),
@@ -168,7 +168,7 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     const data: Record<string, unknown> = {};
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
-    if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim() || null;
+    if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
     if (newPassword) {
       if (newPassword.length < 8) {
         res.status(400).json({ error: "Password must be at least 8 characters" });

@@ -105,8 +105,10 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   }
 
   // ── Check if sender is a service engineer ──
+  // Normalize: Meta sends numbers without leading +, but DB may have been saved with or without it.
+  const normalizedFrom = from.replace(/^\+/, "");
   const engineer = await prisma.user.findFirst({
-    where: { whatsappNumber: from, role: "service_engineer" },
+    where: { whatsappNumber: { in: [normalizedFrom, `+${normalizedFrom}`] }, role: "service_engineer" },
     select: { id: true, firstName: true },
   });
 
