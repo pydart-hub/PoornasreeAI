@@ -381,9 +381,9 @@ export default function ServiceManagerPage() {
     localStorage.setItem("sm_archived_tickets", JSON.stringify(Array.from(archivedIds)));
   }, [archivedIds]);
 
-  const handleArchive = (id: string) => setArchivedIds(prev => new Set(prev).add(id));
+  const handleArchive = (id: string) => setArchivedIds(prev => new Set(Array.from(prev)).add(id));
   const handleUnarchive = (id: string) => {
-    setArchivedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+    setArchivedIds(prev => { const next = new Set(Array.from(prev)); next.delete(id); return next; });
   };
 
   const resetFilters = () => { setSearchQuery(""); setDateRange("all"); setDealerFilter(""); setModelFilter(""); setComplaintFilter(""); };
@@ -1609,7 +1609,7 @@ export default function ServiceManagerPage() {
                         <div key={stateName} className="border border-line dark:border-line-dark rounded-lg overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2 bg-surface dark:bg-surface-dark">
                             <button type="button"
-                              onClick={() => setExpandedStates(prev => { const s = new Set(prev); if (s.has("add:" + stateName)) { s.delete("add:" + stateName); } else { s.add("add:" + stateName); } return s; })}
+                              onClick={() => setExpandedStates(prev => { const s = new Set(Array.from(prev)); if (s.has("add:" + stateName)) { s.delete("add:" + stateName); } else { s.add("add:" + stateName); } return s; })}
                               className="flex items-center gap-1.5 flex-1 text-left min-w-0">
                               <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-content-tertiary dark:text-content-dark-tertiary transition-transform", isOpen && "rotate-180")} />
                               <span className="text-xs font-semibold text-content dark:text-content-dark truncate">{stateName}</span>
@@ -1619,7 +1619,7 @@ export default function ServiceManagerPage() {
                             </button>
                             {selCount < pins.length ? (
                               <button type="button"
-                                onClick={() => setNewEng(prev => ({ ...prev, pincodeIds: [...new Set([...prev.pincodeIds, ...pins.map(p => p.id)])] }))}
+                                onClick={() => setNewEng(prev => ({ ...prev, pincodeIds: Array.from(new Set([...prev.pincodeIds, ...pins.map(p => p.id)])) }))}
                                 className="ml-2 shrink-0 text-[10px] text-primary hover:text-primary-hover font-medium transition-colors">All</button>
                             ) : (
                               <button type="button"
@@ -1760,7 +1760,7 @@ export default function ServiceManagerPage() {
                         <div key={stateName} className="border border-line dark:border-line-dark rounded-lg overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2 bg-surface dark:bg-surface-dark">
                             <button type="button"
-                              onClick={() => setExpandedStates(prev => { const s = new Set(prev); if (s.has("edit:" + stateName)) { s.delete("edit:" + stateName); } else { s.add("edit:" + stateName); } return s; })}
+                              onClick={() => setExpandedStates(prev => { const s = new Set(Array.from(prev)); if (s.has("edit:" + stateName)) { s.delete("edit:" + stateName); } else { s.add("edit:" + stateName); } return s; })}
                               className="flex items-center gap-1.5 flex-1 text-left min-w-0">
                               <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-content-tertiary dark:text-content-dark-tertiary transition-transform", isOpen && "rotate-180")} />
                               <span className="text-xs font-semibold text-content dark:text-content-dark truncate">{stateName}</span>
@@ -1770,7 +1770,7 @@ export default function ServiceManagerPage() {
                             </button>
                             {selCount < pins.length ? (
                               <button type="button"
-                                onClick={() => setEditForm(prev => ({ ...prev, pincodeIds: [...new Set([...prev.pincodeIds, ...pins.map(p => p.id)])] }))}
+                                onClick={() => setEditForm(prev => ({ ...prev, pincodeIds: Array.from(new Set([...prev.pincodeIds, ...pins.map(p => p.id)])) }))}
                                 className="ml-2 shrink-0 text-[10px] text-primary hover:text-primary-hover font-medium transition-colors">All</button>
                             ) : (
                               <button type="button"
