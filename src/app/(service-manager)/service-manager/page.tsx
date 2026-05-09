@@ -1609,7 +1609,7 @@ export default function ServiceManagerPage() {
                         <div key={stateName} className="border border-line dark:border-line-dark rounded-lg overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2 bg-surface dark:bg-surface-dark">
                             <button type="button"
-                              onClick={() => setExpandedStates(prev => { const s = new Set(prev); s.has("add:" + stateName) ? s.delete("add:" + stateName) : s.add("add:" + stateName); return s; })}
+                              onClick={() => setExpandedStates(prev => { const s = new Set(prev); if (s.has("add:" + stateName)) { s.delete("add:" + stateName); } else { s.add("add:" + stateName); } return s; })}
                               className="flex items-center gap-1.5 flex-1 text-left min-w-0">
                               <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-content-tertiary dark:text-content-dark-tertiary transition-transform", isOpen && "rotate-180")} />
                               <span className="text-xs font-semibold text-content dark:text-content-dark truncate">{stateName}</span>
@@ -1760,7 +1760,7 @@ export default function ServiceManagerPage() {
                         <div key={stateName} className="border border-line dark:border-line-dark rounded-lg overflow-hidden">
                           <div className="flex items-center justify-between px-3 py-2 bg-surface dark:bg-surface-dark">
                             <button type="button"
-                              onClick={() => setExpandedStates(prev => { const s = new Set(prev); s.has("edit:" + stateName) ? s.delete("edit:" + stateName) : s.add("edit:" + stateName); return s; })}
+                              onClick={() => setExpandedStates(prev => { const s = new Set(prev); if (s.has("edit:" + stateName)) { s.delete("edit:" + stateName); } else { s.add("edit:" + stateName); } return s; })}
                               className="flex items-center gap-1.5 flex-1 text-left min-w-0">
                               <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-content-tertiary dark:text-content-dark-tertiary transition-transform", isOpen && "rotate-180")} />
                               <span className="text-xs font-semibold text-content dark:text-content-dark truncate">{stateName}</span>
