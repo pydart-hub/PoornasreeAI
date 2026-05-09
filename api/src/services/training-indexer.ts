@@ -27,43 +27,56 @@ function tagToUUID(tag: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
+// Training file configurations — add entries here to index additional files on startup.
+const TRAINING_FILES = [
+  {
+    name: "training.json",
+    candidates: [
+      "/app/data/training.json",
+      path.resolve(process.cwd(), "../public/Doc/training.json"),
+      path.resolve(__dirname, "../../../public/Doc/training.json"),
+    ],
+  },
+  {
+    name: "customer-training.json",
+    candidates: [
+      "/app/data/customer-training.json",
+      path.resolve(process.cwd(), "../public/Doc/customer-training.json"),
+      path.resolve(__dirname, "../../../public/Doc/customer-training.json"),
+    ],
+  },
+];
+
 /**
- * Index every intent from training.json into Qdrant.
+ * Index all training files into Qdrant.
  * Safe to call on every startup — upsert is idempotent (same UUID each time).
- *
- * Path resolution order:
- *   1. /app/data/training.json          — Docker volume mount (production)
- *   2. <cwd>/../public/Doc/training.json — local dev (run from api/)
- *   3. <dist>/../../../public/Doc/training.json — fallback
  */
 export async function indexTrainingData(): Promise<void> {
-  const candidates = [
-    "/app/data/training.json",
-    path.resolve(process.cwd(), "../public/Doc/training.json"),
-    path.resolve(__dirname, "../../../public/Doc/training.json"),
-  ];
-
-  const trainingPath = candidates.find((p) => fs.existsSync(p)) ?? null;
-
-  if (!trainingPath) {
-    console.warn(
-      "[training] training.json not found — intent index skipped. " +
-      "Add a volume mount  ./public/Doc/training.json:/app/data/training.json:ro  in docker-compose.yml"
-    );
-    return;
+  for (const fileConfig of TRAINING_FILES) {
+    const trainingPath = fileConfig.candidates.find((p) => fs.existsSync(p)) ?? null;
+    if (!trainingPath) {
+      console.warn(
+        `[training] ${fileConfig.name} not found — skipped. ` +
+        `Searched: ${fileConfig.candidates.join(", ")}`
+      );
+      continue;
+    }
+    await indexFile(trainingPath);
   }
+}
 
+async function indexFile(trainingPath: string): Promise<void> {
   let data: { intents: Intent[] };
   try {
     data = JSON.parse(fs.readFileSync(trainingPath, "utf-8"));
   } catch (err: any) {
-    console.error("[training] Failed to parse training.json:", err?.message);
+    console.error("[training] Failed to parse", trainingPath + ":", err?.message);
     return;
   }
 
   const intents = data.intents ?? [];
   if (intents.length === 0) {
-    console.warn("[training] No intents found in training.json");
+    console.warn("[training] No intents found in", trainingPath);
     return;
   }
 
@@ -91,5 +104,5 @@ export async function indexTrainingData(): Promise<void> {
     }
   }
 
-  console.log(`[training] Done — ${ok}/${intents.length} intents indexed`);
+  console.log(`[training] Done — ${ok}/${intents.length} intents indexed from ${path.basename(trainingPath)}`);
 }

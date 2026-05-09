@@ -381,41 +381,7 @@ export default function UsersManagementPage() {
           </div>
         )}
 
-        {/* Role filter pills */}
-        {presentRoles.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setRoleFilter("all")}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-semibold border transition-colors",
-                roleFilter === "all"
-                  ? "bg-primary text-white border-primary"
-                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              All <span className="opacity-70 ml-0.5">({users.length})</span>
-            </button>
-            {presentRoles.map((role) => {
-              const b = getRoleBadge(role);
-              return (
-                <button
-                  key={role}
-                  onClick={() => setRoleFilter(roleFilter === role ? "all" : role)}
-                  className={cn(
-                    "px-3 py-1 rounded-full text-xs font-semibold border transition-colors",
-                    roleFilter === role
-                      ? "bg-primary text-white border-primary"
-                      : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-                  )}
-                >
-                  {b.label} <span className="opacity-70 ml-0.5">({roleCounts[role]})</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Search + refresh bar */}
+        {/* Search + filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-secondary dark:text-content-dark-secondary pointer-events-none" />
@@ -434,6 +400,24 @@ export default function UsersManagementPage() {
               </button>
             )}
           </div>
+
+          {/* Role filter dropdown */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+          >
+            <option value="all">All Roles ({users.length})</option>
+            {presentRoles.map((role) => {
+              const b = getRoleBadge(role);
+              return (
+                <option key={role} value={role}>
+                  {b.label} ({roleCounts[role]})
+                </option>
+              );
+            })}
+          </select>
+
           <button
             onClick={fetchUsers}
             disabled={usersLoading}

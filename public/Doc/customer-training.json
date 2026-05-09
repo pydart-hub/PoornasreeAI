@@ -1,0 +1,831 @@
+{
+  "intents": [
+    {
+      "tag": "customer_vibro_not_working_no_led",
+      "role": "customer",
+      "patterns": [
+        "VIBRO is not working and LED is not on",
+        "Vibro power issue, no LED",
+        "My vibro won't turn on"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the power adapter is firmly plugged into the machine and the wall outlet.\n2. Try a different power outlet.\n3. Check that the power cable is not damaged.\nIf the machine still doesn't turn on, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_led_on_off",
+      "role": "customer",
+      "patterns": [
+        "VIBRO is not working but LED just goes on and off",
+        "Vibro LED blinking but not working",
+        "Vibro LED flashes on and off"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Unplug the adapter, wait 10 seconds, and plug it back in.\n2. Check that the stirrer tip is properly and firmly attached to the machine.\nIf the LED keeps blinking without the machine working, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_no_vibration",
+      "role": "customer",
+      "patterns": [
+        "Machine is on but vibration is not present",
+        "Vibro on but no vibration",
+        "Vibration stopped working on vibro"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the stirrer tip is firmly attached to the machine.\n2. Turn the machine off, wait 10 seconds, and turn it back on.\nIf vibration still doesn't start, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_continuous_vibration",
+      "role": "customer",
+      "patterns": [
+        "Machine continuously vibrating",
+        "Vibro won't stop vibrating",
+        "Continuous vibration issue"
+      ],
+      "responses": [
+        "Please unplug the machine and plug it back in. If the machine starts vibrating continuously again without stopping, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_low_vibration",
+      "role": "customer",
+      "patterns": [
+        "Low vibration on the machine",
+        "Vibro vibration is very weak",
+        "Vibration is not strong enough"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the stirrer tip is firmly and correctly attached.\n2. Check that the power adapter is properly connected.\nIf vibration remains weak, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_vibration_led_not_working",
+      "role": "customer",
+      "patterns": [
+        "Vibration indication LED is not working",
+        "Vibro indication light is off",
+        "Vibration LED is dead"
+      ],
+      "responses": [
+        "The vibration indicator light on your machine is not working. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_power_led_not_working",
+      "role": "customer",
+      "patterns": [
+        "Power LED is not working on vibro",
+        "Main power light is out",
+        "Vibro power LED off"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the power adapter is properly connected to the machine.\n2. Try a different wall outlet.\nIf the power light is still not on, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_vibro_stirrer_only_on_adapter_plugging",
+      "role": "customer",
+      "patterns": [
+        "Stirrer working only during adapter plugging time",
+        "Vibro not working by the push switch",
+        "Push switch not starting vibro stirrer"
+      ],
+      "responses": [
+        "The push button on your machine may need attention. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_no_charging_voltage",
+      "role": "customer",
+      "patterns": [
+        "Not present the battery charging voltage - 0V",
+        "Solar charger board voltage is zero",
+        "Battery is not getting charged, 0V"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the charger adapter is firmly connected to the machine and plugged into the wall.\n2. Try a different power outlet.\n3. Check that the power cable is not damaged.\nIf the battery is still not charging, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_low_voltage",
+      "role": "customer",
+      "patterns": [
+        "Battery charging voltage is low",
+        "Solar charger output is low"
+      ],
+      "responses": [
+        "Please check that the charger adapter is properly connected to the machine and the wall outlet. If the battery charging level remains low, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_high_voltage",
+      "role": "customer",
+      "patterns": [
+        "Battery charging voltage is too high",
+        "Solar charger overcharging"
+      ],
+      "responses": [
+        "Please stop using the machine immediately and raise a service request. Our team will assist you as soon as possible."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_battery_not_charging",
+      "role": "customer",
+      "patterns": [
+        "Battery charging voltage is correct but battery not charging",
+        "Voltage is fine but battery won't charge"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Try a different power outlet.\n2. Make sure all cable connections are secure.\nIf the battery still won't charge, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_led_not_working",
+      "role": "customer",
+      "patterns": [
+        "Battery charging indication LED not working",
+        "Solar charger LED broken"
+      ],
+      "responses": [
+        "The battery charging indicator light is not working. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_low_voltage_cutoff_not_working",
+      "role": "customer",
+      "patterns": [
+        "Low voltage cutoff not working",
+        "Cutoff relay failing"
+      ],
+      "responses": [
+        "Please raise a service request and our team will assist you with this issue."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_cutoff_led_not_working",
+      "role": "customer",
+      "patterns": [
+        "Low voltage cutoff LED not working"
+      ],
+      "responses": [
+        "Please raise a service request and our team will assist you with this issue."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_machine_full_time_battery",
+      "role": "customer",
+      "patterns": [
+        "Machine full time working from battery but battery not full",
+        "Always on battery power"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the charger adapter is properly plugged in to both the machine and the wall outlet.\n2. Check that the power cable is not damaged.\nIf the machine continues to run only on battery even when plugged in, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_solar_charger_not_working_from_external_battery",
+      "role": "customer",
+      "patterns": [
+        "Machine not working from the external connected battery"
+      ],
+      "responses": [
+        "Please ensure the external battery is fully charged. If the machine still does not work from the external battery, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_compact_adapter_output_zero",
+      "role": "customer",
+      "patterns": [
+        "Adapter output voltage is zero LSE V3 ECO V",
+        "Compact adapter has 0V output"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the power cable is properly connected to the adapter and the wall outlet.\n2. Try a different power outlet.\nIf there is still no power output, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_compact_adapter_output_zero_led_on",
+      "role": "customer",
+      "patterns": [
+        "Adapter output voltage is zero but LED is glowing",
+        "0V output but adapter light is on"
+      ],
+      "responses": [
+        "Please check that the cable connecting the adapter to the machine is securely plugged in at both ends. If the issue continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_compact_adapter_low_voltage",
+      "role": "customer",
+      "patterns": [
+        "Adapter output voltage showing 8v to 9v",
+        "Compact adapter low voltage output"
+      ],
+      "responses": [
+        "The power adapter may be damaged. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_charger_adapter_output_zero",
+      "role": "customer",
+      "patterns": [
+        "Charger adapter output voltage is zero LSE-S V3 ECOD ECOSV",
+        "No voltage from charger adapter"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the power cable is securely connected to the adapter and the wall outlet.\n2. Try a different power outlet.\nIf there is still no output, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_charger_adapter_output_zero_led_on",
+      "role": "customer",
+      "patterns": [
+        "Charger adapter output voltage is zero but LED is glowing"
+      ],
+      "responses": [
+        "Please check that the cable connecting the charger adapter to the machine is securely plugged in at both ends. If the issue continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_charger_adapter_12v_low",
+      "role": "customer",
+      "patterns": [
+        "Adapter output 12 voltage showing 8V to 9V but 24V is 24V",
+        "12V line is low on charger adapter"
+      ],
+      "responses": [
+        "The charger adapter may need to be replaced. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_charger_adapter_24v_low",
+      "role": "customer",
+      "patterns": [
+        "Adapter output 12 voltage showing 12V and 24V is low voltage or zero"
+      ],
+      "responses": [
+        "The charger adapter may need to be replaced. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_please_wait",
+      "role": "customer",
+      "patterns": [
+        "System on time please wait notification continuously showing",
+        "Stuck on please wait screen"
+      ],
+      "responses": [
+        "Please turn the machine off, wait 10 seconds, and turn it back on. If the 'Please Wait' screen keeps showing, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_display_blank",
+      "role": "customer",
+      "patterns": [
+        "Display is blank on DPST board",
+        "Blank LCD screen"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the machine is powered on.\n2. Turn the machine off, wait 10 seconds, and turn it back on.\nIf the display remains blank, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_display_half",
+      "role": "customer",
+      "patterns": [
+        "Display shown half portion only",
+        "Only half the screen is working"
+      ],
+      "responses": [
+        "The display is showing only partially. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_rtc_reset",
+      "role": "customer",
+      "patterns": [
+        "RTC time not saved",
+        "Restart time time changed or re-setted"
+      ],
+      "responses": [
+        "The machine clock keeps resetting after a restart. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_rtc_not_running",
+      "role": "customer",
+      "patterns": [
+        "RTC time not running",
+        "Clock is frozen"
+      ],
+      "responses": [
+        "The machine clock appears to be frozen and not updating. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_keypad_not_working",
+      "role": "customer",
+      "patterns": [
+        "DPST key pad not working",
+        "Buttons not responding on DPST"
+      ],
+      "responses": [
+        "Please try pressing each button firmly. If the buttons are still not responding, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_usb_error",
+      "role": "customer",
+      "patterns": [
+        "USB initialization error shown",
+        "USB error on screen"
+      ],
+      "responses": [
+        "Please restart the machine. If the USB error message continues to appear, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_weighing_scale",
+      "role": "customer",
+      "patterns": [
+        "Weighing scale not working",
+        "Scale disconnected"
+      ],
+      "responses": [
+        "Please check that the weighing scale cable is securely connected to the machine. If the weighing scale is still not working, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_computer_output",
+      "role": "customer",
+      "patterns": [
+        "Computer output not present"
+      ],
+      "responses": [
+        "Please check that the cable between the machine and the computer is securely connected at both ends. If there is still no output, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_external_display",
+      "role": "customer",
+      "patterns": [
+        "External display data not present"
+      ],
+      "responses": [
+        "Please check that the cable connecting the machine to the external display is securely plugged in. If the display is still not showing data, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_rate_chart",
+      "role": "customer",
+      "patterns": [
+        "Rate not taken from the chart",
+        "Rate not viewable"
+      ],
+      "responses": [
+        "Please check that the SD card is properly inserted in the machine. If the rate chart is still not showing, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_farmer_details",
+      "role": "customer",
+      "patterns": [
+        "Farmer details not shown"
+      ],
+      "responses": [
+        "Please check that the SD card is properly inserted and that the farmer details file is saved on it. If the details are still not showing, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_analyzer_connectivity",
+      "role": "customer",
+      "patterns": [
+        "Analyzer connectivity error shown"
+      ],
+      "responses": [
+        "Please check all cable connections and restart the machine. If the connectivity error continues to appear, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_wifi_gsm_error",
+      "role": "customer",
+      "patterns": [
+        "WiFi GSM module error shown",
+        "Cellular or wifi not connecting"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Check that the network settings on the machine are correct.\n2. Restart the machine.\nIf the WiFi/GSM error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_sms_not_sending",
+      "role": "customer",
+      "patterns": [
+        "SMS not send to the farmer",
+        "Messages failing to send"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Check that the SIM card is properly inserted and has an active plan.\n2. Verify that the farmer's phone number is entered correctly.\nIf SMS messages are still not sending, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_cloud_error",
+      "role": "customer",
+      "patterns": [
+        "Tested result to cloud updation error shown",
+        "Cannot upload to cloud"
+      ],
+      "responses": [
+        "Please check your internet connection. If the cloud upload error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_sd_card_save_error",
+      "role": "customer",
+      "patterns": [
+        "Chart file not shown",
+        "Farmer details not saved",
+        "Collection not saved"
+      ],
+      "responses": [
+        "Please remove the SD card, reinsert it firmly, and try again. If files still cannot be saved, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_sample_test_timeout",
+      "role": "customer",
+      "patterns": [
+        "Sample testing time the count continuously counted above 50 seconds",
+        "Test taking too long"
+      ],
+      "responses": [
+        "Please restart the machine and try the test again with a fresh sample. If the test keeps counting above 50 seconds, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_communication_failure",
+      "role": "customer",
+      "patterns": [
+        "DPST board to analyzer main board communication not properly working"
+      ],
+      "responses": [
+        "Please restart the machine. If the communication error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_pendrive_failure",
+      "role": "customer",
+      "patterns": [
+        "Pendrive detection failure",
+        "USB drive not reading"
+      ],
+      "responses": [
+        "Please try a different USB drive. If the USB drive is still not detected, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_external_keyboard_failure",
+      "role": "customer",
+      "patterns": [
+        "External keyboard not detected"
+      ],
+      "responses": [
+        "Please try unplugging and reconnecting the keyboard. If it is still not detected, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_external_display_failure",
+      "role": "customer",
+      "patterns": [
+        "External display not working"
+      ],
+      "responses": [
+        "Please check that the cable connecting the machine to the external display is securely plugged in. If the display is still not working, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_dpst_printer_failure",
+      "role": "customer",
+      "patterns": [
+        "Printer not working"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the printer is powered on and the cable is securely connected.\n2. Check if the printer has paper loaded.\nIf the printer is still not working, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_pump_not_working",
+      "role": "customer",
+      "patterns": [
+        "Pump not working",
+        "Motor completely dead"
+      ],
+      "responses": [
+        "Please restart the machine. If the pump still does not work after restarting, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_pump_nut_bolt_clamp_hit",
+      "role": "customer",
+      "patterns": [
+        "Pump nut and bolt move to oneside only and hit into the clamp"
+      ],
+      "responses": [
+        "Please stop using the machine immediately to avoid further damage and raise a service request. Our team will assist you as soon as possible."
+      ]
+    },
+    {
+      "tag": "customer_pump_sense_error",
+      "role": "customer",
+      "patterns": [
+        "Pump sense error"
+      ],
+      "responses": [
+        "Please restart the machine. If the pump sense error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_battery_low_error",
+      "role": "customer",
+      "patterns": [
+        "Low battery error shown"
+      ],
+      "responses": [
+        "Please connect the charger adapter and charge the battery fully. If the low battery error continues after charging, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_ecod_battery_full_led_error",
+      "role": "customer",
+      "patterns": [
+        "Battery full LED indication not working"
+      ],
+      "responses": [
+        "Please charge the battery completely using the charger adapter. If the battery full indicator light still does not come on after a full charge, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_temp_set_error",
+      "role": "customer",
+      "patterns": [
+        "T2 TEMP.SET ERROR",
+        "Temperature set error"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Check if there are any visible leaks around the milk inlet tube or sample area.\n2. Restart the machine and try again.\nIf the T2 TEMP SET ERROR continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_box_temp_error",
+      "role": "customer",
+      "patterns": [
+        "BOX TEMP ERROR"
+      ],
+      "responses": [
+        "Please restart the machine. If the BOX TEMP ERROR continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_sample_not_found",
+      "role": "customer",
+      "patterns": [
+        "SAMPLE NOT FOUND",
+        "AIR IN MILK"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the probe (inlet pipe) is fully submerged in the milk sample.\n2. Try testing again with a fresh sample.\nIf the SAMPLE NOT FOUND or AIR IN MILK error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_plunge_in_water",
+      "role": "customer",
+      "patterns": [
+        "PLUNGE IN WATER",
+        "WATER IN SENSOR"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Remove the probe from the sample and wipe it dry.\n2. Make sure no liquid remains around the inlet area.\n3. Wait a minute and try again.\nIf the error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_hot_sample_error",
+      "role": "customer",
+      "patterns": [
+        "HOT SAMPLE ERROR",
+        "Sample is too hot"
+      ],
+      "responses": [
+        "The milk sample is too hot. Please wait for it to cool down below 40°C and use a fresh, cooler sample before testing again."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_count_zero",
+      "role": "customer",
+      "patterns": [
+        "COUNT ZERO",
+        "RESULT ZERO"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Clean the sensor and tubes as described in the user manual.\n2. Test again with a fresh sample.\nIf the COUNT ZERO or RESULT ZERO error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_reading_variation",
+      "role": "customer",
+      "patterns": [
+        "READING VARIATION",
+        "Inconsistent readings"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Clean the sensor and tubes thoroughly as described in the user manual.\n2. Test with a fresh sample.\nIf readings are still inconsistent, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_fat_in_water",
+      "role": "customer",
+      "patterns": [
+        "FAT SHOWN IN WATER"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Run the water zero operation to clean the sensor (refer to the user manual).\n2. Test again with clean water.\nIf fat values are still shown in water, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_lcd_computer_mode",
+      "role": "customer",
+      "patterns": [
+        "LCD CONTINIOUSLY SHOWING COMPUTER MODE"
+      ],
+      "responses": [
+        "Please try pressing the keypad buttons to exit the screen. If the display remains stuck on 'Computer Mode', please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_lcd_version",
+      "role": "customer",
+      "patterns": [
+        "LCD CONTINIOUSLY SHOWING VERSION"
+      ],
+      "responses": [
+        "Please try pressing the keypad buttons to exit the screen. If the display remains stuck on the version screen, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_fuse_burn",
+      "role": "customer",
+      "patterns": [
+        "WARMING STARTING TIME MACHINE WILL OFF",
+        "FUSE BURN"
+      ],
+      "responses": [
+        "Please do not attempt to restart the machine. Please raise a service request immediately and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_pendrive_keyboard_undetected",
+      "role": "customer",
+      "patterns": [
+        "PENDRIVE AND KEYBOARD NOT DETECTED"
+      ],
+      "responses": [
+        "Please try a different USB drive or keyboard. If they are still not detected, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_wifi_gsm_error",
+      "role": "customer",
+      "patterns": [
+        "WIFI/GSM MODULE ERROR SHOWN"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Verify the network settings on the machine are correct.\n2. Restart the machine.\nIf the WiFi/GSM error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_frontpanel_keypad",
+      "role": "customer",
+      "patterns": [
+        "FRONTPANEL KEYPAD NOT WORKING"
+      ],
+      "responses": [
+        "Please try pressing each key firmly. If the keypad is still not responding, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_lcd_blank",
+      "role": "customer",
+      "patterns": [
+        "LCD NOT WORKING",
+        "BLANK DISPLAY"
+      ],
+      "responses": [
+        "Please restart the machine. If the display remains blank after restarting, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_rtc_not_running",
+      "role": "customer",
+      "patterns": [
+        "RTC TIME NOT RUNNING"
+      ],
+      "responses": [
+        "The machine clock is not running. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_computer_output_not_present",
+      "role": "customer",
+      "patterns": [
+        "COMPUTER OUTPUT NOT PRESENT"
+      ],
+      "responses": [
+        "Please check that the cable between the machine and the computer is securely connected at both ends. If there is still no output, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_rtc_time_not_saved",
+      "role": "customer",
+      "patterns": [
+        "RTC TIME NOT SAVED",
+        "RESTART TIME TIME CHANGED"
+      ],
+      "responses": [
+        "The machine clock is not saving the correct time after a restart. Please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_sms_not_send",
+      "role": "customer",
+      "patterns": [
+        "SMS NOT SEND TO THE FARMER"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the SIM card is properly inserted and has an active plan.\n2. Verify the farmer's phone number is entered correctly.\nIf SMS messages are still not being sent, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_cloud_error",
+      "role": "customer",
+      "patterns": [
+        "TESTED RESULT TO CLOUD UPDATION ERROR SHOWN"
+      ],
+      "responses": [
+        "Please check your internet connection and verify the cloud settings on the machine. If the cloud upload error continues, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_rate_not_taken",
+      "role": "customer",
+      "patterns": [
+        "RATE NOT TAKEN FROM THE CHART",
+        "NOT VIEW"
+      ],
+      "responses": [
+        "Please verify that the rate chart settings are correctly entered on the machine. If the rate is still not showing, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_farmer_details_not_shown",
+      "role": "customer",
+      "patterns": [
+        "FARMER DETAILS NOT SHOWN"
+      ],
+      "responses": [
+        "Please verify that the farmer details are correctly entered on the machine. If they are still not showing, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_weighing_scale",
+      "role": "customer",
+      "patterns": [
+        "WEIGHING SCALE NOT WORKING"
+      ],
+      "responses": [
+        "Please check that the weighing scale cable is securely connected to the machine. If the weighing scale is still not working, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_analyzer_mainboard_external_display",
+      "role": "customer",
+      "patterns": [
+        "EXTERNAL DISPLAY NOT WORKING"
+      ],
+      "responses": [
+        "Please check that the cable connecting the machine to the external display is securely plugged in. If the display is still not working, please raise a service request and our team will assist you."
+      ]
+    },
+    {
+      "tag": "customer_others_analyzer_not_working",
+      "role": "customer",
+      "patterns": [
+        "ANALYZER NOT WORKING",
+        "Analyzer is completely dead"
+      ],
+      "responses": [
+        "Here are a few things you can check:\n1. Make sure the machine is plugged in and the power switch is on.\n2. Try a different power outlet.\n3. Check that the power cable is not damaged.\nIf the machine is still not working, please raise a service request and our team will assist you."
+      ]
+    }
+  ]
+}

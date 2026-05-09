@@ -90,6 +90,7 @@ services:
     volumes:
       - api_uploads:/app/uploads
       - ./public/Doc/training.json:/app/data/training.json:ro
+      - ./public/Doc/customer-training.json:/app/data/customer-training.json:ro
     ports:
       - "127.0.0.1:4000:4000"
     networks:
