@@ -17,6 +17,7 @@ import {
   UserCheck,
   Users,
   AlertCircle,
+  CheckCircle,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -178,6 +179,7 @@ export default function ServiceManagerPage() {
   const [showAddEngineer, setShowAddEngineer] = useState(false);
   const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [addingEngineer, setAddingEngineer] = useState(false);
+  const [engineerCreated, setEngineerCreated] = useState<{ name: string; email: string; setPasswordUrl: string; hasWhatsapp: boolean } | null>(null);
 
   // ── Team modal state — Edit ──
   const [editingEng, setEditingEng] = useState<Engineer | null>(null);
@@ -475,7 +477,14 @@ export default function ServiceManagerPage() {
       });
       if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add engineer"); }
       else {
+        const data = await res.json();
         setShowAddEngineer(false);
+        setEngineerCreated({
+          name: newEng.firstName.trim(),
+          email: newEng.email.trim(),
+          setPasswordUrl: data.setPasswordUrl,
+          hasWhatsapp: !!newEng.whatsappNumber.trim(),
+        });
         setNewEng({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
         await fetchData();
       }
@@ -1542,6 +1551,61 @@ export default function ServiceManagerPage() {
         </div>
       </main>
       </div>
+
+      {/* ═══════════════════ ENGINEER CREATED — ONBOARDING LINK ═══════════════════ */}
+      {engineerCreated && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-surface-dark-card rounded-2xl shadow-2xl w-full max-w-md border border-line dark:border-line-dark overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-line dark:border-line-dark bg-green-50 dark:bg-green-900/20">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <h3 className="text-sm font-bold text-green-800 dark:text-green-300">Engineer Added Successfully</h3>
+              </div>
+              <button onClick={() => setEngineerCreated(null)} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                <span className="font-semibold text-content dark:text-content-dark">{engineerCreated.name}</span> has been added.
+                {engineerCreated.hasWhatsapp
+                  ? " A WhatsApp greeting was attempted — but if delivery failed (new number), share the link below directly."
+                  : " No WhatsApp number was provided. Share this set-password link directly."
+                }
+              </p>
+
+              {/* Link box */}
+              <div>
+                <p className="text-xs font-semibold text-content-tertiary dark:text-content-dark-tertiary mb-1.5">Set-Password Link <span className="font-normal">(expires in 7 days)</span></p>
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-surface dark:bg-surface-dark border border-line dark:border-line-dark">
+                  <span className="text-xs text-content-secondary dark:text-content-dark-secondary flex-1 break-all select-all">{engineerCreated.setPasswordUrl}</span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(engineerCreated!.setPasswordUrl); }}
+                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 active:scale-95 transition-all">
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Email reminder */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Login email: <span className="font-semibold">{engineerCreated.email}</span>. Send this link + email to the engineer via SMS, WhatsApp, or any other channel.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setEngineerCreated(null)}
+                className="w-full py-2 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary/90 transition-colors">
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════ ADD ENGINEER MODAL ═══════════════════ */}
       {showAddEngineer && (

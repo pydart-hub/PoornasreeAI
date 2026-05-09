@@ -72,10 +72,10 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
     });
 
     // Send WhatsApp greeting with set-password link (fire-and-forget)
+    const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
     if (engineer.whatsappNumber) {
       const manager = engineer.manager;
       const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
-      const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
       const greeting = [
         `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
         "",
@@ -93,9 +93,11 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
       WhatsAppService.sendMessage(engineer.whatsappNumber, greeting).catch((err) =>
         console.error("[manager] Failed to send engineer greeting:", err),
       );
+    } else {
+      console.log(`[manager] Engineer ${engineer.email} has no WhatsApp number — set-password URL: ${setPasswordUrl}`);
     }
 
-    res.status(201).json({ engineer });
+    res.status(201).json({ engineer, setPasswordUrl });
   } catch (err) {
     console.error("createEngineer error:", err);
     res.status(500).json({ error: "Internal server error" });
