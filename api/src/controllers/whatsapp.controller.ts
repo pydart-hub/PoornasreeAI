@@ -163,7 +163,7 @@ async function handleEngineerMessage(
 ): Promise<void> {
   const upperText = text.toUpperCase().trim();
 
-  if (upperText === "MENU" || upperText === "HI" || upperText === "HELLO" || upperText === "START") {
+  if (upperText === "MENU" || upperText === "HI" || upperText === "HII" || upperText === "HIII" || upperText === "HELLO" || upperText === "HEY" || upperText === "START") {
     const reply = [
       `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.`,
       "",
