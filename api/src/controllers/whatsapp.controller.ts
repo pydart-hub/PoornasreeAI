@@ -164,15 +164,15 @@ async function handleEngineerMessage(
   const upperText = text.toUpperCase().trim();
 
   if (upperText === "MENU" || upperText === "HI" || upperText === "HII" || upperText === "HIII" || upperText === "HELLO" || upperText === "HEY" || upperText === "START") {
-    const reply = [
-      `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.`,
-      "",
-      "Available commands:",
-      "📋 *TICKETS* — View your assigned tickets",
-      "📊 *STATUS* — Quick ticket count summary",
-      "❓ *HELP* — Show this menu again",
-    ].join("\n");
-    await WhatsAppService.sendMessage(from, reply);
+    await WhatsAppService.sendInteractiveButtons(
+      from,
+      `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.\n\nWhat would you like to do?`,
+      [
+        { id: "TICKETS", title: "📋 My Tickets" },
+        { id: "STATUS",  title: "📊 Status Summary" },
+        { id: "HELP",    title: "❓ Help" },
+      ],
+    );
     return;
   }
 
@@ -258,20 +258,26 @@ async function handleEngineerMessage(
   }
 
   if (upperText === "HELP") {
-    const reply = [
-      `🔧 *Engineer Commands:*`,
-      "",
-      "📋 *TICKETS* — View your assigned tickets",
-      "📊 *STATUS* — Quick ticket count summary",
-      "❓ *HELP* — Show this menu",
-    ].join("\n");
-    await WhatsAppService.sendMessage(from, reply);
+    await WhatsAppService.sendInteractiveButtons(
+      from,
+      `🔧 *Engineer Commands:*\n\nChoose an option below:`,
+      [
+        { id: "TICKETS", title: "📋 My Tickets" },
+        { id: "STATUS",  title: "📊 Status Summary" },
+        { id: "HELP",    title: "❓ Help" },
+      ],
+    );
     return;
   }
 
   // Default — unrecognized command
-  await WhatsAppService.sendMessage(
+  await WhatsAppService.sendInteractiveButtons(
     from,
-    `Hi ${engineer.firstName}, I didn't understand that. Type *HELP* to see available commands.`,
+    `Hi ${engineer.firstName}, I didn't understand that. Please choose an option:`,
+    [
+      { id: "TICKETS", title: "📋 My Tickets" },
+      { id: "STATUS",  title: "📊 Status Summary" },
+      { id: "HELP",    title: "❓ Help" },
+    ],
   );
 }
