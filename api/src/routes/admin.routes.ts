@@ -19,7 +19,7 @@ import {
 import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
-import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
+
 import { updateBranding, uploadLogo, listLeads, addLead, importLeads, deleteLead, listCampaigns, createCampaign, deleteCampaign, addLeadsToCampaign, sendCampaign } from "../controllers/branding.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
@@ -137,13 +137,6 @@ router.get("/videos", listVideos);
 router.post("/videos", createVideo);
 router.patch("/videos/:id", updateVideo);
 router.delete("/videos/:id", deleteVideo);
-
-// Machine registry (admin CRUD)
-router.get("/machines", listMachines);
-router.get("/machines/search", searchMachines);
-router.post("/machines", createMachine);
-router.patch("/machines/:id", updateMachine);
-router.delete("/machines/:id", deleteMachine);
 
 // Branding (admin update)
 router.patch("/branding", updateBranding);

@@ -3,10 +3,15 @@
 // the existing SimulateService FSM.  Replies are sent back via WhatsApp.
 
 import { Request, Response } from "express";
+import path from "path";
+import fs from "fs";
 import prisma from "../lib/prisma";
 import { env } from "../config/env";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
+import * as TicketService from "../services/ticket.service";
+import { startFeedbackFlow } from "../services/simulate.service";
+import { io } from "../lib/socket";
 import type { ProductImage } from "../services/simulate.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
@@ -83,6 +88,20 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
+  // ── Check if sender is a service engineer first ──
+  // Normalize: Meta sends numbers without leading +, but DB may have been saved with or without it.
+  const normalizedFrom = from.replace(/^\+/, "");
+  const engineer = await prisma.user.findFirst({
+    where: { whatsappNumber: { in: [normalizedFrom, `+${normalizedFrom}`] }, role: "service_engineer" },
+    select: { id: true, firstName: true },
+  });
+
+  // Engineers can send images for work report photos
+  if (engineer && msg.type === "image") {
+    await handleEngineerImage(from, msg, engineer);
+    return;
+  }
+
   // Only process text and interactive (button/list reply) messages
   let text = "";
   if (msg.type === "text") {
@@ -103,14 +122,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     );
     return;
   }
-
-  // ── Check if sender is a service engineer ──
-  // Normalize: Meta sends numbers without leading +, but DB may have been saved with or without it.
-  const normalizedFrom = from.replace(/^\+/, "");
-  const engineer = await prisma.user.findFirst({
-    where: { whatsappNumber: { in: [normalizedFrom, `+${normalizedFrom}`] }, role: "service_engineer" },
-    select: { id: true, firstName: true },
-  });
 
   if (engineer) {
     await handleEngineerMessage(from, text, engineer);
@@ -163,7 +174,7 @@ async function handleEngineerMessage(
 ): Promise<void> {
   const upperText = text.toUpperCase().trim();
 
-  if (upperText === "MENU" || upperText === "HI" || upperText === "HII" || upperText === "HIII" || upperText === "HELLO" || upperText === "HEY" || upperText === "START") {
+  if (upperText === "MENU" || upperText === "HI" || upperText === "HII" || upperText === "HIII" || upperText === "HELLO" || upperText === "HEY") {
     await WhatsAppService.sendInteractiveButtons(
       from,
       `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.\n\nWhat would you like to do?`,
@@ -257,15 +268,148 @@ async function handleEngineerMessage(
     return;
   }
 
+  // ── START <ticket-number> ─────────────────────────────────────────────
+  if (upperText.startsWith("START ")) {
+    const ticketNumber = text.slice(6).trim().toUpperCase();
+    const ticket = await prisma.ticket.findFirst({
+      where: { ticketNumber, assignedEngineerId: engineer.id },
+    });
+    if (!ticket) {
+      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
+      return;
+    }
+    try {
+      await TicketService.startWork(ticket.id, engineer.id);
+      await WhatsAppService.sendMessage(from, `✅ Ticket *${ticketNumber}* is now *IN PROGRESS*.\n\nWhen done, type:\n• *OTP ${ticketNumber}* — to request closure OTP\n• *NOTE ${ticketNumber} <your notes>* — to add work notes\n• Send a photo with caption *${ticketNumber}* — to attach a photo`);
+    } catch (e: unknown) {
+      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not start work."}`);
+    }
+    return;
+  }
+
+  // ── OTP <ticket-number> ───────────────────────────────────────────────
+  if (upperText.startsWith("OTP ")) {
+    const ticketNumber = text.slice(4).trim().toUpperCase();
+    const ticket = await prisma.ticket.findFirst({
+      where: { ticketNumber, assignedEngineerId: engineer.id },
+    });
+    if (!ticket) {
+      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
+      return;
+    }
+    try {
+      const result = await TicketService.requestOTP(ticket.id, engineer.id);
+      const exp = result.expiresAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+      await WhatsAppService.sendMessage(from, `✅ OTP sent to the customer via WhatsApp.\n\nAsk the customer for the code, then type:\n*VERIFY ${ticketNumber} <code>*\n\nOTP expires at ${exp}.`);
+    } catch (e: unknown) {
+      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not send OTP."}`);
+    }
+    return;
+  }
+
+  // ── RESEND <ticket-number> ────────────────────────────────────────────
+  if (upperText.startsWith("RESEND ")) {
+    const ticketNumber = text.slice(7).trim().toUpperCase();
+    const ticket = await prisma.ticket.findFirst({
+      where: { ticketNumber, assignedEngineerId: engineer.id },
+    });
+    if (!ticket) {
+      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
+      return;
+    }
+    try {
+      const result = await TicketService.requestOTP(ticket.id, engineer.id, false, true);
+      const exp = result.expiresAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+      await WhatsAppService.sendMessage(from, `✅ OTP resent to the customer.\n\nType: *VERIFY ${ticketNumber} <code>*\n\nExpires at ${exp}.`);
+    } catch (e: unknown) {
+      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not resend OTP."}`);
+    }
+    return;
+  }
+
+  // ── VERIFY <ticket-number> <code> ─────────────────────────────────────
+  if (upperText.startsWith("VERIFY ")) {
+    const parts = text.slice(7).trim().split(/\s+/);
+    const ticketNumber = parts[0]?.toUpperCase();
+    const code = parts[1];
+    if (!ticketNumber || !code) {
+      await WhatsAppService.sendMessage(from, `⚠️ Usage: *VERIFY <ticket-number> <4-digit-code>*\nExample: VERIFY TKT-20260515-001 4823`);
+      return;
+    }
+    const ticket = await prisma.ticket.findFirst({
+      where: { ticketNumber, assignedEngineerId: engineer.id },
+    });
+    if (!ticket) {
+      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
+      return;
+    }
+    try {
+      const closed = await TicketService.verifyOTP(ticket.id, engineer.id, code);
+      // Notify customer via socket
+      io?.to(`user:${closed.customerId}`).emit("ticket:closed", {
+        ticketId: closed.id,
+        ticketNumber: closed.ticketNumber,
+      });
+      // Send feedback request to customer
+      if (closed.phoneNumber && WhatsAppService.isConfigured()) {
+        try {
+          const feedbackMsg = await startFeedbackFlow(closed.phoneNumber, closed.id, closed.ticketNumber);
+          await WhatsAppService.sendMessage(closed.phoneNumber, feedbackMsg);
+          await prisma.simulateMessage.create({
+            data: { phoneNumber: closed.phoneNumber, role: "assistant", content: feedbackMsg },
+          });
+        } catch { /* non-fatal */ }
+      }
+      await WhatsAppService.sendMessage(from, `🎉 Ticket *${ticketNumber}* has been *CLOSED* successfully!\n\nA feedback request has been sent to the customer.`);
+    } catch (e: unknown) {
+      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not verify OTP."}`);
+    }
+    return;
+  }
+
+  // ── NOTE <ticket-number> <text> ───────────────────────────────────────
+  if (upperText.startsWith("NOTE ")) {
+    const rest = text.slice(5).trim();
+    const spaceIdx = rest.indexOf(" ");
+    if (spaceIdx === -1) {
+      await WhatsAppService.sendMessage(from, `⚠️ Usage: *NOTE <ticket-number> <your notes>*\nExample: NOTE TKT-20260515-001 Replaced motor capacitor`);
+      return;
+    }
+    const ticketNumber = rest.slice(0, spaceIdx).toUpperCase();
+    const noteText = rest.slice(spaceIdx + 1).trim();
+    const ticket = await prisma.ticket.findFirst({
+      where: { ticketNumber, assignedEngineerId: engineer.id },
+    });
+    if (!ticket) {
+      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
+      return;
+    }
+    try {
+      await prisma.workReport.upsert({
+        where: { ticketId: ticket.id },
+        create: { ticketId: ticket.id, dealerId: engineer.id, workDone: noteText },
+        update: { workDone: noteText },
+      });
+      await WhatsAppService.sendMessage(from, `✅ Notes saved for *${ticketNumber}*.\n\nYou can also send a photo with caption *${ticketNumber}* to attach images.`);
+    } catch (e: unknown) {
+      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not save notes."}`);
+    }
+    return;
+  }
+
   if (upperText === "HELP") {
-    await WhatsAppService.sendInteractiveButtons(
+    await WhatsAppService.sendMessage(
       from,
-      `🔧 *Engineer Commands:*\n\nChoose an option below:`,
-      [
-        { id: "TICKETS", title: "📋 My Tickets" },
-        { id: "STATUS",  title: "📊 Status Summary" },
-        { id: "HELP",    title: "❓ Help" },
-      ],
+      `🔧 *Engineer Commands:*\n\n` +
+      `📋 *TICKETS* — View your active tickets\n` +
+      `📊 *STATUS* — View ticket count summary\n\n` +
+      `*START <ticket>* — Mark ticket as In Progress\n` +
+      `*OTP <ticket>* — Request closure OTP (sent to customer)\n` +
+      `*RESEND <ticket>* — Resend OTP to customer\n` +
+      `*VERIFY <ticket> <code>* — Enter OTP from customer to close ticket\n` +
+      `*NOTE <ticket> <text>* — Add work notes to a ticket\n\n` +
+      `📸 *Send a photo* with the ticket number as caption to attach it to the work report.\n\n` +
+      `Example ticket number: TKT-20260515-001`,
     );
     return;
   }
@@ -273,11 +417,94 @@ async function handleEngineerMessage(
   // Default — unrecognized command
   await WhatsAppService.sendInteractiveButtons(
     from,
-    `Hi ${engineer.firstName}, I didn't understand that. Please choose an option:`,
+    `Hi ${engineer.firstName}, I didn't understand that.\n\nType *HELP* for the full command list, or choose:`,
     [
       { id: "TICKETS", title: "📋 My Tickets" },
       { id: "STATUS",  title: "📊 Status Summary" },
       { id: "HELP",    title: "❓ Help" },
     ],
   );
+}
+
+// ── Engineer image handler ────────────────────────────────────────────────
+// Downloads the photo from Meta's media API and attaches it to the
+// work report for the ticket whose number appears in the image caption.
+async function handleEngineerImage(
+  from: string,
+  msg: Record<string, unknown>,
+  engineer: { id: string; firstName: string },
+): Promise<void> {
+  const image = msg.image as Record<string, unknown> | undefined;
+  const mediaId = String(image?.id ?? "");
+  const caption = String(image?.caption ?? "").trim().toUpperCase();
+
+  if (!mediaId) {
+    await WhatsAppService.sendMessage(from, "⚠️ Could not read the image. Please try again.");
+    return;
+  }
+
+  if (!caption) {
+    await WhatsAppService.sendMessage(from, "⚠️ Please add the ticket number as the image caption.\nExample caption: TKT-20260515-001");
+    return;
+  }
+
+  const ticket = await prisma.ticket.findFirst({
+    where: { ticketNumber: caption, assignedEngineerId: engineer.id },
+  });
+  if (!ticket) {
+    await WhatsAppService.sendMessage(from, `❌ Ticket *${caption}* not found or not assigned to you.`);
+    return;
+  }
+
+  if (!WhatsAppService.isConfigured()) {
+    await WhatsAppService.sendMessage(from, "⚠️ WhatsApp media download is not configured on this server.");
+    return;
+  }
+
+  try {
+    // Step 1: Resolve media URL from Meta Graph API
+    const metaUrlRes = await fetch(
+      `https://graph.facebook.com/v21.0/${mediaId}`,
+      { headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` } },
+    );
+    if (!metaUrlRes.ok) throw new Error(`Media URL fetch failed: ${metaUrlRes.status}`);
+    const metaUrlJson = (await metaUrlRes.json()) as { url?: string; mime_type?: string };
+    const downloadUrl = metaUrlJson.url;
+    const mimeType    = metaUrlJson.mime_type ?? "image/jpeg";
+    if (!downloadUrl) throw new Error("No download URL in Meta response");
+
+    // Step 2: Download the image binary
+    const imgRes = await fetch(downloadUrl, {
+      headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` },
+    });
+    if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+
+    // Step 3: Save to disk
+    const ext      = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-wa.${ext}`;
+    const dir      = path.resolve(__dirname, "../../uploads/work-reports");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), buffer);
+
+    // Step 4: Attach to work report (auto-create if needed)
+    let report = await prisma.workReport.findUnique({ where: { ticketId: ticket.id } });
+    if (!report) {
+      report = await prisma.workReport.create({
+        data: { ticketId: ticket.id, dealerId: engineer.id },
+      });
+    }
+    await prisma.workReportImage.create({
+      data: {
+        workReportId: report.id,
+        url:          `/uploads/work-reports/${filename}`,
+        fileName:     filename,
+      },
+    });
+
+    await WhatsAppService.sendMessage(from, `✅ Photo attached to ticket *${caption}* successfully.`);
+  } catch (e: unknown) {
+    console.error("[whatsapp] handleEngineerImage error:", e);
+    await WhatsAppService.sendMessage(from, `⚠️ Failed to save photo: ${(e as { message?: string }).message ?? "Unknown error"}`);
+  }
 }

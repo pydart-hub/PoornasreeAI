@@ -58,7 +58,6 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
-import MachinesTab from "@/components/admin/MachinesTab";
 import TemplatesTab from "@/components/admin/TemplatesTab";
 import BrandingTab from "@/components/admin/BrandingTab";
 import RdVideosTab from "@/components/admin/RdVideosTab";
@@ -131,7 +130,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "machines" | "templates" | "branding" | "rdvideos" | "tickets" | "products">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "templates" | "branding" | "rdvideos" | "tickets" | "products">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -539,18 +538,6 @@ export default function AdminPage() {
               </span>
             </button>
             <button
-              onClick={() => setActiveTab("machines")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "machines"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Settings className="w-3.5 h-3.5" />
-              Machines
-            </button>
-            <button
               onClick={() => setActiveTab("templates")}
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
@@ -737,7 +724,6 @@ export default function AdminPage() {
               { key: "users", label: "Users", icon: <Users className="w-3.5 h-3.5" /> },
               { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" /> },
               { key: "videos", label: "Videos", icon: <Youtube className="w-3.5 h-3.5" /> },
-              { key: "machines", label: "Machines", icon: <Settings className="w-3.5 h-3.5" /> },
               { key: "templates", label: "Templates", icon: <BookOpen className="w-3.5 h-3.5" /> },
               { key: "branding", label: "Branding", icon: <Palette className="w-3.5 h-3.5" /> },
               { key: "rdvideos", label: "R&D Videos", icon: <Film className="w-3.5 h-3.5" /> },
@@ -1615,9 +1601,6 @@ export default function AdminPage() {
 
             </section>
           )}
-
-          {/* ── Machines Tab ── */}
-          {activeTab === "machines" && <MachinesTab />}
 
           {/* ── Templates Tab ── */}
           {activeTab === "templates" && <TemplatesTab />}
