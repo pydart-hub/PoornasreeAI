@@ -32,7 +32,6 @@ import {
   Pencil,
   X,
   Download,
-  Settings,
   BookOpen,
   Palette,
   Film,
