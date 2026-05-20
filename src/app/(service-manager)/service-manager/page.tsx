@@ -37,6 +37,9 @@ import {
   ShieldCheck,
   Star,
   Award,
+  Zap,
+  TrendingUp,
+  UserCircle,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
@@ -745,22 +748,53 @@ export default function ServiceManagerPage() {
           {/* Stat cards */}
           <div className="grid grid-cols-4 gap-2.5">
             <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
-              <p className="text-3xl font-black text-white">{total}</p>
+              <div className="flex items-start justify-between">
+                <p className="text-3xl font-black text-white">{total}</p>
+                <Ticket className="w-5 h-5 text-blue-200 opacity-70 mt-1" />
+              </div>
               <p className="text-[11px] text-blue-200 font-semibold mt-1 uppercase tracking-wide">Total Tickets</p>
             </div>
             <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", unassigned > 0 ? "bg-red-500/30 border-red-300/40" : "bg-white/10 border-white/20")}>
-              <p className={cn("text-3xl font-black", unassigned > 0 ? "text-red-200" : "text-white/50")}>{unassigned}</p>
+              <div className="flex items-start justify-between">
+                <p className={cn("text-3xl font-black", unassigned > 0 ? "text-red-200" : "text-white/50")}>{unassigned}</p>
+                <AlertCircle className={cn("w-5 h-5 mt-1", unassigned > 0 ? "text-red-300 opacity-70" : "text-white/20")} />
+              </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", unassigned > 0 ? "text-red-200" : "text-white/40")}>Open</p>
             </div>
             <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", active > 0 ? "bg-cyan-500/30 border-cyan-300/40" : "bg-white/10 border-white/20")}>
-              <p className={cn("text-3xl font-black", active > 0 ? "text-cyan-200" : "text-white/50")}>{active}</p>
+              <div className="flex items-start justify-between">
+                <p className={cn("text-3xl font-black", active > 0 ? "text-cyan-200" : "text-white/50")}>{active}</p>
+                <Zap className={cn("w-5 h-5 mt-1", active > 0 ? "text-cyan-300 opacity-70" : "text-white/20")} />
+              </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", active > 0 ? "text-cyan-200" : "text-white/40")}>Active</p>
             </div>
             <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", closed > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
-              <p className={cn("text-3xl font-black", closed > 0 ? "text-emerald-200" : "text-white/50")}>{closed}</p>
+              <div className="flex items-start justify-between">
+                <p className={cn("text-3xl font-black", closed > 0 ? "text-emerald-200" : "text-white/50")}>{closed}</p>
+                <CheckCircle className={cn("w-5 h-5 mt-1", closed > 0 ? "text-emerald-300 opacity-70" : "text-white/20")} />
+              </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", closed > 0 ? "text-emerald-200" : "text-white/40")}>Closed</p>
             </div>
           </div>
+
+          {/* Resolution progress bar */}
+          {total > 0 && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-white/50" />
+                  <span className="text-[11px] text-white/50 font-medium">Resolution Rate</span>
+                </div>
+                <span className="text-[11px] font-bold text-emerald-300">{Math.round((closed / total) * 100)}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-700"
+                  style={{ width: `${Math.round((closed / total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
       <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900">
@@ -900,7 +934,7 @@ export default function ServiceManagerPage() {
                     <div key={ticket.id}
                       onClick={() => setDrawerTicket(ticket)}
                       className={cn(
-                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 overflow-hidden transition-all hover:shadow-md shadow-sm cursor-pointer",
+                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 shadow-sm cursor-pointer",
                         borderColor
                       )}>
                       <div className="p-3 space-y-1.5">
@@ -959,7 +993,15 @@ export default function ServiceManagerPage() {
                           </>}
                         </div>
 
-                        {/* ── Row 5: Assign action (for OPEN tickets only) ── */}
+                        {/* ── Row 5: Assigned engineer chip ── */}
+                        {ticket.assignedEngineer && (
+                          <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary">
+                            <UserCircle className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                            <span className="font-medium truncate">{ticket.assignedEngineer.firstName}{ticket.assignedEngineer.lastName ? ` ${ticket.assignedEngineer.lastName}` : ""}</span>
+                          </div>
+                        )}
+
+                        {/* ── Row 6: Assign action (for OPEN tickets only) ── */}
                         <div className="flex items-center justify-end pt-1">
                           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                             {canAssign && !isArchived && (
@@ -1049,22 +1091,30 @@ export default function ServiceManagerPage() {
                   );
                 };
 
+                const groupTheme: Record<string, { badge: string; label: string; dot: string }> = {
+                  "Urgent / Overdue": { badge: "bg-red-100 text-red-700 border border-red-200", label: "text-red-700 dark:text-red-400", dot: "bg-red-500" },
+                  "Unassigned":       { badge: "bg-amber-100 text-amber-700 border border-amber-200", label: "text-amber-700 dark:text-amber-400", dot: "bg-amber-400" },
+                  "In Progress":      { badge: "bg-cyan-100 text-cyan-700 border border-cyan-200", label: "text-cyan-700 dark:text-cyan-400", dot: "bg-cyan-500" },
+                  "Closed":           { badge: "bg-emerald-100 text-emerald-700 border border-emerald-200", label: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
+                };
+
                 const renderGroup = (title: string, icon: string, tickets: ServiceTicket[]) => {
                   if (tickets.length === 0) return null;
                   const isClosedGroup = title === "Closed";
                   const isCollapsed = isClosedGroup && closedCollapsed;
+                  const theme = groupTheme[title] ?? { badge: "bg-slate-100 text-slate-600 border border-slate-200", label: "text-slate-600 dark:text-slate-400", dot: "bg-slate-400" };
                   return (
                     <div key={title}>
                       <button
                         onClick={() => isClosedGroup && setClosedCollapsed(c => !c)}
-                        className={cn("flex items-center gap-1.5 mb-2 w-full text-left sticky top-0 z-10 bg-surface dark:bg-surface-dark py-1", isClosedGroup && "cursor-pointer")}
+                        className={cn("flex items-center gap-2 mb-2 w-full text-left sticky top-0 z-10 bg-slate-100 dark:bg-slate-900 py-1", isClosedGroup && "cursor-pointer")}
                       >
-                        <span className="text-sm">{icon}</span>
-                        <span className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{title}</span>
-                        <span className="text-xs font-bold text-content-tertiary dark:text-content-dark-tertiary bg-surface-secondary dark:bg-surface-dark-secondary px-1.5 py-0.5 rounded">{tickets.length}</span>
+                        <span className={cn("inline-block w-2 h-2 rounded-full shrink-0", theme.dot)} />
+                        <span className={cn("text-xs font-bold uppercase tracking-wide", theme.label)}>{title}</span>
+                        <span className={cn("text-[11px] font-bold px-2 py-0.5 rounded-full", theme.badge)}>{tickets.length}</span>
                         {isClosedGroup && (
                           <span className="ml-auto">
-                            {isCollapsed ? <ChevronDown className="w-3 h-3 text-content-tertiary dark:text-content-dark-tertiary" /> : <ChevronUp className="w-3 h-3 text-content-tertiary dark:text-content-dark-tertiary" />}
+                            {isCollapsed ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronUp className="w-3 h-3 text-slate-400" />}
                           </span>
                         )}
                       </button>
