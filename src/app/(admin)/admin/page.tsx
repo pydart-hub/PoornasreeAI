@@ -10,7 +10,6 @@ import {
   Upload,
   Trash2,
   PanelLeftClose,
-  PanelLeft,
   Menu,
   Users,
   FileUp,
@@ -52,7 +51,7 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
+import { Avatar, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import RdVideosTab from "@/components/admin/RdVideosTab";
@@ -104,16 +103,7 @@ function getRoleBadge(role: string) {
   return map[role] ?? { label: role, variant: "default" as const };
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
 
-const today = new Date().toLocaleDateString("en-IN", {
-  weekday: "long", year: "numeric", month: "long", day: "numeric",
-});
 
 // ─────────────────────────────────────────────
 // Component
@@ -454,7 +444,6 @@ export default function AdminPage() {
   });
 
   const trainedCount = documents.filter((d) => d.status === "trained").length;
-  const roleBadge = getRoleBadge(user?.role ?? "admin");
 
   if (isLoading) return <LoadingScreen message="Loading admin panel..." />;
   if (!user) return null;
