@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { LoadingScreen } from "@/components/ui/Loading";
-import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import ResponsiveSidebar from "@/components/ui/ResponsiveSidebar";
 import { useIsMobile } from "@/lib/useMediaQuery";
@@ -716,34 +715,53 @@ export default function ServiceManagerPage() {
 
       {/* ═══════════════════ CONTENT ═══════════════════ */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* ═══════════════════ HEADER ═══════════════════ */}
-        <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen((v) => !v)}
-              className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors shrink-0"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <Logo className="h-8 w-auto" />
-            <div className="min-w-0">
-              <h1 className="text-base font-bold text-content dark:text-content-dark leading-tight truncate">Service Manager</h1>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{user.firstName} {user.lastName}</p>
+        {/* ═══════════════════ HEADER BANNER ═══════════════════ */}
+        <div className="shrink-0 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 px-4 sm:px-6 pt-3 pb-4">
+          {/* Top row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSidebarOpen((v) => !v)}
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
+                <Menu className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-base font-bold text-white leading-tight">Service Manager</h1>
+                <p className="text-xs text-white/50">{user.firstName} {user.lastName}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ThemeToggle />
+              <button onClick={handleRefresh} disabled={refreshing}
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+              </button>
+              <button onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <button onClick={handleRefresh} disabled={refreshing}
-              className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
-              <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-            </button>
-            <button onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-content-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+          {/* Stat cards */}
+          <div className="grid grid-cols-4 gap-2.5">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-3 py-3 border border-white/10">
+              <p className="text-2xl font-bold text-white">{total}</p>
+              <p className="text-[11px] text-white/60 font-medium mt-0.5">Total Tickets</p>
+            </div>
+            <div className={cn("rounded-2xl px-3 py-3 border", unassigned > 0 ? "bg-red-500/20 border-red-400/20" : "bg-white/10 border-white/10")}>
+              <p className={cn("text-2xl font-bold", unassigned > 0 ? "text-red-300" : "text-white")}>{unassigned}</p>
+              <p className="text-[11px] text-white/60 font-medium mt-0.5">Open</p>
+            </div>
+            <div className={cn("rounded-2xl px-3 py-3 border", active > 0 ? "bg-cyan-500/20 border-cyan-400/20" : "bg-white/10 border-white/10")}>
+              <p className={cn("text-2xl font-bold", active > 0 ? "text-cyan-300" : "text-white")}>{active}</p>
+              <p className="text-[11px] text-white/60 font-medium mt-0.5">Active</p>
+            </div>
+            <div className={cn("rounded-2xl px-3 py-3 border", closed > 0 ? "bg-emerald-500/20 border-emerald-400/20" : "bg-white/10 border-white/10")}>
+              <p className={cn("text-2xl font-bold", closed > 0 ? "text-emerald-300" : "text-white")}>{closed}</p>
+              <p className="text-[11px] text-white/60 font-medium mt-0.5">Closed</p>
+            </div>
           </div>
-        </header>
+        </div>
 
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-6 space-y-4">
@@ -760,44 +778,40 @@ export default function ServiceManagerPage() {
           {/* ═══════════════════ TICKETS VIEW ═══════════════════ */}
           {pageView === "tickets" && (
             <>
-              {/* ── Compact Stats + Filter Row ── */}
+              {/* ── Toolbar ── */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 text-xs font-semibold">
-                  <span className="px-2.5 py-1 rounded-full bg-surface-secondary dark:bg-surface-dark-secondary text-content dark:text-content-dark border border-line dark:border-line-dark">{total} Total</span>
-                  <span className={cn("px-2.5 py-1 rounded-full border", unassigned > 0 ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary border-line dark:border-line-dark")}>{unassigned} Open</span>
-                  <span className={cn("px-2.5 py-1 rounded-full border", active > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary border-line dark:border-line-dark")}>{active} Active</span>
-                  <span className={cn("px-2.5 py-1 rounded-full border", closed > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary border-line dark:border-line-dark")}>{closed} Closed</span>
+                <div className="flex gap-0.5 bg-gray-100 dark:bg-surface-dark-secondary p-1 rounded-lg">
+                  {([
+                    { key: "all" as DateRange, label: "All" },
+                    { key: "today" as DateRange, label: "Today" },
+                    { key: "7days" as DateRange, label: "7d" },
+                    { key: "30days" as DateRange, label: "30d" },
+                  ]).map(d => (
+                    <button key={d.key} onClick={() => setDateRange(d.key)}
+                      className={cn(
+                        "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                        dateRange === d.key
+                          ? "bg-white dark:bg-surface-dark shadow-sm text-blue-700 dark:text-blue-300 font-semibold"
+                          : "text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark"
+                      )}>{d.label}</button>
+                  ))}
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-1.5">
-                  <div className="flex gap-0.5">
-                    {([
-                      { key: "all" as DateRange, label: "All" },
-                      { key: "today" as DateRange, label: "Today" },
-                      { key: "7days" as DateRange, label: "7d" },
-                      { key: "30days" as DateRange, label: "30d" },
-                    ]).map(d => (
-                      <button key={d.key} onClick={() => setDateRange(d.key)}
-                        className={cn(
-                          "px-2 py-1 rounded text-xs font-medium transition-colors",
-                          dateRange === d.key
-                            ? "bg-primary text-white"
-                            : "text-content-tertiary dark:text-content-dark-tertiary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"
-                        )}>{d.label}</button>
-                    ))}
-                  </div>
                   <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
                     <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Search..."
-                      className="w-full sm:w-40 pl-7 pr-2 py-1.5 rounded-md text-xs bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-content dark:text-content-dark placeholder:text-content-tertiary dark:placeholder:text-content-dark-tertiary focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary" />
+                      placeholder="Search tickets..."
+                      className="w-full sm:w-48 pl-8 pr-3 py-1.5 rounded-lg text-xs bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content dark:text-content-dark placeholder:text-content-tertiary dark:placeholder:text-content-dark-tertiary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
                   </div>
                   {hasActiveFilters && (
-                    <button onClick={resetFilters} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary"><RotateCcw className="w-3 h-3" /></button>
+                    <button onClick={resetFilters} className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Clear filters"><RotateCcw className="w-3.5 h-3.5" /></button>
                   )}
                   <button onClick={() => setShowFilters(f => !f)}
                     className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors",
-                      showFilters ? "bg-primary text-white" : "text-content-tertiary dark:text-content-dark-tertiary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                      showFilters
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-blue-400"
                     )}>
                     <Filter className="w-3 h-3" /> Filters
                   </button>
@@ -815,7 +829,7 @@ export default function ServiceManagerPage() {
                         URL.revokeObjectURL(url);
                       } catch { setError("Export failed"); }
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-content-tertiary dark:text-content-dark-tertiary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-blue-400 transition-colors">
                     <Download className="w-3 h-3" /> Export
                   </button>
                 </div>
