@@ -14,31 +14,31 @@ const router = Router();
 // All routes require authentication
 router.use(protect);
 
-// GET /api/work-reports — dealer sees own, manager/admin see all
+// GET /api/work-reports — dealer/engineer see own, manager/admin see all
 router.get(
   "/",
-  authorize("dealer", "service_manager", "admin"),
+  authorize("dealer", "service_engineer", "service_manager", "admin"),
   listWorkReports
 );
 
 // GET /api/work-reports/:ticketId — get single report with parts + images
 router.get(
   "/:ticketId",
-  authorize("dealer", "service_manager", "admin"),
+  authorize("dealer", "service_engineer", "service_manager", "admin"),
   getWorkReport
 );
 
-// POST /api/work-reports/:ticketId — upsert report text + parts (dealer only)
+// POST /api/work-reports/:ticketId — upsert report text + parts (dealer + engineer)
 router.post(
   "/:ticketId",
-  authorize("dealer"),
+  authorize("dealer", "service_engineer"),
   upsertWorkReport
 );
 
-// POST /api/work-reports/:ticketId/images — upload image (dealer only)
+// POST /api/work-reports/:ticketId/images — upload image (dealer + engineer)
 router.post(
   "/:ticketId/images",
-  authorize("dealer"),
+  authorize("dealer", "service_engineer"),
   (req, res, next) => {
     workReportUpload(req, res, (err) => {
       if (err) {
@@ -51,10 +51,10 @@ router.post(
   uploadReportImage
 );
 
-// DELETE /api/work-reports/:ticketId/images/:imageId — delete image (dealer only)
+// DELETE /api/work-reports/:ticketId/images/:imageId — delete image (dealer + engineer)
 router.delete(
   "/:ticketId/images/:imageId",
-  authorize("dealer"),
+  authorize("dealer", "service_engineer"),
   deleteReportImage
 );
 

@@ -37,13 +37,13 @@ export const workReportUpload = multer({
 }).single("image");
 
 // ── GET /api/work-reports ─────────────────────────────────────────────────
-// dealer: own reports | service_manager | admin: all
+// dealer/service_engineer: own reports | service_manager | admin: all
 export async function listWorkReports(req: Request, res: Response): Promise<void> {
   const { userId, role } = req.user!;
 
   try {
     const where =
-      role === "dealer"
+      role === "dealer" || role === "service_engineer"
         ? { dealerId: userId }
         : {}; // manager & admin see all
 
@@ -105,8 +105,8 @@ export async function getWorkReport(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Scope check: dealer can only see their own
-    if (role === "dealer" && report.dealerId !== userId) {
+    // Scope check: dealer/engineer can only see their own
+    if ((role === "dealer" || role === "service_engineer") && report.dealerId !== userId) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
@@ -121,7 +121,7 @@ export async function getWorkReport(req: Request, res: Response): Promise<void> 
 // ── POST /api/work-reports/:ticketId ─────────────────────────────────────
 // Upsert work report (text + parts). Images are handled separately.
 export async function upsertWorkReport(req: Request, res: Response): Promise<void> {
-  const { userId } = req.user!;
+  const { userId, role } = req.user!;
   const ticketId = req.params.ticketId as string;
   const {
     problemDiagnosed,
@@ -136,10 +136,10 @@ export async function upsertWorkReport(req: Request, res: Response): Promise<voi
   };
 
   try {
-    // Verify ticket belongs to this dealer and is in a valid state
+    // Verify ticket belongs to this dealer/engineer and is in a valid state
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
-      select: { id: true, dealerId: true, status: true },
+      select: { id: true, dealerId: true, assignedEngineerId: true, status: true },
     });
 
     if (!ticket) {
@@ -147,7 +147,11 @@ export async function upsertWorkReport(req: Request, res: Response): Promise<voi
       return;
     }
 
-    if (ticket.dealerId !== userId) {
+    const isOwner = role === "service_engineer"
+      ? ticket.assignedEngineerId === userId
+      : ticket.dealerId === userId;
+
+    if (!isOwner) {
       res.status(403).json({ error: "Forbidden: ticket does not belong to your account" });
       return;
     }
@@ -221,9 +225,13 @@ export async function uploadReportImage(req: Request, res: Response): Promise<vo
       // Auto-create a blank report so images can be attached
       const ticket = await prisma.ticket.findUnique({
         where: { id: ticketId },
-        select: { dealerId: true, status: true },
+        select: { dealerId: true, assignedEngineerId: true, status: true },
       });
-      if (!ticket || ticket.dealerId !== userId) {
+      const { role } = req.user!;
+      const isOwner = role === "service_engineer"
+        ? ticket?.assignedEngineerId === userId
+        : ticket?.dealerId === userId;
+      if (!ticket || !isOwner) {
         // Clean up uploaded file
         fs.unlink(req.file.path, () => {});
         res.status(403).json({ error: "Forbidden" });
