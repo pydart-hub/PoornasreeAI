@@ -165,7 +165,7 @@ export default function ServiceManagerPage() {
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
 
   const [drawerTicket, setDrawerTicket] = useState<ServiceTicket | null>(null);
-  const [closedCollapsed, setClosedCollapsed] = useState(true);
+  const [closedCollapsed, setClosedCollapsed] = useState(false);
   const [, setDrawerReassign] = useState(false);
   const [, setDrawerConfirmEng] = useState<Engineer | null>(null);
 
@@ -706,11 +706,11 @@ export default function ServiceManagerPage() {
             <>
               {/* ── Compact Stats + Filter Row ── */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-3 text-xs font-medium">
-                  <span className="text-content-secondary dark:text-content-dark-secondary">Total <span className="font-bold text-content dark:text-content-dark">{total}</span></span>
-                  <span className={cn("text-content-secondary dark:text-content-dark-secondary", unassigned > 0 && "text-red-600")}>Open <span className="font-bold">{unassigned}</span></span>
-                  <span className="text-content-secondary dark:text-content-dark-secondary">Active <span className="font-bold text-primary">{active}</span></span>
-                  <span className="text-content-secondary dark:text-content-dark-secondary">Closed <span className="font-bold text-emerald-600">{closed}</span></span>
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <span className="px-2.5 py-1 rounded-full bg-surface-secondary dark:bg-surface-dark-secondary text-content dark:text-content-dark border border-line dark:border-line-dark">{total} Total</span>
+                  <span className={cn("px-2.5 py-1 rounded-full border", unassigned > 0 ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary border-line dark:border-line-dark")}>{unassigned} Open</span>
+                  <span className={cn("px-2.5 py-1 rounded-full border", active > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary border-line dark:border-line-dark")}>{active} Active</span>
+                  <span className={cn("px-2.5 py-1 rounded-full border", closed > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20" : "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary border-line dark:border-line-dark")}>{closed} Closed</span>
                 </div>
                 <div className="ml-auto flex flex-wrap items-center gap-1.5">
                   <div className="flex gap-0.5">
