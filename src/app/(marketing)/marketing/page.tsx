@@ -26,10 +26,7 @@ import {
   Star,
   ChevronRight,
   Menu,
-  Bell,
   Search,
-  Filter,
-  MoreHorizontal,
   Eye,
   Globe,
 } from "lucide-react";
