@@ -356,22 +356,42 @@ export default function WorkExecutionScreen() {
     }, ...prev]);
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = useCallback(async () => {
     if (!noteText.trim()) return;
-    addLogEntry("note", noteText.trim());
+    const text = noteText.trim();
+    addLogEntry("note", text);
     setNoteText("");
     setShowNoteInput(false);
-  };
+    // Persist note to work report
+    const ts = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    const entry = `[Note ${ts}] ${text}`;
+    const newWorkDone = reportWorkDone ? `${reportWorkDone}\n${entry}` : entry;
+    setReportWorkDone(newWorkDone);
+    try {
+      const saved = await upsertWorkReport(ticketId, {
+        problemDiagnosed: reportDiagnosed,
+        workDone: newWorkDone,
+        warrantyClaimRequested: reportWarranty,
+        parts: reportParts.filter(p => p.partName.trim()),
+      });
+      setWorkReport(saved);
+    } catch { /* non-fatal */ }
+  }, [noteText, reportWorkDone, reportDiagnosed, reportWarranty, reportParts, ticketId]);
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
     const tag = photos.length === 0 ? "Before" : "After";
     setPhotos(prev => [...prev, { url, tag }]);
     addLogEntry("photo", `Photo captured (${tag})`, url);
+    // Also persist to work report
+    try {
+      const img = await uploadWorkReportImage(ticketId, file);
+      setWorkReport(prev => prev ? { ...prev, images: [...(prev.images || []), img] } : prev);
+    } catch { /* non-fatal */ }
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  }, [photos.length, ticketId]);
 
   const toggleChecklist = (idx: number) => {
     setCheckedItems(prev => {

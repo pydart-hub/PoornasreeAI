@@ -245,7 +245,7 @@ export interface WorkReport {
   warrantyClaimRequested: boolean;
   createdAt: string;
   updatedAt: string;
-  dealer?: { id: string; firstName: string; lastName?: string | null } | null;
+  dealer?: { id: string; firstName: string; lastName?: string | null; role?: string | null } | null;
   ticket?: {
     id: string;
     ticketNumber?: string | null;

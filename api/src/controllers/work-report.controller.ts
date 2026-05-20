@@ -51,7 +51,7 @@ export async function listWorkReports(req: Request, res: Response): Promise<void
       where,
       orderBy: { createdAt: "desc" },
       include: {
-        dealer: { select: { id: true, firstName: true, lastName: true } },
+        dealer: { select: { id: true, firstName: true, lastName: true, role: true } },
         ticket: {
           select: {
             id: true,
@@ -83,7 +83,7 @@ export async function getWorkReport(req: Request, res: Response): Promise<void> 
     const report = await prisma.workReport.findUnique({
       where: { ticketId },
       include: {
-        dealer: { select: { id: true, firstName: true, lastName: true } },
+        dealer: { select: { id: true, firstName: true, lastName: true, role: true } },
         ticket: {
           select: {
             id: true,

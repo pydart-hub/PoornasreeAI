@@ -54,7 +54,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "assistants" | "feedback";
+type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "engineer-updates" | "assistants" | "feedback";
 
 interface EngineerFeedbackEntry {
   ticketNumber: string;
@@ -662,7 +662,8 @@ export default function ServiceManagerPage() {
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
               { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-3.5 h-3.5" />, count: assistants.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
-              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.length },
+              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length },
+              { key: "engineer-updates" as PageView, label: "Engineer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.filter(r => r.dealer?.role === "service_engineer").length },
             ]).map((nav) => (
               <button
                 key={nav.key}
@@ -1971,11 +1972,11 @@ export default function ServiceManagerPage() {
               <div>
                 <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealer Service Updates</h2>
                 <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                  Service &amp; replacement reports submitted by dealers on behalf of their engineers — {workReports.length} report{workReports.length !== 1 ? "s" : ""}
+                  Service &amp; replacement reports submitted by dealers — {workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length} report{workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length !== 1 ? "s" : ""}
                 </p>
               </div>
 
-              {workReports.length === 0 ? (
+              {workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length === 0 ? (
                 <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
                   <ClipboardList className="w-10 h-10 mb-3 opacity-40" />
                   <p className="text-sm">No work reports yet</p>
@@ -1997,7 +1998,7 @@ export default function ServiceManagerPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line dark:divide-line-dark bg-surface-card dark:bg-surface-dark-card">
-                      {workReports.map((r) => (
+                      {workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").map((r) => (
                         <tr key={r.id} className="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
                           <td className="px-4 py-3 font-medium text-content dark:text-content-dark">
                             {r.dealer ? `${r.dealer.firstName}${r.dealer.lastName ? " " + r.dealer.lastName : ""}` : "—"}
@@ -2051,6 +2052,97 @@ export default function ServiceManagerPage() {
               )}
             </section>
           )}
+
+          {/* ════════════════ ENGINEER UPDATES VIEW ════════════════ */}
+          {pageView === "engineer-updates" && (() => {
+            const engReports = workReports.filter(r => r.dealer?.role === "service_engineer");
+            return (
+              <section className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-bold text-content dark:text-content-dark">Engineer Work Updates</h2>
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                    Service reports, notes &amp; photos submitted by engineers directly — {engReports.length} report{engReports.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                {engReports.length === 0 ? (
+                  <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
+                    <ClipboardList className="w-10 h-10 mb-3 opacity-40" />
+                    <p className="text-sm">No engineer reports yet</p>
+                    <p className="text-xs mt-1">Reports appear once engineers start filling their service report during work</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-line dark:border-line-dark shadow-sm">
+                    <table className="w-full text-xs">
+                      <thead className="bg-surface-secondary dark:bg-surface-dark-secondary">
+                        <tr>
+                          <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Engineer</th>
+                          <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Ticket #</th>
+                          <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Machine</th>
+                          <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Complaint</th>
+                          <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Updated</th>
+                          <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Photos</th>
+                          <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Parts</th>
+                          <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">View</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line dark:divide-line-dark bg-surface-card dark:bg-surface-dark-card">
+                        {engReports.map((r) => (
+                          <tr key={r.id} className="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                            <td className="px-4 py-3 font-medium text-content dark:text-content-dark">
+                              {r.dealer ? `${r.dealer.firstName}${r.dealer.lastName ? " " + r.dealer.lastName : ""}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-primary dark:text-primary-300">
+                              {r.ticket?.ticketNumber ? `#${r.ticket.ticketNumber}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
+                              {r.ticket?.machineName ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary max-w-[200px]">
+                              <span className="line-clamp-2 text-xs leading-relaxed">
+                                {r.ticket?.issueDescription ?? "—"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
+                              {new Date(r.updatedAt).toLocaleDateString("en-IN")}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full font-semibold",
+                                (r._count?.images ?? 0) > 0
+                                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                                  : "text-content-tertiary dark:text-content-dark-tertiary"
+                              )}>
+                                {r._count?.images ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full font-semibold",
+                                (r._count?.parts ?? 0) > 0
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                  : "text-content-tertiary dark:text-content-dark-tertiary"
+                              )}>
+                                {r._count?.parts ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => setSelectedReport(r)}
+                                className="px-3 py-1 rounded-lg bg-primary/10 text-primary dark:bg-primary-400/10 dark:text-primary-300 hover:bg-primary/20 transition-colors font-medium"
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            );
+          })()}
 
           {/* ═══════════════════ FEEDBACK VIEW ═══════════════════ */}
           {pageView === "feedback" && (
