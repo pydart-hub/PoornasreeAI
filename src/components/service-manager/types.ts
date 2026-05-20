@@ -46,6 +46,7 @@ export interface ServiceTicket {
   dealer?: { firstName: string; lastName?: string | null } | null;
   pincode?: PincodeInfo | null;
   phoneNumber?: string | null;
+  customerAddress?: string | null;
 }
 
 export interface TicketDrawerProps {

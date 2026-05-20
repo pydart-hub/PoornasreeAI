@@ -18,7 +18,7 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
   const customerName = resolvedName || ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || null;
   const phone = ticket.phoneNumber || issueMeta.phone || descMeta.phone;
 
-  const hasAddress = ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode || issueMeta.location || descMeta.location;
+  const hasAddress = ticket.customerAddress || ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode || issueMeta.location || descMeta.location;
 
   if (!customerName && !phone && !hasAddress) return null;
 
@@ -61,6 +61,9 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
             </button>
             {addressOpen && (
               <div className="mt-1.5 text-xs text-content-secondary dark:text-content-dark-secondary space-y-0.5 pl-4 border-l-2 border-line dark:border-line-dark">
+                {ticket.customerAddress && (
+                  <p className="font-medium text-content dark:text-content-dark">📍 {ticket.customerAddress}</p>
+                )}
                 {ticket.machineAddress1 && <p>{ticket.machineAddress1}</p>}
                 {ticket.machineAddress2 && <p>{ticket.machineAddress2}</p>}
                 {ticket.pincode && (

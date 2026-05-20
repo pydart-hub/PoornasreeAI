@@ -122,6 +122,7 @@ export async function createTicket(data: {
   place?:             string;
   district?:          string;
   state?:             string;
+  customerAddress?:   string;
 }) {
   const ticketNumber = generateTicketNumber();
 
@@ -209,6 +210,7 @@ export async function createTicket(data: {
       place:               data.place?.trim() || null,
       district:            data.district?.trim() || null,
       state:               data.state?.trim() || null,
+      customerAddress:     data.customerAddress?.trim() || null,
       status,
     },
     include: TICKET_INCLUDE,

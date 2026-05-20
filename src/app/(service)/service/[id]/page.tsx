@@ -20,6 +20,7 @@ import {
   CircleDot,
   Circle,
   Check,
+  Home,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 
@@ -40,6 +41,7 @@ interface Ticket {
   machineAddress2?: string | null;
   ageHours?: number;
   phoneNumber?: string | null;
+  customerAddress?: string | null;
   createdAt: string;
   updatedAt: string;
   firstEngineeredAt?: string | null;
@@ -338,6 +340,12 @@ export default function WorkExecutionScreen() {
 
           {/* Context row: Location + Customer */}
           <div className="flex flex-col gap-1.5">
+            {ticket.customerAddress && (
+              <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-blue-50 border border-blue-100">
+                <Home className="w-3.5 h-3.5 shrink-0 text-blue-500 mt-0.5" />
+                <span className="text-xs font-semibold text-blue-700 leading-snug">{ticket.customerAddress}</span>
+              </div>
+            )}
             {locationFull && (
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0">

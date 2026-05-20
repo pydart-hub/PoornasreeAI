@@ -236,6 +236,7 @@ model Ticket {
   machineInvoiceNo   String?   // InvNo from Passtest API
   machineInvoiceDate String?   // InvDate from Passtest API
   machineWarranty    Int?      // WARRANTY months from Passtest API
+  customerAddress    String?   // Customer's actual service address (entered during ticket creation)
   phoneNumber        String?   // link back to simulate chat (for OTP delivery)
 
   // Lifecycle

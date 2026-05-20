@@ -39,6 +39,7 @@ type ChatState =
   | "COMPLAINT_CONFIRM_DETAILS"
   | "COMPLAINT_MANUAL_NAME"
   | "COMPLAINT_MANUAL_PINCODE"
+  | "COMPLAINT_ASK_ADDRESS"
   | "COMPLAINT_MANUAL_PRODUCT"
   | "COMPLAINT_ASK_ISSUE"
   | "CHECK_STATUS"
@@ -116,6 +117,7 @@ export default function CustomerChatPage() {
     district?: string;
     state?: string;
     product?: string;
+    address?: string;
     dealerId?: string;
     dealerName?: string;
     machineCustomer?: string;
@@ -204,6 +206,7 @@ export default function CustomerChatPage() {
         product: draft.product || draft.machineModel || "Unknown Product",
         serialNumber: draft.serialNumber,
       };
+      if (draft.address) body.address = draft.address;
       if (draft.dealerId) {
         body.dealerId = draft.dealerId;
         body.place = draft.machineLocation;
@@ -535,8 +538,8 @@ export default function CustomerChatPage() {
           if (complaintDraft.machineModel) {
             setComplaintDraft((prev) => ({ ...prev, product: prev.machineModel }));
           }
-          addBotMessage("?? Please describe your *complaint* in detail:");
-          setChatState("COMPLAINT_ASK_ISSUE");
+          addBotMessage("?? Please enter your *full address* (house no., street, area):");
+          setChatState("COMPLAINT_ASK_ADDRESS");
           return;
         }
 
@@ -594,29 +597,40 @@ export default function CustomerChatPage() {
               state: data.state || undefined,
             }));
             const loc = [data.place, data.district, data.state].filter(Boolean).join(", ");
-            addBotMessage(`? ?? ${loc}\n\nPlease select or type your *product name*:`,
-              complaintProducts.length > 0
-                ? complaintProducts.map((p) => ({ label: p.name, value: `PRODUCT:${p.name}` }))
-                : undefined
-            );
+            addBotMessage(`? ?? ${loc}\n\nPlease enter your *full address* (house no., street, area):`);
           } else {
             setComplaintDraft((prev) => ({ ...prev, pincode: pincodeVal }));
-            addBotMessage("?? Pincode noted.\n\nPlease select or type your *product name*:",
-              complaintProducts.length > 0
-                ? complaintProducts.map((p) => ({ label: p.name, value: `PRODUCT:${p.name}` }))
-                : undefined
-            );
+            addBotMessage("?? Pincode noted.\n\nPlease enter your *full address* (house no., street, area):");
           }
         } catch {
           setIsLoading(false);
           setComplaintDraft((prev) => ({ ...prev, pincode: pincodeVal }));
+          addBotMessage("Please enter your *full address* (house no., street, area):");
+        }
+        setChatState("COMPLAINT_ASK_ADDRESS");
+        break;
+      }
+
+      case "COMPLAINT_ASK_ADDRESS": {
+        if (trimmed === "__MENU__") { addUserMessage("Back to Menu"); showMenu(customerInfo.name || undefined); return; }
+        addUserMessage(trimmed);
+        if (trimmed.length < 3) {
+          addBotMessage("?? Please enter a valid address (at least 3 characters):");
+          return;
+        }
+        setComplaintDraft((prev) => ({ ...prev, address: trimmed }));
+        // If this came from the serial-confirm flow (has product set), go straight to issue
+        if (complaintDraft.product || complaintDraft.machineModel) {
+          addBotMessage("?? Please describe your *complaint* in detail:");
+          setChatState("COMPLAINT_ASK_ISSUE");
+        } else {
           addBotMessage("Please select or type your *product name*:",
             complaintProducts.length > 0
               ? complaintProducts.map((p) => ({ label: p.name, value: `PRODUCT:${p.name}` }))
               : undefined
           );
+          setChatState("COMPLAINT_MANUAL_PRODUCT");
         }
-        setChatState("COMPLAINT_MANUAL_PRODUCT");
         break;
       }
 

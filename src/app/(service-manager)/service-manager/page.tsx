@@ -120,6 +120,7 @@ interface ServiceTicket {
   dealer?: { firstName: string; lastName?: string | null } | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   phoneNumber?: string | null;
+  customerAddress?: string | null;
 }
 
 

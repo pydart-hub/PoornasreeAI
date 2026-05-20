@@ -201,6 +201,7 @@ async function handleEngineerMessage(
         machineName: true,
         machineSerialNumber: true,
         machineCustomer: true,
+        customerAddress: true,
         updatedAt: true,
         customer: { select: { firstName: true, lastName: true } },
         pincode: { select: { code: true, place: true } },
@@ -234,6 +235,7 @@ async function handleEngineerMessage(
       return [
         `${i + 1}. *${t.ticketNumber}* (${t.status})`,
         `   👤 Name: ${customerName}`,
+        ...(t.customerAddress ? [`   🏠 Address: ${t.customerAddress}`] : []),
         `   📍 Place: ${place}${place && pincode ? " | " : ""}Pincode: ${pincode}`,
         `   🔧 Product: ${product}`,
         `   🔑 S/N: ${serial}`,

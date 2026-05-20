@@ -44,6 +44,7 @@ interface ServiceTicket {
   assignedManager?: { firstName: string; lastName?: string | null } | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   phoneNumber?: string | null;
+  customerAddress?: string | null;
 }
 
 const STATUS_CONFIG: Record<TicketStatus, { label: string; badgeBg: string; badgeText: string; dot: string }> = {
@@ -241,6 +242,12 @@ export default function ServiceDashboard() {
 
         {/* MIDDLE: Location, Customer, Product, S/N, Time, Assigned by */}
         <div className="space-y-1">
+          {ticket.customerAddress && (
+            <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-blue-50 border border-blue-100">
+              <Home className="w-3.5 h-3.5 shrink-0 text-blue-500 mt-0.5" />
+              <span className="text-xs font-semibold text-blue-700 leading-snug">{ticket.customerAddress}</span>
+            </div>
+          )}
           {locationShort && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <MapPin className="w-3 h-3 shrink-0 text-gray-400" />

@@ -16,7 +16,7 @@ import * as WhatsAppService from "../services/whatsapp.service";
 // Dealers can also raise tickets, passing an optional dealerId implicitly.
 export async function createTicket(req: Request, res: Response): Promise<void> {
   try {
-    const { problemDescription, machineName, machineSerialNumber, phoneNumber, place, district, state } = req.body;
+    const { problemDescription, machineName, machineSerialNumber, phoneNumber, place, district, state, customerAddress } = req.body;
     // Auto-inherit the dealer/user's own pincodeId so tickets are always
     // routed to the correct service manager zone.
     const pincodeId: string | undefined =
@@ -44,6 +44,7 @@ export async function createTicket(req: Request, res: Response): Promise<void> {
       place,
       district,
       state,
+      customerAddress,
     });
 
     // Notify service managers of new ticket so their dashboard updates in real-time

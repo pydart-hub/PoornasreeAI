@@ -212,7 +212,7 @@ export async function validatePincode(req: Request, res: Response) {
 // ── Submit Complaint ──────────────────────────────────────────────────────
 // POST /api/customer-chat/complaint
 export async function submitComplaint(req: Request, res: Response) {
-  const { name, phone, pincode, serialNumber, product, issue, dealerId: bodyDealerId } = req.body;
+  const { name, phone, pincode, serialNumber, product, issue, dealerId: bodyDealerId, address } = req.body;
 
   // Validate required fields
   if (!name || typeof name !== "string" || name.trim().length < 2) {
@@ -302,7 +302,7 @@ export async function submitComplaint(req: Request, res: Response) {
   const ticket = await TicketService.createTicket({
     customerId: adminUser.id,
     problemDescription: `${productName}: ${complaintText}`,
-    issueDescription: `Customer: ${name.trim()}, Phone: ${phoneDigits}, Pincode: ${pincode}${place ? ` (${[place, district, stateName].filter(Boolean).join(", ")})` : ""}`,
+    issueDescription: `Customer: ${name.trim()}, Phone: ${phoneDigits}, Pincode: ${pincode}${place ? ` (${[place, district, stateName].filter(Boolean).join(", ")})` : ""}${address ? `, Address: ${address.trim()}` : ""}`,
     machineName: productName,
     machineSerialNumber: serial,
     pincodeId,
@@ -311,6 +311,7 @@ export async function submitComplaint(req: Request, res: Response) {
     place,
     district,
     state: stateName,
+    customerAddress: address?.trim() || undefined,
   });
 
   // Notify managers/dealer
