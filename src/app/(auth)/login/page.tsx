@@ -36,6 +36,7 @@ function roleRoute(role: string): string {
     case "dealer":           return "/dealer";
     case "customer":         return "/customer";
     case "sales":            return "/sales";
+    case "marketing":        return "/marketing";
     case "customer_service": return "/customer-service";
     default:                 return "/chat";
   }

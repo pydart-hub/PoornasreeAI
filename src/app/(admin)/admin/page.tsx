@@ -32,7 +32,6 @@ import {
   Pencil,
   X,
   Download,
-  Palette,
   Film,
   Ticket,
   Package,
@@ -56,7 +55,6 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
-import BrandingTab from "@/components/admin/BrandingTab";
 import RdVideosTab from "@/components/admin/RdVideosTab";
 import TicketsTab from "@/components/admin/TicketsTab";
 import ProductsTab from "@/components/admin/ProductsTab";
@@ -127,7 +125,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "branding" | "rdvideos" | "tickets" | "products">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -535,18 +533,6 @@ export default function AdminPage() {
               </span>
             </button>
             <button
-              onClick={() => setActiveTab("branding")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "branding"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              Branding
-            </button>
-            <button
               onClick={() => setActiveTab("rdvideos")}
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
@@ -709,7 +695,6 @@ export default function AdminPage() {
               { key: "users", label: "Users", icon: <Users className="w-3.5 h-3.5" /> },
               { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" /> },
               { key: "videos", label: "Videos", icon: <Youtube className="w-3.5 h-3.5" /> },
-              { key: "branding", label: "Branding", icon: <Palette className="w-3.5 h-3.5" /> },
               { key: "rdvideos", label: "Engineers Video", icon: <Film className="w-3.5 h-3.5" /> },
               { key: "tickets", label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" /> },
               { key: "products", label: "Products", icon: <Package className="w-3.5 h-3.5" /> },
@@ -1585,9 +1570,6 @@ export default function AdminPage() {
 
             </section>
           )}
-
-          {/* ── Branding Tab ── */}
-          {activeTab === "branding" && <BrandingTab />}
 
           {/* ── Engineers Video Tab ── */}
           {activeTab === "rdvideos" && <RdVideosTab />}

@@ -75,6 +75,12 @@ const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     "analytics.view": true,
     "profile.edit": true,
   },
+  marketing: {
+    "branding.edit": true,
+    "leads.manage": true,
+    "campaigns.manage": true,
+    "profile.edit": true,
+  },
   customer: { chat: true, "profile.edit": true },
   customer_service: {
     chat: true,
