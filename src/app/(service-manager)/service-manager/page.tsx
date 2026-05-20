@@ -744,26 +744,26 @@ export default function ServiceManagerPage() {
           </div>
           {/* Stat cards */}
           <div className="grid grid-cols-4 gap-2.5">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-3 py-3 border border-white/10">
-              <p className="text-2xl font-bold text-white">{total}</p>
-              <p className="text-[11px] text-white/60 font-medium mt-0.5">Total Tickets</p>
+            <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
+              <p className="text-3xl font-black text-white">{total}</p>
+              <p className="text-[11px] text-blue-200 font-semibold mt-1 uppercase tracking-wide">Total Tickets</p>
             </div>
-            <div className={cn("rounded-2xl px-3 py-3 border", unassigned > 0 ? "bg-red-500/20 border-red-400/20" : "bg-white/10 border-white/10")}>
-              <p className={cn("text-2xl font-bold", unassigned > 0 ? "text-red-300" : "text-white")}>{unassigned}</p>
-              <p className="text-[11px] text-white/60 font-medium mt-0.5">Open</p>
+            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", unassigned > 0 ? "bg-red-500/30 border-red-300/40" : "bg-white/10 border-white/20")}>
+              <p className={cn("text-3xl font-black", unassigned > 0 ? "text-red-200" : "text-white/50")}>{unassigned}</p>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", unassigned > 0 ? "text-red-200" : "text-white/40")}>Open</p>
             </div>
-            <div className={cn("rounded-2xl px-3 py-3 border", active > 0 ? "bg-cyan-500/20 border-cyan-400/20" : "bg-white/10 border-white/10")}>
-              <p className={cn("text-2xl font-bold", active > 0 ? "text-cyan-300" : "text-white")}>{active}</p>
-              <p className="text-[11px] text-white/60 font-medium mt-0.5">Active</p>
+            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", active > 0 ? "bg-cyan-500/30 border-cyan-300/40" : "bg-white/10 border-white/20")}>
+              <p className={cn("text-3xl font-black", active > 0 ? "text-cyan-200" : "text-white/50")}>{active}</p>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", active > 0 ? "text-cyan-200" : "text-white/40")}>Active</p>
             </div>
-            <div className={cn("rounded-2xl px-3 py-3 border", closed > 0 ? "bg-emerald-500/20 border-emerald-400/20" : "bg-white/10 border-white/10")}>
-              <p className={cn("text-2xl font-bold", closed > 0 ? "text-emerald-300" : "text-white")}>{closed}</p>
-              <p className="text-[11px] text-white/60 font-medium mt-0.5">Closed</p>
+            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", closed > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
+              <p className={cn("text-3xl font-black", closed > 0 ? "text-emerald-200" : "text-white/50")}>{closed}</p>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", closed > 0 ? "text-emerald-200" : "text-white/40")}>Closed</p>
             </div>
           </div>
         </div>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-6 space-y-4">
 
           {/* ── Error banner ── */}
@@ -780,7 +780,7 @@ export default function ServiceManagerPage() {
             <>
               {/* ── Toolbar ── */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex gap-0.5 bg-gray-100 dark:bg-surface-dark-secondary p-1 rounded-lg">
+                <div className="flex gap-0.5 bg-white dark:bg-surface-dark-secondary shadow-sm p-1 rounded-lg border border-slate-200 dark:border-white/10">
                   {([
                     { key: "all" as DateRange, label: "All" },
                     { key: "today" as DateRange, label: "Today" },
@@ -900,7 +900,7 @@ export default function ServiceManagerPage() {
                     <div key={ticket.id}
                       onClick={() => setDrawerTicket(ticket)}
                       className={cn(
-                        "bg-surface-card dark:bg-surface-dark-card rounded-md border border-line dark:border-line-dark border-l-[3px] overflow-hidden transition-shadow hover:shadow-md shadow-sm cursor-pointer",
+                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 overflow-hidden transition-all hover:shadow-md shadow-sm cursor-pointer",
                         borderColor
                       )}>
                       <div className="p-3 space-y-1.5">
