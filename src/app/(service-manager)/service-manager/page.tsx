@@ -240,6 +240,8 @@ export default function ServiceManagerPage() {
   const [editAsstForm, setEditAsstForm] = useState({ firstName: "", lastName: "", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [savingAsstEdit, setSavingAsstEdit] = useState(false);
   const [deletingAsstId, setDeletingAsstId] = useState<string | null>(null);
+  const [newAsstPincodeState, setNewAsstPincodeState] = useState("");
+  const [editAsstPincodeState, setEditAsstPincodeState] = useState("");
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -1168,6 +1170,7 @@ export default function ServiceManagerPage() {
                           <button
                             onClick={() => {
                               setEditingAsst(asst);
+                              setEditAsstPincodeState("");
                               setEditAsstForm({
                                 firstName: asst.firstName,
                                 lastName: asst.lastName ?? "",
@@ -1223,7 +1226,7 @@ export default function ServiceManagerPage() {
                   <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-bold text-content dark:text-content-dark">Add Assistant Manager</h3>
-                      <button onClick={() => setShowAddAssistant(false)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                      <button onClick={() => { setShowAddAssistant(false); setNewAsstPincodeState(""); }} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1248,32 +1251,87 @@ export default function ServiceManagerPage() {
                         placeholder="e.g. 919876543210"
                         className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
-                    {myPincodes.length > 0 && (
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assign Pincodes</label>
-                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                          {myPincodes.map(p => (
-                            <button key={p.id} type="button"
-                              onClick={() => setNewAsst(f => ({
-                                ...f,
-                                pincodeIds: f.pincodeIds.includes(p.id)
-                                  ? f.pincodeIds.filter(id => id !== p.id)
-                                  : [...f.pincodeIds, p.id],
-                              }))}
-                              className={cn(
-                                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                newAsst.pincodeIds.includes(p.id)
-                                  ? "bg-primary text-white border-primary"
-                                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                              )}>
-                              {p.code}{p.place ? ` · ${p.place}` : ""}
-                            </button>
-                          ))}
+                    {myPincodes.length > 0 && (() => {
+                      const asstStates = [...new Set(myPincodes.map(p => p.state).filter(Boolean))].sort() as string[];
+                      const filteredPincodes = newAsstPincodeState
+                        ? myPincodes.filter(p => p.state === newAsstPincodeState)
+                        : [];
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Pincodes</label>
+                            {newAsst.pincodeIds.length > 0 && (
+                              <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                {newAsst.pincodeIds.length} selected
+                              </span>
+                            )}
+                          </div>
+                          {/* Step 1 — State dropdown */}
+                          <select
+                            value={newAsstPincodeState}
+                            onChange={e => setNewAsstPincodeState(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option value="">Select a state…</option>
+                            {asstStates.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                          {/* Step 2 — Pincodes for selected state */}
+                          {newAsstPincodeState && (
+                            <div className="rounded-lg border border-line dark:border-line-dark overflow-hidden">
+                              <div className="px-3 py-1.5 bg-surface-secondary dark:bg-surface-dark-secondary border-b border-line dark:border-line-dark flex items-center justify-between">
+                                <span className="text-[11px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{newAsstPincodeState}</span>
+                                <div className="flex gap-2">
+                                  <button type="button" onClick={() => setNewAsst(f => ({
+                                    ...f,
+                                    pincodeIds: [...new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])],
+                                  }))} className="text-[11px] text-primary hover:underline">All</button>
+                                  <button type="button" onClick={() => setNewAsst(f => ({
+                                    ...f,
+                                    pincodeIds: f.pincodeIds.filter(id => !filteredPincodes.some(p => p.id === id)),
+                                  }))} className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary hover:underline">None</button>
+                                </div>
+                              </div>
+                              <div className="p-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                                {filteredPincodes.map(p => (
+                                  <button key={p.id} type="button"
+                                    onClick={() => setNewAsst(f => ({
+                                      ...f,
+                                      pincodeIds: f.pincodeIds.includes(p.id)
+                                        ? f.pincodeIds.filter(id => id !== p.id)
+                                        : [...f.pincodeIds, p.id],
+                                    }))}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                      newAsst.pincodeIds.includes(p.id)
+                                        ? "bg-primary text-white border-primary"
+                                        : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                                    )}>
+                                    {p.code}{p.place ? ` · ${p.place}` : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Summary of all selected pincodes across states */}
+                          {newAsst.pincodeIds.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {myPincodes.filter(p => newAsst.pincodeIds.includes(p.id)).map(p => (
+                                <span key={p.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
+                                  {p.code}{p.place ? ` · ${p.place}` : ""}
+                                  <button type="button" onClick={() => setNewAsst(f => ({ ...f, pincodeIds: f.pincodeIds.filter(id => id !== p.id) }))}
+                                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-primary/20">
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     <div className="flex gap-2 pt-1">
-                      <button onClick={() => setShowAddAssistant(false)}
+                      <button onClick={() => { setShowAddAssistant(false); setNewAsstPincodeState(""); }}
                         className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                         Cancel
                       </button>
@@ -1303,6 +1361,7 @@ export default function ServiceManagerPage() {
                                 });
                               }
                               setShowAddAssistant(false);
+                              setNewAsstPincodeState("");
                               setAssistantCreated({ name: newAsst.firstName.trim(), email: newAsst.email.trim(), setPasswordUrl: data.setPasswordUrl, hasWhatsapp: !!newAsst.whatsappNumber.trim() });
                               setNewAsst({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
                               await fetchData();
@@ -1355,7 +1414,7 @@ export default function ServiceManagerPage() {
                   <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Assistant Manager</h3>
-                      <button onClick={() => setEditingAsst(null)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                      <button onClick={() => { setEditingAsst(null); setEditAsstPincodeState(""); }} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1380,32 +1439,87 @@ export default function ServiceManagerPage() {
                         placeholder="Min 8 characters"
                         className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
-                    {myPincodes.length > 0 && (
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assigned Pincodes</label>
-                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                          {myPincodes.map(p => (
-                            <button key={p.id} type="button"
-                              onClick={() => setEditAsstForm(f => ({
-                                ...f,
-                                pincodeIds: f.pincodeIds.includes(p.id)
-                                  ? f.pincodeIds.filter(id => id !== p.id)
-                                  : [...f.pincodeIds, p.id],
-                              }))}
-                              className={cn(
-                                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                editAsstForm.pincodeIds.includes(p.id)
-                                  ? "bg-primary text-white border-primary"
-                                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                              )}>
-                              {p.code}{p.place ? ` · ${p.place}` : ""}
-                            </button>
-                          ))}
+                    {myPincodes.length > 0 && (() => {
+                      const asstStates = [...new Set(myPincodes.map(p => p.state).filter(Boolean))].sort() as string[];
+                      const filteredPincodes = editAsstPincodeState
+                        ? myPincodes.filter(p => p.state === editAsstPincodeState)
+                        : [];
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assigned Pincodes</label>
+                            {editAsstForm.pincodeIds.length > 0 && (
+                              <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                {editAsstForm.pincodeIds.length} selected
+                              </span>
+                            )}
+                          </div>
+                          {/* Step 1 — State dropdown */}
+                          <select
+                            value={editAsstPincodeState}
+                            onChange={e => setEditAsstPincodeState(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                            <option value="">Select a state…</option>
+                            {asstStates.map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                          {/* Step 2 — Pincodes for selected state */}
+                          {editAsstPincodeState && (
+                            <div className="rounded-lg border border-line dark:border-line-dark overflow-hidden">
+                              <div className="px-3 py-1.5 bg-surface-secondary dark:bg-surface-dark-secondary border-b border-line dark:border-line-dark flex items-center justify-between">
+                                <span className="text-[11px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{editAsstPincodeState}</span>
+                                <div className="flex gap-2">
+                                  <button type="button" onClick={() => setEditAsstForm(f => ({
+                                    ...f,
+                                    pincodeIds: [...new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])],
+                                  }))} className="text-[11px] text-primary hover:underline">All</button>
+                                  <button type="button" onClick={() => setEditAsstForm(f => ({
+                                    ...f,
+                                    pincodeIds: f.pincodeIds.filter(id => !filteredPincodes.some(p => p.id === id)),
+                                  }))} className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary hover:underline">None</button>
+                                </div>
+                              </div>
+                              <div className="p-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                                {filteredPincodes.map(p => (
+                                  <button key={p.id} type="button"
+                                    onClick={() => setEditAsstForm(f => ({
+                                      ...f,
+                                      pincodeIds: f.pincodeIds.includes(p.id)
+                                        ? f.pincodeIds.filter(id => id !== p.id)
+                                        : [...f.pincodeIds, p.id],
+                                    }))}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                      editAsstForm.pincodeIds.includes(p.id)
+                                        ? "bg-primary text-white border-primary"
+                                        : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                                    )}>
+                                    {p.code}{p.place ? ` · ${p.place}` : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Summary of all selected pincodes across states */}
+                          {editAsstForm.pincodeIds.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {myPincodes.filter(p => editAsstForm.pincodeIds.includes(p.id)).map(p => (
+                                <span key={p.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
+                                  {p.code}{p.place ? ` · ${p.place}` : ""}
+                                  <button type="button" onClick={() => setEditAsstForm(f => ({ ...f, pincodeIds: f.pincodeIds.filter(id => id !== p.id) }))}
+                                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-primary/20">
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     <div className="flex gap-2 pt-1">
-                      <button onClick={() => setEditingAsst(null)}
+                      <button onClick={() => { setEditingAsst(null); setEditAsstPincodeState(""); }}
                         className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                         Cancel
                       </button>
@@ -1436,6 +1550,7 @@ export default function ServiceManagerPage() {
                               body: JSON.stringify({ pincodeIds: editAsstForm.pincodeIds }),
                             });
                             setEditingAsst(null);
+                            setEditAsstPincodeState("");
                             await fetchData();
                           } catch { setError("Network error"); }
                           finally { setSavingAsstEdit(false); }
