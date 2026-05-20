@@ -460,236 +460,139 @@ export default function AdminPage() {
   if (!user) return null;
 
   return (
-    <div className="h-[100dvh] flex overflow-hidden bg-surface dark:bg-surface-dark">
+    <div className="h-[100dvh] flex overflow-hidden">
 
       {/* ── Sidebar ── */}
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
-          <Logo variant="full" size="sm" />
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1.5 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
-        </div>
+        <div className="flex flex-col h-full bg-gradient-to-b from-purple-950 via-violet-900 to-indigo-900">
 
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          <a
-            href="/admin"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300"
-          >
-            <LayoutDashboard className="w-4 h-4 opacity-70" />
-            Admin Panel
-          </a>
-
-          <div className="pt-3 pb-1 px-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary mb-2">
-              Manage
-            </p>
-            <button
-              onClick={() => setActiveTab("documents")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "documents"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Documents
-              <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
-                {trainedCount}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab("users")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "users"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Users className="w-3.5 h-3.5" />
-              Users
-              <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
-                {users.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab("videos")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "videos"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Youtube className="w-3.5 h-3.5" />
-              Videos
-              <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
-                {videos.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab("rdvideos")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "rdvideos"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Film className="w-3.5 h-3.5" />
-              Engineers Video
-            </button>
-            <button
-              onClick={() => setActiveTab("tickets")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "tickets"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Ticket className="w-3.5 h-3.5" />
-              Tickets
-            </button>
-            <button
-              onClick={() => setActiveTab("products")}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                activeTab === "products"
-                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-              )}
-            >
-              <Package className="w-3.5 h-3.5" />
-              Products
-            </button>
-          </div>
-        </nav>
-
-        <div className="shrink-0 border-t border-line dark:border-line-dark p-3 space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Theme</span>
-            <ThemeToggle />
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-xl hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
-            <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-content dark:text-content-dark truncate">
-                {user.firstName} {user.lastName}
-              </p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{user.email}</p>
+          {/* Logo row */}
+          <div className="flex items-center justify-between px-4 py-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-sm font-bold text-white tracking-tight">Admin Panel</span>
             </div>
-            <button
-              onClick={() => { logout(); router.replace("/login"); }}
-              className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
+            <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          </div>
+
+          <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+            <a href="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-white/15 text-white">
+              <LayoutDashboard className="w-4 h-4 opacity-70" />
+              Overview
+            </a>
+
+            <div className="pt-3 pb-1 px-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 px-2">Manage</p>
+              {([
+                { key: "documents", label: "Documents", icon: <FileText className="w-3.5 h-3.5" />, count: documents.length },
+                { key: "users",     label: "Users",     icon: <Users className="w-3.5 h-3.5" />,     count: users.length },
+                { key: "videos",    label: "Videos",    icon: <Youtube className="w-3.5 h-3.5" />,   count: videos.length },
+                { key: "rdvideos",  label: "Eng. Videos", icon: <Film className="w-3.5 h-3.5" />,    count: null },
+                { key: "tickets",   label: "Tickets",   icon: <Ticket className="w-3.5 h-3.5" />,    count: null },
+                { key: "products",  label: "Products",  icon: <Package className="w-3.5 h-3.5" />,   count: null },
+                { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" />, count: null },
+              ] as const).map(({ key, label, icon, count }) => (
+                <button key={key} onClick={() => setActiveTab(key as typeof activeTab)}
+                  className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                    activeTab === key ? "bg-white/20 text-white font-semibold" : "text-white/60 hover:text-white hover:bg-white/10"
+                  )}>
+                  {icon}
+                  {label}
+                  {count !== null && (
+                    <span className={cn("ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full",
+                      activeTab === key ? "bg-white/20 text-white" : "bg-white/10 text-white/60"
+                    )}>{count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          <div className="shrink-0 border-t border-white/10 px-3 py-3 space-y-2">
+            <div className="flex items-center gap-2 px-2 py-2 rounded-xl">
+              <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
+                <p className="text-[10px] text-white/50 truncate">{user.email}</p>
+              </div>
+            </div>
+            <button onClick={() => { logout(); router.replace("/login"); }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+              <LogOut className="w-4 h-4 flex-shrink-0" />
+              Sign out
             </button>
           </div>
         </div>
       </ResponsiveSidebar>
 
       {/* ── Main ── */}
-      <main className="flex-1 overflow-y-auto scrollbar-thin">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* Header */}
-        <header className="sticky top-0 z-10 bg-surface/80 dark:bg-surface-dark/80 backdrop-blur border-b border-line dark:border-line-dark px-4 sm:px-6 py-3 flex items-center gap-3">
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors shrink-0"
-            >
-              {isMobile ? <Menu className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-            </button>
-          )}
-          <div className="flex-1">
-            <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{today}</p>
-          </div>
-          <Badge variant={roleBadge.variant} dot>{roleBadge.label}</Badge>
-        </header>
-
-        <div className="px-4 sm:px-6 py-6 max-w-5xl mx-auto space-y-8">
-
-          {/* Welcome */}
-          <section>
-            <div className="flex items-center gap-3 mb-1">
-              <Shield className="w-5 h-5 text-primary dark:text-primary-300" />
-              <h1 className="text-2xl font-bold text-content dark:text-content-dark">
-                {getGreeting()}, {user.firstName}!
-              </h1>
-            </div>
-            <p className="text-content-secondary dark:text-content-dark-secondary text-sm">
-              Admin Control Panel — Manage users and training documents.
-            </p>
-          </section>
-
-          {/* Stats */}
-          <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-              <div className="inline-flex p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 mb-2">
-                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+        {/* ── Gradient Header Banner ── */}
+        <div className="shrink-0 bg-gradient-to-r from-purple-950 via-violet-900 to-indigo-900 px-4 sm:px-6 pt-3 pb-4">
+          {/* Top row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSidebarOpen((v) => !v)}
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
+                <Menu className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-base font-bold text-white leading-tight">Admin Panel</h1>
+                <p className="text-xs text-white/50">{user.firstName} {user.lastName}</p>
               </div>
-              <p className="text-xl font-bold text-content dark:text-content-dark">{documents.length}</p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Documents</p>
             </div>
-            <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-              <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <p className="text-xl font-bold text-content dark:text-content-dark">{trainedCount}</p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Trained & Active</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-              <div className="inline-flex p-2 rounded-xl bg-violet-50 dark:bg-violet-500/10 mb-2">
-                <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-              </div>
-              <p className="text-xl font-bold text-content dark:text-content-dark">{users.length}</p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Users</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-              <div className="inline-flex p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 mb-2">
-                <MessageSquare className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <p className="text-xl font-bold text-content dark:text-content-dark">
-                {users.reduce((sum, u) => sum + (u._count?.conversations ?? 0), 0)}
-              </p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Conversations</p>
-            </div>
-          </section>
-
-          {/* Quick Actions */}
-          <section>
-            <h2 className="text-sm font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider mb-3">
-              Quick Actions
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <button
-                onClick={() => router.push("/admin/users")}
-                className="group flex items-start gap-4 p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card hover:border-primary/40 dark:hover:border-primary-400/40 hover:bg-primary/5 dark:hover:bg-primary-400/5 transition-all text-left"
-              >
-                <div className="p-2.5 rounded-xl bg-violet-50 dark:bg-violet-500/10 group-hover:bg-violet-100 dark:group-hover:bg-violet-500/20 transition-colors shrink-0">
-                  <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-content dark:text-content-dark">
-                    Manage Users
-                  </p>
-                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5">
-                    Create and manage system users
-                  </p>
-                </div>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => { logout(); router.replace("/login"); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
-          </section>
+          </div>
+
+          {/* Stat cards */}
+          <div className="grid grid-cols-4 gap-2.5">
+            <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
+              <div className="flex items-start justify-between">
+                <p className="text-3xl font-black text-white">{documents.length}</p>
+                <FileText className="w-5 h-5 text-violet-200 opacity-70 mt-1" />
+              </div>
+              <p className="text-[11px] text-violet-200 font-semibold mt-1 uppercase tracking-wide">Documents</p>
+            </div>
+            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", trainedCount > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
+              <div className="flex items-start justify-between">
+                <p className={cn("text-3xl font-black", trainedCount > 0 ? "text-emerald-200" : "text-white/50")}>{trainedCount}</p>
+                <CheckCircle2 className={cn("w-5 h-5 mt-1", trainedCount > 0 ? "text-emerald-300 opacity-70" : "text-white/20")} />
+              </div>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", trainedCount > 0 ? "text-emerald-200" : "text-white/40")}>Trained</p>
+            </div>
+            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", users.length > 0 ? "bg-violet-500/30 border-violet-300/40" : "bg-white/10 border-white/20")}>
+              <div className="flex items-start justify-between">
+                <p className={cn("text-3xl font-black", users.length > 0 ? "text-violet-200" : "text-white/50")}>{users.length}</p>
+                <Users className={cn("w-5 h-5 mt-1", users.length > 0 ? "text-violet-300 opacity-70" : "text-white/20")} />
+              </div>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", users.length > 0 ? "text-violet-200" : "text-white/40")}>Users</p>
+            </div>
+            <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
+              <div className="flex items-start justify-between">
+                <p className="text-3xl font-black text-white">{users.reduce((s, u) => s + (u._count?.conversations ?? 0), 0)}</p>
+                <MessageSquare className="w-5 h-5 text-violet-200 opacity-70 mt-1" />
+              </div>
+              <p className="text-[11px] text-violet-200 font-semibold mt-1 uppercase tracking-wide">Conversations</p>
+            </div>
+          </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto bg-slate-100 scrollbar-thin">
+          <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto space-y-4">
 
           {/* Tab switcher */}
-          <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
+          <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-white border border-slate-200 shadow-sm w-fit">
             {([
               { key: "documents", label: "Documents", icon: <FileUp className="w-3.5 h-3.5" /> },
               { key: "users", label: "Users", icon: <Users className="w-3.5 h-3.5" /> },
@@ -705,8 +608,8 @@ export default function AdminPage() {
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                   activeTab === t.key
-                    ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
-                    : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
                 )}
               >
                 {t.icon}
@@ -1582,6 +1485,7 @@ export default function AdminPage() {
 
         </div>
       </main>
+      </div>
     </div>
   );
 }
