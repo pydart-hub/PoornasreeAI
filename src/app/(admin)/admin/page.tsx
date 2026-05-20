@@ -51,7 +51,7 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Avatar, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
+import { Avatar, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import RdVideosTab from "@/components/admin/RdVideosTab";
