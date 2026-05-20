@@ -38,9 +38,7 @@ const ROLES = [
   { value: "service",                   label: "Service Engineer" },
   { value: "service_manager",           label: "Service Manager" },
   { value: "assistant_service_manager", label: "Asst. Service Manager" },
-  { value: "service_engineer",          label: "Field Engineer" },
-  { value: "sales",                     label: "Sales" },
-  { value: "customer_service",          label: "Customer Service" },
+  { value: "marketing",                 label: "Marketing" },
   { value: "admin",                     label: "Administrator" },
 ] as const;
 
@@ -53,6 +51,7 @@ const ROLE_BADGE: Record<
   assistant_service_manager:{ label: "Asst. Service Mgr",  variant: "warning" },
   service_engineer:         { label: "Field Engineer",      variant: "info" },
   admin:                    { label: "Administrator",       variant: "default" },
+  marketing:                { label: "Marketing",           variant: "accent" },
   sales:                    { label: "Sales",               variant: "success" },
   dealer:                   { label: "Dealer",              variant: "success" },
   customer:                 { label: "Customer",            variant: "accent" },
