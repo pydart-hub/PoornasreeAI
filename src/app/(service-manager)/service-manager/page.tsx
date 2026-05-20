@@ -549,9 +549,13 @@ export default function ServiceManagerPage() {
       const q = searchQuery.trim().toLowerCase();
       pool = pool.filter(t => {
         const tn = (t.ticketNumber ?? "").toLowerCase();
-        const ce = (t.customer?.email ?? "").toLowerCase();
-        const cn = `${t.customer?.firstName ?? ""} ${t.customer?.lastName ?? ""}`.toLowerCase();
-        return tn.includes(q) || ce.includes(q) || cn.includes(q);
+        const mc = (t.machineCustomer ?? "").toLowerCase();
+        const mn = (t.machineName ?? "").toLowerCase();
+        const sn = (t.machineSerialNumber ?? "").toLowerCase();
+        const ph = (t.phoneNumber ?? "").toLowerCase();
+        const pc = (t.pincode?.code ?? "").toLowerCase();
+        const pl = [t.pincode?.place, t.pincode?.district].filter(Boolean).join(" ").toLowerCase();
+        return tn.includes(q) || mc.includes(q) || mn.includes(q) || sn.includes(q) || ph.includes(q) || pc.includes(q) || pl.includes(q);
       });
     }
     // Dealer name filter

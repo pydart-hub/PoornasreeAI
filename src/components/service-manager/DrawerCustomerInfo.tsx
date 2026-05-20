@@ -18,6 +18,11 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
   const customerName = resolvedName || ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || null;
   const phone = ticket.phoneNumber || issueMeta.phone || descMeta.phone;
 
+  // Only show the registered account email when the customer relation IS the actual customer
+  // (not the admin proxy used for chat-submitted tickets where machineCustomer/issueDescription holds the real name)
+  const isAdminProxy = !!(ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || resolvedName);
+  const customerEmail = isAdminProxy ? null : (ticket.customer?.email ?? null);
+
   const hasAddress = ticket.customerAddress || ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode || issueMeta.location || descMeta.location;
 
   if (!customerName && !phone && !hasAddress) return null;
@@ -44,9 +49,9 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
           </a>
         )}
 
-        {/* Email */}
-        {ticket.customer?.email && (
-          <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{ticket.customer.email}</p>
+        {/* Email — only shown for real registered customer accounts */}
+        {customerEmail && (
+          <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{customerEmail}</p>
         )}
 
         {/* Address (collapsed by default) */}
