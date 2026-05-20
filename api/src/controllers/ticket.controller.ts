@@ -389,3 +389,125 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
+// ── GET /api/tickets/engineer-feedback ────────────────────────────────────
+// Returns per-engineer feedback stats for closed tickets.
+// service_manager / assistant_service_manager: scoped to their engineers.
+// admin: all engineers.
+export async function getEngineerFeedback(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.user!.userId;
+    const role   = req.user!.role;
+
+    // Scope engineers to this manager; admin sees all
+    const engineerWhere: Record<string, unknown> = { role: "service_engineer" };
+    if (role === "service_manager" || role === "assistant_service_manager") {
+      engineerWhere.managerId = userId;
+    }
+
+    const engineers = await prisma.user.findMany({
+      where: engineerWhere,
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    if (engineers.length === 0) {
+      res.json({ engineerStats: [] });
+      return;
+    }
+
+    const engineerIds = engineers.map(e => e.id);
+
+    // Fetch all closed tickets for these engineers
+    const tickets = await prisma.ticket.findMany({
+      where: {
+        status: "CLOSED",
+        assignedEngineerId: { in: engineerIds },
+      },
+      select: {
+        ticketNumber:        true,
+        feedbackRating:      true,
+        feedbackComment:     true,
+        feedbackSubmittedAt: true,
+        machineCustomer:     true,
+        issueDescription:    true,
+        closedAt:            true,
+        assignedEngineerId:  true,
+      },
+      orderBy: { closedAt: "desc" },
+    });
+
+    // Build per-engineer stats map
+    type EngineerStat = {
+      engineer:      { id: string; firstName: string; lastName: string | null };
+      closedCount:   number;
+      feedbackCount: number;
+      ratingSum:     number;
+      feedbacks:     Array<{
+        ticketNumber: string;
+        rating:       number;
+        comment:      string | null;
+        customerName: string | null;
+        closedAt:     string | null;
+      }>;
+    };
+
+    const statsMap = new Map<string, EngineerStat>();
+    for (const eng of engineers) {
+      statsMap.set(eng.id, {
+        engineer:      eng,
+        closedCount:   0,
+        feedbackCount: 0,
+        ratingSum:     0,
+        feedbacks:     [],
+      });
+    }
+
+    for (const t of tickets) {
+      if (!t.assignedEngineerId) continue;
+      const stat = statsMap.get(t.assignedEngineerId);
+      if (!stat) continue;
+
+      stat.closedCount++;
+
+      if (t.feedbackRating != null) {
+        stat.feedbackCount++;
+        stat.ratingSum += t.feedbackRating;
+
+        // Try to extract customer name from structured issueDescription
+        const nameMatch = t.issueDescription?.match(/Customer[:\s]+([^\n,|]+)/i);
+        const customerName = t.machineCustomer || (nameMatch ? nameMatch[1].trim() : null);
+
+        stat.feedbacks.push({
+          ticketNumber: t.ticketNumber,
+          rating:       t.feedbackRating,
+          comment:      t.feedbackComment ?? null,
+          customerName,
+          closedAt:     t.closedAt?.toISOString() ?? null,
+        });
+      }
+    }
+
+    const engineerStats = Array.from(statsMap.values()).map(stat => ({
+      engineer:      stat.engineer,
+      closedCount:   stat.closedCount,
+      feedbackCount: stat.feedbackCount,
+      avgRating:     stat.feedbackCount > 0
+        ? Math.round((stat.ratingSum / stat.feedbackCount) * 10) / 10
+        : null,
+      feedbacks: stat.feedbacks,
+    }));
+
+    // Sort: highest avgRating first, nulls (no feedback yet) last
+    engineerStats.sort((a, b) => {
+      if (a.avgRating === null && b.avgRating === null) return 0;
+      if (a.avgRating === null) return 1;
+      if (b.avgRating === null) return -1;
+      return b.avgRating - a.avgRating;
+    });
+
+    res.json({ engineerStats });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}

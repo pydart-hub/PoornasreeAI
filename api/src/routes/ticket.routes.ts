@@ -14,6 +14,7 @@ import {
   requestOTP,
   verifyOTP,
   listEngineers,
+  getEngineerFeedback,
 } from "../controllers/ticket.controller";
 
 const router = Router();
@@ -25,6 +26,7 @@ router.post("/", authorize("dealer", "admin", "customer"), createTicket);
 
 // VIEW TICKETS: all ticket-related roles (role-scoped filtering in controller)
 router.get("/engineers", authorize("service_manager", "assistant_service_manager", "admin"), listEngineers);
+router.get("/engineer-feedback", authorize("service_manager", "assistant_service_manager", "admin"), getEngineerFeedback);
 router.get("/", authorize("admin", "service_manager", "assistant_service_manager", "service_engineer", "service", "dealer", "customer"), listTickets);
 router.get("/:id", authorize("admin", "service_manager", "assistant_service_manager", "service_engineer", "service", "dealer", "customer"), getTicket);
 

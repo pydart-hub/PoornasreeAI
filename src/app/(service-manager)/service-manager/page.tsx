@@ -37,6 +37,8 @@ import {
   PanelLeftClose,
   ClipboardList,
   ShieldCheck,
+  Star,
+  Award,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
@@ -52,7 +54,23 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "assistants";
+type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "assistants" | "feedback";
+
+interface EngineerFeedbackEntry {
+  ticketNumber: string;
+  rating: number;
+  comment: string | null;
+  customerName: string | null;
+  closedAt: string | null;
+}
+
+interface EngineerStat {
+  engineer: { id: string; firstName: string; lastName?: string | null };
+  closedCount: number;
+  feedbackCount: number;
+  avgRating: number | null;
+  feedbacks: EngineerFeedbackEntry[];
+}
 
 interface PincodeInfo {
   id: string;
@@ -243,6 +261,11 @@ export default function ServiceManagerPage() {
   const [deletingAsstId, setDeletingAsstId] = useState<string | null>(null);
   const [newAsstPincodeState, setNewAsstPincodeState] = useState("");
   const [editAsstPincodeState, setEditAsstPincodeState] = useState("");
+
+  // ── Feedback / performance state ──
+  const [engineerFeedback, setEngineerFeedback] = useState<EngineerStat[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackEngineerFilter, setFeedbackEngineerFilter] = useState<string | null>(null);
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -445,6 +468,16 @@ export default function ServiceManagerPage() {
 
   useEffect(() => { if (user?.role === "service_manager") fetchData(); }, [user, fetchData]);
 
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const res = await fetch("/api/tickets/engineer-feedback", { credentials: "include", cache: "no-store" });
+      if (res.ok) { const { engineerStats } = await res.json(); setEngineerFeedback(engineerStats ?? []); }
+    } catch { /* non-fatal */ } finally { setFeedbackLoading(false); }
+  }, []);
+
+  useEffect(() => { if (user?.role === "service_manager") fetchFeedback(); }, [user, fetchFeedback]);
+
   // ── Socket ──
   useEffect(() => {
     if (!user || user.role !== "service_manager") return;
@@ -625,6 +658,7 @@ export default function ServiceManagerPage() {
             {([
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" />, count: total },
               { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-3.5 h-3.5" />, count: engineers.length },
+              { key: "feedback" as PageView, label: "Feedback", icon: <Star className="w-3.5 h-3.5" />, count: engineerFeedback.reduce((s, e) => s + e.feedbackCount, 0) },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
               { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-3.5 h-3.5" />, count: assistants.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
@@ -2014,6 +2048,191 @@ export default function ServiceManagerPage() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </section>
+          )}
+
+          {/* ═══════════════════ FEEDBACK VIEW ═══════════════════ */}
+          {pageView === "feedback" && (
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-content dark:text-content-dark">Engineer Performance</h2>
+                  <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Customer ratings collected after ticket closure via WhatsApp</p>
+                </div>
+                <button
+                  onClick={fetchFeedback}
+                  disabled={feedbackLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("w-3.5 h-3.5", feedbackLoading && "animate-spin")} />
+                  Refresh
+                </button>
+              </div>
+
+              {feedbackLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : engineerFeedback.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Star className="w-10 h-10 text-content-tertiary dark:text-content-dark-tertiary mb-3 opacity-30" />
+                  <p className="text-sm font-medium text-content-secondary dark:text-content-dark-secondary">No engineers found</p>
+                  <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-1">Add engineers to your team to see their performance here</p>
+                </div>
+              ) : (
+                <>
+                  {/* ── Leaderboard ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {engineerFeedback.map((stat, idx) => {
+                      const isBest = idx === 0 && stat.avgRating !== null;
+                      const fullName = `${stat.engineer.firstName}${stat.engineer.lastName ? " " + stat.engineer.lastName : ""}`;
+                      return (
+                        <div
+                          key={stat.engineer.id}
+                          onClick={() => setFeedbackEngineerFilter(feedbackEngineerFilter === stat.engineer.id ? null : stat.engineer.id)}
+                          className={cn(
+                            "relative rounded-xl border p-4 cursor-pointer transition-all",
+                            isBest
+                              ? "border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 shadow-sm"
+                              : "border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card hover:border-primary/40",
+                            feedbackEngineerFilter === stat.engineer.id && "ring-2 ring-primary/40"
+                          )}
+                        >
+                          {isBest && (
+                            <div className="absolute -top-2.5 left-3 flex items-center gap-1 bg-yellow-400 dark:bg-yellow-500 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+                              <Award className="w-3 h-3" />
+                              Best Engineer
+                            </div>
+                          )}
+                          <div className="flex items-start justify-between gap-2 mt-1">
+                            <div>
+                              <p className="text-sm font-semibold text-content dark:text-content-dark">{fullName}</p>
+                              <div className="flex items-center gap-0.5 mt-1">
+                                {[1, 2, 3, 4, 5].map(s => (
+                                  <Star
+                                    key={s}
+                                    className={cn(
+                                      "w-3.5 h-3.5",
+                                      stat.avgRating !== null && s <= Math.round(stat.avgRating)
+                                        ? "fill-yellow-400 text-yellow-400"
+                                        : "text-content-tertiary dark:text-content-dark-tertiary opacity-30"
+                                    )}
+                                  />
+                                ))}
+                                {stat.avgRating !== null && (
+                                  <span className="ml-1 text-xs font-semibold text-content dark:text-content-dark">{stat.avgRating.toFixed(1)}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-lg font-bold text-content dark:text-content-dark">{stat.feedbackCount}</p>
+                              <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary">reviews</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 mt-3 pt-3 border-t border-line dark:border-line-dark">
+                            <div className="text-center flex-1">
+                              <p className="text-sm font-semibold text-content dark:text-content-dark">{stat.closedCount}</p>
+                              <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary">Closed</p>
+                            </div>
+                            <div className="text-center flex-1">
+                              <p className="text-sm font-semibold text-content dark:text-content-dark">{stat.avgRating !== null ? stat.avgRating.toFixed(1) : "—"}</p>
+                              <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary">Avg Rating</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Feedback list ── */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <p className="text-sm font-semibold text-content dark:text-content-dark mr-1">Customer Reviews</p>
+                      <button
+                        onClick={() => setFeedbackEngineerFilter(null)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                          feedbackEngineerFilter === null
+                            ? "bg-primary text-white"
+                            : "bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                        )}
+                      >
+                        All Engineers
+                      </button>
+                      {engineerFeedback.filter(s => s.feedbackCount > 0).map(stat => (
+                        <button
+                          key={stat.engineer.id}
+                          onClick={() => setFeedbackEngineerFilter(feedbackEngineerFilter === stat.engineer.id ? null : stat.engineer.id)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                            feedbackEngineerFilter === stat.engineer.id
+                              ? "bg-primary text-white"
+                              : "bg-surface dark:bg-surface-dark border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                          )}
+                        >
+                          {stat.engineer.firstName}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(() => {
+                      const filtered = engineerFeedback
+                        .filter(s => feedbackEngineerFilter === null || s.engineer.id === feedbackEngineerFilter)
+                        .flatMap(s => s.feedbacks.map(f => ({ ...f, engineer: s.engineer })));
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="py-10 text-center">
+                            <p className="text-sm text-content-tertiary dark:text-content-dark-tertiary">No feedback yet. Ratings arrive via WhatsApp after each ticket closure.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-2">
+                          {filtered.map((f, i) => (
+                            <div key={i} className="rounded-xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-0.5">
+                                      {[1, 2, 3, 4, 5].map(s => (
+                                        <Star
+                                          key={s}
+                                          className={cn(
+                                            "w-3.5 h-3.5",
+                                            s <= f.rating
+                                              ? "fill-yellow-400 text-yellow-400"
+                                              : "text-content-tertiary dark:text-content-dark-tertiary opacity-30"
+                                          )}
+                                        />
+                                      ))}
+                                      <span className="ml-1 text-xs font-bold text-content dark:text-content-dark">{f.rating}/5</span>
+                                    </div>
+                                    <span className="text-xs text-content-tertiary dark:text-content-dark-tertiary">·</span>
+                                    <span className="text-xs text-content-secondary dark:text-content-dark-secondary">{f.customerName || "Customer"}</span>
+                                    <span className="text-xs text-content-tertiary dark:text-content-dark-tertiary">·</span>
+                                    <span className="text-xs bg-surface dark:bg-surface-dark border border-line dark:border-line-dark px-1.5 py-0.5 rounded-full font-mono text-content-tertiary dark:text-content-dark-tertiary">{f.ticketNumber}</span>
+                                  </div>
+                                  {f.comment && (
+                                    <p className="mt-1.5 text-sm text-content dark:text-content-dark leading-relaxed">&ldquo;{f.comment}&rdquo;</p>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">{`${f.engineer.firstName}${f.engineer.lastName ? " " + f.engineer.lastName : ""}`}</p>
+                                  {f.closedAt && (
+                                    <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-0.5">{formatRelativeTime(f.closedAt)}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </>
               )}
             </section>
           )}
