@@ -570,7 +570,7 @@ export default function AdminPage() {
               )}
             >
               <Film className="w-3.5 h-3.5" />
-              R&D Videos
+              Engineers Video
             </button>
             <button
               onClick={() => setActiveTab("tickets")}
@@ -725,7 +725,7 @@ export default function AdminPage() {
               { key: "videos", label: "Videos", icon: <Youtube className="w-3.5 h-3.5" /> },
               { key: "templates", label: "Templates", icon: <BookOpen className="w-3.5 h-3.5" /> },
               { key: "branding", label: "Branding", icon: <Palette className="w-3.5 h-3.5" /> },
-              { key: "rdvideos", label: "R&D Videos", icon: <Film className="w-3.5 h-3.5" /> },
+              { key: "rdvideos", label: "Engineers Video", icon: <Film className="w-3.5 h-3.5" /> },
               { key: "tickets", label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" /> },
               { key: "products", label: "Products", icon: <Package className="w-3.5 h-3.5" /> },
             ] as const).map((t) => (
@@ -1607,7 +1607,7 @@ export default function AdminPage() {
           {/* ── Branding Tab ── */}
           {activeTab === "branding" && <BrandingTab />}
 
-          {/* ── R&D Videos Tab ── */}
+          {/* ── Engineers Video Tab ── */}
           {activeTab === "rdvideos" && <RdVideosTab />}
 
           {/* ── Tickets Tab ── */}
