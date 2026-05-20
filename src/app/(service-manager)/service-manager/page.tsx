@@ -2222,7 +2222,7 @@ export default function ServiceManagerPage() {
                                 <div className="text-right shrink-0">
                                   <p className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">{`${f.engineer.firstName}${f.engineer.lastName ? " " + f.engineer.lastName : ""}`}</p>
                                   {f.closedAt && (
-                                    <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-0.5">{formatRelativeTime(f.closedAt)}</p>
+                                    <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-0.5">{formatRelativeTime(new Date(f.closedAt))}</p>
                                   )}
                                 </div>
                               </div>
