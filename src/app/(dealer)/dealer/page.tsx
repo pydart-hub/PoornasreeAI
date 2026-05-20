@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
-import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -631,58 +630,84 @@ export default function DealerPage() {
     <div className="flex h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
 
       {/* ── Sidebar ── */}
-      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
-          <Logo variant="full" size="sm" />
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1.5 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
-          <div className="flex items-center gap-3">
-            <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{user.firstName} {user.lastName}</p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">Dealer</p>
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260} className="overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-950 via-orange-900 to-amber-900" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 left-0 w-28 h-28 bg-orange-400/15 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative flex flex-col h-full">
+          {/* Logo */}
+          <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center flex-shrink-0">
+              <Ticket className="w-5 h-5 text-yellow-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white leading-tight">Dealer Portal</p>
+              <p className="text-[10px] text-white/50 font-medium">Poornasree AI</p>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Stats strip */}
+          <div className="px-4 py-3 border-b border-white/10">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white/10 rounded-xl px-2 py-2 text-center">
+                <p className="text-base font-bold text-white">{tickets.length}</p>
+                <p className="text-[9px] text-white/60 font-medium">Total</p>
+              </div>
+              <div className="bg-white/10 rounded-xl px-2 py-2 text-center">
+                <p className="text-base font-bold text-yellow-300">{openCount}</p>
+                <p className="text-[9px] text-white/60 font-medium">Open</p>
+              </div>
+              <div className="bg-white/10 rounded-xl px-2 py-2 text-center">
+                <p className="text-base font-bold text-emerald-300">{closedCount}</p>
+                <p className="text-[9px] text-white/60 font-medium">Closed</p>
+              </div>
             </div>
           </div>
-        </div>
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          <div className="pt-1 pb-1 px-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary mb-2">
-              Dealer Portal
-            </p>
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300">
-              <Ticket className="w-3.5 h-3.5" />
-              My Tickets
-              <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
-                {tickets.length}
-              </span>
+
+          {/* Nav */}
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/15 text-white shadow-sm ring-1 ring-white/10">
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-yellow-400 rounded-full" />
+              <span className="text-yellow-300"><Ticket className="w-4 h-4" /></span>
+              <span className="flex-1 text-sm font-medium">My Tickets</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">{tickets.length}</span>
             </div>
             <button
               onClick={openSettings}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors mt-1"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all"
             >
-              <Settings className="w-3.5 h-3.5" />
+              <span className="text-white/50"><Settings className="w-4 h-4" /></span>
               Account Settings
             </button>
+          </nav>
+
+          {/* User footer */}
+          <div className="px-3 py-4 border-t border-white/10 space-y-2 shrink-0">
+            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/8">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                {user.firstName[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
+                <p className="text-[10px] text-white/50 truncate">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4 flex-shrink-0" />
+              Sign out
+            </button>
           </div>
-        </nav>
-        <div className="px-4 py-3 border-t border-line dark:border-line-dark space-y-2 shrink-0">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Theme</span>
-            <ThemeToggle />
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-content-secondary dark:text-content-dark-secondary hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
         </div>
       </ResponsiveSidebar>
 
@@ -706,6 +731,7 @@ export default function DealerPage() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <ThemeToggle />
             <button
               onClick={handleRefresh}
               disabled={refreshing}

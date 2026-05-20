@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Avatar } from "@/components/ui/Avatar";
 import { LoadingScreen } from "@/components/ui/Loading";
 import { Logo } from "@/components/ui/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -631,71 +630,87 @@ export default function ServiceManagerPage() {
     <div className="flex h-[100dvh] bg-surface dark:bg-surface-dark overflow-hidden">
 
       {/* ═══════════════════ SIDEBAR ═══════════════════ */}
-      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
-          <Logo variant="full" size="sm" />
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1.5 rounded-lg text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="px-4 py-3 border-b border-line dark:border-line-dark shrink-0">
-          <div className="flex items-center gap-3">
-            <Avatar name={`${user.firstName} ${user.lastName || ""}`} size="sm" />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{user.firstName} {user.lastName}</p>
-              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">Service Manager</p>
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260} className="overflow-hidden">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-950 via-indigo-900 to-blue-950" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 left-0 w-28 h-28 bg-indigo-400/15 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative flex flex-col h-full">
+          {/* Logo */}
+          <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center flex-shrink-0">
+              <Ticket className="w-5 h-5 text-cyan-300" />
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white leading-tight">Service Manager</p>
+              <p className="text-[10px] text-white/50 font-medium">Poornasree AI</p>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
           </div>
-        </div>
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          <div className="pt-1 pb-1 px-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary mb-2">
-              Manage
-            </p>
+
+          {/* Nav */}
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {([
-              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" />, count: total },
-              { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-3.5 h-3.5" />, count: engineers.length },
-              { key: "feedback" as PageView, label: "Feedback", icon: <Star className="w-3.5 h-3.5" />, count: engineerFeedback.reduce((s, e) => s + e.feedbackCount, 0) },
-              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
-              { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-3.5 h-3.5" />, count: assistants.length },
-              { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
-              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length },
-              { key: "engineer-updates" as PageView, label: "Engineer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.filter(r => r.dealer?.role === "service_engineer").length },
+              { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-4 h-4" />, count: total },
+              { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-4 h-4" />, count: engineers.length },
+              { key: "feedback" as PageView, label: "Feedback", icon: <Star className="w-4 h-4" />, count: engineerFeedback.reduce((s, e) => s + e.feedbackCount, 0) || undefined },
+              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-4 h-4" />, count: myPincodes.length },
+              { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-4 h-4" />, count: assistants.length },
+              { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-4 h-4" />, count: dealers.length },
+              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-4 h-4" />, count: workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length || undefined },
+              { key: "engineer-updates" as PageView, label: "Engineer Updates", icon: <ClipboardList className="w-4 h-4" />, count: workReports.filter(r => r.dealer?.role === "service_engineer").length || undefined },
             ]).map((nav) => (
               <button
                 key={nav.key}
                 onClick={() => { setPageView(nav.key); if (isMobile) setSidebarOpen(false); }}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                  "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group",
                   pageView === nav.key
-                    ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
-                    : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                    ? "bg-white/15 text-white shadow-sm ring-1 ring-white/10"
+                    : "text-white/60 hover:text-white hover:bg-white/8"
                 )}
               >
-                {nav.icon}
-                {nav.label}
-                <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
-                  {nav.count}
+                {pageView === nav.key && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-cyan-400 rounded-full" />
+                )}
+                <span className={cn(pageView === nav.key ? "text-cyan-300" : "text-white/50 group-hover:text-white/70")}>
+                  {nav.icon}
                 </span>
+                <span className="flex-1 text-left">{nav.label}</span>
+                {nav.count != null && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">
+                    {nav.count}
+                  </span>
+                )}
               </button>
             ))}
+          </nav>
+
+          {/* User footer */}
+          <div className="px-3 py-4 border-t border-white/10 space-y-2 shrink-0">
+            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/8">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                {user.firstName[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
+                <p className="text-[10px] text-white/50 truncate">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <LogOut className="w-4 h-4 flex-shrink-0" />
+              Sign out
+            </button>
           </div>
-        </nav>
-        <div className="px-4 py-3 border-t border-line dark:border-line-dark space-y-2 shrink-0">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">Theme</span>
-            <ThemeToggle />
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-content-secondary dark:text-content-dark-secondary hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
         </div>
       </ResponsiveSidebar>
 
@@ -717,6 +732,7 @@ export default function ServiceManagerPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <button onClick={handleRefresh} disabled={refreshing}
               className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
               <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
