@@ -1252,7 +1252,7 @@ export default function ServiceManagerPage() {
                         className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
                     {myPincodes.length > 0 && (() => {
-                      const asstStates = [...new Set(myPincodes.map(p => p.state).filter(Boolean))].sort() as string[];
+                      const asstStates = Array.from(new Set(myPincodes.map(p => p.state).filter((s): s is string => !!s))).sort();
                       const filteredPincodes = newAsstPincodeState
                         ? myPincodes.filter(p => p.state === newAsstPincodeState)
                         : [];
@@ -1440,7 +1440,7 @@ export default function ServiceManagerPage() {
                         className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
                     {myPincodes.length > 0 && (() => {
-                      const asstStates = [...new Set(myPincodes.map(p => p.state).filter(Boolean))].sort() as string[];
+                      const asstStates = Array.from(new Set(myPincodes.map(p => p.state).filter((s): s is string => !!s))).sort();
                       const filteredPincodes = editAsstPincodeState
                         ? myPincodes.filter(p => p.state === editAsstPincodeState)
                         : [];
