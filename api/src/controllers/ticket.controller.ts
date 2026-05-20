@@ -87,6 +87,15 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     else if (role === "service_manager") {
       filters.ownerType = TicketOwnerType.MANAGER;
     }
+    else if (role === "assistant_service_manager") {
+      // Show only tickets within the assistant manager's assigned pincodes
+      const asstUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { engineerPincodes: { select: { id: true } } },
+      });
+      const pincodeIds = asstUser?.engineerPincodes.map(p => p.id) ?? [];
+      filters.managedPincodeIds = pincodeIds; // empty = no tickets shown
+    }
     // admin: no filter — sees all tickets
 
     const tickets = await TicketService.listTickets(filters);
@@ -130,6 +139,7 @@ export async function getTicket(req: Request, res: Response): Promise<void> {
       if (ticket.assignedEngineerId !== userId) { res.status(403).json({ error: "Access denied: not assigned to this ticket" }); return; }
     }
     // service_manager: sees all tickets — no pincode ownership restriction
+    // assistant_service_manager: sees any ticket by ID (ticket list is already pincode-scoped)
     // admin: full access — no filter
 
     res.json({ ticket });
@@ -146,11 +156,11 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
     const { engineerId } = req.body;
     if (!engineerId) { res.status(400).json({ error: "engineerId is required" }); return; }
 
-    // Pincode enforcement for service_manager
-    if (req.user!.role === "service_manager") {
-      const managerId = req.user!.userId;
+    // Pincode enforcement for service_manager and assistant_service_manager
+    if (req.user!.role === "service_manager" || req.user!.role === "assistant_service_manager") {
+      const callerId = req.user!.userId;
 
-      // Engineer must be owned by this manager
+      // Engineer must be owned by this manager/assistant
       const engineer = await prisma.user.findUnique({
         where: { id: engineerId },
         select: { managerId: true, role: true, engineerPincodes: { select: { id: true } } },
@@ -158,7 +168,7 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
       if (!engineer || engineer.role !== "service_engineer") {
         res.status(400).json({ error: "Invalid engineer ID" }); return;
       }
-      if (engineer.managerId !== managerId) {
+      if (engineer.managerId !== callerId) {
         res.status(403).json({ error: "This engineer is not in your team" }); return;
       }
 
@@ -167,7 +177,6 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
         res.status(400).json({ error: "Engineer must have at least one pincode assigned before being assigned to tickets" }); return;
       }
 
-      // Check that the manager manages the ticket's pincode
       const existing = await TicketService.getTicket(id);
       if (!existing) { res.status(404).json({ error: "Ticket not found" }); return; }
 
@@ -177,6 +186,18 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
         if (!engineerMatchesPincode) {
           res.status(400).json({ error: "Engineer does not cover this ticket's pincode zone. Assign the correct zone to the engineer first." });
           return;
+        }
+      }
+
+      // For assistant managers: also verify the ticket is in their assigned pincodes
+      if (req.user!.role === "assistant_service_manager" && existing.pincodeId) {
+        const asst = await prisma.user.findUnique({
+          where: { id: callerId },
+          select: { engineerPincodes: { select: { id: true } } },
+        });
+        const asstPincodeIds = new Set(asst?.engineerPincodes.map(p => p.id) ?? []);
+        if (!asstPincodeIds.has(existing.pincodeId)) {
+          res.status(403).json({ error: "This ticket is outside your assigned zone" }); return;
         }
       }
     }
@@ -285,9 +306,10 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
     const filterPincodeId = req.query.pincodeId as string | undefined;
 
     // service_manager: only engineers they own (managerId === their id)
+    // assistant_service_manager: only engineers they own
     // admin: all service_engineers
     const engineerWhere: Record<string, unknown> =
-      role === "service_manager"
+      role === "service_manager" || role === "assistant_service_manager"
         ? { role: "service_engineer", managerId: userId }
         : { role: "service_engineer" };
 

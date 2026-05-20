@@ -52,7 +52,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports";
+type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "assistants";
 
 interface PincodeInfo {
   id: string;
@@ -81,6 +81,17 @@ interface Dealer {
   pincode?: { code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   createdAt: string;
   ticketCount?: number;
+}
+
+interface AssistantManager {
+  id: string;
+  firstName: string;
+  lastName?: string | null;
+  email: string;
+  whatsappNumber?: string | null;
+  createdAt: string;
+  engineerPincodes: PincodeInfo[];
+  _count: { managedEngineers: number };
 }
 
 interface ServiceTicket {
@@ -218,6 +229,17 @@ export default function ServiceManagerPage() {
   const [savingDealerEdit, setSavingDealerEdit] = useState(false);
   const [deletingDealerId, setDeletingDealerId] = useState<string | null>(null);
   const [deletingEngineerId, setDeletingEngineerId] = useState<string | null>(null);
+
+  // ── Assistant Manager state ──
+  const [assistants, setAssistants] = useState<AssistantManager[]>([]);
+  const [showAddAssistant, setShowAddAssistant] = useState(false);
+  const [newAsst, setNewAsst] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] as string[] });
+  const [addingAssistant, setAddingAssistant] = useState(false);
+  const [assistantCreated, setAssistantCreated] = useState<{ name: string; email: string; setPasswordUrl: string; hasWhatsapp: boolean } | null>(null);
+  const [editingAsst, setEditingAsst] = useState<AssistantManager | null>(null);
+  const [editAsstForm, setEditAsstForm] = useState({ firstName: "", lastName: "", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
+  const [savingAsstEdit, setSavingAsstEdit] = useState(false);
+  const [deletingAsstId, setDeletingAsstId] = useState<string | null>(null);
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -400,16 +422,18 @@ export default function ServiceManagerPage() {
   const fetchData = useCallback(async () => {
     try {
       const noCache = { credentials: "include" as const, cache: "no-store" as const };
-      const [ticketsRes, engineersRes, pincodesRes, dealersRes] = await Promise.all([
+      const [ticketsRes, engineersRes, pincodesRes, dealersRes, assistantsRes] = await Promise.all([
         fetch("/api/tickets", noCache),
         fetch("/api/manager/engineers", noCache),
         fetch("/api/manager/pincodes", noCache),
         fetch("/api/manager/dealers", noCache),
+        fetch("/api/manager/assistants", noCache),
       ]);
       if (ticketsRes.ok) { const { tickets: d } = await ticketsRes.json(); setTickets(d ?? []); }
       if (engineersRes.ok) { const { engineers: d } = await engineersRes.json(); setEngineers(d ?? []); }
       if (pincodesRes.ok) { const { pincodes: d } = await pincodesRes.json(); setMyPincodes(d ?? []); }
       if (dealersRes.ok) { const { dealers: d } = await dealersRes.json(); setDealers(d ?? []); }
+      if (assistantsRes.ok) { const { assistants: d } = await assistantsRes.json(); setAssistants(d ?? []); }
       // Work reports
       try { const reports = await listWorkReports(); setWorkReports(reports); } catch { /* non-fatal */ }
     } catch { setError("Failed to load data"); }
@@ -595,6 +619,7 @@ export default function ServiceManagerPage() {
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" />, count: total },
               { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-3.5 h-3.5" />, count: engineers.length },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: myPincodes.length },
+              { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-3.5 h-3.5" />, count: assistants.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-3.5 h-3.5" />, count: dealers.length },
               { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-3.5 h-3.5" />, count: workReports.length },
             ]).map((nav) => (
@@ -1095,6 +1120,331 @@ export default function ServiceManagerPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ═══════════════════ ASSISTANTS VIEW ═══════════════════ */}
+          {pageView === "assistants" && (
+            <section className="space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-content dark:text-content-dark">Assistant Managers</h2>
+                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{assistants.length} assistant{assistants.length !== 1 ? "s" : ""} — each manages their own pincode zones & engineers</p>
+                </div>
+                <button onClick={() => setShowAddAssistant(true)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
+                  <Plus className="w-4 h-4" /> Add Assistant
+                </button>
+              </div>
+
+              {/* Assistants list */}
+              {assistants.length === 0 ? (
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
+                  <ShieldCheck className="w-10 h-10 mb-3 opacity-40" />
+                  <p className="text-sm">No assistant managers yet</p>
+                  <button onClick={() => setShowAddAssistant(true)} className="mt-2 text-xs text-primary hover:underline">Add your first assistant</button>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {assistants.map(asst => (
+                    <div key={asst.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-content dark:text-content-dark truncate">{asst.firstName} {asst.lastName}</p>
+                          <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{asst.email}</p>
+                          {asst.whatsappNumber && (
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3" /> {asst.whatsappNumber}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400">
+                            {asst._count.managedEngineers} eng
+                          </span>
+                          <button
+                            onClick={() => {
+                              setEditingAsst(asst);
+                              setEditAsstForm({
+                                firstName: asst.firstName,
+                                lastName: asst.lastName ?? "",
+                                newPassword: "",
+                                whatsappNumber: asst.whatsappNumber ?? "",
+                                pincodeIds: asst.engineerPincodes.map(p => p.id),
+                              });
+                            }}
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
+                            title="Edit assistant"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete ${asst.firstName}${asst.lastName ? " " + asst.lastName : ""}? Their engineers will be reassigned to you.`)) return;
+                              setDeletingAsstId(asst.id);
+                              try {
+                                const res = await fetch(`/api/manager/assistants/${asst.id}`, { method: "DELETE", credentials: "include" });
+                                if (!res.ok) { const d = await res.json(); setError(d.error || "Failed to delete"); }
+                                else { await fetchData(); }
+                              } catch { setError("Network error"); }
+                              finally { setDeletingAsstId(null); }
+                            }}
+                            disabled={deletingAsstId === asst.id}
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Delete assistant"
+                          >
+                            {deletingAsstId === asst.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                      </div>
+                      {/* Assigned pincodes */}
+                      {asst.engineerPincodes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {asst.engineerPincodes.map(p => (
+                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+                              <MapPin className="w-2.5 h-2.5" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">No pincodes assigned — assistant sees no tickets yet</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Add Assistant Modal ── */}
+              {showAddAssistant && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                  <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-content dark:text-content-dark">Add Assistant Manager</h3>
+                      <button onClick={() => setShowAddAssistant(false)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
+                        <input value={newAsst.firstName} onChange={e => setNewAsst(f => ({ ...f, firstName: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
+                        <input value={newAsst.lastName} onChange={e => setNewAsst(f => ({ ...f, lastName: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Email *</label>
+                      <input type="email" value={newAsst.email} onChange={e => setNewAsst(f => ({ ...f, email: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
+                      <input type="tel" value={newAsst.whatsappNumber} onChange={e => setNewAsst(f => ({ ...f, whatsappNumber: e.target.value }))}
+                        placeholder="e.g. 919876543210"
+                        className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                    </div>
+                    {myPincodes.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assign Pincodes</label>
+                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                          {myPincodes.map(p => (
+                            <button key={p.id} type="button"
+                              onClick={() => setNewAsst(f => ({
+                                ...f,
+                                pincodeIds: f.pincodeIds.includes(p.id)
+                                  ? f.pincodeIds.filter(id => id !== p.id)
+                                  : [...f.pincodeIds, p.id],
+                              }))}
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                newAsst.pincodeIds.includes(p.id)
+                                  ? "bg-primary text-white border-primary"
+                                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                              )}>
+                              {p.code}{p.place ? ` · ${p.place}` : ""}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => setShowAddAssistant(false)}
+                        className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                        Cancel
+                      </button>
+                      <button
+                        disabled={addingAssistant}
+                        onClick={async () => {
+                          if (!newAsst.firstName.trim() || !newAsst.email.trim()) { setError("Name and email are required"); return; }
+                          setAddingAssistant(true);
+                          try {
+                            const res = await fetch("/api/manager/assistants", {
+                              method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+                              body: JSON.stringify({
+                                firstName: newAsst.firstName.trim(),
+                                lastName: newAsst.lastName.trim() || undefined,
+                                email: newAsst.email.trim(),
+                                whatsappNumber: newAsst.whatsappNumber.trim() || undefined,
+                              }),
+                            });
+                            if (!res.ok) { const d = await res.json(); setError(d.error || "Failed to add"); }
+                            else {
+                              const data = await res.json();
+                              // Assign pincodes if any selected
+                              if (newAsst.pincodeIds.length > 0) {
+                                await fetch(`/api/manager/assistants/${data.assistant.id}/pincodes`, {
+                                  method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+                                  body: JSON.stringify({ pincodeIds: newAsst.pincodeIds }),
+                                });
+                              }
+                              setShowAddAssistant(false);
+                              setAssistantCreated({ name: newAsst.firstName.trim(), email: newAsst.email.trim(), setPasswordUrl: data.setPasswordUrl, hasWhatsapp: !!newAsst.whatsappNumber.trim() });
+                              setNewAsst({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
+                              await fetchData();
+                            }
+                          } catch { setError("Network error"); }
+                          finally { setAddingAssistant(false); }
+                        }}
+                        className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
+                        {addingAssistant ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Create Assistant"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Assistant Created Banner ── */}
+              {assistantCreated && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                  <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15">
+                        <CheckCircle className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-content dark:text-content-dark">Assistant Created!</h3>
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{assistantCreated.name} — {assistantCreated.email}</p>
+                      </div>
+                    </div>
+                    {assistantCreated.hasWhatsapp ? (
+                      <p className="text-sm text-content-secondary dark:text-content-dark-secondary">A set-password link was sent via WhatsApp.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Share this set-password link with the assistant:</p>
+                        <div className="flex items-center gap-2 bg-surface dark:bg-surface-dark rounded-lg px-3 py-2 border border-line dark:border-line-dark">
+                          <span className="text-xs font-mono text-content dark:text-content-dark truncate flex-1">{assistantCreated.setPasswordUrl}</span>
+                          <button onClick={() => navigator.clipboard?.writeText(assistantCreated.setPasswordUrl)} className="shrink-0 p-1 rounded hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary text-content-secondary dark:text-content-dark-secondary" title="Copy">
+                            <Save className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={() => setAssistantCreated(null)} className="w-full px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors">Done</button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Edit Assistant Modal ── */}
+              {editingAsst && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                  <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Assistant Manager</h3>
+                      <button onClick={() => setEditingAsst(null)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
+                        <input value={editAsstForm.firstName} onChange={e => setEditAsstForm(f => ({ ...f, firstName: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
+                        <input value={editAsstForm.lastName} onChange={e => setEditAsstForm(f => ({ ...f, lastName: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
+                      <input type="tel" value={editAsstForm.whatsappNumber} onChange={e => setEditAsstForm(f => ({ ...f, whatsappNumber: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">New Password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(leave blank to keep current)</span></label>
+                      <input type="password" value={editAsstForm.newPassword} onChange={e => setEditAsstForm(f => ({ ...f, newPassword: e.target.value }))}
+                        placeholder="Min 8 characters"
+                        className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                    </div>
+                    {myPincodes.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assigned Pincodes</label>
+                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                          {myPincodes.map(p => (
+                            <button key={p.id} type="button"
+                              onClick={() => setEditAsstForm(f => ({
+                                ...f,
+                                pincodeIds: f.pincodeIds.includes(p.id)
+                                  ? f.pincodeIds.filter(id => id !== p.id)
+                                  : [...f.pincodeIds, p.id],
+                              }))}
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                editAsstForm.pincodeIds.includes(p.id)
+                                  ? "bg-primary text-white border-primary"
+                                  : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                              )}>
+                              {p.code}{p.place ? ` · ${p.place}` : ""}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => setEditingAsst(null)}
+                        className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                        Cancel
+                      </button>
+                      <button
+                        disabled={savingAsstEdit}
+                        onClick={async () => {
+                          if (!editAsstForm.firstName.trim()) { setError("First name is required"); return; }
+                          setSavingAsstEdit(true);
+                          try {
+                            const body: Record<string, string | undefined> = {};
+                            if (editAsstForm.firstName.trim() !== editingAsst.firstName) body.firstName = editAsstForm.firstName.trim();
+                            if (editAsstForm.lastName.trim() !== (editingAsst.lastName ?? "")) body.lastName = editAsstForm.lastName.trim();
+                            if (editAsstForm.whatsappNumber.trim() !== (editingAsst.whatsappNumber ?? "")) body.whatsappNumber = editAsstForm.whatsappNumber.trim();
+                            if (editAsstForm.newPassword.trim()) {
+                              if (editAsstForm.newPassword.length < 8) { setError("Password must be at least 8 characters"); setSavingAsstEdit(false); return; }
+                              body.newPassword = editAsstForm.newPassword;
+                            }
+                            if (Object.keys(body).length > 0) {
+                              const res = await fetch(`/api/manager/assistants/${editingAsst.id}`, {
+                                method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+                                body: JSON.stringify(body),
+                              });
+                              if (!res.ok) { const d = await res.json(); setError(d.error || "Failed to update"); setSavingAsstEdit(false); return; }
+                            }
+                            // Sync pincodes
+                            await fetch(`/api/manager/assistants/${editingAsst.id}/pincodes`, {
+                              method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+                              body: JSON.stringify({ pincodeIds: editAsstForm.pincodeIds }),
+                            });
+                            setEditingAsst(null);
+                            await fetchData();
+                          } catch { setError("Network error"); }
+                          finally { setSavingAsstEdit(false); }
+                        }}
+                        className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
+                        {savingAsstEdit ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Save Changes"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </section>

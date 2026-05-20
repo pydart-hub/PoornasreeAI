@@ -741,3 +741,194 @@ export async function exportTickets(req: Request, res: Response): Promise<void> 
     if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// Assistant Manager CRUD — Service Manager creates/manages assistant managers
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── POST /api/manager/assistants ──────────────────────────────────────────
+// Service manager creates a new assistant_service_manager linked to themselves.
+// The assistant sets their own password via a one-time WhatsApp link.
+export async function createAssistantManager(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const { email, firstName, lastName, whatsappNumber } = req.body;
+
+    if (!email || !firstName) {
+      res.status(400).json({ error: "email and firstName are required" });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) {
+      res.status(409).json({ error: "An account with this email already exists" });
+      return;
+    }
+
+    const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const assistant = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        passwordHash: unusablePasswordHash,
+        firstName: firstName.trim(),
+        lastName: lastName?.trim() ?? null,
+        role: "assistant_service_manager",
+        managerId,
+        setPasswordToken: tokenHash,
+        setPasswordTokenExpiry: tokenExpiry,
+        ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") } : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        whatsappNumber: true,
+        role: true,
+        createdAt: true,
+        manager: { select: { id: true, firstName: true, lastName: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
+        _count: { select: { managedEngineers: true } },
+      },
+    });
+
+    const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+    if (assistant.whatsappNumber) {
+      const manager = assistant.manager;
+      const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
+      const greeting = [
+        `🎉 Welcome to Poornasree, ${assistant.firstName}!`,
+        "",
+        `You've been registered as an Assistant Service Manager by ${managerName}.`,
+        "",
+        "To get started, please set your password by clicking the link below:",
+        setPasswordUrl,
+        "",
+        `Your login email: ${assistant.email}`,
+        "",
+        "Thank you! 🙏",
+      ].join("\n");
+      WhatsAppService.sendMessage(assistant.whatsappNumber, greeting).catch((err) =>
+        console.error("[manager] Failed to send assistant greeting:", err),
+      );
+    } else {
+      console.log(`[manager] Assistant ${assistant.email} has no WhatsApp — set-password URL: ${setPasswordUrl}`);
+    }
+
+    res.status(201).json({ assistant, setPasswordUrl });
+  } catch (err) {
+    console.error("createAssistantManager error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── GET /api/manager/assistants ───────────────────────────────────────────
+// Lists assistant managers created by the calling service manager.
+export async function listMyAssistants(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+
+    const assistants = await prisma.user.findMany({
+      where: { role: "assistant_service_manager", managerId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        whatsappNumber: true,
+        createdAt: true,
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
+        _count: { select: { managedEngineers: true } },
+      },
+      orderBy: { firstName: "asc" },
+    });
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ assistants });
+  } catch (err) {
+    console.error("listMyAssistants error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── PATCH /api/manager/assistants/:id ─────────────────────────────────────
+// Service manager updates an assistant manager's basic info.
+export async function updateMyAssistant(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const assistantId = String(req.params.id);
+    const { firstName, lastName, newPassword, whatsappNumber } = req.body;
+
+    const assistant = await prisma.user.findUnique({ where: { id: assistantId } });
+    if (!assistant || assistant.role !== "assistant_service_manager" || assistant.managerId !== managerId) {
+      res.status(404).json({ error: "Assistant not found" });
+      return;
+    }
+
+    const data: Record<string, unknown> = {};
+    if (firstName?.trim()) data.firstName = firstName.trim();
+    if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
+    if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+    if (newPassword) {
+      if (newPassword.length < 8) {
+        res.status(400).json({ error: "Password must be at least 8 characters" });
+        return;
+      }
+      data.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    }
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: "Nothing to update" });
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: assistantId },
+      data,
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        whatsappNumber: true, role: true, createdAt: true,
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
+        _count: { select: { managedEngineers: true } },
+      },
+    });
+
+    res.json({ assistant: updated });
+  } catch (err) {
+    console.error("updateMyAssistant error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── DELETE /api/manager/assistants/:id ────────────────────────────────────
+// Service manager removes an assistant manager they own.
+export async function deleteAssistantManager(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const assistantId = String(req.params.id);
+
+    const assistant = await prisma.user.findUnique({ where: { id: assistantId } });
+    if (!assistant || assistant.role !== "assistant_service_manager" || assistant.managerId !== managerId) {
+      res.status(404).json({ error: "Assistant not found" });
+      return;
+    }
+
+    // Re-parent the assistant's engineers to the calling service manager before deleting
+    await prisma.user.updateMany({
+      where: { managerId: assistantId, role: "service_engineer" },
+      data: { managerId },
+    });
+
+    await prisma.user.delete({ where: { id: assistantId } });
+
+    res.json({ message: "Assistant manager deleted" });
+  } catch (err) {
+    console.error("deleteAssistantManager error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

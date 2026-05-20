@@ -32,6 +32,7 @@ function roleRoute(role: string): string {
     case "service":
     case "service_engineer": return "/service";
     case "service_manager":  return "/service-manager";
+    case "assistant_service_manager": return "/assistant-manager";
     case "dealer":           return "/dealer";
     case "customer":         return "/customer";
     case "sales":            return "/sales";

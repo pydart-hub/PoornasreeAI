@@ -24,17 +24,17 @@ router.use(protect);
 router.post("/", authorize("dealer", "admin", "customer"), createTicket);
 
 // VIEW TICKETS: all ticket-related roles (role-scoped filtering in controller)
-router.get("/engineers", authorize("service_manager", "admin"), listEngineers);
-router.get("/", authorize("admin", "service_manager", "service_engineer", "service", "dealer", "customer"), listTickets);
-router.get("/:id", authorize("admin", "service_manager", "service_engineer", "service", "dealer", "customer"), getTicket);
+router.get("/engineers", authorize("service_manager", "assistant_service_manager", "admin"), listEngineers);
+router.get("/", authorize("admin", "service_manager", "assistant_service_manager", "service_engineer", "service", "dealer", "customer"), listTickets);
+router.get("/:id", authorize("admin", "service_manager", "assistant_service_manager", "service_engineer", "service", "dealer", "customer"), getTicket);
 
 // ── Assignment ────────────────────────────────────────────────────────────
 
-// ASSIGN ENGINEER: service_manager or admin
-router.patch("/:id/assign-engineer", authorize("service_manager", "admin"), assignEngineer);
+// ASSIGN ENGINEER: service_manager, assistant_service_manager or admin
+router.patch("/:id/assign-engineer", authorize("service_manager", "assistant_service_manager", "admin"), assignEngineer);
 
-// UNASSIGN ENGINEER: service_manager or admin
-router.patch("/:id/unassign-engineer", authorize("service_manager", "admin"), unassignEngineer);
+// UNASSIGN ENGINEER: service_manager, assistant_service_manager or admin
+router.patch("/:id/unassign-engineer", authorize("service_manager", "assistant_service_manager", "admin"), unassignEngineer);
 
 // ── Engineer lifecycle ────────────────────────────────────────────────────
 // START WORK: assigned service_engineer or admin

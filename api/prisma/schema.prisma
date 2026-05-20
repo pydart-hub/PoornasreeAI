@@ -14,7 +14,7 @@ model User {
   passwordHash     String
   firstName        String
   lastName         String?
-  // Roles: customer | service | service_engineer | service_manager | dealer | admin | sales
+  // Roles: customer | service | service_engineer | service_manager | assistant_service_manager | dealer | admin | sales
   role             String             @default("customer")
   createdAt        DateTime           @default(now())
 

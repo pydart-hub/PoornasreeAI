@@ -56,6 +56,12 @@ const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     "analytics.view": true,
     "profile.edit": true,
   },
+  assistant_service_manager: {
+    "tickets.view": true,
+    "tickets.assign": true,
+    "analytics.view": true,
+    "profile.edit": true,
+  },
   dealer: {
     "tickets.create": true,
     "tickets.view": true,

@@ -1,10 +1,11 @@
 // ── Role definitions ──────────────────────────────────────────────────
 export type UserRole =
   | "customer"
-  | "service"           // legacy — kept for backward compat
-  | "service_engineer"  // Phase 1 rename of "service"
-  | "service_manager"   // NEW: assigns tickets by pincode
-  | "dealer"            // NEW: raises tickets on behalf of customers
+  | "service"                    // legacy — kept for backward compat
+  | "service_engineer"           // Phase 1 rename of "service"
+  | "service_manager"            // assigns tickets by pincode
+  | "assistant_service_manager"  // works under a service_manager, scoped to assigned pincodes
+  | "dealer"                     // raises tickets on behalf of customers
   | "admin"
   | "sales";
 
