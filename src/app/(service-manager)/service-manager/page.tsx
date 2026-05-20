@@ -1284,7 +1284,7 @@ export default function ServiceManagerPage() {
                                 <div className="flex gap-2">
                                   <button type="button" onClick={() => setNewAsst(f => ({
                                     ...f,
-                                    pincodeIds: [...new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])],
+                                    pincodeIds: Array.from(new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])),
                                   }))} className="text-[11px] text-primary hover:underline">All</button>
                                   <button type="button" onClick={() => setNewAsst(f => ({
                                     ...f,
@@ -1472,7 +1472,7 @@ export default function ServiceManagerPage() {
                                 <div className="flex gap-2">
                                   <button type="button" onClick={() => setEditAsstForm(f => ({
                                     ...f,
-                                    pincodeIds: [...new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])],
+                                    pincodeIds: Array.from(new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])),
                                   }))} className="text-[11px] text-primary hover:underline">All</button>
                                   <button type="button" onClick={() => setEditAsstForm(f => ({
                                     ...f,
