@@ -560,13 +560,13 @@ export default function AdminPage() {
               </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", trainedCount > 0 ? "text-emerald-200" : "text-white/40")}>Trained</p>
             </div>
-            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", users.length > 0 ? "bg-violet-500/30 border-violet-300/40" : "bg-white/10 border-white/20")}>
+            <button onClick={() => setActiveTab("users")} className={cn("rounded-2xl px-4 py-3.5 border shadow-inner text-left transition-all hover:scale-[1.02] hover:brightness-110", users.length > 0 ? "bg-violet-500/30 border-violet-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
                 <p className={cn("text-3xl font-black", users.length > 0 ? "text-violet-200" : "text-white/50")}>{users.length}</p>
                 <Users className={cn("w-5 h-5 mt-1", users.length > 0 ? "text-violet-300 opacity-70" : "text-white/20")} />
               </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", users.length > 0 ? "text-violet-200" : "text-white/40")}>Users</p>
-            </div>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", users.length > 0 ? "text-violet-200" : "text-white/40")}>Manage Users</p>
+            </button>
             <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
               <div className="flex items-start justify-between">
                 <p className="text-3xl font-black text-white">{users.reduce((s, u) => s + (u._count?.conversations ?? 0), 0)}</p>
