@@ -632,10 +632,10 @@ export default function ServiceManagerPage() {
     const customerPool = pool.filter(t => !t.dealer);
 
     const makeGroups = (p: ServiceTicket[]) => ({
-      urgent:     p.filter(t => (t.ageHours ?? 0) > 6 && t.status !== "CLOSED").sort(sortByAge),
-      unassigned: p.filter(t => t.status === "OPEN" && (t.ageHours ?? 0) <= 6).sort(sortByAge),
-      inProgress: p.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status) && (t.ageHours ?? 0) <= 6).sort(sortByAge),
-      closed:     p.filter(t => t.status === "CLOSED").sort(sortByAge),
+      needsAssignment: p.filter(t => t.status === "OPEN" && !t.assignedEngineer && !t.assignedDealer).sort(sortByAge),
+      withDealer:      p.filter(t => t.status === "OPEN" && !!t.assignedDealer).sort(sortByAge),
+      withEngineer:    p.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status)).sort(sortByAge),
+      closed:          p.filter(t => t.status === "CLOSED").sort(sortByAge),
     });
 
     return { dealer: makeGroups(dealerPool), customer: makeGroups(customerPool) };
@@ -935,8 +935,8 @@ export default function ServiceManagerPage() {
               {(() => {
                 const { dealer: dealerGroups, customer: customerGroups } = ticketGroups;
                 const totalVisible =
-                  dealerGroups.urgent.length + dealerGroups.unassigned.length + dealerGroups.inProgress.length + dealerGroups.closed.length +
-                  customerGroups.urgent.length + customerGroups.unassigned.length + customerGroups.inProgress.length + customerGroups.closed.length;
+                  dealerGroups.needsAssignment.length + dealerGroups.withDealer.length + dealerGroups.withEngineer.length + dealerGroups.closed.length +
+                  customerGroups.needsAssignment.length + customerGroups.withDealer.length + customerGroups.withEngineer.length + customerGroups.closed.length;
 
                 const renderTicketCard = (ticket: ServiceTicket) => {
                   const canAssign = ticket.status === "OPEN";
@@ -949,13 +949,11 @@ export default function ServiceManagerPage() {
                     ticket.pincode?.code,
                   ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                   const complaintDisplay = ticket.problemDescription;
-                  const isPending = ticket.status === "OPEN" && !ticket.assignedEngineer;
+                  const isPending = ticket.status === "OPEN" && !ticket.assignedEngineer && !ticket.assignedDealer;
 
-                  const borderColor = (ticket.ageHours ?? 0) > 24
-                    ? "border-l-red-500"
-                    : (ticket.ageHours ?? 0) >= 6
-                      ? "border-l-amber-400"
-                      : "border-l-transparent";
+                  const isOverdue = (ticket.ageHours ?? 0) > 24 && ticket.status !== "CLOSED";
+                  const needsActionSoon = isPending && (ticket.ageHours ?? 0) >= 6;
+                  const borderColor = isOverdue ? "border-l-red-500" : needsActionSoon ? "border-l-amber-400" : "border-l-transparent";
 
                   return (
                     <div key={ticket.id}
@@ -1164,9 +1162,9 @@ export default function ServiceManagerPage() {
                 };
 
                 const groupTheme: Record<string, { badge: string; label: string; dot: string }> = {
-                  "Urgent / Overdue": { badge: "bg-red-100 text-red-700 border border-red-200", label: "text-red-700 dark:text-red-400", dot: "bg-red-500" },
-                  "Unassigned":       { badge: "bg-amber-100 text-amber-700 border border-amber-200", label: "text-amber-700 dark:text-amber-400", dot: "bg-amber-400" },
-                  "In Progress":      { badge: "bg-cyan-100 text-cyan-700 border border-cyan-200", label: "text-cyan-700 dark:text-cyan-400", dot: "bg-cyan-500" },
+                  "Needs Assignment": { badge: "bg-red-100 text-red-700 border border-red-200", label: "text-red-700 dark:text-red-400", dot: "bg-red-500" },
+                  "With Dealer":      { badge: "bg-violet-100 text-violet-700 border border-violet-200", label: "text-violet-700 dark:text-violet-400", dot: "bg-violet-500" },
+                  "With Engineer":    { badge: "bg-cyan-100 text-cyan-700 border border-cyan-200", label: "text-cyan-700 dark:text-cyan-400", dot: "bg-cyan-500" },
                   "Closed":           { badge: "bg-emerald-100 text-emerald-700 border border-emerald-200", label: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
                 };
 
@@ -1212,32 +1210,32 @@ export default function ServiceManagerPage() {
                 return (
                   <div className="space-y-6">
                     {/* ── Dealer-Raised Tickets ── */}
-                    {(dealerGroups.urgent.length + dealerGroups.unassigned.length + dealerGroups.inProgress.length + dealerGroups.closed.length) > 0 && (
+                    {(dealerGroups.needsAssignment.length + dealerGroups.withDealer.length + dealerGroups.withEngineer.length + dealerGroups.closed.length) > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-3">
                           <Store className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                           <h3 className="text-sm font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wide">Dealer Tickets</h3>
                         </div>
                         <div className="space-y-5">
-                          {renderGroup("Urgent / Overdue", "🔥", dealerGroups.urgent)}
-                          {renderGroup("Unassigned", "⚠️", dealerGroups.unassigned)}
-                          {renderGroup("In Progress", "🟢", dealerGroups.inProgress)}
+                          {renderGroup("Needs Assignment", "⚠️", dealerGroups.needsAssignment)}
+                          {renderGroup("With Dealer", "🏪", dealerGroups.withDealer)}
+                          {renderGroup("With Engineer", "🔧", dealerGroups.withEngineer)}
                           {renderGroup("Closed", "✅", dealerGroups.closed)}
                         </div>
                       </div>
                     )}
 
                     {/* ── Customer-Raised Tickets ── */}
-                    {(customerGroups.urgent.length + customerGroups.unassigned.length + customerGroups.inProgress.length + customerGroups.closed.length) > 0 && (
+                    {(customerGroups.needsAssignment.length + customerGroups.withDealer.length + customerGroups.withEngineer.length + customerGroups.closed.length) > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-3">
                           <UserCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                           <h3 className="text-sm font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Customer Tickets</h3>
                         </div>
                         <div className="space-y-5">
-                          {renderGroup("Urgent / Overdue", "🔥", customerGroups.urgent)}
-                          {renderGroup("Unassigned", "⚠️", customerGroups.unassigned)}
-                          {renderGroup("In Progress", "🟢", customerGroups.inProgress)}
+                          {renderGroup("Needs Assignment", "⚠️", customerGroups.needsAssignment)}
+                          {renderGroup("With Dealer", "🏪", customerGroups.withDealer)}
+                          {renderGroup("With Engineer", "🔧", customerGroups.withEngineer)}
                           {renderGroup("Closed", "✅", customerGroups.closed)}
                         </div>
                       </div>
