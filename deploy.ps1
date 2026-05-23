@@ -12,11 +12,11 @@
 # ============================================================
 
 param(
-    [string]$Server    = "187.77.188.63",
-    [string]$User      = "deploy",
-    [int]   $SshPort   = 2222,
-    [string]$RemoteDir = "/home/deploy/poornasree-ai",
-    [string]$KeyFile   = ""
+    [string]$Server    = "168.231.121.19",
+    [string]$User      = "root",
+    [int]   $SshPort   = 22,
+    [string]$RemoteDir = "/root/poornasree-ai",
+    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI"
 )
 
 $ErrorActionPreference = "Stop"

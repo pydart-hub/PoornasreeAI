@@ -6,7 +6,7 @@
 
 set -e
 
-REPO_DIR="/home/deploy/poornasree-ai"
+REPO_DIR="/root/poornasree-ai"
 BRANCH="AIpoorna"
 
 cd "$REPO_DIR"
@@ -44,7 +44,7 @@ echo "[4/4] Syncing Nginx socket.io proxy rule..."
 cat > /tmp/poornasree-nginx.conf << 'NGINXEOF'
 server {
     listen 80;
-    server_name poornasree.pydart.com 187.77.188.63;
+    server_name poornasree.pydart.com 168.231.121.19;
 
     gzip on;
     gzip_vary on;
@@ -103,21 +103,10 @@ NGINXEOF
 if grep -q "location /socket.io/" /etc/nginx/sites-available/poornasree 2>/dev/null; then
     echo "  Nginx socket.io block already present — skipping."
 else
-    # Attempt to apply without password (NOPASSWD sudoers rule)
-    if sudo -n cp /tmp/poornasree-nginx.conf /etc/nginx/sites-available/poornasree 2>/dev/null \
-       && sudo -n nginx -t 2>/dev/null \
-       && sudo -n systemctl reload nginx 2>/dev/null; then
-        echo "  Nginx config updated and reloaded (passwordless sudo)."
-    else
-        echo ""
-        echo "  !! Nginx config needs manual update — sudo password required."
-        echo "  !! Run the following two commands on the VPS to fix Socket.IO:"
-        echo ""
-        echo "       sudo cp /tmp/poornasree-nginx.conf /etc/nginx/sites-available/poornasree"
-        echo "       sudo nginx -t && sudo systemctl reload nginx"
-        echo ""
-        echo "  (The updated config is already written to /tmp/poornasree-nginx.conf)"
-    fi
+    cp /tmp/poornasree-nginx.conf /etc/nginx/sites-available/poornasree
+    ln -sf /etc/nginx/sites-available/poornasree /etc/nginx/sites-enabled/poornasree 2>/dev/null || true
+    nginx -t && systemctl reload nginx
+    echo "  Nginx config updated and reloaded."
 fi
 echo "  Done."
 
