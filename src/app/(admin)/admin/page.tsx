@@ -810,6 +810,13 @@ export default function AdminPage() {
                   >
                     <RefreshCw className={cn("w-4 h-4", usersLoading && "animate-spin")} />
                   </button>
+                  <button
+                    onClick={() => router.push("/admin/users")}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create User
+                  </button>
                 </div>
               </div>
 
