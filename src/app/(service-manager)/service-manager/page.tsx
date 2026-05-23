@@ -183,11 +183,13 @@ export default function ServiceManagerPage() {
   // ── Ticket interaction state ──
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+  const [dealerDropdownOpen, setDealerDropdownOpen] = useState<string | null>(null);
 
   const [drawerTicket, setDrawerTicket] = useState<ServiceTicket | null>(null);
   const [closedCollapsed, setClosedCollapsed] = useState(false);
   const [, setDrawerReassign] = useState(false);
   const [, setDrawerConfirmEng] = useState<Engineer | null>(null);
+  const [assigningDealerId, setAssigningDealerId] = useState<string | null>(null);
 
   // ── Filter state ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -515,6 +517,20 @@ export default function ServiceManagerPage() {
     } catch { setError("Network error"); }
   };
 
+  const handleAssignDealer = async (ticketId: string, dealerId: string) => {
+    setAssigningDealerId(ticketId);
+    setDealerDropdownOpen(null);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/assign-dealer`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ dealerId }),
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to assign dealer"); }
+      else await fetchData();
+    } catch { setError("Network error"); }
+    finally { setAssigningDealerId(null); }
+  };
+
   const handleAddEngineer = async () => {
     if (!newEng.firstName.trim() || !newEng.email.trim()) {
       setError("Name and email are required");
@@ -609,11 +625,19 @@ export default function ServiceManagerPage() {
       pool = pool.filter(t => t.problemDescription.toLowerCase().includes(cf));
     }
     const sortByAge = (a: ServiceTicket, b: ServiceTicket) => (b.ageHours ?? 0) - (a.ageHours ?? 0);
-    const urgent = pool.filter(t => (t.ageHours ?? 0) > 6 && t.status !== "CLOSED").sort(sortByAge);
-    const unassigned = pool.filter(t => t.status === "OPEN" && (t.ageHours ?? 0) <= 6).sort(sortByAge);
-    const inProgress = pool.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status) && (t.ageHours ?? 0) <= 6).sort(sortByAge);
-    const closed = pool.filter(t => t.status === "CLOSED").sort(sortByAge);
-    return { urgent, unassigned, inProgress, closed };
+
+    // Split pool into dealer-raised and customer-raised
+    const dealerPool = pool.filter(t => t.dealer !== null && t.dealer !== undefined);
+    const customerPool = pool.filter(t => !t.dealer);
+
+    const makeGroups = (p: ServiceTicket[]) => ({
+      urgent:     p.filter(t => (t.ageHours ?? 0) > 6 && t.status !== "CLOSED").sort(sortByAge),
+      unassigned: p.filter(t => t.status === "OPEN" && (t.ageHours ?? 0) <= 6).sort(sortByAge),
+      inProgress: p.filter(t => ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"].includes(t.status) && (t.ageHours ?? 0) <= 6).sort(sortByAge),
+      closed:     p.filter(t => t.status === "CLOSED").sort(sortByAge),
+    });
+
+    return { dealer: makeGroups(dealerPool), customer: makeGroups(customerPool) };
   }, [tickets, archivedIds, dateRange, searchQuery, dealerFilter, modelFilter, complaintFilter]);
 
   if (authLoading || loading) return <LoadingScreen />;
@@ -908,8 +932,10 @@ export default function ServiceManagerPage() {
 
               {/* ── Grouped Ticket Sections ── */}
               {(() => {
-                const { urgent, unassigned: unassignedGroup, inProgress: inProgressGroup, closed: closedGroup } = ticketGroups;
-                const totalVisible = urgent.length + unassignedGroup.length + inProgressGroup.length + closedGroup.length;
+                const { dealer: dealerGroups, customer: customerGroups } = ticketGroups;
+                const totalVisible =
+                  dealerGroups.urgent.length + dealerGroups.unassigned.length + dealerGroups.inProgress.length + dealerGroups.closed.length +
+                  customerGroups.urgent.length + customerGroups.unassigned.length + customerGroups.inProgress.length + customerGroups.closed.length;
 
                 const renderTicketCard = (ticket: ServiceTicket) => {
                   const canAssign = ticket.status === "OPEN";
@@ -1005,83 +1031,120 @@ export default function ServiceManagerPage() {
                         <div className="flex items-center justify-end pt-1">
                           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                             {canAssign && !isArchived && (
-                              <div className="relative">
-                                <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
-                                  disabled={assigningId === ticket.id || engineers.length === 0}
-                                  className={cn(
-                                    "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
-                                    assigningId === ticket.id
-                                      ? "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary"
-                                      : "bg-primary text-white hover:bg-primary-hover disabled:opacity-50"
-                                  )}>
-                                  {assigningId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                                  Assign
-                                  <ChevronDown className="w-2.5 h-2.5" />
-                                </button>
+                              <>
+                                {/* Assign Engineer dropdown */}
+                                <div className="relative">
+                                  <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
+                                    disabled={assigningId === ticket.id || engineers.length === 0}
+                                    className={cn(
+                                      "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
+                                      assigningId === ticket.id
+                                        ? "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary"
+                                        : "bg-primary text-white hover:bg-primary-hover disabled:opacity-50"
+                                    )}>
+                                    {assigningId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+                                    Assign
+                                    <ChevronDown className="w-2.5 h-2.5" />
+                                  </button>
 
-                                {dropdownOpen === ticket.id && (() => {
-                                  const ticketPincode = ticket.pincode;
-                                  // Show ONLY engineers covering this ticket's zone
-                                  const matched = ticketPincode
-                                    ? sortedEngineers.filter(e =>
-                                        e.engineerPincodes?.some(p =>
-                                          p.id === ticketPincode.id || p.code === ticketPincode.code
+                                  {dropdownOpen === ticket.id && (() => {
+                                    const ticketPincode = ticket.pincode;
+                                    const matched = ticketPincode
+                                      ? sortedEngineers.filter(e =>
+                                          e.engineerPincodes?.some(p =>
+                                            p.id === ticketPincode.id || p.code === ticketPincode.code
+                                          )
                                         )
-                                      )
-                                    : []; // no pincode on ticket → show no engineers
+                                      : [];
 
-                                  const hasTicketPincode = !!ticketPincode;
-                                  const noZoneEngineer = hasTicketPincode && matched.length === 0;
+                                    const hasTicketPincode = !!ticketPincode;
+                                    const noZoneEngineer = hasTicketPincode && matched.length === 0;
 
-                                  return (
-                                    <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-64 overflow-y-auto">
-                                      <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
-                                        <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Select Engineer</p>
-                                        {hasTicketPincode ? (
-                                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
-                                            Zone: {ticketPincode.code}{ticketPincode.place ? ` · ${ticketPincode.place}` : ""}
-                                          </p>
+                                    return (
+                                      <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                                        <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
+                                          <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Select Engineer</p>
+                                          {hasTicketPincode ? (
+                                            <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
+                                              Zone: {ticketPincode.code}{ticketPincode.place ? ` · ${ticketPincode.place}` : ""}
+                                            </p>
+                                          ) : (
+                                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                              ⚠ No zone on ticket — set a pincode first
+                                            </p>
+                                          )}
+                                        </div>
+                                        {sortedEngineers.length === 0 ? (
+                                          <p className="px-3 py-2 text-xs text-content-tertiary dark:text-content-dark-tertiary text-center">No engineers in your team</p>
+                                        ) : !hasTicketPincode ? (
+                                          <div className="px-3 py-3 text-center">
+                                            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">No zone assigned to this ticket</p>
+                                            <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Set a pincode on the ticket before assigning an engineer</p>
+                                          </div>
+                                        ) : noZoneEngineer ? (
+                                          <div className="px-3 py-3 text-center">
+                                            <p className="text-xs font-semibold text-amber-600">No engineer assigned to zone {ticketPincode!.code}</p>
+                                            <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Assign a pincode to an engineer in Team tab first</p>
+                                          </div>
                                         ) : (
-                                          <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                                            ⚠ No zone on ticket — set a pincode first
-                                          </p>
+                                          matched.map(eng => (
+                                            <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                              className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2">
+                                              <span className="flex items-center gap-1 min-w-0">
+                                                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                                <span className="truncate">{eng.firstName} {eng.lastName}</span>
+                                              </span>
+                                              {eng.activeTickets !== undefined && (
+                                                <span className={cn(
+                                                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
+                                                  eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
+                                                    : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
+                                                      : "bg-red-100 text-red-700"
+                                                )}>{eng.activeTickets}</span>
+                                              )}
+                                            </button>
+                                          ))
                                         )}
                                       </div>
-                                      {sortedEngineers.length === 0 ? (
-                                        <p className="px-3 py-2 text-xs text-content-tertiary dark:text-content-dark-tertiary text-center">No engineers in your team</p>
-                                      ) : !hasTicketPincode ? (
-                                        <div className="px-3 py-3 text-center">
-                                          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">No zone assigned to this ticket</p>
-                                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Set a pincode on the ticket before assigning an engineer</p>
-                                        </div>
-                                      ) : noZoneEngineer ? (
-                                        <div className="px-3 py-3 text-center">
-                                          <p className="text-xs font-semibold text-amber-600">No engineer assigned to zone {ticketPincode!.code}</p>
-                                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Assign a pincode to an engineer in Team tab first</p>
-                                        </div>
+                                    );
+                                  })()}
+                                </div>
+
+                                {/* Send to Dealer dropdown */}
+                                <div className="relative">
+                                  <button onClick={() => setDealerDropdownOpen(dealerDropdownOpen === ticket.id ? null : ticket.id)}
+                                    disabled={assigningDealerId === ticket.id || dealers.length === 0}
+                                    className={cn(
+                                      "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
+                                      assigningDealerId === ticket.id
+                                        ? "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary"
+                                        : "bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                                    )}>
+                                    {assigningDealerId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Store className="w-3 h-3" />}
+                                    Dealer
+                                    <ChevronDown className="w-2.5 h-2.5" />
+                                  </button>
+
+                                  {dealerDropdownOpen === ticket.id && (
+                                    <div className="absolute right-0 bottom-full mb-1 w-52 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+                                      <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
+                                        <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Send to Dealer</p>
+                                      </div>
+                                      {dealers.length === 0 ? (
+                                        <p className="px-3 py-2 text-xs text-content-tertiary dark:text-content-dark-tertiary text-center">No dealers available</p>
                                       ) : (
-                                        matched.map(eng => (
-                                          <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
-                                            className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2">
-                                            <span className="flex items-center gap-1 min-w-0">
-                                              <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                                              <span className="truncate">{eng.firstName} {eng.lastName}</span>
-                                            </span>
-                                            {eng.activeTickets !== undefined && (
-                                              <span className={cn(
-                                                "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0",
-                                                eng.activeTickets === 0 ? "bg-emerald-100 text-emerald-700"
-                                                  : eng.activeTickets <= 3 ? "bg-amber-100 text-amber-700"
-                                                    : "bg-red-100 text-red-700"
-                                              )}>{eng.activeTickets}</span>
-                                            )}
+                                        dealers.map(d => (
+                                          <button key={d.id} onClick={() => handleAssignDealer(ticket.id, d.id)}
+                                            className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center gap-2">
+                                            <Store className="w-3 h-3 text-violet-500 shrink-0" />
+                                            <span className="truncate">{d.firstName} {d.lastName ?? ""}</span>
                                           </button>
                                         ))
                                       )}
                                     </div>
-                                  );
-                                })()}
-                              </div>
+                                  )}
+                                </div>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1138,11 +1201,38 @@ export default function ServiceManagerPage() {
                 }
 
                 return (
-                  <div className="space-y-5">
-                    {renderGroup("Urgent / Overdue", "🔥", urgent)}
-                    {renderGroup("Unassigned", "⚠️", unassignedGroup)}
-                    {renderGroup("In Progress", "🟢", inProgressGroup)}
-                    {renderGroup("Closed", "✅", closedGroup)}
+                  <div className="space-y-6">
+                    {/* ── Dealer-Raised Tickets ── */}
+                    {(dealerGroups.urgent.length + dealerGroups.unassigned.length + dealerGroups.inProgress.length + dealerGroups.closed.length) > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Store className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          <h3 className="text-sm font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wide">Dealer Tickets</h3>
+                        </div>
+                        <div className="space-y-5">
+                          {renderGroup("Urgent / Overdue", "🔥", dealerGroups.urgent)}
+                          {renderGroup("Unassigned", "⚠️", dealerGroups.unassigned)}
+                          {renderGroup("In Progress", "🟢", dealerGroups.inProgress)}
+                          {renderGroup("Closed", "✅", dealerGroups.closed)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Customer-Raised Tickets ── */}
+                    {(customerGroups.urgent.length + customerGroups.unassigned.length + customerGroups.inProgress.length + customerGroups.closed.length) > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <UserCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                          <h3 className="text-sm font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Customer Tickets</h3>
+                        </div>
+                        <div className="space-y-5">
+                          {renderGroup("Urgent / Overdue", "🔥", customerGroups.urgent)}
+                          {renderGroup("Unassigned", "⚠️", customerGroups.unassigned)}
+                          {renderGroup("In Progress", "🟢", customerGroups.inProgress)}
+                          {renderGroup("Closed", "✅", customerGroups.closed)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -2599,18 +2689,22 @@ export default function ServiceManagerPage() {
         </div>
       )}
 
-      {/* Close dropdown on outside click */}
+      {/* Close dropdowns on outside click */}
       {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
+      {dealerDropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDealerDropdownOpen(null)} />}
 
       {/* ═══════════════════ TICKET DECISION PANEL ═══════════════════ */}
       {drawerTicket && (
         <TicketDrawer
           ticket={drawerTicket}
           engineers={sortedEngineers}
+          dealers={dealers}
           isArchived={archivedIds.has(drawerTicket.id)}
           assigningId={assigningId}
+          assigningDealerId={assigningDealerId}
           onClose={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }}
           onAssignEngineer={handleAssignEngineer}
+          onAssignDealer={handleAssignDealer}
           onCancelAssignment={handleCancelAssignment}
           onArchive={handleArchive}
           onUnarchive={handleUnarchive}

@@ -1,16 +1,17 @@
 "use client";
 
-import { Phone, UserCheck, UserX, AlertOctagon, XCircle, PhoneCall } from "lucide-react";
+import { Phone, UserCheck, UserX, AlertOctagon, XCircle, PhoneCall, Store } from "lucide-react";
 import type { ServiceTicket } from "./types";
 
 interface DrawerActionBarProps {
   ticket: ServiceTicket;
   onReassign: () => void;
+  onAssignDealer: () => void;
   onCancelAssignment: () => void;
   cancellingAssignment?: boolean;
 }
 
-export function DrawerActionBar({ ticket, onReassign, onCancelAssignment, cancellingAssignment }: DrawerActionBarProps) {
+export function DrawerActionBar({ ticket, onReassign, onAssignDealer, onCancelAssignment, cancellingAssignment }: DrawerActionBarProps) {
   const phone = ticket.phoneNumber;
   const isClosed = ticket.status === "CLOSED";
 
@@ -51,6 +52,17 @@ export function DrawerActionBar({ ticket, onReassign, onCancelAssignment, cancel
           >
             <UserCheck className="w-3.5 h-3.5" />
             {ticket.assignedEngineer ? "Reassign" : "Assign"}
+          </button>
+        )}
+
+        {/* Assign to Dealer */}
+        {!isClosed && (
+          <button
+            onClick={onAssignDealer}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-violet-400/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/5 dark:hover:bg-violet-500/10 transition-colors whitespace-nowrap"
+          >
+            <Store className="w-3.5 h-3.5" />
+            {ticket.ownerType === "DEALER" ? "Reassign Dealer" : "Assign to Dealer"}
           </button>
         )}
 

@@ -537,7 +537,7 @@ export default function DealerPage() {
       if (!res.ok) {
         setError(data.error || "Failed to raise ticket");
       } else {
-        setSuccess(`Ticket #${data.ticket?.ticketNumber || data.ticket?.id.slice(0, 8)} raised successfully!`);
+        setSuccess(`Ticket #${data.ticket?.ticketNumber || data.ticket?.id.slice(0, 8)} raised — sent to Service Manager for review.`);
         setForm({ problemDescription: "", machineName: "", machineSerial: "" });
         setShowForm(false);
         await fetchTickets();
@@ -883,12 +883,15 @@ export default function DealerPage() {
           {displayed.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-content-secondary dark:text-content-dark-secondary">
               <Ticket className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">No tickets found</p>
+              <p className="text-sm font-medium">No tickets assigned yet</p>
+              <p className="text-xs mt-1 text-center max-w-xs opacity-70">
+                The service manager will assign tickets to you. You can also raise a new ticket below.
+              </p>
               <button
                 onClick={() => setShowForm(true)}
                 className="mt-3 text-sm text-primary dark:text-primary-300 hover:underline"
               >
-                Raise your first ticket
+                Raise a ticket
               </button>
             </div>
           ) : (

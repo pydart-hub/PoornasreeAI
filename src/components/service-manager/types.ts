@@ -20,6 +20,8 @@ export interface Engineer {
 export interface ServiceTicket {
   id: string;
   ticketNumber?: string;
+  ownerType?: "MANAGER" | "DEALER";
+  ownerId?: string | null;
   status: TicketStatus;
   problemDescription: string;
   issueDescription?: string | null;
@@ -49,13 +51,23 @@ export interface ServiceTicket {
   customerAddress?: string | null;
 }
 
+export interface Dealer {
+  id: string;
+  firstName: string;
+  lastName?: string | null;
+  email: string;
+}
+
 export interface TicketDrawerProps {
   ticket: ServiceTicket;
   engineers: Engineer[];
+  dealers: Dealer[];
   isArchived: boolean;
   assigningId: string | null;
+  assigningDealerId: string | null;
   onClose: () => void;
   onAssignEngineer: (ticketId: string, engineerId: string) => Promise<void>;
+  onAssignDealer: (ticketId: string, dealerId: string) => Promise<void>;
   onCancelAssignment: (ticketId: string) => Promise<void>;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;

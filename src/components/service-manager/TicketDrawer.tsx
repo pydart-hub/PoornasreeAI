@@ -18,10 +18,13 @@ import { ReassignModal } from "./ReassignModal";
 export function TicketDrawer({
   ticket,
   engineers,
+  dealers,
   isArchived,
   assigningId,
+  assigningDealerId,
   onClose,
   onAssignEngineer,
+  onAssignDealer,
   onCancelAssignment,
   onArchive,
   onUnarchive,
@@ -29,6 +32,7 @@ export function TicketDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [cancellingAssignment, setCancellingAssignment] = useState(false);
+  const [showDealerPanel, setShowDealerPanel] = useState(false);
 
   // issueDescription holds structured metadata ("Customer: X, Location: Y, ...")
   // problemDescription holds the actual complaint text
@@ -80,6 +84,7 @@ export function TicketDrawer({
         <DrawerActionBar
           ticket={ticket}
           onReassign={() => setShowReassignModal(true)}
+          onAssignDealer={() => setShowDealerPanel(true)}
           onCancelAssignment={handleCancelAssignment}
           cancellingAssignment={cancellingAssignment}
         />
@@ -94,8 +99,11 @@ export function TicketDrawer({
           <DrawerAssignment
             ticket={ticket}
             engineers={engineers}
+            dealers={dealers}
             assigningId={assigningId}
+            assigningDealerId={assigningDealerId}
             onAssignEngineer={handleAssign}
+            onAssignDealer={async (ticketId, dealerId) => { await onAssignDealer(ticketId, dealerId); setShowDealerPanel(false); }}
           />
 
           {/* ── 5. Issue Details ── */}

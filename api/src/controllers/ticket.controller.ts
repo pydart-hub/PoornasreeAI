@@ -86,7 +86,8 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     }
     else if (role === "service_engineer" || role === "service")  filters.engineerId = userId;
     else if (role === "service_manager") {
-      filters.ownerType = TicketOwnerType.MANAGER;
+      // Service manager sees ALL tickets — no ownerType filter.
+      // Manager explicitly assigns tickets to engineers or dealers.
     }
     else if (role === "assistant_service_manager") {
       // Show only tickets within the assistant manager's assigned pincodes
@@ -218,6 +219,23 @@ export async function unassignEngineer(req: Request, res: Response): Promise<voi
   try {
     const id = String(req.params.id);
     const ticket = await TicketService.unassignEngineer(id);
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+// ── PATCH /api/tickets/:id/assign-dealer ─────────────────────────────────
+// Service manager explicitly routes a ticket to a dealer for field handling.
+export async function assignDealer(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const { dealerId } = req.body;
+    if (!dealerId) { res.status(400).json({ error: "dealerId is required" }); return; }
+
+    const ticket = await TicketService.assignDealer(id, dealerId, req.user!.userId);
+    io?.to(`user:${dealerId}`).emit("ticket:assigned", { ticketId: id });
     res.json({ ticket });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };

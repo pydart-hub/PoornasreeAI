@@ -156,14 +156,14 @@ export async function createTicket(data: {
   }
 
   // ── Routing decision ────────────────────────────────────────────────────
-  // 1. If dealerId is provided and valid dealer in DB → ownerType=DEALER, ownerId=dealer.id
-  // 2. Else → ownerType=MANAGER, ownerId=default service manager
-  // Fallback: if dealer not found in DB → route to MANAGER
+  // ALL tickets always route to MANAGER. The dealerId is stored as metadata
+  // (origin tracking) only. Service manager then decides whether to assign
+  // the ticket to an engineer or back to a dealer.
   let resolvedDealerId: string | null = null;
-  let ownerType: TicketOwnerType = TicketOwnerType.MANAGER;
-  let ownerId: string | null = null;
+  const ownerType: TicketOwnerType = TicketOwnerType.MANAGER;
   const status: TicketStatus = TicketStatus.OPEN;
 
+  // Validate and store dealerId as origin metadata
   if (data.dealerId) {
     const dealer = await prisma.user.findUnique({
       where: { id: data.dealerId },
@@ -171,21 +171,17 @@ export async function createTicket(data: {
     });
     if (dealer && dealer.role === "dealer") {
       resolvedDealerId = dealer.id;
-      ownerType = TicketOwnerType.DEALER;
-      ownerId = dealer.id;
     } else {
-      console.warn(`[createTicket] dealerId ${data.dealerId} not found or not a dealer — falling back to manager routing`);
+      console.warn(`[createTicket] dealerId ${data.dealerId} not found or not a dealer — ignoring`);
     }
   }
 
-  // If routed to MANAGER, resolve the default service manager
-  if (ownerType === TicketOwnerType.MANAGER) {
-    const defaultManager = await prisma.user.findFirst({
-      where: { role: "service_manager" },
-      select: { id: true },
-    });
-    ownerId = defaultManager?.id ?? null;
-  }
+  // All tickets go to service manager queue
+  const defaultManager = await prisma.user.findFirst({
+    where: { role: "service_manager" },
+    select: { id: true },
+  });
+  const ownerId = defaultManager?.id ?? null;
 
   const ticket = await prisma.ticket.create({
     data: {
@@ -216,8 +212,8 @@ export async function createTicket(data: {
     include: TICKET_INCLUDE,
   });
 
-  // Attempt auto-assignment if ticket has a pincode and is manager-routed
-  if (data.pincodeId && ownerType === TicketOwnerType.MANAGER) {
+  // Attempt auto-assignment if ticket has a pincode
+  if (data.pincodeId) {
     try {
       const result = await autoAssignEngineer(ticket.id, data.pincodeId);
       if (result.assigned) {
@@ -285,12 +281,11 @@ export async function getTicket(id: string) {
 // Single-manager system: requires ownerType=MANAGER, no per-ticket manager assignment.
 // Uses an atomic conditional updateMany to prevent race conditions.
 export async function assignEngineer(ticketId: string, engineerId: string, assignedBy?: string) {
-  // Single atomic write: succeeds only when status=OPEN, ownerType=MANAGER, and no engineer yet
+  // Single atomic write: succeeds only when status=OPEN and no engineer yet
   const result = await prisma.ticket.updateMany({
     where: {
       id:                 ticketId,
       status:             TicketStatus.OPEN,
-      ownerType:          TicketOwnerType.MANAGER,
       assignedEngineerId: null,
     },
     data: {
@@ -309,9 +304,6 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
   if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
   if (ticket.assignedEngineerId) {
     throw Object.assign(new Error("Engineer already assigned. Use reassignment flow."), { status: 409 });
-  }
-  if (ticket.ownerType !== TicketOwnerType.MANAGER) {
-    throw Object.assign(new Error("Only manager-owned tickets can have engineers assigned by the manager"), { status: 400 });
   }
   throw Object.assign(new Error("Engineer can only be assigned to tickets in OPEN status"), { status: 400 });
 }
@@ -478,4 +470,36 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
     throw Object.assign(new Error("OTP locked after 3 failed attempts. A Service Manager must override to close this ticket."), { status: 423 });
   }
   throw Object.assign(new Error(`Invalid OTP. ${remaining} attempt(s) remaining.`), { status: 400 });
+}
+
+// ── assignDealer ──────────────────────────────────────────────────────────
+// Service manager explicitly routes a ticket to a dealer for field handling.
+// Sets ownerType=DEALER and ownerId=dealerId so the ticket appears in the
+// dealer's assigned-work queue. The dealerId metadata field (origin) is
+// preserved as-is and not overwritten here.
+export async function assignDealer(ticketId: string, dealerId: string, assignedBy?: string) {
+  // Validate dealer exists
+  const dealer = await prisma.user.findUnique({
+    where: { id: dealerId },
+    select: { id: true, role: true },
+  });
+  if (!dealer || dealer.role !== "dealer") {
+    throw Object.assign(new Error("Invalid dealer ID"), { status: 400 });
+  }
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot assign a closed ticket"), { status: 400 });
+  }
+
+  return prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      ownerType: TicketOwnerType.DEALER,
+      ownerId:   dealerId,
+      ...(assignedBy ? { assignedManagerId: assignedBy } : {}),
+    },
+    include: TICKET_INCLUDE,
+  });
 }
