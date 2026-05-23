@@ -49,10 +49,11 @@ model User {
   supportMessages  SupportMessage[]
 
   // Ticket relations
-  customerTickets  Ticket[]           @relation("CustomerTickets")
-  dealerTickets    Ticket[]           @relation("DealerTickets")
-  managerTickets   Ticket[]           @relation("ManagerTickets")
-  engineerTickets  Ticket[]           @relation("EngineerTickets")
+  customerTickets       Ticket[]           @relation("CustomerTickets")
+  dealerTickets         Ticket[]           @relation("DealerTickets")
+  managerTickets        Ticket[]           @relation("ManagerTickets")
+  engineerTickets       Ticket[]           @relation("EngineerTickets")
+  assignedDealerTickets Ticket[]           @relation("AssignedDealerTickets")
 
   // R&D videos uploaded by this user
   rdVideos         RdVideo[]
@@ -212,9 +213,10 @@ model Ticket {
 
   // Parties
   customerId         String
-  dealerId           String?   // null if customer raised directly
+  dealerId           String?   // null if customer raised directly (origin/source dealer)
   assignedManagerId  String?
   assignedEngineerId String?
+  assignedDealerId   String?   // dealer assigned by service manager for field handling
 
   // Routing
   pincodeId          String?
@@ -267,6 +269,7 @@ model Ticket {
   dealer             User?     @relation("DealerTickets",    fields: [dealerId],             references: [id])
   assignedManager    User?     @relation("ManagerTickets",   fields: [assignedManagerId],    references: [id])
   assignedEngineer   User?     @relation("EngineerTickets",  fields: [assignedEngineerId],   references: [id])
+  assignedDealer     User?     @relation("AssignedDealerTickets", fields: [assignedDealerId], references: [id])
   pincode            Pincode?  @relation(fields: [pincodeId],            references: [id])
   workReport         WorkReport?
 }

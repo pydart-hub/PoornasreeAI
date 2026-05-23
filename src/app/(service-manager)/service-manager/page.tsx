@@ -137,6 +137,7 @@ interface ServiceTicket {
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
   dealer?: { firstName: string; lastName?: string | null } | null;
+  assignedDealer?: { id: string; firstName: string; lastName?: string | null } | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   phoneNumber?: string | null;
   customerAddress?: string | null;
@@ -1024,6 +1025,14 @@ export default function ServiceManagerPage() {
                           <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary">
                             <UserCircle className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
                             <span className="font-medium truncate">{ticket.assignedEngineer.firstName}{ticket.assignedEngineer.lastName ? ` ${ticket.assignedEngineer.lastName}` : ""}</span>
+                          </div>
+                        )}
+
+                        {/* ── Row 5b: Assigned dealer chip ── */}
+                        {ticket.assignedDealer && (
+                          <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
+                            <Store className="w-3.5 h-3.5 shrink-0" />
+                            <span className="font-medium truncate">Dealer: {ticket.assignedDealer.firstName}{ticket.assignedDealer.lastName ? ` ${ticket.assignedDealer.lastName}` : ""}</span>
                           </div>
                         )}
 

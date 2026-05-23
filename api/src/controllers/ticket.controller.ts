@@ -3,7 +3,7 @@
 // Handles validation, role guards, and response shaping only.
 
 import { Request, Response } from "express";
-import { TicketStatus, TicketOwnerType } from "@prisma/client";
+import { TicketStatus } from "@prisma/client";
 import { io } from "../lib/socket";
 import prisma from "../lib/prisma";
 import * as TicketService from "../services/ticket.service";
@@ -81,8 +81,9 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     // Role-scoped filtering
     if (role === "customer")                                     filters.customerId = userId;
     else if (role === "dealer") {
-      filters.ownerType = TicketOwnerType.DEALER;
-      filters.ownerId   = userId;
+      // Dealer sees only tickets explicitly assigned to them by service manager.
+      // ownerType is always MANAGER — no dealer-owned queue anymore.
+      filters.assignedDealerId = userId;
     }
     else if (role === "service_engineer" || role === "service")  filters.engineerId = userId;
     else if (role === "service_manager") {
@@ -134,7 +135,10 @@ export async function getTicket(req: Request, res: Response): Promise<void> {
 
     // Ownership / scope enforcement per role
     if (role === "dealer") {
-      if (ticket.dealerId !== userId) { res.status(403).json({ error: "Access denied" }); return; }
+      // Allow access if this dealer submitted the ticket (origin) OR was assigned to it
+      if (ticket.dealerId !== userId && (ticket as any).assignedDealerId !== userId) {
+        res.status(403).json({ error: "Access denied" }); return;
+      }
     } else if (role === "customer") {
       if (ticket.customerId !== userId) { res.status(403).json({ error: "Access denied" }); return; }
     } else if (role === "service_engineer" || role === "service") {

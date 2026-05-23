@@ -184,8 +184,25 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
       {!isClosed && (
         <div className="mt-4 pt-3 border-t border-line dark:border-line-dark">
           <h4 className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-2">
-            Assign to Dealer
+            Dealer Assignment
           </h4>
+
+          {/* Show currently assigned dealer */}
+          {ticket.assignedDealer && !dealerOpen && !confirmDealer && (
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center shrink-0">
+                  <UserCheck className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-content dark:text-content-dark truncate">
+                    {ticket.assignedDealer.firstName} {ticket.assignedDealer.lastName ?? ""}
+                  </p>
+                  <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">Assigned for field handling</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {!dealerOpen && !confirmDealer && (
             <button
@@ -193,7 +210,7 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
               className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-700 font-medium transition-colors"
             >
               <UserCheck className="w-3.5 h-3.5" />
-              {ticket.ownerId && ticket.ownerType === "DEALER" ? "Reassign Dealer" : "Assign to Dealer"}
+              {ticket.assignedDealer ? "Reassign Dealer" : "Assign to Dealer"}
             </button>
           )}
 

@@ -16,6 +16,7 @@ const TICKET_INCLUDE = {
   dealer:          { select: { id: true, firstName: true, lastName: true, email: true } },
   assignedManager: { select: { id: true, firstName: true, lastName: true } },
   assignedEngineer:{ select: { id: true, firstName: true, lastName: true } },
+  assignedDealer:  { select: { id: true, firstName: true, lastName: true, email: true } },
   pincode:         { select: { id: true, code: true, place: true, district: true, state: true } },
 } as const;
 
@@ -235,15 +236,16 @@ export async function createTicket(data: {
 
 // ── listTickets ───────────────────────────────────────────────────────────
 export async function listTickets(filters: {
-  status?:          TicketStatus;
+  status?:            TicketStatus;
   pincodeId?:         string;
   managedPincodeIds?: string[]; // pincodes managed by a service_manager — filters to exact matches only
-  customerId?:      string;
-  dealerId?:        string;
-  engineerId?:      string;
-  managerId?:       string;
-  ownerType?:       TicketOwnerType;
-  ownerId?:         string;
+  customerId?:        string;
+  dealerId?:          string;
+  engineerId?:        string;
+  managerId?:         string;
+  ownerType?:         TicketOwnerType;
+  ownerId?:           string;
+  assignedDealerId?:  string; // dealer assigned by service manager for field work
 }) {
   const where: Record<string, unknown> = {};
   if (filters.status !== undefined) where.status           = filters.status;
@@ -259,10 +261,11 @@ export async function listTickets(filters: {
     where.pincodeId = filters.pincodeId;
   }
 
-  if (filters.customerId) where.customerId         = filters.customerId;
-  if (filters.dealerId)   where.dealerId           = filters.dealerId;
-  if (filters.engineerId) where.assignedEngineerId = filters.engineerId;
-  if (filters.managerId)  where.assignedManagerId  = filters.managerId;
+  if (filters.customerId)       where.customerId         = filters.customerId;
+  if (filters.dealerId)         where.dealerId           = filters.dealerId;
+  if (filters.engineerId)       where.assignedEngineerId = filters.engineerId;
+  if (filters.managerId)        where.assignedManagerId  = filters.managerId;
+  if (filters.assignedDealerId) where.assignedDealerId   = filters.assignedDealerId;
 
   return prisma.ticket.findMany({
     where,
@@ -474,9 +477,8 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
 
 // ── assignDealer ──────────────────────────────────────────────────────────
 // Service manager explicitly routes a ticket to a dealer for field handling.
-// Sets ownerType=DEALER and ownerId=dealerId so the ticket appears in the
-// dealer's assigned-work queue. The dealerId metadata field (origin) is
-// preserved as-is and not overwritten here.
+// Sets assignedDealerId so the dealer can see the ticket in their "My Jobs" view.
+// ownerType remains MANAGER — the ticket stays fully under service manager control.
 export async function assignDealer(ticketId: string, dealerId: string, assignedBy?: string) {
   // Validate dealer exists
   const dealer = await prisma.user.findUnique({
@@ -493,11 +495,12 @@ export async function assignDealer(ticketId: string, dealerId: string, assignedB
     throw Object.assign(new Error("Cannot assign a closed ticket"), { status: 400 });
   }
 
+  // Ticket stays under MANAGER ownerType — only assignedDealerId changes.
+  // This keeps all tickets always visible to the service manager.
   return prisma.ticket.update({
     where: { id: ticketId },
     data: {
-      ownerType: TicketOwnerType.DEALER,
-      ownerId:   dealerId,
+      assignedDealerId: dealerId,
       ...(assignedBy ? { assignedManagerId: assignedBy } : {}),
     },
     include: TICKET_INCLUDE,
