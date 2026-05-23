@@ -30,6 +30,11 @@ const nextConfig = {
     ];
   },
 
+  // Skip ESLint during production builds (run separately in CI)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // Disable webpack filesystem caching to avoid OneDrive symlink issues
   webpack: (config) => {
     config.cache = false;
