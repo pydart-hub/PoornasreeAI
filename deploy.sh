@@ -28,7 +28,7 @@ echo "  Done."
 echo ""
 echo "[2/3] Rebuilding Docker containers..."
 docker compose down
-docker compose up -d --build
+nohup docker compose up -d --build > /tmp/compose-build.log 2>&1
 echo "  Done."
 
 echo ""
@@ -44,7 +44,7 @@ echo "[4/4] Syncing Nginx socket.io proxy rule..."
 cat > /tmp/poornasree-nginx.conf << 'NGINXEOF'
 server {
     listen 80;
-    server_name poornasree.pydart.com 168.231.121.19;
+    server_name poornasree.pydart.com;
 
     gzip on;
     gzip_vary on;
