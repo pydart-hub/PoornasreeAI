@@ -41,6 +41,8 @@ type SessionMeta = {
   feedbackTicketId?: string;
   tsSessionId?:     string;
   tsSerialPath?:    boolean;
+  tsSteps?:         string[];   // All troubleshooting step contents
+  tsCurrentStep?:   number;     // 1-based current step index
 };
 
 // ── Static messages ───────────────────────────────────────────────────────
@@ -183,6 +185,9 @@ async function routeState(
 
     case "COMPLAINT_DESCRIBE":
       return handleComplaintDescribe(session.id, phoneNumber, meta, text);
+
+    case "TROUBLESHOOT_STEP":
+      return handleTroubleshootStep(session.id, phoneNumber, meta, text);
 
     case "TROUBLESHOOT_DONE_OPTIONS":
       return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
@@ -511,21 +516,95 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     );
   }
 
-  // Show ALL steps in one message
-  const stepsText = template.steps
-    .map((s: { stepNumber: number; stepContent: string }) => `*${s.stepNumber}.* ${s.stepContent}`)
-    .join("\n\n");
+  // Step-by-step flow: show step 1 only, store all steps in meta
+  const steps = template.steps.map((s: { stepContent: string }) => s.stepContent);
+  const totalSteps = steps.length;
+  const stepMeta: SessionMeta = { ...updatedMeta, tsSteps: steps, tsCurrentStep: 1 };
 
-  await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
+  await updateSession(sessionId, "TROUBLESHOOT_STEP", stepMeta);
+
+  const buttons: ReplyButton[] = [{ id: "YES", title: "Yes, Resolved ✅" }];
+  if (totalSteps > 1) buttons.push({ id: "NEXT_STEP", title: "No, Next Step ➡️" });
+  buttons.push({ id: "BOOK_SERVICE", title: "Book Service 🔧" });
 
   return makeReply(
     `📝 *Complaint noted:* ${text}\n\n` +
-    `Please try these troubleshooting steps:\n\n` +
+    `🔍 *Step 1 of ${totalSteps}:*\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    stepsText + "\n" +
+    steps[0] + "\n" +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `Were you able to resolve the issue?`,
-    [{ id: "YES", title: "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: "Book Service 🔧" }]
+    buttons
+  );
+}
+
+// ── TROUBLESHOOT_STEP ─────────────────────────────────────────────────────
+// Handles step-by-step navigation after the first step is shown.
+async function handleTroubleshootStep(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const upper = text.toUpperCase().trim();
+  const steps = meta.tsSteps ?? [];
+  const currentStep = meta.tsCurrentStep ?? 1;
+  const totalSteps = steps.length;
+
+  if (upper === "YES" || upper === "1") {
+    await updateSession(sessionId, "COMPLETED", {});
+    return makeReply(
+      `🎉 *Issue Resolved!*\n\n` +
+      `We're glad the troubleshooting helped! 😊\n\n` +
+      `Thank you for choosing Poornasree Support. 🙏`,
+      [MENU_BUTTON]
+    );
+  }
+
+  if (upper === "BOOK_SERVICE" || upper === "3") {
+    if (meta.tsSerialPath && meta.machineData) {
+      return createTicketFromAPI(sessionId, phoneNumber, meta);
+    }
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply("Please enter your *full name*:");
+  }
+
+  if (upper === "NEXT_STEP" || upper === "NO" || upper === "2") {
+    const nextStep = currentStep + 1;
+    if (nextStep > totalSteps) {
+      // All steps exhausted — fall back to book-service prompt
+      await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
+      return makeReply(
+        `✅ All ${totalSteps} troubleshooting steps have been completed.\n\n` +
+        `Would you like to book a service visit? Our technician will assist you on-site. 🔧`,
+        [{ id: "BOOK_SERVICE", title: "Book Service 🔧" }, MENU_BUTTON]
+      );
+    }
+
+    const updatedMeta: SessionMeta = { ...meta, tsCurrentStep: nextStep };
+    await updateSession(sessionId, "TROUBLESHOOT_STEP", updatedMeta);
+
+    const buttons: ReplyButton[] = [{ id: "YES", title: "Yes, Resolved ✅" }];
+    if (nextStep < totalSteps) buttons.push({ id: "NEXT_STEP", title: "No, Next Step ➡️" });
+    buttons.push({ id: "BOOK_SERVICE", title: "Book Service 🔧" });
+
+    return makeReply(
+      `🔍 *Step ${nextStep} of ${totalSteps}:*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      steps[nextStep - 1] + "\n" +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Were you able to resolve the issue?`,
+      buttons
+    );
+  }
+
+  // Unrecognised input — re-show current step
+  const buttons: ReplyButton[] = [{ id: "YES", title: "Yes, Resolved ✅" }];
+  if (currentStep < totalSteps) buttons.push({ id: "NEXT_STEP", title: "No, Next Step ➡️" });
+  buttons.push({ id: "BOOK_SERVICE", title: "Book Service 🔧" });
+
+  return makeReply(
+    `🔍 *Step ${currentStep} of ${totalSteps}:*\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    (steps[currentStep - 1] ?? "") + "\n" +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Were you able to resolve the issue?`,
+    buttons
   );
 }
 
