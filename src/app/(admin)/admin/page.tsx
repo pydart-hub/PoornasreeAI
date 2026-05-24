@@ -380,8 +380,11 @@ export default function AdminPage() {
       }
     }
 
-    await fetchDocuments();
-    setUploading(false);
+    try {
+      await fetchDocuments();
+    } finally {
+      setUploading(false);
+    }
 
     if (successCount > 0 && errorCount === 0) {
       setUploadMessage({ text: `${successCount} document(s) uploaded and trained successfully!`, type: "success" });
