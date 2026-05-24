@@ -40,6 +40,8 @@ import {
   Zap,
   TrendingUp,
   UserCircle,
+  Upload,
+  FileSpreadsheet,
 } from "lucide-react";
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
@@ -271,6 +273,13 @@ export default function ServiceManagerPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackEngineerFilter, setFeedbackEngineerFilter] = useState<string | null>(null);
 
+  // ── Bulk import state ──
+  type ImportType = "engineers" | "dealers" | "assistants";
+  const [showImportModal, setShowImportModal] = useState<ImportType | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: number; skippedEmails: string[] } | null>(null);
+
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
     setEditForm({
@@ -285,6 +294,45 @@ export default function ServiceManagerPage() {
   const closeEditModal = () => {
     setEditingEng(null);
     setEditForm({ firstName: "", lastName: "", newPassword: "", whatsappNumber: "", pincodeIds: [] });
+  };
+
+  // ── Bulk import handler ──
+  const handleImport = async () => {
+    if (!importFile || !showImportModal) return;
+    const token = localStorage.getItem("token");
+    setImportLoading(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      const res = await fetch(`/api/manager/import/${showImportModal}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      setImportResult(data);
+      setImportFile(null);
+      // Refresh the relevant list
+      if (showImportModal === "engineers") {
+        const r = await fetch("/api/manager/engineers", { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json();
+        if (d.engineers) setEngineers(d.engineers);
+      } else if (showImportModal === "dealers") {
+        const r = await fetch("/api/manager/dealers", { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json();
+        if (d.dealers) setDealers(d.dealers);
+      } else if (showImportModal === "assistants") {
+        const r = await fetch("/api/manager/assistants", { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json();
+        if (d.assistants) setAssistants(d.assistants);
+      }
+    } catch (err: unknown) {
+      setImportResult({ created: 0, skipped: 0, errors: 1, skippedEmails: [(err instanceof Error ? err.message : "Unknown error")] });
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   // ── Custom pincode API lookup (optional, graceful) ──
@@ -1255,10 +1303,16 @@ export default function ServiceManagerPage() {
                   <h2 className="text-lg font-bold text-content dark:text-content-dark">Engineers</h2>
                   <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{engineers.length} engineer{engineers.length !== 1 ? "s" : ""} in your team</p>
                 </div>
-                <button onClick={() => setShowAddEngineer(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
-                  <Plus className="w-4 h-4" /> Add Engineer
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setShowImportModal("engineers"); setImportFile(null); setImportResult(null); }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                    <Upload className="w-4 h-4" /> Import
+                  </button>
+                  <button onClick={() => setShowAddEngineer(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
+                    <Plus className="w-4 h-4" /> Add Engineer
+                  </button>
+                </div>
               </div>
 
               {/* Engineer list */}
@@ -1353,10 +1407,16 @@ export default function ServiceManagerPage() {
                   <h2 className="text-lg font-bold text-content dark:text-content-dark">Assistant Managers</h2>
                   <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{assistants.length} assistant{assistants.length !== 1 ? "s" : ""} — each manages their own pincode zones & engineers</p>
                 </div>
-                <button onClick={() => setShowAddAssistant(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
-                  <Plus className="w-4 h-4" /> Add Assistant
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setShowImportModal("assistants"); setImportFile(null); setImportResult(null); }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                    <Upload className="w-4 h-4" /> Import
+                  </button>
+                  <button onClick={() => setShowAddAssistant(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
+                    <Plus className="w-4 h-4" /> Add Assistant
+                  </button>
+                </div>
               </div>
 
               {/* Assistants list */}
@@ -2057,10 +2117,16 @@ export default function ServiceManagerPage() {
                   <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealers</h2>
                   <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{dealers.length} dealer{dealers.length !== 1 ? "s" : ""}</p>
                 </div>
-                <button onClick={() => setShowAddDealer(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
-                  <Plus className="w-4 h-4" /> Add Dealer
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setShowImportModal("dealers"); setImportFile(null); setImportResult(null); }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                    <Upload className="w-4 h-4" /> Import
+                  </button>
+                  <button onClick={() => setShowAddDealer(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors shadow-sm">
+                    <Plus className="w-4 h-4" /> Add Dealer
+                  </button>
+                </div>
               </div>
 
               {dealers.length === 0 ? (
@@ -3207,6 +3273,61 @@ export default function ServiceManagerPage() {
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+      )}
+
+      {/* ── Bulk Import Modal ─────────────────────────────────────────────── */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-primary dark:text-primary-300" />
+                <h3 className="text-base font-bold text-content dark:text-content-dark capitalize">
+                  Import {showImportModal}
+                </h3>
+              </div>
+              <button onClick={() => { setShowImportModal(null); setImportFile(null); setImportResult(null); }}
+                className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                <X className="w-5 h-5 text-content-secondary dark:text-content-dark-secondary" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Column guide */}
+              <div className="rounded-lg bg-surface-hover dark:bg-surface-dark-hover p-3 text-xs text-content-secondary dark:text-content-dark-secondary space-y-1">
+                <p className="font-semibold text-content dark:text-content-dark mb-1">Required Excel columns:</p>
+                {showImportModal === "engineers" && <><p>• <span className="font-medium">firstName</span> (required)</p><p>• email (required)</p><p>• lastName, whatsappNumber (optional)</p></>}
+                {showImportModal === "assistants" && <><p>• <span className="font-medium">firstName</span> (required)</p><p>• email (required)</p><p>• lastName, whatsappNumber (optional)</p></>}
+                {showImportModal === "dealers" && <><p>• <span className="font-medium">firstName, email, password</span> (required)</p><p>• lastName, warrantyMonths, pincode (optional)</p><p className="text-amber-600 dark:text-amber-400">Password must be at least 8 characters</p></>}
+              </div>
+
+              {/* File input */}
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-line dark:border-line-dark rounded-xl p-6 cursor-pointer hover:border-primary dark:hover:border-primary-300 transition-colors">
+                <Upload className="w-8 h-8 text-content-tertiary dark:text-content-dark-tertiary" />
+                <span className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                  {importFile ? importFile.name : "Click to select .xlsx file"}
+                </span>
+                <input type="file" accept=".xlsx" className="hidden" onChange={e => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); }} />
+              </label>
+
+              {/* Result banner */}
+              {importResult && (
+                <div className={cn("rounded-lg p-3 text-sm space-y-1", importResult.errors > 0 ? "bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200" : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200")}>
+                  <p className="font-semibold">{importResult.created} created · {importResult.skipped} skipped · {importResult.errors} errors</p>
+                  {importResult.skippedEmails.length > 0 && (
+                    <p className="text-xs opacity-80">Skipped/Errors: {importResult.skippedEmails.slice(0, 5).join(", ")}{importResult.skippedEmails.length > 5 ? ` +${importResult.skippedEmails.length - 5} more` : ""}</p>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={handleImport}
+                disabled={!importFile || importLoading}
+                className="w-full py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
+                {importLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Importing...</> : <><Upload className="w-4 h-4" /> Import</>}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

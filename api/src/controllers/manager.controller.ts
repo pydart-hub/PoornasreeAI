@@ -932,3 +932,245 @@ export async function deleteAssistantManager(req: Request, res: Response): Promi
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ── POST /api/manager/import/engineers ───────────────────────────────────
+// Bulk-create engineers from an uploaded xlsx file.
+// Expected columns: firstName, lastName (opt), email, whatsappNumber (opt)
+export async function importEngineers(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer.buffer as ArrayBuffer);
+    const ws = wb.worksheets[0];
+    if (!ws) { res.status(400).json({ error: "Empty spreadsheet" }); return; }
+
+    const headers: string[] = [];
+    const rows: Record<string, string>[] = [];
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) {
+        row.eachCell((cell) => headers.push(String(cell.value ?? "").trim().toLowerCase()));
+      } else {
+        const obj: Record<string, string> = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          const key = headers[colNum - 1];
+          if (key) obj[key] = String(cell.value ?? "").trim();
+        });
+        if (Object.values(obj).some(v => v !== "")) rows.push(obj);
+      }
+    });
+
+    let created = 0;
+    const skipped: string[] = [];
+    const errors: string[] = [];
+
+    for (const row of rows) {
+      const firstName = row["firstname"] || row["first_name"] || row["first name"] || "";
+      const lastName = row["lastname"] || row["last_name"] || row["last name"] || "";
+      const email = (row["email"] || "").toLowerCase();
+      const whatsappNumber = row["whatsappnumber"] || row["whatsapp"] || row["phone"] || "";
+
+      if (!firstName || !email) { errors.push(`Row missing firstName/email: ${JSON.stringify(row)}`); continue; }
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) { skipped.push(email); continue; }
+
+      const unusableHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+      const engineer = await prisma.user.create({
+        data: {
+          email,
+          passwordHash: unusableHash,
+          firstName,
+          lastName: lastName || null,
+          role: "service_engineer",
+          managerId,
+          setPasswordToken: tokenHash,
+          setPasswordTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          ...(whatsappNumber ? { whatsappNumber: whatsappNumber.replace(/^\+/, "") } : {}),
+        },
+        select: { id: true, email: true, firstName: true, whatsappNumber: true },
+      });
+
+      const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+      if (engineer.whatsappNumber) {
+        const greeting = [
+          `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
+          "",
+          "You've been registered as a Service Engineer.",
+          "Please set your password: " + setPasswordUrl,
+          `Your login email: ${engineer.email}`,
+        ].join("\n");
+        WhatsAppService.sendMessage(engineer.whatsappNumber, greeting).catch(() => {});
+      }
+      created++;
+    }
+
+    res.json({ created, skipped: skipped.length, errors: errors.length, skippedEmails: skipped });
+  } catch (err) {
+    console.error("importEngineers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── POST /api/manager/import/dealers ─────────────────────────────────────
+// Bulk-create dealers from an uploaded xlsx file.
+// Expected columns: firstName, lastName (opt), email, password, warrantyMonths (opt), pincode (opt)
+export async function importDealers(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer.buffer as ArrayBuffer);
+    const ws = wb.worksheets[0];
+    if (!ws) { res.status(400).json({ error: "Empty spreadsheet" }); return; }
+
+    const headers: string[] = [];
+    const rows: Record<string, string>[] = [];
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) {
+        row.eachCell((cell) => headers.push(String(cell.value ?? "").trim().toLowerCase()));
+      } else {
+        const obj: Record<string, string> = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          const key = headers[colNum - 1];
+          if (key) obj[key] = String(cell.value ?? "").trim();
+        });
+        if (Object.values(obj).some(v => v !== "")) rows.push(obj);
+      }
+    });
+
+    let created = 0;
+    const skipped: string[] = [];
+    const errors: string[] = [];
+
+    for (const row of rows) {
+      const firstName = row["firstname"] || row["first_name"] || row["first name"] || "";
+      const lastName = row["lastname"] || row["last_name"] || row["last name"] || "";
+      const email = (row["email"] || "").toLowerCase();
+      const password = row["password"] || "";
+      const warrantyMonths = row["warrantymonths"] || row["warranty_months"] || row["warranty months"] || "";
+      const pincode = row["pincode"] || row["pin"] || "";
+
+      if (!firstName || !email || !password) { errors.push(`Row missing required fields: ${JSON.stringify(row)}`); continue; }
+      if (password.length < 8) { errors.push(`Password too short for ${email}`); continue; }
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) { skipped.push(email); continue; }
+
+      let pincodeId: string | null = null;
+      if (pincode) {
+        let pc = await prisma.pincode.findUnique({ where: { code: pincode } });
+        if (!pc) pc = await prisma.pincode.create({ data: { code: pincode } });
+        pincodeId = pc.id;
+      }
+
+      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          firstName,
+          lastName: lastName || null,
+          role: "dealer",
+          warrantyMonths: warrantyMonths ? Number(warrantyMonths) : null,
+          pincodeId,
+        },
+      });
+      created++;
+    }
+
+    res.json({ created, skipped: skipped.length, errors: errors.length, skippedEmails: skipped });
+  } catch (err) {
+    console.error("importDealers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── POST /api/manager/import/assistants ───────────────────────────────────
+// Bulk-create assistant managers from an uploaded xlsx file.
+// Expected columns: firstName, lastName (opt), email, whatsappNumber (opt)
+export async function importAssistants(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer.buffer as ArrayBuffer);
+    const ws = wb.worksheets[0];
+    if (!ws) { res.status(400).json({ error: "Empty spreadsheet" }); return; }
+
+    const headers: string[] = [];
+    const rows: Record<string, string>[] = [];
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) {
+        row.eachCell((cell) => headers.push(String(cell.value ?? "").trim().toLowerCase()));
+      } else {
+        const obj: Record<string, string> = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          const key = headers[colNum - 1];
+          if (key) obj[key] = String(cell.value ?? "").trim();
+        });
+        if (Object.values(obj).some(v => v !== "")) rows.push(obj);
+      }
+    });
+
+    let created = 0;
+    const skipped: string[] = [];
+    const errors: string[] = [];
+
+    for (const row of rows) {
+      const firstName = row["firstname"] || row["first_name"] || row["first name"] || "";
+      const lastName = row["lastname"] || row["last_name"] || row["last name"] || "";
+      const email = (row["email"] || "").toLowerCase();
+      const whatsappNumber = row["whatsappnumber"] || row["whatsapp"] || row["phone"] || "";
+
+      if (!firstName || !email) { errors.push(`Row missing firstName/email: ${JSON.stringify(row)}`); continue; }
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) { skipped.push(email); continue; }
+
+      const unusableHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+      const assistant = await prisma.user.create({
+        data: {
+          email,
+          passwordHash: unusableHash,
+          firstName,
+          lastName: lastName || null,
+          role: "assistant_service_manager",
+          managerId,
+          setPasswordToken: tokenHash,
+          setPasswordTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          ...(whatsappNumber ? { whatsappNumber: whatsappNumber.replace(/^\+/, "") } : {}),
+        },
+        select: { id: true, email: true, firstName: true, whatsappNumber: true },
+      });
+
+      const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+      if (assistant.whatsappNumber) {
+        const greeting = [
+          `🎉 Welcome to Poornasree, ${assistant.firstName}!`,
+          "",
+          "You've been registered as an Assistant Service Manager.",
+          "Please set your password: " + setPasswordUrl,
+          `Your login email: ${assistant.email}`,
+        ].join("\n");
+        WhatsAppService.sendMessage(assistant.whatsappNumber, greeting).catch(() => {});
+      }
+      created++;
+    }
+
+    res.json({ created, skipped: skipped.length, errors: errors.length, skippedEmails: skipped });
+  } catch (err) {
+    console.error("importAssistants error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+
