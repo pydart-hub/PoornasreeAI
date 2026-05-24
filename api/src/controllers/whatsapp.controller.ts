@@ -179,9 +179,9 @@ async function handleEngineerMessage(
       from,
       `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.\n\nWhat would you like to do?`,
       [
-        { id: "TICKETS", title: "📋 My Tickets" },
-        { id: "STATUS",  title: "📊 Status Summary" },
-        { id: "HELP",    title: "❓ Help" },
+        { id: "TICKETS",      title: "📋 My Tickets" },
+        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
+        { id: "HELP",         title: "❓ Help" },
       ],
     );
     return;
@@ -247,6 +247,32 @@ async function handleEngineerMessage(
 
     const reply = [`📋 *Your Active Tickets (${tickets.length}):*`, "", ...lines].join("\n");
     await WhatsAppService.sendMessage(from, reply);
+    return;
+  }
+
+  if (upperText === "TROUBLESHOOT") {
+    // Store state: waiting for the engineer to describe the issue
+    await prisma.troubleshootingSession.deleteMany({
+      where: { phoneNumber: from, status: "ACTIVE" },
+    });
+    await prisma.troubleshootingSession.create({
+      data: { phoneNumber: from, serialNumber: "ENGINEER", problemType: "__PENDING__", currentStep: 0, status: "ACTIVE" },
+    });
+    await WhatsAppService.sendMessage(
+      from,
+      `🔍 *Troubleshoot Mode*\n\nDescribe the issue you are facing (e.g. "no vibration", "machine not turning on"):`,
+    );
+    return;
+  }
+
+  // ── Engineer troubleshoot session — handle open ACTIVE session ─────────
+  // If the engineer has an active TroubleshootingSession, route all text through it.
+  const activeSession = await prisma.troubleshootingSession.findFirst({
+    where: { phoneNumber: from, status: "ACTIVE" },
+  });
+
+  if (activeSession) {
+    await handleEngineerTroubleshootStep(from, text, engineer, activeSession);
     return;
   }
 
@@ -404,7 +430,8 @@ async function handleEngineerMessage(
       from,
       `🔧 *Engineer Commands:*\n\n` +
       `📋 *TICKETS* — View your active tickets\n` +
-      `📊 *STATUS* — View ticket count summary\n\n` +
+      `📊 *STATUS* — View ticket count summary\n` +
+      `🔍 *TROUBLESHOOT* — Step-by-step private troubleshooting guide\n\n` +
       `*START <ticket>* — Mark ticket as In Progress\n` +
       `*OTP <ticket>* — Request closure OTP (sent to customer)\n` +
       `*RESEND <ticket>* — Resend OTP to customer\n` +
@@ -421,9 +448,180 @@ async function handleEngineerMessage(
     from,
     `Hi ${engineer.firstName}, I didn't understand that.\n\nType *HELP* for the full command list, or choose:`,
     [
-      { id: "TICKETS", title: "📋 My Tickets" },
-      { id: "STATUS",  title: "📊 Status Summary" },
-      { id: "HELP",    title: "❓ Help" },
+      { id: "TICKETS",      title: "📋 My Tickets" },
+      { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
+      { id: "HELP",         title: "❓ Help" },
+    ],
+  );
+}
+
+// ── Engineer troubleshoot step handler ───────────────────────────────────
+// Routes the engineer through private step-by-step templates.
+async function handleEngineerTroubleshootStep(
+  from: string,
+  text: string,
+  engineer: { id: string; firstName: string },
+  session: { id: string; phoneNumber: string; serialNumber: string; problemType: string; currentStep: number; status: string },
+): Promise<void> {
+  const upper = text.toUpperCase().trim();
+
+  // ── Cancel / exit troubleshoot ─────────────────────────────────────────
+  if (upper === "CANCEL" || upper === "EXIT" || upper === "MENU") {
+    await prisma.troubleshootingSession.update({
+      where: { id: session.id },
+      data: { status: "COMPLETED" },
+    });
+    await WhatsAppService.sendInteractiveButtons(
+      from,
+      `Troubleshoot session ended. What would you like to do?`,
+      [
+        { id: "TICKETS",      title: "📋 My Tickets" },
+        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
+        { id: "HELP",         title: "❓ Help" },
+      ],
+    );
+    return;
+  }
+
+  // ── Phase 1: Engineer just described the issue — find template ─────────
+  if (session.problemType === "__PENDING__") {
+    // Find a matching engineer-audience template
+    const template = await prisma.troubleshootingTemplate.findFirst({
+      where: {
+        isActive: true,
+        audience: { in: ["engineer", "both"] },
+        description: { contains: text, mode: "insensitive" },
+      },
+      include: { steps: { orderBy: { stepNumber: "asc" } } },
+    });
+
+    // Try individual words if no phrase match
+    let matched = template;
+    if (!matched || matched.steps.length === 0) {
+      const words = text.split(/\s+/).filter((w) => w.length >= 5);
+      for (const word of words) {
+        const m = await prisma.troubleshootingTemplate.findFirst({
+          where: {
+            isActive: true,
+            audience: { in: ["engineer", "both"] },
+            description: { contains: word, mode: "insensitive" },
+          },
+          include: { steps: { orderBy: { stepNumber: "asc" } } },
+        });
+        if (m && m.steps.length > 0) { matched = m; break; }
+      }
+    }
+
+    if (!matched || matched.steps.length === 0) {
+      await prisma.troubleshootingSession.update({
+        where: { id: session.id },
+        data: { status: "COMPLETED" },
+      });
+      await WhatsAppService.sendInteractiveButtons(
+        from,
+        `😔 No troubleshooting guide found for: "${text}".\n\nContact your service manager or type *TROUBLESHOOT* to try again.`,
+        [{ id: "TROUBLESHOOT", title: "🔍 Try Again" }, { id: "TICKETS", title: "📋 My Tickets" }],
+      );
+      return;
+    }
+
+    const steps = matched.steps;
+    await prisma.troubleshootingSession.update({
+      where: { id: session.id },
+      data: { problemType: matched.problemType, currentStep: 1 },
+    });
+
+    await WhatsAppService.sendInteractiveButtons(
+      from,
+      `🔍 *${matched.title}*\n\n` +
+      `🔧 *Step 1 of ${steps.length}:*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      steps[0].stepContent + "\n" +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Did this resolve the issue?`,
+      [
+        { id: "ENG_YES",  title: "✅ Resolved" },
+        ...(steps.length > 1 ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
+        { id: "CANCEL",   title: "❌ Cancel" },
+      ],
+    );
+    return;
+  }
+
+  // ── Phase 2: Mid-session — handle YES / NEXT ───────────────────────────
+  if (upper === "ENG_YES" || upper === "1") {
+    await prisma.troubleshootingSession.update({
+      where: { id: session.id },
+      data: { status: "COMPLETED" },
+    });
+    await WhatsAppService.sendMessage(
+      from,
+      `✅ *Issue Resolved!*\n\nGlad the guide helped, ${engineer.firstName}. Troubleshoot session closed.`,
+    );
+    return;
+  }
+
+  if (upper === "ENG_NEXT" || upper === "2") {
+    const template = await prisma.troubleshootingTemplate.findUnique({
+      where: { problemType: session.problemType },
+      include: { steps: { orderBy: { stepNumber: "asc" } } },
+    });
+
+    if (!template) {
+      await prisma.troubleshootingSession.update({ where: { id: session.id }, data: { status: "COMPLETED" } });
+      await WhatsAppService.sendMessage(from, `⚠️ Template not found. Session ended.`);
+      return;
+    }
+
+    const nextStep = session.currentStep + 1;
+    if (nextStep > template.steps.length) {
+      // All steps exhausted
+      await prisma.troubleshootingSession.update({
+        where: { id: session.id },
+        data: { status: "ESCALATED" },
+      });
+      await WhatsAppService.sendMessage(
+        from,
+        `✅ *All ${template.steps.length} steps completed.*\n\nIssue still unresolved? Contact your service manager with template: *${template.problemType}*.`,
+      );
+      return;
+    }
+
+    await prisma.troubleshootingSession.update({
+      where: { id: session.id },
+      data: { currentStep: nextStep },
+    });
+
+    const step = template.steps[nextStep - 1];
+    await WhatsAppService.sendInteractiveButtons(
+      from,
+      `🔧 *Step ${nextStep} of ${template.steps.length}:*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      step.stepContent + "\n" +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `Did this resolve the issue?`,
+      [
+        { id: "ENG_YES",  title: "✅ Resolved" },
+        ...(nextStep < template.steps.length ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
+        { id: "CANCEL",   title: "❌ Cancel" },
+      ],
+    );
+    return;
+  }
+
+  // Unrecognised input during a session — re-show current step
+  const template = await prisma.troubleshootingTemplate.findUnique({
+    where: { problemType: session.problemType },
+    include: { steps: { where: { stepNumber: session.currentStep }, take: 1 } },
+  });
+  const stepContent = template?.steps[0]?.stepContent ?? "Step not found.";
+  await WhatsAppService.sendInteractiveButtons(
+    from,
+    `Please choose an option for *Step ${session.currentStep}:*\n\n${stepContent}`,
+    [
+      { id: "ENG_YES",  title: "✅ Resolved" },
+      { id: "ENG_NEXT", title: "➡️ Next Step" },
+      { id: "CANCEL",   title: "❌ Cancel" },
     ],
   );
 }

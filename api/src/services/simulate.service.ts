@@ -702,8 +702,7 @@ async function handleComplaintManualPincode(sessionId: string, phoneNumber: stri
 
 // ── Template finder ───────────────────────────────────────────────────────
 // Searches by complaint text first (against description/patterns field), then by product name.
-// Customer-facing prefixes are admin-uploaded and take priority over raw training data.
-const CUSTOMER_PREFIXES = ["chatbot_", "customer_"];
+// Hard-filters by audience so customer and engineer templates stay separate.
 
 // Fallback lines like "If none of the above steps help..." are not actionable steps.
 const FALLBACK_STEP_RE = /if none of the above|contact poornasree|raise a service request/i;
@@ -712,29 +711,25 @@ function isActionableStep(content: string): boolean {
   return !FALLBACK_STEP_RE.test(content);
 }
 
-async function findTroubleshootingTemplate(complaintText: string, productName: string) {
+async function findTroubleshootingTemplate(
+  complaintText: string,
+  productName: string,
+  audienceFilter: string[] = ["customer", "both"],
+) {
   const include = { steps: { orderBy: { stepNumber: "asc" as const } } };
 
-  // Search by description, preferring customer-facing (chatbot_/customer_) templates first.
+  // Search by description, hard-filtered by audience.
   async function findByDescription(text: string) {
     if (!text.trim()) return null;
-    for (const prefix of CUSTOMER_PREFIXES) {
-      const match = await prisma.troubleshootingTemplate.findFirst({
-        where: {
-          isActive: true,
-          problemType: { startsWith: prefix },
-          description: { contains: text, mode: "insensitive" },
-        },
-        include,
-      });
-      if (match && match.steps.length > 0) return match;
-    }
-    // Fallback: any matching template (training.json data)
-    const fallback = await prisma.troubleshootingTemplate.findFirst({
-      where: { isActive: true, description: { contains: text, mode: "insensitive" } },
+    const match = await prisma.troubleshootingTemplate.findFirst({
+      where: {
+        isActive: true,
+        audience: { in: audienceFilter },
+        description: { contains: text, mode: "insensitive" },
+      },
       include,
     });
-    return fallback && fallback.steps.length > 0 ? fallback : null;
+    return match && match.steps.length > 0 ? match : null;
   }
 
   // 1. Match full complaint phrase
@@ -755,6 +750,7 @@ async function findTroubleshootingTemplate(complaintText: string, productName: s
     const productMatch = await prisma.troubleshootingTemplate.findFirst({
       where: {
         isActive: true,
+        audience: { in: audienceFilter },
         OR: [
           { title: { contains: productName, mode: "insensitive" } },
           { problemType: { contains: productName.toLowerCase().replace(/\s+/g, "_"), mode: "insensitive" } },

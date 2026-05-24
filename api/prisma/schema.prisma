@@ -295,6 +295,8 @@ model TroubleshootingTemplate {
   title       String
   description String?  @db.Text
   isActive    Boolean  @default(true)
+  // audience: "customer" = customer WhatsApp only, "engineer" = service engineers only, "both" = all
+  audience    String   @default("customer")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

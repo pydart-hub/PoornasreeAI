@@ -109,6 +109,7 @@ export interface TemplateExtractionResult {
 
 export async function extractTemplatesFromDocument(
   filePath: string,
+  audience: string = "customer",
 ): Promise<TemplateExtractionResult> {
   const buffer = fs.readFileSync(filePath);
   let parsed: any;
@@ -139,13 +140,14 @@ export async function extractTemplatesFromDocument(
       });
 
       if (existing) {
-        // Update: replace title/description and recreate steps
+        // Update: replace title/description/audience and recreate steps
         await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
         await prisma.troubleshootingTemplate.update({
           where: { id: existing.id },
           data: {
             title,
             description: description ?? null,
+            audience,
             steps: {
               create: steps.map((s: string, i: number) => ({
                 stepNumber: i + 1,
@@ -162,6 +164,7 @@ export async function extractTemplatesFromDocument(
             problemType,
             title,
             description: description ?? null,
+            audience,
             steps: {
               create: steps.map((s: string, i: number) => ({
                 stepNumber: i + 1,
@@ -265,6 +268,8 @@ export async function processDocument(
           const existing = await prisma.troubleshootingTemplate.findUnique({
             where: { problemType: intent.tag },
           });
+          // Map documentType to template audience
+          const audience = documentType === "service" ? "engineer" : "customer";
           if (existing) {
             await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
             await prisma.troubleshootingTemplate.update({
@@ -272,6 +277,7 @@ export async function processDocument(
               data: {
                 title,
                 description,
+                audience,
                 steps: {
                   create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
                 },
@@ -283,6 +289,7 @@ export async function processDocument(
                 problemType: intent.tag,
                 title,
                 description,
+                audience,
                 steps: {
                   create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
                 },

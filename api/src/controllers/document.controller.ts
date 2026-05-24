@@ -111,7 +111,8 @@ export async function extractTemplates(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const result = await extractTemplatesFromDocument(doc.filePath);
+    const audience = doc.documentType === "service" ? "engineer" : "customer";
+    const result = await extractTemplatesFromDocument(doc.filePath, audience);
     res.json({ result });
   } catch (err) {
     console.error("extractTemplates error:", err);

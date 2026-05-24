@@ -15,6 +15,7 @@ interface Template {
   title: string;
   description?: string | null;
   isActive: boolean;
+  audience: string;
   steps: TroubleshootingStep[];
   createdAt: string;
 }
@@ -33,13 +34,14 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 export default function TemplatesTab() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ problemType: "", title: "", description: "", steps: [""] });
+  const [form, setForm] = useState({ problemType: "", title: "", description: "", audience: "customer", steps: [""] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editSteps, setEditSteps] = useState<string[]>([]);
   const [editTitle, setEditTitle] = useState("");
+  const [editAudience, setEditAudience] = useState("customer");
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const fetchTemplates = useCallback(async () => {
@@ -66,7 +68,7 @@ export default function TemplatesTab() {
         method: "POST",
         body: JSON.stringify({ ...form, steps }),
       });
-      setForm({ problemType: "", title: "", description: "", steps: [""] });
+    setForm({ problemType: "", title: "", description: "", audience: "customer", steps: [""] });
       fetchTemplates();
     } catch (e) {
       setError((e as Error).message);
@@ -98,6 +100,7 @@ export default function TemplatesTab() {
   const startEdit = (t: Template) => {
     setEditingId(t.id);
     setEditTitle(t.title);
+    setEditAudience(t.audience ?? "customer");
     setEditSteps(t.steps.map(s => s.stepContent));
   };
 
@@ -107,7 +110,7 @@ export default function TemplatesTab() {
     try {
       await apiFetch(`/api/admin/templates/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ title: editTitle, steps }),
+        body: JSON.stringify({ title: editTitle, audience: editAudience, steps }),
       });
       setEditingId(null);
       fetchTemplates();
@@ -146,6 +149,18 @@ export default function TemplatesTab() {
           className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
           rows={2}
         />
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary whitespace-nowrap">Audience</label>
+          <select
+            value={form.audience}
+            onChange={e => setForm(f => ({ ...f, audience: e.target.value }))}
+            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+          >
+            <option value="customer">👤 Customer</option>
+            <option value="engineer">🔧 Service Engineer</option>
+            <option value="both">👥 Both</option>
+          </select>
+        </div>
         <div className="space-y-2">
           <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Steps</label>
           {form.steps.map((step, i) => (
@@ -209,6 +224,16 @@ export default function TemplatesTab() {
                   )}
                   <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
                     {t.problemType} — {t.steps.length} step{t.steps.length !== 1 ? "s" : ""}
+                    {" "}
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                      t.audience === "engineer"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        : t.audience === "both"
+                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                        : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    }`}>
+                      {t.audience === "engineer" ? "🔧 Engineer" : t.audience === "both" ? "👥 Both" : "👤 Customer"}
+                    </span>
                     <button
                       onClick={() => handleToggleActive(t)}
                       disabled={togglingId === t.id}
@@ -247,6 +272,22 @@ export default function TemplatesTab() {
                   </button>
                 </div>
               </div>
+
+              {/* Audience edit row when editing */}
+              {editingId === t.id && (
+                <div className="flex items-center gap-2 pl-2">
+                  <label className="text-xs text-content-secondary whitespace-nowrap">Audience:</label>
+                  <select
+                    value={editAudience}
+                    onChange={e => setEditAudience(e.target.value)}
+                    className="px-2 py-1 rounded border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-xs"
+                  >
+                    <option value="customer">👤 Customer</option>
+                    <option value="engineer">🔧 Service Engineer</option>
+                    <option value="both">👥 Both</option>
+                  </select>
+                </div>
+              )}
 
               {/* Steps */}
               <div className="pl-2 space-y-1">

@@ -37,9 +37,15 @@ export async function getTemplate(req: Request, res: Response): Promise<void> {
 // ── POST /api/admin/templates ────────────────────────────────────────────
 export async function createTemplate(req: Request, res: Response): Promise<void> {
   try {
-    const { problemType, title, description, steps } = req.body;
+    const { problemType, title, description, audience, steps } = req.body;
     if (!problemType || !title || !Array.isArray(steps) || steps.length === 0) {
       res.status(400).json({ error: "problemType, title, and steps[] are required" });
+      return;
+    }
+
+    const validAudiences = ["customer", "engineer", "both"];
+    if (audience !== undefined && !validAudiences.includes(audience)) {
+      res.status(400).json({ error: "audience must be 'customer', 'engineer', or 'both'" });
       return;
     }
 
@@ -54,6 +60,7 @@ export async function createTemplate(req: Request, res: Response): Promise<void>
         problemType,
         title,
         description: description ?? null,
+        audience: audience ?? "customer",
         steps: {
           create: (steps as string[]).map((s, i) => ({
             stepNumber: i + 1,
@@ -76,7 +83,7 @@ export async function createTemplate(req: Request, res: Response): Promise<void>
 export async function updateTemplate(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id);
-    const { title, description, isActive, steps } = req.body;
+    const { title, description, isActive, audience, steps } = req.body;
 
     const existing = await prisma.troubleshootingTemplate.findUnique({ where: { id } });
     if (!existing) { res.status(404).json({ error: "Template not found" }); return; }
@@ -85,6 +92,14 @@ export async function updateTemplate(req: Request, res: Response): Promise<void>
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
     if (isActive !== undefined) data.isActive = isActive;
+    if (audience !== undefined) {
+      const validAudiences = ["customer", "engineer", "both"];
+      if (!validAudiences.includes(audience)) {
+        res.status(400).json({ error: "audience must be 'customer', 'engineer', or 'both'" });
+        return;
+      }
+      data.audience = audience;
+    }
 
     // If steps provided, replace all existing steps
     if (Array.isArray(steps) && steps.length > 0) {

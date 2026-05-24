@@ -78,6 +78,7 @@ async function main() {
             title,
             description,
             isActive: true,
+            audience: "both",
             steps: {
               create: steps.map((s: string, i: number) => ({
                 stepNumber: i + 1,
@@ -95,6 +96,7 @@ async function main() {
             title,
             description,
             isActive: true,
+            audience: "both",
             steps: {
               create: steps.map((s: string, i: number) => ({
                 stepNumber: i + 1,
