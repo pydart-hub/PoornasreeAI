@@ -532,23 +532,18 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     );
   }
 
-  const totalSteps = steps.length;
-  const stepMeta: SessionMeta = { ...updatedMeta, tsSteps: steps, tsCurrentStep: 1 };
+  const stepsText = steps.map((s, i) => `${i + 1}. ${s}`).join("\n");
 
-  await updateSession(sessionId, "TROUBLESHOOT_STEP", stepMeta);
-
-  const buttons: ReplyButton[] = [{ id: "YES", title: "Yes, Resolved ✅" }];
-  if (totalSteps > 1) buttons.push({ id: "NEXT_STEP", title: "No, Next Step ➡️" });
-  buttons.push({ id: "BOOK_SERVICE", title: "Book Service 🔧" });
+  await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
   return makeReply(
     `📝 *Complaint noted:* ${text}\n\n` +
-    `🔍 *Step 1 of ${totalSteps}:*\n` +
+    `🔧 *Troubleshooting Steps:*\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    steps[0] + "\n" +
+    stepsText + "\n" +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `Were you able to resolve the issue?`,
-    buttons
+    [{ id: "YES", title: "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: "Book Service 🔧" }]
   );
 }
 
