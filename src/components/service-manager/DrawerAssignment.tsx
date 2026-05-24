@@ -187,6 +187,28 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
             Dealer Assignment
           </h4>
 
+          {/* Suggested Dealer from serial number match */}
+          {ticket.dealerId && ticket.dealer && !dealerOpen && !confirmDealer && (
+            <div className="mb-3 p-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg">
+              <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5">
+                Suggested (from serial no.)
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-content dark:text-content-dark font-medium">
+                  {ticket.dealer.firstName} {ticket.dealer.lastName ?? ""}
+                </span>
+                <button
+                  onClick={() => onAssignDealer(ticket.id, ticket.dealerId!)}
+                  disabled={assigningDealerId === ticket.id}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shrink-0"
+                >
+                  {assigningDealerId === ticket.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                  Assign to {ticket.dealer.firstName}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Show currently assigned dealer */}
           {ticket.assignedDealer && !dealerOpen && !confirmDealer && (
             <div className="flex items-center justify-between mb-2">

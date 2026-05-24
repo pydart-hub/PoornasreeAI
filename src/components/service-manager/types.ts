@@ -45,7 +45,8 @@ export interface ServiceTicket {
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
-  dealer?: { firstName: string; lastName?: string | null } | null;
+  dealer?: { id?: string; firstName: string; lastName?: string | null } | null;
+  dealerId?: string | null;
   assignedDealer?: { id: string; firstName: string; lastName?: string | null } | null;
   pincode?: PincodeInfo | null;
   phoneNumber?: string | null;

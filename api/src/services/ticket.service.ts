@@ -213,24 +213,6 @@ export async function createTicket(data: {
     include: TICKET_INCLUDE,
   });
 
-  // Attempt auto-assignment if ticket has a pincode
-  if (data.pincodeId) {
-    try {
-      const result = await autoAssignEngineer(ticket.id, data.pincodeId);
-      if (result.assigned) {
-        // Re-fetch with updated assignment
-        const updated = await prisma.ticket.findUnique({
-          where: { id: ticket.id },
-          include: TICKET_INCLUDE,
-        });
-        if (updated) return updated;
-      }
-    } catch (err) {
-      // Non-blocking: auto-assign failure should not break ticket creation
-      console.error(`[createTicket] auto-assign failed for ticket ${ticket.ticketNumber}:`, err);
-    }
-  }
-
   return ticket;
 }
 

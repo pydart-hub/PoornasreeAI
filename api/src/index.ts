@@ -15,7 +15,6 @@ import ticketRoutes from "./routes/ticket.routes";
 import publicRoutes from "./routes/public.routes";
 import troubleshootingRoutes from "./routes/troubleshooting.routes";
 import whatsappRoutes from "./routes/whatsapp.routes";
-import customerChatRoutes from "./routes/customer-chat.routes";
 import workReportRoutes from "./routes/work-report.routes";
 import marketingRoutes from "./routes/marketing.routes";
 import { getBranding } from "./controllers/branding.controller";
@@ -44,7 +43,6 @@ app.use("/api/auth",    authRoutes);
 // ── Public endpoints (no auth) — must be registered BEFORE the broad chatRoutes
 // mount below, which runs `protect` on ALL /api/* requests.
 app.use("/api/whatsapp",        whatsappRoutes);
-app.use("/api/customer-chat",   customerChatRoutes);
 app.use("/api/tickets",         ticketRoutes);
 app.use("/api/troubleshooting", troubleshootingRoutes);
 app.use("/api/public",          publicRoutes);  // no-auth data access

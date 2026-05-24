@@ -886,13 +886,12 @@ async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta:
   await updateSession(sessionId, "COMPLETED", {});
 
   return makeReply(
-    `✅ Your complaint has been registered successfully!\n\n` +
-    `🎫 Ticket: *${ticket.ticketNumber}*\n` +
+    `✅ 👷 *Your complaint has been registered!*\n\n` +
+    `🎫 *Ticket No: ${ticket.ticketNumber}*\n` +
     `📦 Product: ${productName || "N/A"}\n` +
     `📝 Issue: ${complaintText}\n` +
     `📍 Location: ${meta.pincodeDisplay || "N/A"}\n\n` +
-    `Our service engineer will contact you shortly.\n\n` +
-    `Thank you for choosing Poornasree Support 😊`,
+    `*Our technician will reach out to you within 24–48 hours. Assuring you of the best services!* 😊`,
     [MENU_BUTTON]
   );
 }
@@ -941,13 +940,12 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
   await updateSession(sessionId, "COMPLETED", {});
 
   return makeReply(
-    `✅ Your complaint has been registered successfully!\n\n` +
-    `🎫 Ticket: *${ticket.ticketNumber}*\n` +
+    `✅ 👷 *Your complaint has been registered!*\n\n` +
+    `🎫 *Ticket No: ${ticket.ticketNumber}*\n` +
     `📦 Product: ${productName || "N/A"}\n` +
     `📝 Issue: ${complaintText}\n` +
-    `📍 Location: ${meta.pincodeDisplay || "N/A"}\n\n` +
-    `Our service engineer will contact you shortly.\n\n` +
-    `Thank you for choosing Poornasree Support 😊`,
+    `📍 Location: ${[meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || meta.pincodeDisplay || "N/A"}\n\n` +
+    `*Our technician will reach out to you within 24–48 hours. Assuring you of the best services!* 😊`,
     [MENU_BUTTON]
   );
 }
