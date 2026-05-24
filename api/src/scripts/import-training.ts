@@ -1,6 +1,8 @@
 /**
- * One-time script: import training.json into TroubleshootingTemplate DB.
- * Run with: npx ts-node src/scripts/import-training.ts
+ * Import an intents-format JSON file into TroubleshootingTemplate DB.
+ * Run with:
+ *   npx ts-node src/scripts/import-training.ts                         # service engineer templates from training.json
+ *   npx ts-node src/scripts/import-training.ts --file chatbot-training.json --audience customer
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -9,11 +11,27 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Try a few common paths for the training.json file
+  // ── CLI args ─────────────────────────────────────────────────────────
+  const args = process.argv.slice(2);
+  const fileArgIdx = args.indexOf("--file");
+  const audienceArgIdx = args.indexOf("--audience");
+  const cliFileName = fileArgIdx !== -1 ? args[fileArgIdx + 1] : "training.json";
+  const cliAudience = audienceArgIdx !== -1 ? args[audienceArgIdx + 1] : "engineer";
+
+  if (!["customer", "engineer", "both"].includes(cliAudience)) {
+    console.error(`❌ Invalid --audience "${cliAudience}". Must be customer | engineer | both`);
+    process.exit(1);
+  }
+
+  const templateAudience = cliAudience;
+  console.log(`🎯 Importing "${cliFileName}" with audience: "${templateAudience}"`);
+
+  // Try a few common paths for the file
   const candidates = [
-    path.resolve(__dirname, "../../../public/Doc/training.json"),
-    path.resolve(__dirname, "../../public/Doc/training.json"),
-    "/home/deploy/poornasree-ai/public/Doc/training.json",
+    path.resolve(__dirname, `../../../public/Doc/${cliFileName}`),
+    path.resolve(__dirname, `../../public/Doc/${cliFileName}`),
+    `/home/deploy/poornasree-ai/public/Doc/${cliFileName}`,
+    `/root/poornasree-ai/public/Doc/${cliFileName}`,
   ];
 
   let trainingPath = "";
@@ -22,7 +40,7 @@ async function main() {
   }
 
   if (!trainingPath) {
-    console.error("❌ training.json not found. Searched:", candidates);
+    console.error(`❌ ${cliFileName} not found. Searched:`, candidates);
     process.exit(1);
   }
 
@@ -78,7 +96,7 @@ async function main() {
             title,
             description,
             isActive: true,
-            audience: "both",
+            audience: templateAudience,
             steps: {
               create: steps.map((s: string, i: number) => ({
                 stepNumber: i + 1,
@@ -96,7 +114,7 @@ async function main() {
             title,
             description,
             isActive: true,
-            audience: "both",
+            audience: templateAudience,
             steps: {
               create: steps.map((s: string, i: number) => ({
                 stepNumber: i + 1,
