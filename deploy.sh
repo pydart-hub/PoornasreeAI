@@ -39,7 +39,30 @@ docker compose exec -T api npx prisma db seed || echo "  (seed skipped or alread
 echo "  Done."
 
 echo ""
-echo "[4/4] Syncing Nginx socket.io proxy rule..."
+echo "[4/5] Ensuring Ollama models are present..."
+# Wait for Ollama to be ready (it starts with the containers above)
+for i in $(seq 1 12); do
+    if docker exec poornasree-ai-ollama-1 ollama list > /dev/null 2>&1; then
+        break
+    fi
+    echo "  Waiting for Ollama to start... ($i/12)"
+    sleep 5
+done
+
+MODELS_NEEDED=("nomic-embed-text" "mistral")
+for MODEL in "${MODELS_NEEDED[@]}"; do
+    if docker exec poornasree-ai-ollama-1 ollama list | grep -q "^${MODEL}"; then
+        echo "  $MODEL already present — skipping."
+    else
+        echo "  Pulling $MODEL..."
+        docker exec poornasree-ai-ollama-1 ollama pull "$MODEL"
+        echo "  $MODEL pulled."
+    fi
+done
+echo "  Done."
+
+echo ""
+echo "[5/5] Syncing Nginx socket.io proxy rule..."
 # Write the full nginx config to a temp file (no sudo needed)
 cat > /tmp/poornasree-nginx.conf << 'NGINXEOF'
 server {
@@ -113,5 +136,6 @@ echo "  Done."
 echo ""
 echo "============================================"
 echo " Deployment complete - $(date)"
+echo "  Ollama models: nomic-embed-text + mistral"
 echo "============================================"
 echo ""
