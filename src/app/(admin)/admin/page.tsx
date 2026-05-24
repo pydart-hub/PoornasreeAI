@@ -649,7 +649,7 @@ export default function AdminPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.json,.csv,.txt,.docx"
+                  accept=".pdf,.json,.csv,.txt,.docx,.xlsx"
                   multiple
                   className="hidden"
                   onChange={(e) => e.target.files && handleFiles(e.target.files)}

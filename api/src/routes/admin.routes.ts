@@ -40,6 +40,8 @@ const ALLOWED_MIME_TYPES = [
   "text/csv",
   "text/plain",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.ms-excel", // .xls (some browsers report this for xlsx)
   // Image types (for product images, branding logo, etc.)
   "image/jpeg",
   "image/png",
@@ -54,6 +56,8 @@ const EXT_TO_MIME: Record<string, string> = {
   ".csv":  "text/csv",
   ".txt":  "text/plain",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls":  "application/vnd.ms-excel",
   ".jpg":  "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png":  "image/png",

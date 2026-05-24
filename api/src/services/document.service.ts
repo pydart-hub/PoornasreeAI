@@ -5,6 +5,7 @@
 
 import fs from "fs";
 import mammoth from "mammoth";
+import ExcelJS from "exceljs";
 import prisma from "../lib/prisma";
 import { embedText, upsertVector } from "./vector.service";
 import { randomUUID } from "crypto";
@@ -59,6 +60,13 @@ async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
 // ── Chunking helpers ──────────────────────────────────────────────────
 
 const MAX_CHUNK = 500;
+
+function toTitleCase(str: string): string {
+  return str.replace(/\w\S*/g, (word) => {
+    if (word === word.toUpperCase() && word.length > 2) return word; // keep USB, GSM, LED etc.
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).trim();
+}
 
 function chunkText(text: string): string[] {
   const paragraphs = text
@@ -292,6 +300,121 @@ export async function processDocument(
     // Generic JSON array or object — fall through to text-chunking
     const flat = JSON.stringify(parsed, null, 2);
     return embedTextChunks(documentId, documentType, chunkText(flat));
+  }
+
+  // ── Excel (.xlsx) — chatbot training data or generic text ────────────
+  if (
+    mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    mimetype === "application/vnd.ms-excel"
+  ) {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(filePath);
+
+    const userChatSheet = wb.getWorksheet("USER CHAT");
+    if (userChatSheet) {
+      // ── Detect CHATBOT_DATAS format and convert to intents ──────────
+      const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string }> = [];
+      const seenTags = new Set<string>();
+      let lastProduct = "";
+
+      userChatSheet.eachRow((row, rowIdx) => {
+        if (rowIdx === 1) return; // skip header
+        const cells = row.values as (string | null | undefined)[];
+        // exceljs row.values is 1-indexed; col 2 = PRODUCT, col 3 = COMPLAINT, col 4+ = CHECK/ACTION pairs
+        const productCell = cells[2] ? String(cells[2]).trim() : "";
+        const complaint   = cells[3] ? String(cells[3]).trim() : "";
+
+        if (productCell) lastProduct = productCell;
+        if (!complaint || !lastProduct) return;
+
+        // Build CHECK/ACTION pairs from col 4 onwards
+        const pairs: Array<{ check: string; action: string }> = [];
+        for (let col = 4; col < cells.length; col += 2) {
+          const check  = cells[col]   ? String(cells[col]).trim()   : "";
+          const action = cells[col+1] ? String(cells[col+1]).trim() : "";
+          if (!check && !action) continue;
+
+          if (/contact customer care/i.test(check)) {
+            pairs.push({ check: "CONTACT_CARE", action: "" });
+            break;
+          }
+          if (/contact customer care/i.test(action)) {
+            if (check) pairs.push({ check, action: "" });
+            pairs.push({ check: "CONTACT_CARE", action: "" });
+            break;
+          }
+          pairs.push({ check, action });
+        }
+        if (pairs.length === 0) return;
+
+        // Generate tag
+        const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 50);
+        const tag = `chatbot_${slug(lastProduct)}_${slug(complaint)}`;
+        if (seenTags.has(tag)) return;
+        seenTags.add(tag);
+
+        // Build patterns
+        const p = toTitleCase(lastProduct);
+        const c = complaint.trim();
+        const cLow = c.toLowerCase();
+        const patterns: string[] = [c, `${p} - ${c}`, `${p} ${cLow}`];
+        if (/not (work|on|show|detect|print|send)/i.test(c)) {
+          patterns.push(`Why is my ${p} ${cLow}?`, `My ${p} is ${cLow}`);
+        } else if (/error|shown/i.test(c)) {
+          patterns.push(`${p} showing ${cLow}`, `${p} ${cLow} problem`);
+        } else {
+          patterns.push(`My ${p} has ${cLow} issue`, `Problem with ${p}: ${cLow}`);
+        }
+
+        // Build response text
+        const respLines = [`Here's how to troubleshoot your ${p} — ${toTitleCase(complaint)}:`];
+        let stepNum = 1;
+        for (const { check, action } of pairs) {
+          if (check === "CONTACT_CARE") {
+            respLines.push(`${stepNum}. If none of the above steps help, please contact Poornasree Customer Care for further assistance.`);
+            break;
+          }
+          if (check && action) {
+            respLines.push(`${stepNum}. Check: ${toTitleCase(check)} → ${toTitleCase(action)}`);
+          } else if (check) {
+            respLines.push(`${stepNum}. ${toTitleCase(check)}`);
+          }
+          stepNum++;
+        }
+
+        intents.push({
+          tag,
+          patterns: [...new Set(patterns)],
+          responses: [respLines.join("\n")],
+          role: documentType,
+        });
+      });
+
+      if (intents.length > 0) {
+        return embedStructuredEntries(
+          documentId,
+          documentType,
+          intents.map((intent) => ({
+            searchText: intent.patterns.join(" | "),
+            answerText: intent.responses[0],
+            tag:        intent.tag,
+          }))
+        );
+      }
+    }
+
+    // Generic xlsx — convert all sheets to text and chunk
+    const lines: string[] = [];
+    wb.eachSheet((sheet) => {
+      sheet.eachRow((row) => {
+        const vals = (row.values as (string | null | undefined)[])
+          .slice(1)
+          .map((v) => (v != null ? String(v).trim() : ""))
+          .filter(Boolean);
+        if (vals.length) lines.push(vals.join(" | "));
+      });
+    });
+    return embedTextChunks(documentId, documentType, chunkText(lines.join("\n")));
   }
 
   // ── Unstructured file: text-chunking path (LLM synthesises answer) ───
