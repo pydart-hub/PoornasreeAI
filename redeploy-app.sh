@@ -5,7 +5,7 @@ git pull origin AIpoorna
 
 echo ""
 echo "Rebuilding frontend..."
-docker compose build --no-cache app
+docker compose build app
 
 echo ""
 echo "Restarting frontend..."
