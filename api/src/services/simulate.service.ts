@@ -516,8 +516,22 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     );
   }
 
-  // Step-by-step flow: show step 1 only, store all steps in meta
-  const steps = template.steps.map((s: { stepContent: string }) => s.stepContent);
+  // Step-by-step flow: show step 1 only, store all steps in meta.
+  // Filter out fallback "contact support" lines that aren't actionable steps.
+  const steps = template.steps
+    .map((s: { stepContent: string }) => s.stepContent)
+    .filter(isActionableStep);
+
+  if (steps.length === 0) {
+    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
+    return makeReply(
+      `📝 *Complaint noted:* ${text}\n\n` +
+      `😔 We were unable to find troubleshooting steps for this issue.\n\n` +
+      `Would you like to book a service visit? Our technician will come to your location.`,
+      [{ id: "BOOK_SERVICE", title: "Book Service 🔧" }, MENU_BUTTON]
+    );
+  }
+
   const totalSteps = steps.length;
   const stepMeta: SessionMeta = { ...updatedMeta, tsSteps: steps, tsCurrentStep: 1 };
 
@@ -688,25 +702,51 @@ async function handleComplaintManualPincode(sessionId: string, phoneNumber: stri
 
 // ── Template finder ───────────────────────────────────────────────────────
 // Searches by complaint text first (against description/patterns field), then by product name.
+// Customer-facing prefixes are admin-uploaded and take priority over raw training data.
+const CUSTOMER_PREFIXES = ["chatbot_", "customer_"];
+
+// Fallback lines like "If none of the above steps help..." are not actionable steps.
+const FALLBACK_STEP_RE = /if none of the above|contact poornasree|raise a service request/i;
+
+function isActionableStep(content: string): boolean {
+  return !FALLBACK_STEP_RE.test(content);
+}
+
 async function findTroubleshootingTemplate(complaintText: string, productName: string) {
   const include = { steps: { orderBy: { stepNumber: "asc" as const } } };
 
-  // 1. Match full complaint phrase against stored patterns (description field)
-  if (complaintText.trim()) {
-    const phraseMatch = await prisma.troubleshootingTemplate.findFirst({
-      where: { isActive: true, description: { contains: complaintText.trim(), mode: "insensitive" } },
+  // Search by description, preferring customer-facing (chatbot_/customer_) templates first.
+  async function findByDescription(text: string) {
+    if (!text.trim()) return null;
+    for (const prefix of CUSTOMER_PREFIXES) {
+      const match = await prisma.troubleshootingTemplate.findFirst({
+        where: {
+          isActive: true,
+          problemType: { startsWith: prefix },
+          description: { contains: text, mode: "insensitive" },
+        },
+        include,
+      });
+      if (match && match.steps.length > 0) return match;
+    }
+    // Fallback: any matching template (training.json data)
+    const fallback = await prisma.troubleshootingTemplate.findFirst({
+      where: { isActive: true, description: { contains: text, mode: "insensitive" } },
       include,
     });
-    if (phraseMatch && phraseMatch.steps.length > 0) return phraseMatch;
+    return fallback && fallback.steps.length > 0 ? fallback : null;
+  }
+
+  // 1. Match full complaint phrase
+  if (complaintText.trim()) {
+    const phraseMatch = await findByDescription(complaintText.trim());
+    if (phraseMatch) return phraseMatch;
 
     // 2. Try individual significant words (≥5 chars)
     const words = complaintText.split(/\s+/).filter((w: string) => w.length >= 5);
     for (const word of words) {
-      const wordMatch = await prisma.troubleshootingTemplate.findFirst({
-        where: { isActive: true, description: { contains: word, mode: "insensitive" } },
-        include,
-      });
-      if (wordMatch && wordMatch.steps.length > 0) return wordMatch;
+      const wordMatch = await findByDescription(word);
+      if (wordMatch) return wordMatch;
     }
   }
 
