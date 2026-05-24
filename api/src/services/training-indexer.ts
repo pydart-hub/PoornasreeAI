@@ -45,6 +45,14 @@ const TRAINING_FILES = [
       path.resolve(__dirname, "../../../public/Doc/customer-training.json"),
     ],
   },
+  {
+    name: "chatbot-training.json",
+    candidates: [
+      "/app/data/chatbot-training.json",
+      path.resolve(process.cwd(), "../public/Doc/chatbot-training.json"),
+      path.resolve(__dirname, "../../../public/Doc/chatbot-training.json"),
+    ],
+  },
 ];
 
 /**
