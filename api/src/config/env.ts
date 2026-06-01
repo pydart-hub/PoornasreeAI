@@ -55,4 +55,8 @@ export const env = {
   WA_PHONE_NUMBER_ID: process.env.WA_PHONE_NUMBER_ID || "",
   WA_ACCESS_TOKEN:    process.env.WA_ACCESS_TOKEN    || "",
   WA_VERIFY_TOKEN:    process.env.WA_VERIFY_TOKEN    || "",
+
+  // ── External integration ────────────────────────────────────────────────
+  // Optional webhook URL — POST normalized ticket events on lifecycle changes.
+  INTEGRATION_WEBHOOK_URL: process.env.INTEGRATION_WEBHOOK_URL || "",
 } as const;

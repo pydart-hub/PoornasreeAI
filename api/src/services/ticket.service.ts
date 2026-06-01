@@ -8,6 +8,7 @@ import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { fetchMachineBySerial } from "./machine.service";
 import * as WhatsAppService from "./whatsapp.service";
+import { notifyTicketEvent } from "./integration-webhook.service";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -213,6 +214,7 @@ export async function createTicket(data: {
     include: TICKET_INCLUDE,
   });
 
+  notifyTicketEvent("ticket.created", ticket.id);
   return ticket;
 }
 
@@ -281,7 +283,12 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
   });
 
   if (result.count === 1) {
-    return prisma.ticket.findUniqueOrThrow({ where: { id: ticketId }, include: TICKET_INCLUDE });
+    const updated = await prisma.ticket.findUniqueOrThrow({
+      where: { id: ticketId },
+      include: TICKET_INCLUDE,
+    });
+    notifyTicketEvent("ticket.assigned", ticketId);
+    return updated;
   }
 
   // Update did not apply — fetch once to determine and surface the reason
@@ -309,7 +316,7 @@ export async function unassignEngineer(ticketId: string) {
     throw Object.assign(new Error(`Cannot cancel assignment when ticket is ${ticket.status}. Only ASSIGNED tickets can be unassigned.`), { status: 400 });
   }
 
-  return prisma.ticket.update({
+  const updated = await prisma.ticket.update({
     where: { id: ticketId },
     data: {
       assignedEngineerId: null,
@@ -317,6 +324,8 @@ export async function unassignEngineer(ticketId: string) {
     },
     include: TICKET_INCLUDE,
   });
+  notifyTicketEvent("ticket.unassigned", ticketId);
+  return updated;
 }
 
 // ── startWork ─────────────────────────────────────────────────────────────
@@ -329,11 +338,13 @@ export async function startWork(ticketId: string, engineerId: string, isAdmin = 
   }
   assertTransition(ticket.status, TicketStatus.IN_PROGRESS);
 
-  return prisma.ticket.update({
+  const updated = await prisma.ticket.update({
     where: { id: ticketId },
     data:  { status: TicketStatus.IN_PROGRESS, firstEngineeredAt: new Date() },
     include: TICKET_INCLUDE,
   });
+  notifyTicketEvent("ticket.started", ticketId);
+  return updated;
 }
 
 // ── requestOTP ────────────────────────────────────────────────────────────
@@ -392,6 +403,7 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
     }
   }
 
+  notifyTicketEvent("ticket.otp_requested", ticketId);
   return { otp: plainCode, expiresAt };
 }
 
@@ -421,11 +433,13 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
   const valid = await bcrypt.compare(code, ticket.otpCodeHash);
 
   if (valid) {
-    return prisma.ticket.update({
+    const updated = await prisma.ticket.update({
       where: { id: ticketId },
       data:  { otpVerified: true, status: TicketStatus.CLOSED, closedAt: new Date() },
       include: TICKET_INCLUDE,
     });
+    notifyTicketEvent("ticket.closed", ticketId);
+    return updated;
   }
 
   // Atomically increment attempts — only succeeds if still below the limit.

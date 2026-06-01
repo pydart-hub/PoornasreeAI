@@ -1,0 +1,86 @@
+// ── Integration webhook ─────────────────────────────────────────────────────
+// POSTs normalized ticket payloads to INTEGRATION_WEBHOOK_URL when configured.
+
+import axios from "axios";
+import { TicketStatus } from "@prisma/client";
+import prisma from "../lib/prisma";
+import { env } from "../config/env";
+import {
+  PUBLIC_TICKET_SELECT,
+  STAGE_BY_STATUS,
+  toStageExportDto,
+  type StageExportDto,
+  type StageSlug,
+} from "../lib/ticket-export.mapper";
+
+export type IntegrationEvent =
+  | "ticket.created"
+  | "ticket.assigned"
+  | "ticket.unassigned"
+  | "ticket.started"
+  | "ticket.otp_requested"
+  | "ticket.closed";
+
+const EVENT_STAGE: Partial<Record<IntegrationEvent, StageSlug>> = {
+  "ticket.created": "created",
+  "ticket.assigned": "assigned",
+  "ticket.unassigned": "created",
+  "ticket.started": "in-progress",
+  "ticket.otp_requested": "pending-otp",
+  "ticket.closed": "closed",
+};
+
+/** Fire-and-forget webhook; never throws to callers. */
+export function notifyTicketEvent(event: IntegrationEvent, ticketId: string): void {
+  if (!env.INTEGRATION_WEBHOOK_URL) return;
+
+  void (async () => {
+    try {
+      const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketId },
+        select: PUBLIC_TICKET_SELECT,
+      });
+      if (!ticket) return;
+
+      const stage = EVENT_STAGE[event] ?? STAGE_BY_STATUS[ticket.status];
+      const data = toStageExportDto(ticket, stage);
+      await postWebhook(event, data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[integration-webhook] ${event} ticket=${ticketId}: ${msg}`);
+    }
+  })();
+}
+
+/** Notify with a ticket row already loaded (same select shape). */
+export function notifyTicketEventWithTicket(
+  event: IntegrationEvent,
+  ticket: Parameters<typeof toStageExportDto>[0],
+  stageOverride?: StageSlug,
+): void {
+  if (!env.INTEGRATION_WEBHOOK_URL) return;
+
+  const stage = stageOverride ?? EVENT_STAGE[event] ?? STAGE_BY_STATUS[ticket.status as TicketStatus];
+  const data = toStageExportDto(ticket, stage);
+  void postWebhook(event, data).catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[integration-webhook] ${event}: ${msg}`);
+  });
+}
+
+async function postWebhook(event: IntegrationEvent, data: StageExportDto): Promise<void> {
+  await axios.post(
+    env.INTEGRATION_WEBHOOK_URL,
+    {
+      event,
+      stage: data.stage,
+      status: data.status,
+      data,
+      sentAt: new Date().toISOString(),
+    },
+    {
+      timeout: 10_000,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+}

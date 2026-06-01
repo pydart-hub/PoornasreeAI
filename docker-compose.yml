@@ -87,6 +87,7 @@ services:
       WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
       WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN:-}
       FRONTEND_URL: ${FRONTEND_URL:-https://poornasree.pydart.com}
+      INTEGRATION_WEBHOOK_URL: ${INTEGRATION_WEBHOOK_URL:-}
     volumes:
       - api_uploads:/app/uploads
       - ./public/Doc/training.json:/app/data/training.json:ro
