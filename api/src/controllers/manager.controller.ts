@@ -1044,7 +1044,7 @@ export async function importDealers(req: Request, res: Response): Promise<void> 
     const replaceAll = req.body?.replaceAll !== "false" && req.body?.replaceAll !== false
       && req.query?.replaceAll !== "false";
 
-    const result = await importDealersFromExcel(req.file.buffer.buffer as ArrayBuffer, replaceAll);
+    const result = await importDealersFromExcel(req.file.buffer, replaceAll);
 
     res.json({
       deleted: result.deleted,
@@ -1055,7 +1055,7 @@ export async function importDealers(req: Request, res: Response): Promise<void> 
     });
   } catch (err) {
     console.error("importDealers error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal server error" });
   }
 }
 

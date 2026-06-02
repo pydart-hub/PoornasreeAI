@@ -111,9 +111,9 @@ function isDealerHeaderRow(cells: string[]): boolean {
 }
 
 /** Parse dealer rows from an Excel buffer (handles header on row 5). */
-export async function parseDealerExcel(buffer: ArrayBuffer): Promise<ParsedDealerRow[]> {
+export async function parseDealerExcel(buffer: ArrayBuffer | Buffer): Promise<ParsedDealerRow[]> {
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buffer);
+  await wb.xlsx.load(buffer as ExcelJS.Buffer);
   const ws = wb.worksheets[0];
   if (!ws) return [];
 
@@ -227,6 +227,15 @@ export async function importDealerRows(
     result.deleted = await deleteAllDealers();
   }
 
+  const passwordHashCache = new Map<string, string>();
+  const getPasswordHash = async (password: string): Promise<string> => {
+    const cached = passwordHashCache.get(password);
+    if (cached) return cached;
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    passwordHashCache.set(password, hash);
+    return hash;
+  };
+
   for (const row of rows) {
     try {
       const password = row.password || DEFAULT_PASSWORD;
@@ -247,7 +256,7 @@ export async function importDealerRows(
         pincodeId = await upsertPincode(row.pincode, row.city, row.state);
       }
 
-      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      const passwordHash = await getPasswordHash(password);
       await prisma.user.create({
         data: {
           email,
@@ -273,7 +282,7 @@ export async function importDealerRows(
 
 /** Full import from Excel buffer. */
 export async function importDealersFromExcel(
-  buffer: ArrayBuffer,
+  buffer: ArrayBuffer | Buffer,
   replaceAll = false,
 ): Promise<DealerImportResult> {
   const rows = await parseDealerExcel(buffer);

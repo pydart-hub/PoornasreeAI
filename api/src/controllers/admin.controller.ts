@@ -436,7 +436,7 @@ export async function importDealersAdmin(req: Request, res: Response): Promise<v
     const replaceAll = req.body?.replaceAll !== "false" && req.body?.replaceAll !== false
       && req.query?.replaceAll !== "false";
 
-    const result = await importDealersFromExcel(req.file.buffer.buffer as ArrayBuffer, replaceAll);
+    const result = await importDealersFromExcel(req.file.buffer, replaceAll);
 
     res.json({
       deleted: result.deleted,

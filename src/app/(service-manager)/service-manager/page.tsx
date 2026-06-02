@@ -316,8 +316,14 @@ export default function ServiceManagerPage() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Import failed");
+      const text = await res.text();
+      let data: Record<string, unknown> = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(text.slice(0, 120) || `Import failed (HTTP ${res.status})`);
+      }
+      if (!res.ok) throw new Error(String(data.error || "Import failed"));
       setImportResult(data);
       setImportFile(null);
       // Refresh the relevant list
