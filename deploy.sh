@@ -33,6 +33,12 @@ git fetch origin
 git reset --hard origin/$BRANCH
 echo "  Done."
 
+# Re-run with the freshly pulled script (otherwise step 2+ use stale deploy logic).
+if [ "${DEPLOY_REEXEC:-}" != "1" ]; then
+  export DEPLOY_REEXEC=1
+  exec bash "$0" "$@"
+fi
+
 echo ""
 case "$MODE" in
   api)
