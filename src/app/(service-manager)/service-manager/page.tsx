@@ -513,6 +513,15 @@ export default function ServiceManagerPage() {
   }, [user, authLoading, router]);
 
   // ── Data fetching ──
+  const readApiError = async (res: Response, fallback: string) => {
+    try {
+      const data = await res.json();
+      return (data as { error?: string }).error || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const noCache = { credentials: "include" as const, cache: "no-store" as const };
@@ -523,14 +532,24 @@ export default function ServiceManagerPage() {
         fetch("/api/manager/dealers", noCache),
         fetch("/api/manager/assistants", noCache),
       ]);
-      if (ticketsRes.ok) { const { tickets: d } = await ticketsRes.json(); setTickets(d ?? []); }
-      if (engineersRes.ok) { const { engineers: d } = await engineersRes.json(); setEngineers(d ?? []); }
-      if (pincodesRes.ok) { const { pincodes: d } = await pincodesRes.json(); setMyPincodes(d ?? []); }
-      if (dealersRes.ok) { const { dealers: d } = await dealersRes.json(); setDealers(d ?? []); }
-      if (assistantsRes.ok) { const { assistants: d } = await assistantsRes.json(); setAssistants(d ?? []); }
+      if (!ticketsRes.ok) { setError(await readApiError(ticketsRes, "Failed to load tickets")); return; }
+      if (!engineersRes.ok) { setError(await readApiError(engineersRes, "Failed to load engineers")); return; }
+      if (!pincodesRes.ok) { setError(await readApiError(pincodesRes, "Failed to load pincodes")); return; }
+      if (!dealersRes.ok) { setError(await readApiError(dealersRes, "Failed to load dealers")); return; }
+      if (!assistantsRes.ok) { setError(await readApiError(assistantsRes, "Failed to load assistants")); return; }
+      const { tickets: t } = await ticketsRes.json();
+      const { engineers: e } = await engineersRes.json();
+      const { pincodes: p } = await pincodesRes.json();
+      const { dealers: d } = await dealersRes.json();
+      const { assistants: a } = await assistantsRes.json();
+      setTickets(t ?? []);
+      setEngineers(e ?? []);
+      setMyPincodes(p ?? []);
+      setDealers(d ?? []);
+      setAssistants(a ?? []);
       // Work reports
       try { const reports = await listWorkReports(); setWorkReports(reports); } catch { /* non-fatal */ }
-    } catch { setError("Failed to load data"); }
+    } catch { setError("Failed to load data — check your connection and try refreshing."); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
 

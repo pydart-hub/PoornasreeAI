@@ -346,8 +346,15 @@ export async function deleteEngineer(req: Request, res: Response): Promise<void>
     await prisma.user.delete({ where: { id: engineerId } });
 
     res.json({ message: "Engineer deleted" });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("deleteEngineer error:", err);
+    const code = (err as { code?: string })?.code;
+    if (code === "P2003") {
+      res.status(400).json({
+        error: "Cannot delete this engineer — their account is linked to other records (e.g. work reports). Contact admin if you need them removed.",
+      });
+      return;
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 }
