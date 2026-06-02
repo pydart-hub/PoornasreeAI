@@ -57,6 +57,7 @@ interface Engineer {
   email: string;
   whatsappNumber?: string | null;
   activeTickets?: number;
+  pendingSetup?: boolean;
   engineerPincodes?: PincodeInfo[];
 }
 
@@ -139,8 +140,9 @@ export default function AssistantManagerPage() {
   const [addingEngineer, setAddingEngineer] = useState(false);
   const [engineerCreated, setEngineerCreated] = useState<{ name: string; email: string; setPasswordUrl: string; hasWhatsapp: boolean } | null>(null);
   const [editingEng, setEditingEng] = useState<Engineer | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [resendingSetupLink, setResendingSetupLink] = useState(false);
   const [deletingEngineerId, setDeletingEngineerId] = useState<string | null>(null);
 
   const openEditModal = (eng: Engineer) => {
@@ -148,10 +150,16 @@ export default function AssistantManagerPage() {
     setEditForm({
       firstName: eng.firstName,
       lastName: eng.lastName ?? "",
+      email: eng.email,
       newPassword: "",
       whatsappNumber: eng.whatsappNumber ?? "",
       pincodeIds: eng.engineerPincodes?.map(p => p.id) ?? [],
     });
+  };
+
+  const closeEditModal = () => {
+    setEditingEng(null);
+    setEditForm({ firstName: "", lastName: "", email: "", newPassword: "", whatsappNumber: "", pincodeIds: [] });
   };
 
   // ── Auth guard ──
@@ -203,14 +211,43 @@ export default function AssistantManagerPage() {
     finally { setAssigningId(null); }
   };
 
+  const handleResendSetupLink = async (eng: Engineer) => {
+    setResendingSetupLink(true);
+    try {
+      const res = await fetch(`/api/manager/engineers/${eng.id}/resend-setup-link`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const { error: msg } = await res.json();
+        setError(msg || "Failed to resend setup link");
+        return;
+      }
+      const data = await res.json();
+      setEngineerCreated({
+        name: `${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}`.trim(),
+        email: eng.email,
+        setPasswordUrl: data.setPasswordUrl,
+        hasWhatsapp: data.sentViaWhatsapp,
+      });
+      await fetchData();
+    } catch {
+      setError("Network error");
+    } finally {
+      setResendingSetupLink(false);
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingEng) return;
     if (!editForm.firstName.trim()) { setError("First name is required"); return; }
+    if (!editForm.email.trim()) { setError("Email is required"); return; }
     setSavingEdit(true);
     try {
       const basicBody: Record<string, string | undefined> = {};
       if (editForm.firstName.trim() !== editingEng.firstName) basicBody.firstName = editForm.firstName.trim();
       if (editForm.lastName.trim() !== (editingEng.lastName ?? "")) basicBody.lastName = editForm.lastName.trim();
+      if (editForm.email.trim().toLowerCase() !== editingEng.email.toLowerCase()) basicBody.email = editForm.email.trim();
       if (editForm.whatsappNumber.trim() !== (editingEng.whatsappNumber ?? "")) basicBody.whatsappNumber = editForm.whatsappNumber.trim();
       if (editForm.newPassword.trim()) {
         if (editForm.newPassword.length < 8) { setError("Password must be at least 8 characters"); setSavingEdit(false); return; }
@@ -228,7 +265,7 @@ export default function AssistantManagerPage() {
         body: JSON.stringify({ pincodeIds: editForm.pincodeIds }),
       });
       if (!pRes.ok) { const { error: msg } = await pRes.json(); setError(msg || "Failed to update pincodes"); setSavingEdit(false); return; }
-      setEditingEng(null);
+      closeEditModal();
       await fetchData();
     } catch { setError("Network error"); }
     finally { setSavingEdit(false); }
@@ -692,7 +729,14 @@ export default function AssistantManagerPage() {
                       <div key={eng.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-3 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-content dark:text-content-dark truncate">{eng.firstName} {eng.lastName}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-bold text-content dark:text-content-dark truncate">{eng.firstName} {eng.lastName}</p>
+                              {eng.pendingSetup && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                  Pending setup
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{eng.email}</p>
                             {eng.whatsappNumber && (
                               <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
@@ -709,6 +753,16 @@ export default function AssistantManagerPage() {
                             )}>
                               {eng.activeTickets ?? 0} active
                             </span>
+                            {eng.pendingSetup && (
+                              <button
+                                onClick={() => handleResendSetupLink(eng)}
+                                disabled={resendingSetupLink}
+                                className="p-1.5 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                                title="Resend setup link"
+                              >
+                                {resendingSetupLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
                             <button
                               onClick={() => openEditModal(eng)}
                               className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
@@ -779,9 +833,10 @@ export default function AssistantManagerPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Email *</label>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
                         <input type="email" value={newEng.email} onChange={e => setNewEng(f => ({ ...f, email: e.target.value }))}
                           className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                        <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Used at login. After setup, first name also works as username.</p>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
@@ -867,18 +922,17 @@ export default function AssistantManagerPage() {
                         </div>
                       </div>
                       {engineerCreated.hasWhatsapp ? (
-                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary">A set-password link was sent via WhatsApp.</p>
-                      ) : (
-                        <div className="space-y-1">
-                          <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Share this set-password link with the engineer:</p>
-                          <div className="flex items-center gap-2 bg-surface dark:bg-surface-dark rounded-lg px-3 py-2 border border-line dark:border-line-dark">
-                            <span className="text-xs font-mono text-content dark:text-content-dark truncate flex-1">{engineerCreated.setPasswordUrl}</span>
-                            <button onClick={() => navigator.clipboard?.writeText(engineerCreated.setPasswordUrl)} className="shrink-0 p-1 rounded hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary text-content-secondary dark:text-content-dark-secondary" title="Copy">
-                              <Save className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary">A set-password link was sent via WhatsApp — if delivery failed, copy the link below.</p>
+                      ) : null}
+                      <div className="space-y-1">
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Share this set-password link with the engineer:</p>
+                        <div className="flex items-center gap-2 bg-surface dark:bg-surface-dark rounded-lg px-3 py-2 border border-line dark:border-line-dark">
+                          <span className="text-xs font-mono text-content dark:text-content-dark truncate flex-1">{engineerCreated.setPasswordUrl}</span>
+                          <button onClick={() => navigator.clipboard?.writeText(engineerCreated.setPasswordUrl)} className="shrink-0 p-1 rounded hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary text-content-secondary dark:text-content-dark-secondary" title="Copy">
+                            <Save className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      )}
+                      </div>
                       <button onClick={() => setEngineerCreated(null)} className="w-full px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover transition-colors">Done</button>
                     </div>
                   </div>
@@ -889,8 +943,13 @@ export default function AssistantManagerPage() {
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
                     <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Engineer</h3>
-                        <button onClick={() => setEditingEng(null)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                        <div>
+                          <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Engineer</h3>
+                          {editingEng.pendingSetup && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">This engineer has not set a password yet.</p>
+                          )}
+                        </div>
+                        <button onClick={closeEditModal} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -905,15 +964,33 @@ export default function AssistantManagerPage() {
                         </div>
                       </div>
                       <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
+                        <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                      </div>
+                      <div>
                         <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
                         <input type="tel" value={editForm.whatsappNumber} onChange={e => setEditForm(f => ({ ...f, whatsappNumber: e.target.value }))}
                           className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">New Password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(leave blank to keep current)</span></label>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Set login password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(optional)</span></label>
                         <input type="password" value={editForm.newPassword} onChange={e => setEditForm(f => ({ ...f, newPassword: e.target.value }))}
                           placeholder="Min 8 characters"
                           className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                        <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Use this if the engineer lost the setup link.</p>
+                      </div>
+                      <div className="rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark px-3 py-3 space-y-2">
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Send a fresh set-password link (expires in 7 days).</p>
+                        <button
+                          type="button"
+                          onClick={() => handleResendSetupLink(editingEng)}
+                          disabled={resendingSetupLink}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-primary text-primary hover:bg-primary/5 disabled:opacity-50 transition-colors"
+                        >
+                          {resendingSetupLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                          Resend setup link
+                        </button>
                       </div>
                       {myPincodes.length > 0 && (
                         <div>
@@ -940,7 +1017,7 @@ export default function AssistantManagerPage() {
                         </div>
                       )}
                       <div className="flex gap-2 pt-1">
-                        <button onClick={() => setEditingEng(null)}
+                        <button onClick={closeEditModal}
                           className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                           Cancel
                         </button>

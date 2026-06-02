@@ -10,6 +10,7 @@ import {
   createEngineer,
   listMyEngineers,
   updateMyEngineer,
+  resendEngineerSetupLink,
   deleteEngineer,
   setEngineerPincodes,
   listMyPincodes,
@@ -67,6 +68,7 @@ const SM = authorize("service_manager", "assistant_service_manager");
 router.post("/engineers",                   SM, createEngineer);
 router.get("/engineers",                    SM, listMyEngineers);
 router.patch("/engineers/:id",              SM, updateMyEngineer);
+router.post("/engineers/:id/resend-setup-link", SM, resendEngineerSetupLink);
 router.delete("/engineers/:id",             SM, deleteEngineer);
 router.patch("/engineers/:id/pincodes",     SM, setEngineerPincodes);
 

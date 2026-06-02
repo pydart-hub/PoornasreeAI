@@ -13,6 +13,45 @@ import { env } from "../config/env";
 import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
 
 const SALT_ROUNDS = 12;
+const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function generateSetupToken(): { rawToken: string; tokenHash: string; tokenExpiry: Date } {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const tokenExpiry = new Date(Date.now() + SETUP_TOKEN_TTL_MS);
+  return { rawToken, tokenHash, tokenExpiry };
+}
+
+function buildSetPasswordUrl(rawToken: string): string {
+  return `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+}
+
+function isPendingSetup(setPasswordToken: string | null, setPasswordTokenExpiry: Date | null): boolean {
+  return !!setPasswordToken && !!setPasswordTokenExpiry && setPasswordTokenExpiry > new Date();
+}
+
+async function sendEngineerSetupMessage(
+  engineer: { firstName: string; email: string; whatsappNumber: string | null },
+  setPasswordUrl: string,
+  managerName: string,
+): Promise<void> {
+  if (!engineer.whatsappNumber) return;
+  const greeting = [
+    `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
+    "",
+    `You've been registered as a Service Engineer by ${managerName}.`,
+    "",
+    "To get started, please set your password by clicking the link below:",
+    setPasswordUrl,
+    "",
+    `Your login email: ${engineer.email}`,
+    "",
+    "You'll receive ticket assignments and updates here on WhatsApp.",
+    "",
+    "Thank you! 🙏",
+  ].join("\n");
+  await WhatsAppService.sendMessage(engineer.whatsappNumber, greeting);
+}
 
 // ── POST /api/manager/engineers ───────────────────────────────────────────
 // Service manager creates a new service_engineer linked to themselves.
@@ -38,11 +77,7 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
     // Account is locked until engineer sets their own password via the WhatsApp link.
     const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
 
-    // Generate a one-time set-password token (32 random bytes → hex).
-    // Store only the SHA-256 hash in the DB for security.
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-    const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const { rawToken, tokenHash, tokenExpiry } = generateSetupToken();
 
     const engineer = await prisma.user.create({
       data: {
@@ -72,26 +107,11 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
       },
     });
 
-    // Send WhatsApp greeting with set-password link (fire-and-forget)
-    const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+    const setPasswordUrl = buildSetPasswordUrl(rawToken);
+    const manager = engineer.manager;
+    const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
     if (engineer.whatsappNumber) {
-      const manager = engineer.manager;
-      const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
-      const greeting = [
-        `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
-        "",
-        `You've been registered as a Service Engineer by ${managerName}.`,
-        "",
-        "To get started, please set your password by clicking the link below:",
-        setPasswordUrl,
-        "",
-        `Your login email: ${engineer.email}`,
-        "",
-        "You'll receive ticket assignments and updates here on WhatsApp.",
-        "",
-        "Thank you! 🙏",
-      ].join("\n");
-      WhatsAppService.sendMessage(engineer.whatsappNumber, greeting).catch((err) =>
+      sendEngineerSetupMessage(engineer, setPasswordUrl, managerName).catch((err) =>
         console.error("[manager] Failed to send engineer greeting:", err),
       );
     } else {
@@ -120,6 +140,8 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
         lastName: true,
         whatsappNumber: true,
         createdAt: true,
+        setPasswordToken: true,
+        setPasswordTokenExpiry: true,
         engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
         _count: {
           select: {
@@ -136,9 +158,10 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
       orderBy: { firstName: "asc" },
     });
 
-    const result = engineers.map(e => ({
+    const result = engineers.map(({ setPasswordToken, setPasswordTokenExpiry, _count, ...e }) => ({
       ...e,
-      activeTickets: e._count.engineerTickets,
+      activeTickets: _count.engineerTickets,
+      pendingSetup: isPendingSetup(setPasswordToken, setPasswordTokenExpiry),
     }));
 
     res.json({ engineers: result });
@@ -154,7 +177,7 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
   try {
     const managerId = req.user!.userId;
     const engineerId = String(req.params.id);
-    const { firstName, lastName, newPassword, whatsappNumber } = req.body;
+    const { firstName, lastName, email, newPassword, whatsappNumber } = req.body;
 
     const engineer = await prisma.user.findUnique({ where: { id: engineerId } });
     if (!engineer || engineer.role !== "service_engineer") {
@@ -170,12 +193,29 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
     if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+    if (email !== undefined) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      if (!normalizedEmail) {
+        res.status(400).json({ error: "Email cannot be empty" });
+        return;
+      }
+      if (normalizedEmail !== engineer.email) {
+        const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+        if (existing) {
+          res.status(409).json({ error: "An account with this email already exists" });
+          return;
+        }
+        data.email = normalizedEmail;
+      }
+    }
     if (newPassword) {
       if (newPassword.length < 8) {
         res.status(400).json({ error: "Password must be at least 8 characters" });
         return;
       }
       data.passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      data.setPasswordToken = null;
+      data.setPasswordTokenExpiry = null;
     }
 
     if (Object.keys(data).length === 0) {
@@ -186,12 +226,89 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     const updated = await prisma.user.update({
       where: { id: engineerId },
       data,
-      select: { id: true, email: true, firstName: true, lastName: true, whatsappNumber: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        whatsappNumber: true,
+        role: true,
+        setPasswordToken: true,
+        setPasswordTokenExpiry: true,
+      },
     });
 
-    res.json({ engineer: updated });
+    const { setPasswordToken, setPasswordTokenExpiry, ...safe } = updated;
+    res.json({
+      engineer: {
+        ...safe,
+        pendingSetup: isPendingSetup(setPasswordToken, setPasswordTokenExpiry),
+      },
+    });
   } catch (err) {
     console.error("updateMyEngineer error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── POST /api/manager/engineers/:id/resend-setup-link ────────────────────
+// Regenerate set-password token and optionally send via WhatsApp.
+export async function resendEngineerSetupLink(req: Request, res: Response): Promise<void> {
+  try {
+    const managerId = req.user!.userId;
+    const engineerId = String(req.params.id);
+
+    const engineer = await prisma.user.findUnique({
+      where: { id: engineerId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        managerId: true,
+        whatsappNumber: true,
+        manager: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    if (!engineer || engineer.role !== "service_engineer") {
+      res.status(404).json({ error: "Engineer not found" });
+      return;
+    }
+    if (engineer.managerId !== managerId) {
+      res.status(403).json({ error: "This engineer is not in your team" });
+      return;
+    }
+
+    const { rawToken, tokenHash, tokenExpiry } = generateSetupToken();
+    const setPasswordUrl = buildSetPasswordUrl(rawToken);
+
+    await prisma.user.update({
+      where: { id: engineerId },
+      data: {
+        setPasswordToken: tokenHash,
+        setPasswordTokenExpiry: tokenExpiry,
+      },
+    });
+
+    const manager = engineer.manager;
+    const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
+    let sentViaWhatsapp = false;
+    if (engineer.whatsappNumber) {
+      try {
+        await sendEngineerSetupMessage(engineer, setPasswordUrl, managerName);
+        sentViaWhatsapp = true;
+      } catch (err) {
+        console.error("[manager] Failed to resend engineer setup link:", err);
+      }
+    } else {
+      console.log(`[manager] Resend setup link for ${engineer.email} — no WhatsApp: ${setPasswordUrl}`);
+    }
+
+    res.json({ setPasswordUrl, sentViaWhatsapp });
+  } catch (err) {
+    console.error("resendEngineerSetupLink error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }
