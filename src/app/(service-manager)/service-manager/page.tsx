@@ -99,7 +99,8 @@ interface Dealer {
   lastName?: string | null;
   email: string;
   warrantyMonths?: number | null;
-  pincode?: { code: string; place?: string | null; district?: string | null; state?: string | null } | null;
+  whatsappNumber?: string | null;
+  pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   createdAt: string;
   ticketCount?: number;
 }
@@ -247,10 +248,10 @@ export default function ServiceManagerPage() {
   // ── Dealer state ──
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [showAddDealer, setShowAddDealer] = useState(false);
-  const [newDealer, setNewDealer] = useState({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" as string, pincode: "" });
+  const [newDealer, setNewDealer] = useState({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "" as string, pincode: "", city: "", state: "", whatsappNumber: "" });
   const [addingDealer, setAddingDealer] = useState(false);
   const [editingDealer, setEditingDealer] = useState<Dealer | null>(null);
-  const [editDealerForm, setEditDealerForm] = useState({ firstName: "", lastName: "", newPassword: "", warrantyMonths: "" as string, pincode: "" });
+  const [editDealerForm, setEditDealerForm] = useState({ firstName: "", lastName: "", newPassword: "", warrantyMonths: "" as string, pincode: "", city: "", state: "", whatsappNumber: "" });
   const [savingDealerEdit, setSavingDealerEdit] = useState(false);
   const [deletingDealerId, setDeletingDealerId] = useState<string | null>(null);
   const [deletingEngineerId, setDeletingEngineerId] = useState<string | null>(null);
@@ -278,7 +279,9 @@ export default function ServiceManagerPage() {
   const [showImportModal, setShowImportModal] = useState<ImportType | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; skipped: number; errors: number; skippedEmails: string[] } | null>(null);
+  const [importReplaceAll, setImportReplaceAll] = useState(true);
+  const [deletingAllDealers, setDeletingAllDealers] = useState(false);
+  const [importResult, setImportResult] = useState<{ deleted?: number; created: number; skipped: number; errors: number; skippedEmails: string[] } | null>(null);
 
   const openEditModal = (eng: Engineer) => {
     setEditingEng(eng);
@@ -305,6 +308,9 @@ export default function ServiceManagerPage() {
     try {
       const formData = new FormData();
       formData.append("file", importFile);
+      if (showImportModal === "dealers" && !importReplaceAll) {
+        formData.append("replaceAll", "false");
+      }
       const res = await fetch(`/api/manager/import/${showImportModal}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -2118,7 +2124,28 @@ export default function ServiceManagerPage() {
                   <p className="text-sm text-content-secondary dark:text-content-dark-secondary">{dealers.length} dealer{dealers.length !== 1 ? "s" : ""}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setShowImportModal("dealers"); setImportFile(null); setImportResult(null); }}
+                  <button
+                    disabled={deletingAllDealers || dealers.length === 0}
+                    onClick={async () => {
+                      if (!confirm(`Delete all ${dealers.length} dealer(s)? Tickets are kept; dealer links will be cleared.`)) return;
+                      setDeletingAllDealers(true);
+                      try {
+                        const res = await fetch("/api/manager/dealers/all", { method: "DELETE", credentials: "include" });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || "Failed to delete dealers");
+                        await fetchData();
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Failed to delete all dealers");
+                      } finally {
+                        setDeletingAllDealers(false);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                  >
+                    {deletingAllDealers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    Delete All
+                  </button>
+                  <button onClick={() => { setShowImportModal("dealers"); setImportFile(null); setImportResult(null); setImportReplaceAll(true); }}
                     className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
                     <Upload className="w-4 h-4" /> Import
                   </button>
@@ -2143,6 +2170,9 @@ export default function ServiceManagerPage() {
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-content dark:text-content-dark truncate">{dlr.firstName} {dlr.lastName}</p>
                           <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{dlr.email}</p>
+                          {dlr.whatsappNumber && (
+                            <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary truncate">{dlr.whatsappNumber}</p>
+                          )}
                           {dlr.pincode?.place && (
                             <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary truncate mt-0.5">
                               {dlr.pincode.place}{dlr.pincode.state ? `, ${dlr.pincode.state}` : ""}
@@ -2179,6 +2209,9 @@ export default function ServiceManagerPage() {
                                 newPassword: "",
                                 warrantyMonths: dlr.warrantyMonths != null ? String(dlr.warrantyMonths) : "",
                                 pincode: dlr.pincode?.code ?? "",
+                                city: dlr.pincode?.place ?? "",
+                                state: dlr.pincode?.state ?? "",
+                                whatsappNumber: dlr.whatsappNumber ?? "",
                               });
                             }}
                             className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
@@ -2966,9 +2999,29 @@ export default function ServiceManagerPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode</label>
-                <input type="text" value={newDealer.pincode} onChange={e => setNewDealer(p => ({ ...p, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                <input type="text" value={newDealer.pincode} onChange={e => setNewDealer(p => ({ ...p, pincode: e.target.value.trim() }))}
                   className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  placeholder="e.g. 560001" maxLength={6} />
+                  placeholder="e.g. 560001" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">City</label>
+                  <input type="text" value={newDealer.city} onChange={e => setNewDealer(p => ({ ...p, city: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Bangalore" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State</label>
+                  <input type="text" value={newDealer.state} onChange={e => setNewDealer(p => ({ ...p, state: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Karnataka" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Mobile Number</label>
+                <input type="text" value={newDealer.whatsappNumber} onChange={e => setNewDealer(p => ({ ...p, whatsappNumber: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="9482414666" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
@@ -2993,12 +3046,15 @@ export default function ServiceManagerPage() {
                         password: newDealer.password,
                         warrantyMonths: newDealer.warrantyMonths ? Number(newDealer.warrantyMonths) : undefined,
                         pincode: newDealer.pincode.trim() || undefined,
+                        city: newDealer.city.trim() || undefined,
+                        state: newDealer.state.trim() || undefined,
+                        whatsappNumber: newDealer.whatsappNumber.trim() || undefined,
                       }),
                     });
                     if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to add dealer"); }
                     else {
                       setShowAddDealer(false);
-                      setNewDealer({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "", pincode: "" });
+                      setNewDealer({ firstName: "", lastName: "", email: "", password: "", warrantyMonths: "", pincode: "", city: "", state: "", whatsappNumber: "" });
                       await fetchData();
                     }
                   } catch { setError("Network error"); }
@@ -3057,9 +3113,26 @@ export default function ServiceManagerPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode</label>
-                <input type="text" value={editDealerForm.pincode} onChange={e => setEditDealerForm(p => ({ ...p, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                <input type="text" value={editDealerForm.pincode} onChange={e => setEditDealerForm(p => ({ ...p, pincode: e.target.value.trim() }))}
                   className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  placeholder="e.g. 560001" maxLength={6} />
+                  placeholder="e.g. 560001" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">City</label>
+                  <input type="text" value={editDealerForm.city} onChange={e => setEditDealerForm(p => ({ ...p, city: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State</label>
+                  <input type="text" value={editDealerForm.state} onChange={e => setEditDealerForm(p => ({ ...p, state: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Mobile Number</label>
+                <input type="text" value={editDealerForm.whatsappNumber} onChange={e => setEditDealerForm(p => ({ ...p, whatsappNumber: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl">
@@ -3081,6 +3154,11 @@ export default function ServiceManagerPage() {
                     if (wm !== (editingDealer.warrantyMonths ?? null)) body.warrantyMonths = wm;
                     const pc = editDealerForm.pincode.trim();
                     if (pc !== (editingDealer.pincode?.code ?? "")) body.pincode = pc || null;
+                    if (editDealerForm.city.trim() !== (editingDealer.pincode?.place ?? "")) body.city = editDealerForm.city.trim() || null;
+                    if (editDealerForm.state.trim() !== (editingDealer.pincode?.state ?? "")) body.state = editDealerForm.state.trim() || null;
+                    if (editDealerForm.whatsappNumber.trim() !== (editingDealer.whatsappNumber ?? "")) {
+                      body.whatsappNumber = editDealerForm.whatsappNumber.trim() || null;
+                    }
                     if (Object.keys(body).length > 0) {
                       const res = await fetch(`/api/manager/dealers/${editingDealer.id}`, {
                         method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
@@ -3287,7 +3365,7 @@ export default function ServiceManagerPage() {
                   Import {showImportModal}
                 </h3>
               </div>
-              <button onClick={() => { setShowImportModal(null); setImportFile(null); setImportResult(null); }}
+              <button onClick={() => { setShowImportModal(null); setImportFile(null); setImportResult(null); setImportReplaceAll(true); }}
                 className="p-1.5 rounded-lg hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
                 <X className="w-5 h-5 text-content-secondary dark:text-content-dark-secondary" />
               </button>
@@ -3298,8 +3376,31 @@ export default function ServiceManagerPage() {
                 <p className="font-semibold text-content dark:text-content-dark mb-1">Required Excel columns:</p>
                 {showImportModal === "engineers" && <><p>• <span className="font-medium">firstName</span> (required)</p><p>• email (required)</p><p>• lastName, whatsappNumber (optional)</p></>}
                 {showImportModal === "assistants" && <><p>• <span className="font-medium">firstName</span> (required)</p><p>• email (required)</p><p>• lastName, whatsappNumber (optional)</p></>}
-                {showImportModal === "dealers" && <><p>• <span className="font-medium">firstName, email, password</span> (required)</p><p>• lastName, warrantyMonths, pincode (optional)</p><p className="text-amber-600 dark:text-amber-400">Password must be at least 8 characters</p></>}
+                {showImportModal === "dealers" && (
+                  <>
+                    <p>• <span className="font-medium">DEALER NAME</span> (required)</p>
+                    <p>• STATE, PINCODE, CITY, MOBILE NUMBER (optional)</p>
+                    <p>• email, password auto-generated if omitted (default: Dealer@2026)</p>
+                    <p className="text-amber-600 dark:text-amber-400">Works with the official dealer Excel (header on row 5)</p>
+                  </>
+                )}
               </div>
+
+              {/* Replace-all option for dealer import */}
+              {showImportModal === "dealers" && (
+                <label className="flex items-start gap-2 text-xs text-content-secondary dark:text-content-dark-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={importReplaceAll}
+                    onChange={e => setImportReplaceAll(e.target.checked)}
+                    className="mt-0.5 rounded border-line"
+                  />
+                  <span>
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">Replace all existing dealers</span>
+                    {" "}— deletes current dealer accounts before import (tickets preserved, dealer links cleared)
+                  </span>
+                </label>
+              )}
 
               {/* File input */}
               <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-line dark:border-line-dark rounded-xl p-6 cursor-pointer hover:border-primary dark:hover:border-primary-300 transition-colors">
@@ -3313,7 +3414,10 @@ export default function ServiceManagerPage() {
               {/* Result banner */}
               {importResult && (
                 <div className={cn("rounded-lg p-3 text-sm space-y-1", importResult.errors > 0 ? "bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200" : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200")}>
-                  <p className="font-semibold">{importResult.created} created · {importResult.skipped} skipped · {importResult.errors} errors</p>
+                  <p className="font-semibold">
+                    {importResult.deleted != null && importResult.deleted > 0 ? `${importResult.deleted} deleted · ` : ""}
+                    {importResult.created} created · {importResult.skipped} skipped · {importResult.errors} errors
+                  </p>
                   {importResult.skippedEmails.length > 0 && (
                     <p className="text-xs opacity-80">Skipped/Errors: {importResult.skippedEmails.slice(0, 5).join(", ")}{importResult.skippedEmails.length > 5 ? ` +${importResult.skippedEmails.length - 5} more` : ""}</p>
                   )}

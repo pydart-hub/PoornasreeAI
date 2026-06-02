@@ -21,6 +21,7 @@ import {
   listDealers,
   updateDealer,
   deleteDealer,
+  deleteAllDealersHandler,
   exportTickets,
   createAssistantManager,
   listMyAssistants,
@@ -80,6 +81,7 @@ router.delete("/pincodes/:id",              SM, deleteMyPincode);
 router.post("/dealers",                     authorize("service_manager"), createDealer);
 router.get("/dealers",                      authorize("service_manager"), listDealers);
 router.patch("/dealers/:id",                authorize("service_manager"), updateDealer);
+router.delete("/dealers/all",               authorize("service_manager"), deleteAllDealersHandler);
 router.delete("/dealers/:id",               authorize("service_manager"), deleteDealer);
 
 // Bulk import (xlsx)

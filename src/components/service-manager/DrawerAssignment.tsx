@@ -36,6 +36,10 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
     ? engineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincode.id || p.code === ticketPincode.code))
     : []; // no pincode on ticket → show no engineers
 
+  const matchedDealers = ticketPincode
+    ? dealers.filter(d => d.pincode?.id === ticketPincode.id || d.pincode?.code === ticketPincode.code)
+    : [];
+
   const handleConfirm = async () => {
     if (!confirmEng) return;
     await onAssignEngineer(ticket.id, confirmEng.id);
@@ -239,19 +243,37 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
           {dealerOpen && !confirmDealer && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Select Dealer</p>
+                <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
+                  Select Dealer
+                  {ticketPincode && (
+                    <span className="ml-1 font-normal text-content-tertiary dark:text-content-dark-tertiary">
+                      (Zone: {ticketPincode.code})
+                    </span>
+                  )}
+                </p>
                 <button onClick={() => setDealerOpen(false)} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary">Cancel</button>
               </div>
-              {dealers.length === 0 ? (
+              {matchedDealers.length === 0 ? (
                 <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-2 text-center">
-                  No dealers available
+                  {ticketPincode
+                    ? `No dealer covers zone ${ticketPincode.code} — import dealers with matching pincode`
+                    : "No zone on ticket — set a pincode before assigning a dealer"}
                 </p>
               ) : (
                 <div className="border border-line dark:border-line-dark rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                  {dealers.map(d => (
+                  {matchedDealers.map(d => (
                     <button key={d.id} onClick={() => { setConfirmDealer(d); setDealerOpen(false); }}
                       className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors border-b border-line dark:border-line-dark last:border-b-0">
-                      {d.firstName} {d.lastName ?? ""}
+                      <span className="block font-medium truncate">{d.firstName} {d.lastName ?? ""}</span>
+                      {(d.pincode?.place || d.pincode?.state) && (
+                        <span className="block text-[10px] text-content-tertiary dark:text-content-dark-tertiary truncate">
+                          {[d.pincode?.place, d.pincode?.state].filter(Boolean).join(", ")}
+                          {d.pincode?.code ? ` · ${d.pincode.code}` : ""}
+                        </span>
+                      )}
+                      {d.whatsappNumber && (
+                        <span className="block text-[10px] text-content-tertiary dark:text-content-dark-tertiary">{d.whatsappNumber}</span>
+                      )}
                     </button>
                   ))}
                 </div>

@@ -58,6 +58,8 @@ export interface Dealer {
   firstName: string;
   lastName?: string | null;
   email: string;
+  whatsappNumber?: string | null;
+  pincode?: PincodeInfo | null;
 }
 
 export interface TicketDrawerProps {

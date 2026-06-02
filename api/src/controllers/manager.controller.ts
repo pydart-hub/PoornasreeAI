@@ -10,6 +10,7 @@ import prisma from "../lib/prisma";
 import ExcelJS from "exceljs";
 import * as WhatsAppService from "../services/whatsapp.service";
 import { env } from "../config/env";
+import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
 
 const SALT_ROUNDS = 12;
 
@@ -468,7 +469,7 @@ export async function deleteMyPincode(req: Request, res: Response): Promise<void
 // ── POST /api/manager/dealers ─────────────────────────────────────────────
 export async function createDealer(req: Request, res: Response): Promise<void> {
   try {
-    const { email, password, firstName, lastName, warrantyMonths, pincode } = req.body;
+    const { email, password, firstName, lastName, warrantyMonths, pincode, city, state, whatsappNumber } = req.body;
 
     if (!email || !password || !firstName) {
       res.status(400).json({ error: "email, password and firstName are required" });
@@ -486,15 +487,9 @@ export async function createDealer(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Resolve pincode if provided
     let pincodeId: string | null = null;
     if (pincode?.trim()) {
-      const trimmedCode = pincode.trim();
-      let pc = await prisma.pincode.findUnique({ where: { code: trimmedCode } });
-      if (!pc) {
-        pc = await prisma.pincode.create({ data: { code: trimmedCode } });
-      }
-      pincodeId = pc.id;
+      pincodeId = await upsertPincode(pincode.trim(), city?.trim() || null, state?.trim() || null);
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -506,11 +501,12 @@ export async function createDealer(req: Request, res: Response): Promise<void> {
         lastName: lastName?.trim() ?? null,
         role: "dealer",
         warrantyMonths: warrantyMonths != null ? Number(warrantyMonths) : null,
+        whatsappNumber: whatsappNumber?.trim().replace(/^\+/, "") || null,
         pincodeId,
       },
       select: {
         id: true, email: true, firstName: true, lastName: true,
-        role: true, warrantyMonths: true, createdAt: true,
+        role: true, warrantyMonths: true, whatsappNumber: true, createdAt: true,
         pincode: { select: { code: true, place: true, district: true, state: true } },
       },
     });
@@ -529,8 +525,8 @@ export async function listDealers(req: Request, res: Response): Promise<void> {
       where: { role: "dealer" },
       select: {
         id: true, email: true, firstName: true, lastName: true,
-        warrantyMonths: true, createdAt: true,
-        pincode: { select: { code: true, place: true, district: true, state: true } },
+        warrantyMonths: true, whatsappNumber: true, createdAt: true,
+        pincode: { select: { id: true, code: true, place: true, district: true, state: true } },
         _count: { select: { dealerTickets: true } },
       },
       orderBy: { firstName: "asc" },
@@ -553,7 +549,7 @@ export async function listDealers(req: Request, res: Response): Promise<void> {
 export async function updateDealer(req: Request, res: Response): Promise<void> {
   try {
     const dealerId = String(req.params.id);
-    const { firstName, lastName, newPassword, warrantyMonths, pincode } = req.body;
+    const { firstName, lastName, newPassword, warrantyMonths, pincode, city, state, whatsappNumber } = req.body;
 
     const dealer = await prisma.user.findUnique({ where: { id: dealerId } });
     if (!dealer || dealer.role !== "dealer") {
@@ -565,16 +561,26 @@ export async function updateDealer(req: Request, res: Response): Promise<void> {
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
     if (warrantyMonths !== undefined) data.warrantyMonths = warrantyMonths != null ? Number(warrantyMonths) : null;
+    if (whatsappNumber !== undefined) {
+      data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+    }
     if (pincode !== undefined) {
       if (pincode && pincode.trim()) {
-        const trimmedCode = pincode.trim();
-        let pc = await prisma.pincode.findUnique({ where: { code: trimmedCode } });
-        if (!pc) {
-          pc = await prisma.pincode.create({ data: { code: trimmedCode } });
-        }
-        data.pincodeId = pc.id;
+        data.pincodeId = await upsertPincode(pincode.trim(), city?.trim() || null, state?.trim() || null);
       } else {
         data.pincodeId = null;
+      }
+    } else if (city !== undefined || state !== undefined) {
+      const current = await prisma.user.findUnique({
+        where: { id: dealerId },
+        select: { pincode: { select: { code: true, place: true, state: true } } },
+      });
+      if (current?.pincode?.code) {
+        data.pincodeId = await upsertPincode(
+          current.pincode.code,
+          city !== undefined ? (city?.trim() || null) : current.pincode.place,
+          state !== undefined ? (state?.trim() || null) : current.pincode.state,
+        );
       }
     }
     if (newPassword) {
@@ -595,8 +601,8 @@ export async function updateDealer(req: Request, res: Response): Promise<void> {
       data,
       select: {
         id: true, email: true, firstName: true, lastName: true,
-        role: true, warrantyMonths: true, createdAt: true,
-        pincode: { select: { code: true, place: true, district: true, state: true } },
+        role: true, warrantyMonths: true, whatsappNumber: true, createdAt: true,
+        pincode: { select: { id: true, code: true, place: true, district: true, state: true } },
       },
     });
 
@@ -618,16 +624,27 @@ export async function deleteDealer(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Cascade: unlink dealer's tickets, then delete user
-    await prisma.ticket.updateMany({
-      where: { dealerId },
-      data: { dealerId: null },
+    await prisma.$transaction(async (tx) => {
+      await tx.ticket.updateMany({ where: { dealerId }, data: { dealerId: null } });
+      await tx.ticket.updateMany({ where: { assignedDealerId: dealerId }, data: { assignedDealerId: null } });
+      await tx.workReport.deleteMany({ where: { dealerId } });
+      await tx.user.delete({ where: { id: dealerId } });
     });
-    await prisma.user.delete({ where: { id: dealerId } });
 
     res.json({ message: "Dealer deleted" });
   } catch (err) {
     console.error("deleteDealer error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── DELETE /api/manager/dealers/all ───────────────────────────────────────
+export async function deleteAllDealersHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const deleted = await deleteAllDealers();
+    res.json({ deleted, message: `Deleted ${deleted} dealer(s)` });
+  } catch (err) {
+    console.error("deleteAllDealersHandler error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -1018,72 +1035,24 @@ export async function importEngineers(req: Request, res: Response): Promise<void
 
 // ── POST /api/manager/import/dealers ─────────────────────────────────────
 // Bulk-create dealers from an uploaded xlsx file.
-// Expected columns: firstName, lastName (opt), email, password, warrantyMonths (opt), pincode (opt)
+// Supports DEALER NAME, STATE, PINCODE, CITY, MOBILE NUMBER (header may be on row 5).
 export async function importDealers(req: Request, res: Response): Promise<void> {
   try {
     if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
 
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(req.file.buffer.buffer as ArrayBuffer);
-    const ws = wb.worksheets[0];
-    if (!ws) { res.status(400).json({ error: "Empty spreadsheet" }); return; }
+    // Default: replace all existing dealers before import
+    const replaceAll = req.body?.replaceAll !== "false" && req.body?.replaceAll !== false
+      && req.query?.replaceAll !== "false";
 
-    const headers: string[] = [];
-    const rows: Record<string, string>[] = [];
-    ws.eachRow((row, rowNum) => {
-      if (rowNum === 1) {
-        row.eachCell((cell) => headers.push(String(cell.value ?? "").trim().toLowerCase()));
-      } else {
-        const obj: Record<string, string> = {};
-        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
-          const key = headers[colNum - 1];
-          if (key) obj[key] = String(cell.value ?? "").trim();
-        });
-        if (Object.values(obj).some(v => v !== "")) rows.push(obj);
-      }
+    const result = await importDealersFromExcel(req.file.buffer.buffer as ArrayBuffer, replaceAll);
+
+    res.json({
+      deleted: result.deleted,
+      created: result.created,
+      skipped: result.skipped,
+      errors: result.errors,
+      skippedEmails: [...result.skippedEmails, ...result.errorMessages.slice(0, 20)],
     });
-
-    let created = 0;
-    const skipped: string[] = [];
-    const errors: string[] = [];
-
-    for (const row of rows) {
-      const firstName = row["firstname"] || row["first_name"] || row["first name"] || "";
-      const lastName = row["lastname"] || row["last_name"] || row["last name"] || "";
-      const email = (row["email"] || "").toLowerCase();
-      const password = row["password"] || "";
-      const warrantyMonths = row["warrantymonths"] || row["warranty_months"] || row["warranty months"] || "";
-      const pincode = row["pincode"] || row["pin"] || "";
-
-      if (!firstName || !email || !password) { errors.push(`Row missing required fields: ${JSON.stringify(row)}`); continue; }
-      if (password.length < 8) { errors.push(`Password too short for ${email}`); continue; }
-
-      const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) { skipped.push(email); continue; }
-
-      let pincodeId: string | null = null;
-      if (pincode) {
-        let pc = await prisma.pincode.findUnique({ where: { code: pincode } });
-        if (!pc) pc = await prisma.pincode.create({ data: { code: pincode } });
-        pincodeId = pc.id;
-      }
-
-      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-      await prisma.user.create({
-        data: {
-          email,
-          passwordHash,
-          firstName,
-          lastName: lastName || null,
-          role: "dealer",
-          warrantyMonths: warrantyMonths ? Number(warrantyMonths) : null,
-          pincodeId,
-        },
-      });
-      created++;
-    }
-
-    res.json({ created, skipped: skipped.length, errors: errors.length, skippedEmails: skipped });
   } catch (err) {
     console.error("importDealers error:", err);
     res.status(500).json({ error: "Internal server error" });

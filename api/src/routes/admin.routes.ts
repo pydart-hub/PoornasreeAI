@@ -15,6 +15,8 @@ import {
   listDocuments,
   deleteDocumentRecord,
   reindexDocuments,
+  importDealersAdmin,
+  deleteAllDealersAdmin,
 } from "../controllers/admin.controller";
 import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
@@ -83,6 +85,24 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max
 });
 
+// In-memory xlsx upload for dealer bulk import
+const xlsxUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "application/octet-stream",
+    ];
+    if (allowed.includes(file.mimetype) || file.originalname.endsWith(".xlsx")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only .xlsx files are accepted"));
+    }
+  },
+});
+
 // All admin routes are protected
 router.use(protect);
 
@@ -109,6 +129,12 @@ router.patch("/users/:id", updateUser);
 
 // DELETE /api/admin/users/:id  —  delete a user
 router.delete("/users/:id", deleteUser);
+
+// DELETE /api/admin/dealers/all  —  remove all dealer accounts
+router.delete("/dealers/all", deleteAllDealersAdmin);
+
+// POST /api/admin/import/dealers  —  bulk import dealers from Excel
+router.post("/import/dealers", xlsxUpload.single("file"), importDealersAdmin);
 
 // GET /api/admin/analytics  —  dashboard analytics (Feature 7)
 router.get("/analytics", getAnalytics);

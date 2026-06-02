@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
 import { processDocument } from "../services/document.service";
 import { deleteVectorsByDocumentId } from "../services/vector.service";
+import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
 
 const SALT_ROUNDS = 12;
 const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "marketing"];
@@ -19,7 +20,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { email, password, firstName, lastName, role } = req.body;
+    const { email, password, firstName, lastName, role, whatsappNumber, pincode, city, state } = req.body;
 
     if (!email || !password || !firstName || !role) {
       res.status(400).json({ error: "Missing required fields: email, password, firstName, role" });
@@ -43,6 +44,11 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    let pincodeId: string | null = null;
+    if (role === "dealer" && pincode?.trim()) {
+      pincodeId = await upsertPincode(pincode.trim(), city?.trim() || null, state?.trim() || null);
+    }
+
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await prisma.user.create({
       data: {
@@ -51,8 +57,16 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         firstName: firstName.trim(),
         lastName: lastName?.trim() ?? null,
         role,
+        ...(role === "dealer" && whatsappNumber
+          ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") }
+          : {}),
+        ...(role === "dealer" ? { pincodeId } : {}),
       },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
+      select: {
+        id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true,
+        whatsappNumber: true,
+        pincode: { select: { code: true, place: true, state: true } },
+      },
     });
 
     res.status(201).json({ user });
@@ -79,9 +93,10 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
         lastName: true,
         role: true,
         createdAt: true,
+        whatsappNumber: true,
+        pincode: { select: { code: true, place: true, state: true } },
         _count: { select: { conversations: true } },
         engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
-        // For service_engineer roles — shows which manager owns them
         manager: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -172,9 +187,11 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const id = req.params.id as string;
-    const { firstName, lastName, email, newPassword, role } = req.body;
+    const { firstName, lastName, email, newPassword, role, whatsappNumber, pincode, city, state } = req.body;
 
-    if (!firstName && !lastName && !email && !newPassword && !role) {
+    if (!firstName && !lastName && !email && !newPassword && !role
+        && whatsappNumber === undefined && pincode === undefined
+        && city === undefined && state === undefined) {
       res.status(400).json({ error: "Nothing to update" });
       return;
     }
@@ -215,10 +232,40 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       data.role = role;
     }
 
+    const effectiveRole = (role as string) || target.role;
+    if (effectiveRole === "dealer") {
+      if (whatsappNumber !== undefined) {
+        data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+      }
+      if (pincode !== undefined) {
+        if (pincode && pincode.trim()) {
+          data.pincodeId = await upsertPincode(pincode.trim(), city?.trim() || null, state?.trim() || null);
+        } else {
+          data.pincodeId = null;
+        }
+      } else if (city !== undefined || state !== undefined) {
+        const current = await prisma.user.findUnique({
+          where: { id },
+          select: { pincode: { select: { code: true, place: true, state: true } } },
+        });
+        if (current?.pincode?.code) {
+          data.pincodeId = await upsertPincode(
+            current.pincode.code,
+            city !== undefined ? (city?.trim() || null) : current.pincode.place,
+            state !== undefined ? (state?.trim() || null) : current.pincode.state,
+          );
+        }
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data,
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
+      select: {
+        id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true,
+        whatsappNumber: true,
+        pincode: { select: { code: true, place: true, state: true } },
+      },
     });
 
     res.json({ user: updated });
@@ -355,6 +402,51 @@ export async function reindexDocuments(
     res.json({ message: `Reindexed ${results.filter(r => r.status === "ok").length}/${documents.length} documents`, results });
   } catch (err) {
     console.error("reindexDocuments error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── DELETE /api/admin/dealers/all ─────────────────────────────────────────
+export async function deleteAllDealersAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+    const deleted = await deleteAllDealers();
+    res.json({ deleted, message: `Deleted ${deleted} dealer(s)` });
+  } catch (err) {
+    console.error("deleteAllDealersAdmin error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── POST /api/admin/import/dealers ───────────────────────────────────────
+export async function importDealersAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+    if (!req.file) {
+      res.status(400).json({ error: "No file uploaded" });
+      return;
+    }
+
+    const replaceAll = req.body?.replaceAll !== "false" && req.body?.replaceAll !== false
+      && req.query?.replaceAll !== "false";
+
+    const result = await importDealersFromExcel(req.file.buffer.buffer as ArrayBuffer, replaceAll);
+
+    res.json({
+      deleted: result.deleted,
+      created: result.created,
+      skipped: result.skipped,
+      errors: result.errors,
+      skippedEmails: [...result.skippedEmails, ...result.errorMessages.slice(0, 20)],
+    });
+  } catch (err) {
+    console.error("importDealersAdmin error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }

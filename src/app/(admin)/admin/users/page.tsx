@@ -24,6 +24,7 @@ import {
   Download,
   CheckCircle,
   XCircle,
+  Store,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -35,6 +36,8 @@ import {
   createUser,
   deleteUser,
   updateUser,
+  importDealersAdmin,
+  deleteAllDealersAdmin,
   type ApiUser,
   type CreateUserPayload,
 } from "@/lib/api";
@@ -177,6 +180,15 @@ export default function UsersManagementPage() {
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const [bulkDone, setBulkDone] = useState(false);
   const bulkFileRef = useRef<HTMLInputElement>(null);
+
+  // Dealer Excel import state
+  const [dealerImportOpen, setDealerImportOpen] = useState(false);
+  const [dealerImportFile, setDealerImportFile] = useState<File | null>(null);
+  const [dealerImportLoading, setDealerImportLoading] = useState(false);
+  const [dealerImportReplaceAll, setDealerImportReplaceAll] = useState(true);
+  const [deletingAllDealers, setDeletingAllDealers] = useState(false);
+  const [dealerImportResult, setDealerImportResult] = useState<{ deleted?: number; created: number; skipped: number; errors: number; skippedEmails: string[] } | null>(null);
+  const dealerImportFileRef = useRef<HTMLInputElement>(null);
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -416,6 +428,44 @@ export default function UsersManagementPage() {
     setBulkModalOpen(false);
   };
 
+  const openDealerImportModal = () => {
+    setDealerImportFile(null);
+    setDealerImportResult(null);
+    setDealerImportReplaceAll(false);
+    setDealerImportLoading(false);
+    setDealerImportOpen(true);
+    if (dealerImportFileRef.current) dealerImportFileRef.current.value = "";
+  };
+
+  const closeDealerImportModal = () => {
+    if (dealerImportLoading) return;
+    setDealerImportOpen(false);
+  };
+
+  const handleDealerImport = async () => {
+    if (!dealerImportFile) return;
+    setDealerImportLoading(true);
+    setDealerImportResult(null);
+    try {
+      const result = await importDealersAdmin(dealerImportFile, dealerImportReplaceAll);
+      setDealerImportResult(result);
+      setDealerImportFile(null);
+      if (result.created > 0) {
+        await fetchUsers();
+        setSuccessBanner(`${result.created} dealer${result.created !== 1 ? "s" : ""} imported successfully.`);
+      }
+    } catch (err) {
+      setDealerImportResult({
+        created: 0,
+        skipped: 0,
+        errors: 1,
+        skippedEmails: [err instanceof Error ? err.message : "Import failed"],
+      });
+    } finally {
+      setDealerImportLoading(false);
+    }
+  };
+
   const handleBulkImport = async () => {
     const valid = bulkRows.filter((r) => !r.error);
     if (valid.length === 0) return;
@@ -539,6 +589,35 @@ export default function UsersManagementPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={openDealerImportModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 active:scale-95 transition-all shadow-sm"
+            >
+              <Store className="w-4 h-4" />
+              Import Dealers
+            </button>
+            <button
+              onClick={async () => {
+                const count = users.filter(u => u.role === "dealer").length;
+                if (count === 0) { setSuccessBanner("No dealers to delete."); return; }
+                if (!confirm(`Delete all ${count} dealer(s)? Tickets are kept; dealer links will be cleared.`)) return;
+                setDeletingAllDealers(true);
+                try {
+                  const { deleted, message } = await deleteAllDealersAdmin();
+                  await fetchUsers();
+                  setSuccessBanner(message || `Deleted ${deleted} dealer(s).`);
+                } catch (err) {
+                  setDeleteError(err instanceof Error ? err.message : "Failed to delete all dealers");
+                } finally {
+                  setDeletingAllDealers(false);
+                }
+              }}
+              disabled={deletingAllDealers}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {deletingAllDealers ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Delete All Dealers
+            </button>
             <button
               onClick={openBulkModal}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 active:scale-95 transition-all shadow-sm"
@@ -712,6 +791,21 @@ export default function UsersManagementPage() {
                           Serves: {u.engineerPincodes.map(p => p.code).join(", ")}
                         </span>
                       </div>
+                    )}
+                    {u.role === "dealer" && u.pincode && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <MapPin className="w-3 h-3 text-green-500 shrink-0" />
+                        <span className="text-[10px] text-green-700 dark:text-green-400">
+                          {u.pincode.code}
+                          {u.pincode.place ? ` · ${u.pincode.place}` : ""}
+                          {u.pincode.state ? `, ${u.pincode.state}` : ""}
+                        </span>
+                      </div>
+                    )}
+                    {u.role === "dealer" && u.whatsappNumber && (
+                      <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
+                        {u.whatsappNumber}
+                      </span>
                     )}
                   </div>
 
@@ -1209,6 +1303,102 @@ export default function UsersManagementPage() {
                   )}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Import Dealers Modal ── */}
+      {dealerImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeDealerImportModal} />
+          <div className="relative w-full max-w-md bg-surface dark:bg-surface-dark-card rounded-2xl shadow-2xl border border-line dark:border-line-dark overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                <h2 className="text-base font-semibold text-content dark:text-content-dark">Import Dealers</h2>
+              </div>
+              <button onClick={closeDealerImportModal} disabled={dealerImportLoading} className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-xl border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 p-4 text-xs text-violet-800 dark:text-violet-300 space-y-1">
+                <p className="font-semibold mb-1">Excel columns (header may be on row 5):</p>
+                <p>• <span className="font-medium">DEALER NAME</span> (required)</p>
+                <p>• STATE, PINCODE, CITY, MOBILE NUMBER</p>
+                <p className="opacity-80">Email/password auto-generated if omitted (Dealer@2026)</p>
+              </div>
+
+              <label className="flex items-start gap-2 text-xs text-content-secondary dark:text-content-dark-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dealerImportReplaceAll}
+                  onChange={e => setDealerImportReplaceAll(e.target.checked)}
+                  className="mt-0.5 rounded border-line"
+                />
+                <span>
+                  <span className="font-semibold text-amber-700 dark:text-amber-400">Replace all existing dealers</span>
+                  {" "}before import
+                </span>
+              </label>
+
+              <label className={cn(
+                "flex flex-col items-center justify-center gap-2 w-full h-24 rounded-xl border-2 border-dashed cursor-pointer transition-colors",
+                dealerImportLoading ? "opacity-50 cursor-not-allowed border-line dark:border-line-dark" : "border-violet-300 dark:border-violet-500/40 hover:bg-violet-50 dark:hover:bg-violet-500/10"
+              )}>
+                <Upload className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                <span className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                  {dealerImportFile ? dealerImportFile.name : "Click to select .xlsx file"}
+                </span>
+                <input
+                  ref={dealerImportFileRef}
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  disabled={dealerImportLoading}
+                  onChange={e => { setDealerImportFile(e.target.files?.[0] ?? null); setDealerImportResult(null); }}
+                />
+              </label>
+
+              {dealerImportResult && (
+                <div className={cn(
+                  "rounded-lg p-3 text-sm space-y-1",
+                  dealerImportResult.errors > 0
+                    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200"
+                    : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-200"
+                )}>
+                  <p className="font-semibold">
+                    {dealerImportResult.deleted != null && dealerImportResult.deleted > 0 ? `${dealerImportResult.deleted} deleted · ` : ""}
+                    {dealerImportResult.created} created · {dealerImportResult.skipped} skipped · {dealerImportResult.errors} errors
+                  </p>
+                  {dealerImportResult.skippedEmails.length > 0 && (
+                    <p className="text-xs opacity-80 truncate">
+                      {dealerImportResult.skippedEmails.slice(0, 3).join("; ")}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-line dark:border-line-dark flex items-center justify-end gap-3">
+              <button
+                onClick={closeDealerImportModal}
+                disabled={dealerImportLoading}
+                className="px-4 py-2 rounded-xl border border-line dark:border-line-dark text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDealerImport}
+                disabled={!dealerImportFile || dealerImportLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {dealerImportLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Importing…</>
+                ) : (
+                  <><Upload className="w-4 h-4" />Import Dealers</>
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -9,6 +9,8 @@ export interface ApiUser {
   lastName?: string | null;
   role: string;
   createdAt: string;
+  whatsappNumber?: string | null;
+  pincode?: { code: string; place?: string | null; state?: string | null } | null;
   _count: { conversations: number };
   managedPincodes?: { code: string; regionName: string | null }[];
   engineerPincodes?: { code: string; regionName: string | null }[];
@@ -20,6 +22,10 @@ export interface CreateUserPayload {
   firstName: string;
   lastName?: string;
   role: string;
+  whatsappNumber?: string;
+  pincode?: string;
+  city?: string;
+  state?: string;
 }
 
 // ── Shared fetch wrapper ─────────────────────────────────────────────────
@@ -67,13 +73,59 @@ export async function deleteUser(id: string): Promise<void> {
 /** Update a user by ID (admin only). */
 export async function updateUser(
   id: string,
-  payload: { firstName?: string; lastName?: string; email?: string; newPassword?: string; role?: string }
+  payload: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    newPassword?: string;
+    role?: string;
+    whatsappNumber?: string | null;
+    pincode?: string | null;
+    city?: string | null;
+    state?: string | null;
+  }
 ): Promise<ApiUser> {
   const data = await apiFetch<{ user: ApiUser }>(`/api/admin/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
   return data.user;
+}
+
+export interface DealerImportResult {
+  deleted?: number;
+  created: number;
+  skipped: number;
+  errors: number;
+  skippedEmails: string[];
+}
+
+/** Bulk import dealers from Excel (admin only). Replaces all dealers by default. */
+export async function importDealersAdmin(
+  file: File,
+  replaceAll = true,
+): Promise<DealerImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (!replaceAll) formData.append("replaceAll", "false");
+
+  const res = await fetch("/api/admin/import/dealers", {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  return data as DealerImportResult;
+}
+
+/** Delete all dealer accounts (admin only). */
+export async function deleteAllDealersAdmin(): Promise<{ deleted: number; message: string }> {
+  return apiFetch<{ deleted: number; message: string }>("/api/admin/dealers/all", {
+    method: "DELETE",
+  });
 }
 
 // ── Sales user management ──────────────────────────────────────────────────
