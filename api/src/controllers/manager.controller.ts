@@ -11,6 +11,14 @@ import ExcelJS from "exceljs";
 import * as WhatsAppService from "../services/whatsapp.service";
 import { env } from "../config/env";
 import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
+import {
+  syncHrEngineers,
+  getLastSyncWarning,
+  engineerManagerWhere,
+  getAssistantParentManagerId,
+  canManagerAccessEngineer,
+  mapEngineerSource,
+} from "../services/hr-engineer.service";
 
 const SALT_ROUNDS = 12;
 const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -126,19 +134,27 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
 }
 
 // ── GET /api/manager/engineers ────────────────────────────────────────────
-// Lists only the engineers this manager created/owns, with workload counts.
+// Lists engineers for this manager (and HR-synced pool for assistants), with workload counts.
 export async function listMyEngineers(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
+    const role = req.user!.role;
+    const userId = req.user!.userId;
+    const syncResult = await syncHrEngineers();
+
+    const parentManagerId =
+      role === "assistant_service_manager"
+        ? await getAssistantParentManagerId(userId)
+        : null;
 
     const engineers = await prisma.user.findMany({
-      where: { role: "service_engineer", managerId },
+      where: engineerManagerWhere(role, userId, parentManagerId),
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
         whatsappNumber: true,
+        hrEngineerId: true,
         createdAt: true,
         setPasswordToken: true,
         setPasswordTokenExpiry: true,
@@ -158,13 +174,16 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
       orderBy: { firstName: "asc" },
     });
 
-    const result = engineers.map(({ setPasswordToken, setPasswordTokenExpiry, _count, ...e }) => ({
+    const result = engineers.map(({ setPasswordToken, setPasswordTokenExpiry, _count, hrEngineerId, ...e }) => ({
       ...e,
+      hrEngineerId,
+      source: mapEngineerSource(hrEngineerId),
       activeTickets: _count.engineerTickets,
       pendingSetup: isPendingSetup(setPasswordToken, setPasswordTokenExpiry),
     }));
 
-    res.json({ engineers: result });
+    const syncWarning = syncResult.warning ?? getLastSyncWarning();
+    res.json({ engineers: result, ...(syncWarning ? { syncWarning } : {}) });
   } catch (err) {
     console.error("listMyEngineers error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -175,16 +194,24 @@ export async function listMyEngineers(req: Request, res: Response): Promise<void
 // Update an engineer's basic info (name, password). Manager-owned only.
 export async function updateMyEngineer(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
     const engineerId = String(req.params.id);
     const { firstName, lastName, email, newPassword, whatsappNumber } = req.body;
 
-    const engineer = await prisma.user.findUnique({ where: { id: engineerId } });
+    const engineer = await prisma.user.findUnique({
+      where: { id: engineerId },
+      select: { role: true, managerId: true, hrEngineerId: true, email: true },
+    });
     if (!engineer || engineer.role !== "service_engineer") {
       res.status(404).json({ error: "Engineer not found" });
       return;
     }
-    if (engineer.managerId !== managerId) {
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+    if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
       res.status(403).json({ error: "This engineer is not in your team" });
       return;
     }
@@ -193,6 +220,10 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
     if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+    if (email !== undefined && engineer.hrEngineerId != null) {
+      res.status(400).json({ error: "Cannot change email for HR-synced engineers" });
+      return;
+    }
     if (email !== undefined) {
       const normalizedEmail = String(email).trim().toLowerCase();
       if (!normalizedEmail) {
@@ -255,7 +286,8 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
 // Regenerate set-password token and optionally send via WhatsApp.
 export async function resendEngineerSetupLink(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
     const engineerId = String(req.params.id);
 
     const engineer = await prisma.user.findUnique({
@@ -267,6 +299,7 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
         lastName: true,
         role: true,
         managerId: true,
+        hrEngineerId: true,
         whatsappNumber: true,
         manager: { select: { firstName: true, lastName: true } },
       },
@@ -276,7 +309,11 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
       res.status(404).json({ error: "Engineer not found" });
       return;
     }
-    if (engineer.managerId !== managerId) {
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+    if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
       res.status(403).json({ error: "This engineer is not in your team" });
       return;
     }
@@ -320,9 +357,18 @@ export async function deleteEngineer(req: Request, res: Response): Promise<void>
     const managerId = req.user!.userId;
     const engineerId = String(req.params.id);
 
-    const engineer = await prisma.user.findUnique({ where: { id: engineerId } });
+    const engineer = await prisma.user.findUnique({
+      where: { id: engineerId },
+      select: { role: true, managerId: true, hrEngineerId: true },
+    });
     if (!engineer || engineer.role !== "service_engineer" || engineer.managerId !== managerId) {
       res.status(404).json({ error: "Engineer not found" });
+      return;
+    }
+    if (engineer.hrEngineerId != null) {
+      res.status(403).json({
+        error: "Cannot delete HR-synced engineers. Remove them from the HR app instead.",
+      });
       return;
     }
 
@@ -363,7 +409,8 @@ export async function deleteEngineer(req: Request, res: Response): Promise<void>
 // Replace the engineer's pincode assignments.
 export async function setEngineerPincodes(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
     const engineerId = String(req.params.id);
     const { pincodeIds } = req.body;
 
@@ -372,12 +419,19 @@ export async function setEngineerPincodes(req: Request, res: Response): Promise<
       return;
     }
 
-    const engineer = await prisma.user.findUnique({ where: { id: engineerId } });
+    const engineer = await prisma.user.findUnique({
+      where: { id: engineerId },
+      select: { role: true, managerId: true, hrEngineerId: true },
+    });
     if (!engineer || engineer.role !== "service_engineer") {
       res.status(404).json({ error: "Engineer not found" });
       return;
     }
-    if (engineer.managerId !== managerId) {
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+    if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
       res.status(403).json({ error: "This engineer is not in your team" });
       return;
     }

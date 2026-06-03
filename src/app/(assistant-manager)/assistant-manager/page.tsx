@@ -59,6 +59,8 @@ interface Engineer {
   activeTickets?: number;
   pendingSetup?: boolean;
   engineerPincodes?: PincodeInfo[];
+  hrEngineerId?: number | null;
+  source?: "hr" | "local";
 }
 
 interface ServiceTicket {
@@ -731,6 +733,14 @@ export default function AssistantManagerPage() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-bold text-content dark:text-content-dark truncate">{eng.firstName} {eng.lastName}</p>
+                              <span className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-full font-semibold",
+                                eng.source === "hr"
+                                  ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              )}>
+                                {eng.source === "hr" ? "HR" : "Local"}
+                              </span>
                               {eng.pendingSetup && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                                   Pending setup
@@ -770,30 +780,32 @@ export default function AssistantManagerPage() {
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={async () => {
-                                if (!confirm(`Delete ${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}? Make sure all their tickets are reassigned first.`)) return;
-                                setDeletingEngineerId(eng.id);
-                                try {
-                                  const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
-                                  if (!res.ok) {
-                                    const data = await res.json();
-                                    if (data.activeTickets?.length > 0) {
-                                      const list = data.activeTickets.map((t: { ticketNumber: string }) => t.ticketNumber).join(", ");
-                                      setError(`Reassign active ticket(s) first: ${list}`);
-                                    } else {
-                                      setError(data.error || "Failed to delete engineer");
-                                    }
-                                  } else { await fetchData(); }
-                                } catch { setError("Network error"); }
-                                finally { setDeletingEngineerId(null); }
-                              }}
-                              disabled={deletingEngineerId === eng.id}
-                              className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title="Delete engineer"
-                            >
-                              {deletingEngineerId === eng.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                            </button>
+                            {eng.source !== "hr" && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Delete ${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}? Make sure all their tickets are reassigned first.`)) return;
+                                  setDeletingEngineerId(eng.id);
+                                  try {
+                                    const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
+                                    if (!res.ok) {
+                                      const data = await res.json();
+                                      if (data.activeTickets?.length > 0) {
+                                        const list = data.activeTickets.map((t: { ticketNumber: string }) => t.ticketNumber).join(", ");
+                                        setError(`Reassign active ticket(s) first: ${list}`);
+                                      } else {
+                                        setError(data.error || "Failed to delete engineer");
+                                      }
+                                    } else { await fetchData(); }
+                                  } catch { setError("Network error"); }
+                                  finally { setDeletingEngineerId(null); }
+                                }}
+                                disabled={deletingEngineerId === eng.id}
+                                className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Delete engineer"
+                              >
+                                {deletingEngineerId === eng.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
                           </div>
                         </div>
                         {eng.engineerPincodes && eng.engineerPincodes.length > 0 ? (

@@ -15,6 +15,9 @@ export interface Engineer {
   email: string;
   activeTickets?: number;
   engineerPincodes?: PincodeInfo[];
+  hrEngineerId?: number | null;
+  source?: "hr" | "local";
+  pendingSetup?: boolean;
 }
 
 export interface ServiceTicket {

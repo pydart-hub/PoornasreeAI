@@ -92,6 +92,8 @@ interface Engineer {
   activeTickets?: number;
   pendingSetup?: boolean;
   engineerPincodes?: PincodeInfo[];
+  hrEngineerId?: number | null;
+  source?: "hr" | "local";
 }
 
 interface Dealer {
@@ -463,13 +465,18 @@ export default function ServiceManagerPage() {
   const handleSaveEdit = async () => {
     if (!editingEng) return;
     if (!editForm.firstName.trim()) { setError("First name is required"); return; }
-    if (!editForm.email.trim()) { setError("Email is required"); return; }
+    if (editingEng.source !== "hr" && !editForm.email.trim()) { setError("Email is required"); return; }
     setSavingEdit(true);
     try {
       const basicBody: Record<string, string | undefined> = {};
       if (editForm.firstName.trim() !== editingEng.firstName) basicBody.firstName = editForm.firstName.trim();
       if (editForm.lastName.trim() !== (editingEng.lastName ?? "")) basicBody.lastName = editForm.lastName.trim();
-      if (editForm.email.trim().toLowerCase() !== editingEng.email.toLowerCase()) basicBody.email = editForm.email.trim();
+      if (
+        editingEng.source !== "hr" &&
+        editForm.email.trim().toLowerCase() !== editingEng.email.toLowerCase()
+      ) {
+        basicBody.email = editForm.email.trim();
+      }
       if (editForm.whatsappNumber.trim() !== (editingEng.whatsappNumber ?? "")) basicBody.whatsappNumber = editForm.whatsappNumber.trim();
       if (editForm.newPassword.trim()) {
         if (editForm.newPassword.length < 8) { setError("Password must be at least 8 characters"); setSavingEdit(false); return; }
@@ -1392,6 +1399,14 @@ export default function ServiceManagerPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-bold text-content dark:text-content-dark truncate">{eng.firstName} {eng.lastName}</p>
+                            <span className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-semibold",
+                              eng.source === "hr"
+                                ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            )}>
+                              {eng.source === "hr" ? "HR" : "Local"}
+                            </span>
                             {eng.pendingSetup && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                                 Pending setup
@@ -1431,32 +1446,34 @@ export default function ServiceManagerPage() {
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`To delete ${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}, make sure all their tickets are reassigned to another engineer first.\n\nProceed with deletion?`)) return;
-                              setDeletingEngineerId(eng.id);
-                              try {
-                                const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
-                                if (!res.ok) {
-                                  const data = await res.json();
-                                  if (data.activeTickets?.length > 0) {
-                                    const list = data.activeTickets
-                                      .map((t: { ticketNumber: string; status: string }) => `${t.ticketNumber}`)
-                                      .join(", ");
-                                    setError(`To delete this engineer, please reassign their active ticket(s) to another engineer first: ${list}`);
-                                  } else {
-                                    setError(data.error || "Failed to delete engineer");
-                                  }
-                                } else { await fetchData(); }
-                              } catch { setError("Network error"); }
-                              finally { setDeletingEngineerId(null); }
-                            }}
-                            disabled={deletingEngineerId === eng.id}
-                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Delete engineer"
-                          >
-                            {deletingEngineerId === eng.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                          </button>
+                          {eng.source !== "hr" && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`To delete ${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}, make sure all their tickets are reassigned to another engineer first.\n\nProceed with deletion?`)) return;
+                                setDeletingEngineerId(eng.id);
+                                try {
+                                  const res = await fetch(`/api/manager/engineers/${eng.id}`, { method: "DELETE", credentials: "include" });
+                                  if (!res.ok) {
+                                    const data = await res.json();
+                                    if (data.activeTickets?.length > 0) {
+                                      const list = data.activeTickets
+                                        .map((t: { ticketNumber: string; status: string }) => `${t.ticketNumber}`)
+                                        .join(", ");
+                                      setError(`To delete this engineer, please reassign their active ticket(s) to another engineer first: ${list}`);
+                                    } else {
+                                      setError(data.error || "Failed to delete engineer");
+                                    }
+                                  } else { await fetchData(); }
+                                } catch { setError("Network error"); }
+                                finally { setDeletingEngineerId(null); }
+                              }}
+                              disabled={deletingEngineerId === eng.id}
+                              className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Delete engineer"
+                            >
+                              {deletingEngineerId === eng.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
                         </div>
                       </div>
                       {eng.engineerPincodes && eng.engineerPincodes.length > 0 ? (
@@ -2924,9 +2941,15 @@ export default function ServiceManagerPage() {
 
               {/* Login email */}
               <div>
-                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
-                <input type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">
+                  Login email {editingEng.source !== "hr" && "*"}
+                </label>
+                <input type="email" value={editForm.email} disabled={editingEng.source === "hr"}
+                  onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60" />
+                {editingEng.source === "hr" && (
+                  <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-1">Email is managed by HR sync</p>
+                )}
               </div>
 
               {/* Set login password (optional) */}

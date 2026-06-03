@@ -1,5 +1,7 @@
 # Passtest Machine Detector — API Reference
 
+> **Poornasree HR engineers sync** (roster from `hr_api_v2`, ticket assignment): see [HR_ENGINEERS_SYNC.md](./HR_ENGINEERS_SYNC.md).
+
 **Base URL:** `https://passtest.poornasreecloud.com`  
 **Protocol:** HTTPS only  
 **Authentication:** None (public read-only API)  

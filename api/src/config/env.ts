@@ -59,4 +59,12 @@ export const env = {
   // ── External integration ────────────────────────────────────────────────
   // Optional webhook URL — POST normalized ticket events on lifecycle changes.
   INTEGRATION_WEBHOOK_URL: process.env.INTEGRATION_WEBHOOK_URL || "",
+
+  // ── HR engineers roster (hr_api_v2) ─────────────────────────────────────
+  HR_ENGINEERS_URL: optional(
+    "HR_ENGINEERS_URL",
+    "http://145.223.18.143/hr_api_v2/public/engineers",
+  ),
+  // UUID of service_manager who owns HR-synced engineers; empty = first service_manager in DB
+  HR_SYNC_MANAGER_ID: process.env.HR_SYNC_MANAGER_ID || "",
 } as const;

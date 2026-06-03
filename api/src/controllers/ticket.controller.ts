@@ -9,6 +9,13 @@ import prisma from "../lib/prisma";
 import * as TicketService from "../services/ticket.service";
 import { startFeedbackFlow } from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
+import {
+  syncHrEngineers,
+  engineerManagerWhere,
+  getAssistantParentManagerId,
+  canManagerAccessEngineer,
+  mapEngineerSource,
+} from "../services/hr-engineer.service";
 
 
 // ── POST /api/tickets ─────────────────────────────────────────────────────
@@ -165,16 +172,25 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
     // Pincode enforcement for service_manager and assistant_service_manager
     if (req.user!.role === "service_manager" || req.user!.role === "assistant_service_manager") {
       const callerId = req.user!.userId;
+      const callerRole = req.user!.role;
 
-      // Engineer must be owned by this manager/assistant
       const engineer = await prisma.user.findUnique({
         where: { id: engineerId },
-        select: { managerId: true, role: true, engineerPincodes: { select: { id: true } } },
+        select: {
+          managerId: true,
+          hrEngineerId: true,
+          role: true,
+          engineerPincodes: { select: { id: true } },
+        },
       });
       if (!engineer || engineer.role !== "service_engineer") {
         res.status(400).json({ error: "Invalid engineer ID" }); return;
       }
-      if (engineer.managerId !== callerId) {
+      const parentManagerId =
+        callerRole === "assistant_service_manager"
+          ? await getAssistantParentManagerId(callerId)
+          : null;
+      if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
         res.status(403).json({ error: "This engineer is not in your team" }); return;
       }
 
@@ -328,12 +344,16 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
     const userId = req.user!.userId;
     const filterPincodeId = req.query.pincodeId as string | undefined;
 
-    // service_manager: only engineers they own (managerId === their id)
-    // assistant_service_manager: only engineers they own
-    // admin: all service_engineers
+    await syncHrEngineers();
+
+    const parentManagerId =
+      role === "assistant_service_manager"
+        ? await getAssistantParentManagerId(userId)
+        : null;
+
     const engineerWhere: Record<string, unknown> =
       role === "service_manager" || role === "assistant_service_manager"
-        ? { role: "service_engineer", managerId: userId }
+        ? engineerManagerWhere(role, userId, parentManagerId)
         : { role: "service_engineer" };
 
     // If pincodeId filter provided, try to find engineers assigned to that pincode first
@@ -348,6 +368,7 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
           firstName: true,
           lastName: true,
           email: true,
+          hrEngineerId: true,
           engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
           _count: {
             select: {
@@ -366,6 +387,8 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
           firstName: e.firstName,
           lastName: e.lastName,
           email: e.email,
+          hrEngineerId: e.hrEngineerId,
+          source: mapEngineerSource(e.hrEngineerId),
           pincodes: e.engineerPincodes,
           activeTickets: e._count.engineerTickets,
           pincodeMatch: true,
@@ -383,6 +406,7 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
         firstName: true,
         lastName: true,
         email: true,
+        hrEngineerId: true,
         engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
         _count: {
           select: {
@@ -400,6 +424,8 @@ export async function listEngineers(req: Request, res: Response): Promise<void> 
       firstName: e.firstName,
       lastName: e.lastName,
       email: e.email,
+      hrEngineerId: e.hrEngineerId,
+      source: mapEngineerSource(e.hrEngineerId),
       pincodes: e.engineerPincodes,
       activeTickets: e._count.engineerTickets,
       pincodeMatch: false,
@@ -421,11 +447,15 @@ export async function getEngineerFeedback(req: Request, res: Response): Promise<
     const userId = req.user!.userId;
     const role   = req.user!.role;
 
-    // Scope engineers to this manager; admin sees all
-    const engineerWhere: Record<string, unknown> = { role: "service_engineer" };
-    if (role === "service_manager" || role === "assistant_service_manager") {
-      engineerWhere.managerId = userId;
-    }
+    const parentManagerId =
+      role === "assistant_service_manager"
+        ? await getAssistantParentManagerId(userId)
+        : null;
+
+    const engineerWhere: Record<string, unknown> =
+      role === "service_manager" || role === "assistant_service_manager"
+        ? engineerManagerWhere(role, userId, parentManagerId)
+        : { role: "service_engineer" };
 
     const engineers = await prisma.user.findMany({
       where: engineerWhere,

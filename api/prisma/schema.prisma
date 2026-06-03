@@ -40,6 +40,10 @@ model User {
   // Pincode-based routing relations
   engineerPincodes Pincode[]          @relation("EngineerPincodes")
 
+  // HR app roster sync (external hr_api_v2 engineers endpoint)
+  hrEngineerId  Int?      @unique
+  hrSyncedAt    DateTime?
+
   // Legacy relations (kept — not removed yet)
   conversations    Conversation[]
   feedback         TrainingFeedback[]
