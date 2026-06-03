@@ -59,7 +59,7 @@ export const PUBLIC_TICKET_SELECT = {
   customer: { select: { id: true, firstName: true, lastName: true, email: true } },
   dealer: { select: { id: true, firstName: true, lastName: true, email: true } },
   assignedManager: { select: { id: true, firstName: true, lastName: true } },
-  assignedEngineer: { select: { id: true, firstName: true, lastName: true } },
+  assignedEngineer: { select: { id: true, firstName: true, lastName: true, whatsappNumber: true } },
   pincode: { select: { id: true, code: true, place: true, district: true, state: true } },
 } as const satisfies Prisma.TicketSelect;
 
@@ -103,6 +103,22 @@ function partyDto(
     id: u.id,
     name,
     ...(u.email != null ? { email: u.email } : {}),
+  };
+}
+
+function engineerPartyDto(
+  u:
+    | { id: string; firstName: string; lastName?: string | null; whatsappNumber?: string | null }
+    | null
+    | undefined,
+) {
+  if (!u) return null;
+  const name = userDisplayName(u);
+  const phone = u.whatsappNumber?.trim().replace(/^\+/, "") || null;
+  return {
+    id: u.id,
+    name,
+    phone,
   };
 }
 
@@ -177,7 +193,7 @@ function buildStageMeta(t: PublicTicketRow, stage: StageSlug) {
       };
     case "assigned":
       return {
-        assignedEngineer: partyDto(t.assignedEngineer),
+        assignedEngineer: engineerPartyDto(t.assignedEngineer),
         assignedManager: partyDto(t.assignedManager),
       };
     case "in-progress":
@@ -238,7 +254,7 @@ export function toStageExportDto(t: PublicTicketRow, stageOverride?: StageSlug) 
       issueDescription: t.issueDescription?.trim() || null,
     },
     dealer: partyDto(t.dealer),
-    engineer: partyDto(t.assignedEngineer),
+    engineer: engineerPartyDto(t.assignedEngineer),
     timestamps: buildTimestamps(t),
     stageMeta: buildStageMeta(t, stage),
   };
