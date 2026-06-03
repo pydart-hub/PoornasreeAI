@@ -8,10 +8,9 @@
 //   COMPLAINT_NAME  → collect name → COMPLAINT_PINCODE
 //   COMPLAINT_PINCODE → 6-digit pincode → fetch place → COMPLAINT_PINCODE_CONFIRM
 //   COMPLAINT_PINCODE_CONFIRM → confirm place → COMPLAINT_SERIAL
-//   COMPLAINT_SERIAL → serial number → Passtest API → MACHINE_CONFIRM or COMPLAINT_PRODUCT
-//   MACHINE_CONFIRM  → confirm machine → COMPLAINT_PRODUCT
-//   COMPLAINT_PRODUCT → select product → COMPLAINT_ISSUE
-//   COMPLAINT_ISSUE   → free-text complaint → create ticket → COMPLETED
+//   COMPLAINT_ASK_SERIAL → serial → Passtest → MACHINE_CONFIRM → COMPLAINT_DESCRIBE
+//   Book Service (Passtest path) → PASSTEST_PINCODE (if no pincode in address)
+//     → PASSTEST_PINCODE_CONFIRM → create ticket → COMPLETED
 //   CHECK_STATUS      → show active tickets → back to menu
 //   FEEDBACK_RATING   → 1-5 rating → FEEDBACK_SATISFIED
 //   FEEDBACK_SATISFIED → yes/no → COMPLETED
@@ -19,6 +18,7 @@
 // Global commands (any state): MENU (restart), BYE (close)
 
 import prisma from "../lib/prisma";
+import { extractPincodeFromAddress, fetchPlaceFromPincode } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
 import { io } from "../lib/socket";
@@ -158,6 +158,14 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   INVALID_PINCODE: {
     en: "Please enter a valid 6-digit pincode (numbers only):",
     hi: "कृपया एक वैध 6 अंकों का पिनकोड दर्ज करें (केवल अंक):",
+  },
+  PASSTEST_NEED_PINCODE: {
+    en: "📍 *Service location required*\n\nPasstest records do not include a pincode for your address.\n\nPlease enter your *6-digit pincode* so we can assign a technician:",
+    hi: "📍 *सेवा स्थान आवश्यक*\n\nपास्टेस्ट रिकॉर्ड में आपके पते का पिनकोड नहीं है।\n\nतकनीशियन नियुक्त करने के लिए कृपया अपना *6 अंकों का पिनकोड* दर्ज करें:",
+  },
+  PINCODE_CONFIRM: {
+    en: "📍 *Detected location:*\n{location}\n\n📮 *Pincode:* {pincode}\n\nIs this correct?",
+    hi: "📍 *पता स्थान:*\n{location}\n\n📮 *पिनकोड:* {pincode}\n\nक्या यह सही है?",
   },
   TICKET_CONFIRMED: {
     en: "✅ 👷 *Your complaint has been registered!*\n\n🎫 *Ticket No: {ticket}*\n📦 Product: {product}\n📝 Issue: {issue}\n📍 Location: {location}\n\n*Our technician will reach out to you within 24–48 hours. Assuring you of the best services!* 😊",
@@ -400,6 +408,12 @@ async function routeState(
 
     case "COMPLAINT_MANUAL_PINCODE":
       return handleComplaintManualPincode(session.id, phoneNumber, meta, text);
+
+    case "PASSTEST_PINCODE":
+      return handlePasstestPincode(session.id, meta, text);
+
+    case "PASSTEST_PINCODE_CONFIRM":
+      return handlePasstestPincodeConfirm(session.id, phoneNumber, meta, text);
 
     case "CHECK_STATUS":
       await updateSession(session.id, "MAIN_MENU", meta);
@@ -738,7 +752,7 @@ async function handleTroubleshootStep(sessionId: string, phoneNumber: string, me
 
   if (upper === "BOOK_SERVICE" || upper === "3") {
     if (meta.tsSerialPath && meta.machineData) {
-      return createTicketFromAPI(sessionId, phoneNumber, meta);
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
     await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
     return makeReply(t("ENTER_NAME", lang));
@@ -791,7 +805,7 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
 
   if (upper === "BOOK_SERVICE" || upper === "2" || upper === "NO") {
     if (meta.tsSerialPath && meta.machineData) {
-      return createTicketFromAPI(sessionId, phoneNumber, meta);
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
     await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
     return makeReply(t("ENTER_NAME", lang));
@@ -821,38 +835,114 @@ async function handleComplaintManualPincode(sessionId: string, phoneNumber: stri
     return makeReply(t("INVALID_PINCODE", lang));
   }
 
-  let district: string | undefined;
-  let stateName: string | undefined;
-  let place: string | undefined;
-  try {
-    const response = await fetch(`https://api.postalpincode.in/pincode/${text}`);
-    const data = await response.json();
-    if (
-      Array.isArray(data) &&
-      data[0]?.Status === "Success" &&
-      Array.isArray(data[0]?.PostOffice) &&
-      data[0].PostOffice.length > 0
-    ) {
-      const po = data[0].PostOffice[0];
-      place     = po.Name     || undefined;
-      district  = po.District || undefined;
-      stateName = po.State    || undefined;
-    }
-  } catch {
-    // Non-blocking
-  }
-
-  const locationStr = [place, district, stateName].filter(Boolean).join(", ");
+  const resolved = await fetchPlaceFromPincode(text);
   const updatedMeta: SessionMeta = {
     ...meta,
     manualPincode:  text,
-    manualPlace:    place,
-    manualDistrict: district,
-    manualState:    stateName,
-    pincodeDisplay: locationStr || text,
+    manualPlace:    resolved?.place,
+    manualDistrict: resolved?.district,
+    manualState:    resolved?.state,
+    pincodeDisplay: resolved?.display || text,
   };
 
   return createTicketManual(sessionId, phoneNumber, updatedMeta);
+}
+
+// ── Passtest pincode (before ticket from serial path) ─────────────────────
+function pincodeLocationDisplay(meta: SessionMeta): string {
+  return (
+    meta.pincodeDisplay ||
+    [meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") ||
+    meta.manualPincode ||
+    "N/A"
+  );
+}
+
+async function showPasstestPincodeConfirm(sessionId: string, meta: SessionMeta) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  await updateSession(sessionId, "PASSTEST_PINCODE_CONFIRM", meta);
+  return makeReply(
+    t("PINCODE_CONFIRM", lang, {
+      location: pincodeLocationDisplay(meta),
+      pincode:  meta.manualPincode || "",
+    }),
+    getYesNoButtons(lang),
+  );
+}
+
+async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string, meta: SessionMeta) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const md = meta.machineData;
+  if (!md) {
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply(t("ENTER_NAME", lang));
+  }
+
+  const extracted = extractPincodeFromAddress(md.Address1, md.Address2);
+  if (extracted) {
+    const resolved = await fetchPlaceFromPincode(extracted);
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      manualPincode:  extracted,
+      manualPlace:    resolved?.place,
+      manualDistrict: resolved?.district,
+      manualState:    resolved?.state,
+      pincodeDisplay: resolved?.display || extracted,
+    };
+    return showPasstestPincodeConfirm(sessionId, updatedMeta);
+  }
+
+  await updateSession(sessionId, "PASSTEST_PINCODE", meta);
+  return makeReply(t("PASSTEST_NEED_PINCODE", lang));
+}
+
+async function handlePasstestPincode(sessionId: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const digits = text.replace(/\D/g, "");
+  if (!/^\d{6}$/.test(digits)) {
+    return makeReply(t("INVALID_PINCODE", lang));
+  }
+
+  const resolved = await fetchPlaceFromPincode(digits);
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    manualPincode:  digits,
+    manualPlace:    resolved?.place,
+    manualDistrict: resolved?.district,
+    manualState:    resolved?.state,
+    pincodeDisplay: resolved?.display || digits,
+  };
+
+  return showPasstestPincodeConfirm(sessionId, updatedMeta);
+}
+
+async function handlePasstestPincodeConfirm(
+  sessionId: string,
+  phoneNumber: string,
+  meta: SessionMeta,
+  text: string,
+) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  if (text === "1" || /^yes/i.test(text)) {
+    if (!meta.manualPincode) {
+      await updateSession(sessionId, "PASSTEST_PINCODE", meta);
+      return makeReply(t("PASSTEST_NEED_PINCODE", lang));
+    }
+    return createTicketFromAPI(sessionId, phoneNumber, meta);
+  }
+  if (text === "2" || /^no/i.test(text)) {
+    const clearedMeta: SessionMeta = {
+      ...meta,
+      manualPincode:  undefined,
+      manualPlace:    undefined,
+      manualDistrict: undefined,
+      manualState:    undefined,
+      pincodeDisplay: undefined,
+    };
+    await updateSession(sessionId, "PASSTEST_PINCODE", clearedMeta);
+    return makeReply(t("PASSTEST_NEED_PINCODE", lang));
+  }
+  return makeReply(t("SELECT_VALID", lang), getYesNoButtons(lang));
 }
 
 // ── Template finder ───────────────────────────────────────────────────────
@@ -985,34 +1075,50 @@ async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta:
   }
 
   const md = meta.machineData!;
+  if (!meta.manualPincode) {
+    return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+  }
+
   const serial = meta.serialNumber ?? "";
   const productName = meta.selectedProduct || md.m_model || "";
   const complaintText = meta.complaint || "Service request via chat";
+  const passtestAddress = [md.Address1, md.Address2].filter(Boolean).join(", ");
 
   let pincodeId: string | undefined;
-  if (meta.manualPincode) {
-    let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.manualPincode } });
-    if (!pincodeRecord) {
-      pincodeRecord = await prisma.pincode.create({
-        data: {
-          code:     meta.manualPincode,
-          place:    meta.manualPlace    || null,
-          district: meta.manualDistrict || null,
-          state:    meta.manualState    || null,
-        },
-      });
-    }
-    pincodeId = pincodeRecord.id;
+  let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.manualPincode } });
+  if (!pincodeRecord) {
+    pincodeRecord = await prisma.pincode.create({
+      data: {
+        code:     meta.manualPincode,
+        place:    meta.manualPlace    || null,
+        district: meta.manualDistrict || null,
+        state:    meta.manualState    || null,
+      },
+    });
+  } else if (meta.manualPlace || meta.manualDistrict || meta.manualState) {
+    pincodeRecord = await prisma.pincode.update({
+      where: { id: pincodeRecord.id },
+      data: {
+        place:    meta.manualPlace    || pincodeRecord.place,
+        district: meta.manualDistrict || pincodeRecord.district,
+        state:    meta.manualState    || pincodeRecord.state,
+      },
+    });
   }
+  pincodeId = pincodeRecord.id;
 
   const ticket = await TicketService.createTicket({
     customerId:          adminUser.id,
     problemDescription:  `${productName ? productName + ": " : ""}${complaintText}`,
-    issueDescription:    `Customer: ${md.customer || meta.manualName || "N/A"}, Location: ${[md.Address1, md.Address2].filter(Boolean).join(", ") || meta.pincodeDisplay || "N/A"}, Pincode: ${meta.manualPincode || "N/A"}${meta.pincodeDisplay ? ` (${meta.pincodeDisplay})` : ""}`,
+    issueDescription:    `Customer: ${md.customer || meta.manualName || "N/A"}, Location: ${passtestAddress || pincodeLocationDisplay(meta)}, Pincode: ${meta.manualPincode}${meta.pincodeDisplay ? ` (${meta.pincodeDisplay})` : ""}`,
     machineName:         md.m_model || productName || undefined,
     machineSerialNumber: serial,
     pincodeId,
     phoneNumber,
+    place:               meta.manualPlace,
+    district:            meta.manualDistrict,
+    state:               meta.manualState,
+    customerAddress:     passtestAddress || undefined,
   });
 
   if (ticket.ownerType === "DEALER" && ticket.ownerId) {
@@ -1028,7 +1134,7 @@ async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta:
       ticket:   ticket.ticketNumber,
       product:  productName || "N/A",
       issue:    complaintText,
-      location: meta.pincodeDisplay || "N/A",
+      location: pincodeLocationDisplay(meta),
     }),
     [getMenuButton(lang)]
   );
