@@ -71,5 +71,5 @@ export function getTicketComplaintText(
     /^Customer:/i.test(s) && /Location:/i.test(s);
   if (prob && !looksLikeMetadata(prob)) return prob;
   if (iss && !looksLikeMetadata(iss)) return iss;
-  return prob || null;
+  return null;
 }

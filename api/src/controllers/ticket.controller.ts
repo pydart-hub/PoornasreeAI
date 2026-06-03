@@ -16,6 +16,7 @@ import {
   canManagerAccessEngineer,
   mapEngineerSource,
 } from "../services/hr-engineer.service";
+import { getTicketComplaintText } from "../lib/ticket-complaint";
 
 
 // ── POST /api/tickets ─────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
     const now = Date.now();
     const enriched = tickets.map((t: any) => ({
       ...t,
+      complaintText: getTicketComplaintText(t.problemDescription, t.issueDescription),
       ageHours: Math.round((now - new Date(t.createdAt).getTime()) / 3600000 * 10) / 10,
       responseTimeHours: t.firstEngineeredAt
         ? Math.round((new Date(t.firstEngineeredAt).getTime() - new Date(t.createdAt).getTime()) / 3600000 * 10) / 10

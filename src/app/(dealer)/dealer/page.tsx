@@ -59,6 +59,7 @@ interface DealerTicket {
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   dealerResponse?: string | null;
   dealerRespondedAt?: string | null;
+  complaintText?: string | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
 }
 
@@ -631,10 +632,9 @@ export default function DealerPage() {
                   ticket.pincode?.code,
                 ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                 const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
-                const complaintDisplay = getTicketComplaintText(
-                  ticket.problemDescription,
-                  ticket.issueDescription,
-                );
+                const complaintDisplay =
+                  ticket.complaintText ??
+                  getTicketComplaintText(ticket.problemDescription, ticket.issueDescription);
                 const isExpanded = expandedId === ticket.id;
                 return (
                   <div
