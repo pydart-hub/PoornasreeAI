@@ -6,7 +6,8 @@
 # Usage:
 #   bash deploy.sh          # rebuild api + web (keeps db/qdrant/ollama/n8n up)
 #   bash deploy.sh api      # rebuild api only (fast path for backend changes)
-#   bash deploy.sh web      # rebuild web only
+#   bash deploy.sh web      # rebuild web only (redeploy-app.sh calls this)
+#   bash deploy.sh pull     # pull pre-built GHCR images (fast; requires CI images)
 #   bash deploy.sh full     # same as default
 #
 # Env (optional):
@@ -25,9 +26,14 @@ MODE="${1:-full}"
 DEPLOY_START=$(date +%s)
 DEPLOY_LOG="${DEPLOY_LOG:-/tmp/deploy.log}"
 
-# api/web deploys skip heavy Ollama step unless explicitly requested
-if [ "$MODE" = "api" ] || [ "$MODE" = "web" ]; then
+# api/web/pull deploys skip heavy Ollama step unless explicitly requested
+if [ "$MODE" = "api" ] || [ "$MODE" = "web" ] || [ "$MODE" = "pull" ]; then
   SKIP_OLLAMA="${SKIP_OLLAMA:-1}"
+fi
+
+COMPOSE_BASE=( -f docker-compose.yml )
+if [ "$MODE" = "pull" ]; then
+  COMPOSE_BASE=( -f docker-compose.yml -f docker-compose.images.yml )
 fi
 
 cd "$REPO_DIR"
@@ -60,6 +66,13 @@ set -o pipefail
 {
 echo ""
 case "$MODE" in
+  pull)
+    echo "[2/6] Pulling pre-built images (no compile on VPS)..."
+    echo "  API: ${API_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}"
+    echo "  Web: ${WEB_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}"
+    docker compose "${COMPOSE_BASE[@]}" pull api web 2>&1 | tee /tmp/compose-build.log
+    docker compose "${COMPOSE_BASE[@]}" up -d --no-build --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
+    ;;
   api)
     echo "[2/6] Rebuilding API container only (db/qdrant/ollama/n8n stay up)..."
     docker compose build api 2>&1 | tee /tmp/compose-build.log
@@ -76,7 +89,7 @@ case "$MODE" in
     docker compose up -d --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
     ;;
   *)
-    echo "Unknown mode: $MODE (use 'full', 'api', or 'web')"
+    echo "Unknown mode: $MODE (use 'full', 'api', 'web', or 'pull')"
     exit 1
     ;;
 esac
@@ -219,7 +232,7 @@ DEPLOY_SEC=$((DEPLOY_END - DEPLOY_START))
 echo " Deployment complete - $(date)"
 echo "  Mode: $MODE"
 echo "  Duration: ${DEPLOY_SEC}s (~$((DEPLOY_SEC / 60))m $((DEPLOY_SEC % 60))s)"
-echo "  Tip: deploy.ps1 -ApiOnly for backend-only; -Background if SSH drops"
+echo "  Tip: deploy.ps1 -ApiOnly / -WebOnly; -PullOnly for GHCR images; -Background if SSH drops"
 echo "  Seed: deploy.ps1 -Seed  or  SEED_ON_DEPLOY=1 bash deploy.sh"
 echo "============================================"
 echo ""

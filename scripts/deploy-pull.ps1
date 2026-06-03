@@ -1,20 +1,17 @@
 # ============================================================
-# deploy-api.ps1 - Fast API-only deployment via SSH
+# deploy-pull.ps1 - Pull pre-built images from GHCR (fast deploy)
 # ============================================================
-# Rebuilds only the API container on the VPS (skips Next.js build).
-# Use after backend-only changes instead of full deploy.ps1.
+# Requires images from .github/workflows/publish-images.yml
+# See DEPLOY.md for one-time GHCR setup.
 #
 # Workflow:
-#   1. git add . && git commit -m "..." && git push
-#   2. .\scripts\deploy-api.ps1
-#   2b. .\scripts\deploy-api.ps1 -Background   # if SSH drops during build
-#
-# See DEPLOY.md for all deploy modes.
+#   1. git push (CI builds images on AIpoorna)
+#   2. .\scripts\deploy-pull.ps1
 # ============================================================
 
 param(
     [switch]$Background,
-    [switch]$Seed,
+    [string]$ImageTag = "AIpoorna",
     [string]$Server    = "168.231.121.19",
     [string]$User      = "root",
     [int]   $SshPort   = 22,
@@ -26,13 +23,13 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $params = @{
-    ApiOnly    = $true
-    Server     = $Server
-    User       = $User
-    SshPort    = $SshPort
-    RemoteDir  = $RemoteDir
-    KeyFile    = $KeyFile
+    PullOnly  = $true
+    ImageTag  = $ImageTag
+    Server    = $Server
+    User      = $User
+    SshPort   = $SshPort
+    RemoteDir = $RemoteDir
+    KeyFile   = $KeyFile
 }
 if ($Background) { $params.Background = $true }
-if ($Seed) { $params.Seed = $true }
 & "$Root\deploy.ps1" @params

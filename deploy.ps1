@@ -11,13 +11,17 @@
 #   .\deploy.ps1 -WebOnly           # Next.js only (~8-10 min)
 #   .\deploy.ps1 -Background        # run on VPS in background (SSH won't drop build)
 #   .\deploy.ps1 -Seed              # also run prisma db seed (off by default)
+#   .\deploy.ps1 -PullOnly          # pull GHCR images (~1-3 min; needs CI workflow)
+#   .\scripts\deploy-pull.ps1       # same as -PullOnly
 # ============================================================
 
 param(
     [switch]$ApiOnly,
     [switch]$WebOnly,
+    [switch]$PullOnly,
     [switch]$Background,
     [switch]$Seed,
+    [string]$ImageTag = "AIpoorna",
     [string]$Server    = "168.231.121.19",
     [string]$User      = "root",
     [int]   $SshPort   = 22,
@@ -52,11 +56,16 @@ function Invoke-SshCapture([string]$cmd) {
     return ($out | Out-String).Trim()
 }
 
-$mode = if ($ApiOnly) { "api" } elseif ($WebOnly) { "web" } else { "full" }
+if ($PullOnly -and ($ApiOnly -or $WebOnly)) {
+    throw "Use only one of -PullOnly, -ApiOnly, or -WebOnly"
+}
+
+$mode = if ($PullOnly) { "pull" } elseif ($ApiOnly) { "api" } elseif ($WebOnly) { "web" } else { "full" }
 $modeLabel = switch ($mode) {
-    "api"  { "API only (~3-5 min)" }
-    "web"  { "Web only (~8-10 min)" }
-    default { "api + web (~12-15 min)" }
+    "pull" { "Pull GHCR images (~1-3 min)" }
+    "api"  { "API only (~3-8 min)" }
+    "web"  { "Web only (~8-15 min)" }
+    default { "api + web (~15-26 min)" }
 }
 
 $useSeed = $Seed.IsPresent
@@ -75,16 +84,14 @@ Write-Host ""
 
 if ($Background) {
     Write-Host "[1/2] Starting deployment on VPS (background)..." -ForegroundColor Yellow
-    $nohupLine = if ($useSeed) {
-        "nohup env SEED_ON_DEPLOY=1 bash deploy.sh $mode >> /tmp/deploy.log 2>&1 &"
-    } else {
-        "nohup bash deploy.sh $mode >> /tmp/deploy.log 2>&1 &"
-    }
+    $envPrefix = "IMAGE_TAG=$ImageTag"
+    if ($useSeed) { $envPrefix += " SEED_ON_DEPLOY=1" }
+    $nohupLine = "nohup env $envPrefix bash deploy.sh $mode >> /tmp/deploy.log 2>&1 &"
     $startCmd = "cd '$RemoteDir' && : > /tmp/deploy.log && $nohupLine echo `$! > /tmp/deploy.pid && echo started"
     Invoke-Ssh $startCmd | Out-Null
 
     $pollSec = 20
-    $maxMin = if ($mode -eq "api") { 25 } elseif ($mode -eq "web") { 35 } else { 45 }
+    $maxMin = switch ($mode) { "pull" { 10 } "api" { 25 } "web" { 35 } default { 45 } }
     $deadline = (Get-Date).AddMinutes($maxMin)
     Write-Host "       Polling every ${pollSec}s (max ~${maxMin} min). Log: ssh ... 'tail -f /tmp/deploy.log'" -ForegroundColor DarkGray
 
@@ -115,11 +122,10 @@ if ($Background) {
     Write-Host "[1/2] Triggering deployment on VPS..." -ForegroundColor Yellow
     Write-Host "       (git pull -> rebuild $modeLabel -> prisma -> nginx)" -ForegroundColor DarkGray
     Write-Host ""
-    $deployCmd = if ($useSeed) {
-        "cd '$RemoteDir' && env SEED_ON_DEPLOY=1 bash deploy.sh $mode"
-    } else {
-        "cd '$RemoteDir' && bash deploy.sh $mode"
-    }
+    $envParts = @("IMAGE_TAG=$ImageTag")
+    if ($useSeed) { $envParts += "SEED_ON_DEPLOY=1" }
+    $envStr = $envParts -join " "
+    $deployCmd = "cd '$RemoteDir' && env $envStr bash deploy.sh $mode"
     Invoke-Ssh $deployCmd
 }
 
