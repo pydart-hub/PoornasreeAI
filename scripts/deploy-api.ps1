@@ -1,28 +1,36 @@
-# Rebuild and restart Poornasree API on VPS (run ON the server after git pull)
-# Usage from project root on server:
-#   .\scripts\deploy-api.ps1
+# ============================================================
+# deploy-api.ps1 - Fast API-only deployment via SSH
+# ============================================================
+# Rebuilds only the API container on the VPS (skips Next.js build).
+# Use after backend-only changes instead of full deploy.ps1.
+#
+# Workflow:
+#   1. git add . && git commit -m "..." && git push
+#   2. .\scripts\deploy-api.ps1
+#   2b. .\scripts\deploy-api.ps1 -Background   # if SSH drops during build
+# ============================================================
+
+param(
+    [switch]$Background,
+    [switch]$Seed,
+    [string]$Server    = "168.231.121.19",
+    [string]$User      = "root",
+    [int]   $SshPort   = 22,
+    [string]$RemoteDir = "/root/poornasree-ai",
+    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI"
+)
 
 $ErrorActionPreference = "Stop"
+
 $Root = Split-Path -Parent $PSScriptRoot
-Set-Location $Root
-
-Write-Host "Building API image..." -ForegroundColor Cyan
-docker compose build api
-
-Write-Host "Restarting API..." -ForegroundColor Cyan
-docker compose up -d api
-
-Write-Host "Health check (stage/created)..." -ForegroundColor Cyan
-Start-Sleep -Seconds 3
-try {
-  $r = Invoke-RestMethod -Uri "http://127.0.0.1:4000/api/public/tickets/stage/created?limit=1"
-  if ($r.success) {
-    Write-Host "OK — stage API live (success=true)" -ForegroundColor Green
-  } else {
-    Write-Host "WARN — API up but success=false" -ForegroundColor Yellow
-  }
-} catch {
-  Write-Host "WARN — curl failed (API may still be starting): $($_.Exception.Message)" -ForegroundColor Yellow
+$params = @{
+    ApiOnly    = $true
+    Server     = $Server
+    User       = $User
+    SshPort    = $SshPort
+    RemoteDir  = $RemoteDir
+    KeyFile    = $KeyFile
 }
-
-Write-Host "Done. Set INTEGRATION_WEBHOOK_URL in .env and run: docker compose up -d api" -ForegroundColor Green
+if ($Background) { $params.Background = $true }
+if ($Seed) { $params.Seed = $true }
+& "$Root\deploy.ps1" @params
