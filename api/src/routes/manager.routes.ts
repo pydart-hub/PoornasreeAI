@@ -31,6 +31,7 @@ import {
   importEngineers,
   importDealers,
   importAssistants,
+  clearTestCustomer,
 } from "../controllers/manager.controller";
 
 const router = Router();
@@ -93,5 +94,8 @@ router.post("/import/assistants", authorize("service_manager"), xlsxUpload.singl
 
 // Export
 router.get("/export/tickets",               authorize("service_manager"), exportTickets);
+
+// WhatsApp customer test reset (temporary — service manager only)
+router.delete("/test/customer",             authorize("service_manager"), clearTestCustomer);
 
 export default router;

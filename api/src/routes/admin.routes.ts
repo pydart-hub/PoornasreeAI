@@ -17,6 +17,7 @@ import {
   reindexDocuments,
   importDealersAdmin,
   deleteAllDealersAdmin,
+  clearTestCustomer,
 } from "../controllers/admin.controller";
 import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
@@ -175,5 +176,8 @@ router.get("/products", listProducts);
 router.post("/products", upload.single("image"), createProduct);
 router.patch("/products/:id", upload.single("image"), updateProduct);
 router.delete("/products/:id", deleteProduct);
+
+// WhatsApp customer test reset (admin only — remove when no longer needed)
+router.delete("/test/customer", clearTestCustomer);
 
 export default router;

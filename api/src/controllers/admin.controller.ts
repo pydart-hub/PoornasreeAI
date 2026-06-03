@@ -8,6 +8,7 @@ import prisma from "../lib/prisma";
 import { processDocument } from "../services/document.service";
 import { deleteVectorsByDocumentId } from "../services/vector.service";
 import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
+import { clearCustomerByPhone } from "../services/customer-clear.service";
 
 const SALT_ROUNDS = 12;
 const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "marketing"];
@@ -448,5 +449,23 @@ export async function importDealersAdmin(req: Request, res: Response): Promise<v
   } catch (err) {
     console.error("importDealersAdmin error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── DELETE /api/admin/test/customer ───────────────────────────────────────
+// Temporary testing helper: wipe tickets + WhatsApp sessions for one phone.
+export async function clearTestCustomer(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const phone = String(req.body?.phoneNumber ?? req.query?.phoneNumber ?? "").trim();
+    const result = await clearCustomerByPhone(phone);
+    res.json({ ok: true, ...result });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }

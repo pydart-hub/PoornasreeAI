@@ -19,6 +19,7 @@ import {
   canManagerAccessEngineer,
   mapEngineerSource,
 } from "../services/hr-engineer.service";
+import { clearCustomerByPhone } from "../services/customer-clear.service";
 
 const SALT_ROUNDS = 12;
 const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1320,4 +1321,21 @@ export async function importAssistants(req: Request, res: Response): Promise<voi
   }
 }
 
+// ── DELETE /api/manager/test/customer ─────────────────────────────────────
+// Temporary testing helper: wipe tickets + WhatsApp sessions for one phone.
+export async function clearTestCustomer(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "service_manager") {
+      res.status(403).json({ error: "Service managers only" });
+      return;
+    }
+
+    const phone = String(req.body?.phoneNumber ?? req.query?.phoneNumber ?? "").trim();
+    const result = await clearCustomerByPhone(phone);
+    res.json({ ok: true, ...result });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
 
