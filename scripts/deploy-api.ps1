@@ -35,7 +35,6 @@ $params = @{
     KeyFile    = $KeyFile
 }
 if ($Quick) {
-    $params.Quick = $true
     $params.QuickApi = $true
 } else {
     $params.ApiOnly = $true

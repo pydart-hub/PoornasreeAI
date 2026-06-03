@@ -23,13 +23,16 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $params = @{
-    Quick     = $true
     Server    = $Server
     User      = $User
     SshPort   = $SshPort
     RemoteDir = $RemoteDir
     KeyFile   = $KeyFile
 }
-if ($Api) { $params.QuickApi = $true }
+if ($Api) {
+    $params.QuickApi = $true
+} else {
+    $params.Quick = $true
+}
 if ($Background) { $params.Background = $true }
 & "$Root\deploy.ps1" @params
