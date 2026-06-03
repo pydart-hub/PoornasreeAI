@@ -33,6 +33,7 @@ import {
   dealerRejectTicket,
   dealerCompleteTicket,
 } from "@/lib/api";
+import { getTicketComplaintText } from "@/components/service-manager/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
@@ -630,7 +631,10 @@ export default function DealerPage() {
                   ticket.pincode?.code,
                 ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                 const machineDisplay = [ticket.machineName, ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : null].filter(Boolean).join(" · ");
-                const issueDisplay = ticket.issueDescription || null;
+                const complaintDisplay = getTicketComplaintText(
+                  ticket.problemDescription,
+                  ticket.issueDescription,
+                );
                 const isExpanded = expandedId === ticket.id;
                 return (
                   <div
@@ -676,10 +680,10 @@ export default function DealerPage() {
                             <span className="text-content-secondary dark:text-content-dark-secondary leading-snug truncate">{machineDisplay}</span>
                           </div>
                         )}
-                        {issueDisplay && (
+                        {complaintDisplay && (
                           <div className="flex items-start gap-2 text-sm min-w-0">
                             <span className="text-content-secondary dark:text-content-dark-secondary shrink-0 text-[13px]">💬</span>
-                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2 break-words">{issueDisplay}</span>
+                            <span className="font-medium text-content dark:text-content-dark leading-snug line-clamp-2 break-words">{complaintDisplay}</span>
                           </div>
                         )}
                       </div>
@@ -748,10 +752,10 @@ export default function DealerPage() {
                               <p className="font-medium text-content dark:text-content-dark">{ticket.phoneNumber || parsed.phone}</p>
                             </div>
                           )}
-                          {issueDisplay && (
+                          {complaintDisplay && (
                             <div>
                               <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Complaint</p>
-                              <p className="font-medium text-content dark:text-content-dark whitespace-pre-wrap">{issueDisplay}</p>
+                              <p className="font-medium text-content dark:text-content-dark whitespace-pre-wrap">{complaintDisplay}</p>
                             </div>
                           )}
                           <div className="text-content-secondary dark:text-content-dark-secondary">
