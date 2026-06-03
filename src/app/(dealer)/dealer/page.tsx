@@ -24,19 +24,14 @@ import {
   Menu,
   PanelLeftClose,
   Settings,
-  ClipboardList,
-  Trash2,
-  ImageIcon,
   ShieldCheck,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import {
-  type WorkReport,
-  type ReplacedPart,
-  type WorkReportImage,
-  getWorkReport,
-  upsertWorkReport,
-  uploadWorkReportImage,
-  deleteWorkReportImage,
+  dealerAcceptTicket,
+  dealerRejectTicket,
+  dealerCompleteTicket,
 } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -61,6 +56,8 @@ interface DealerTicket {
   ageHours?: number;
   createdAt: string;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
+  dealerResponse?: string | null;
+  dealerRespondedAt?: string | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
 }
 
@@ -99,349 +96,77 @@ const STATUS_TABS: { label: string; value: TicketStatus | "ALL" }[] = [
   { label: "Closed", value: "CLOSED" },
 ];
 
-// ── Work Report Section (inline for each ticket) ──────────────────────
-interface PartRow { partName: string; partNumber: string; quantity: string }
+// ── Dealer ticket actions (accept / reject / complete) ─────────────────
+function DealerTicketActions({
+  ticket,
+  onUpdated,
+}: {
+  ticket: DealerTicket;
+  onUpdated: () => void;
+}) {
+  const [acting, setActing] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
-function WorkReportSection({ ticketId }: { ticketId: string }) {
-  const [report, setReport] = useState<WorkReport | null | undefined>(undefined); // undefined = loading
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState({ problemDiagnosed: "", workDone: "", warrantyClaimRequested: false });
-  const [parts, setParts] = useState<PartRow[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [uploadingImg, setUploadingImg] = useState(false);
-  const [reportError, setReportError] = useState("");
-  const [deletingImgId, setDeletingImgId] = useState<string | null>(null);
-
-  const loadReport = useCallback(async () => {
-    const r = await getWorkReport(ticketId);
-    setReport(r);
-  }, [ticketId]);
-
-  useEffect(() => { loadReport(); }, [loadReport]);
-
-  const openEdit = () => {
-    setForm({
-      problemDiagnosed: report?.problemDiagnosed ?? "",
-      workDone: report?.workDone ?? "",
-      warrantyClaimRequested: report?.warrantyClaimRequested ?? false,
-    });
-    setParts(
-      report?.parts?.map((p) => ({
-        partName: p.partName,
-        partNumber: p.partNumber ?? "",
-        quantity: String(p.quantity),
-      })) ?? [{ partName: "", partNumber: "", quantity: "1" }]
-    );
-    setReportError("");
-    setEditMode(true);
-  };
-
-  const handleSave = async () => {
-    setReportError("");
-    const validParts = parts
-      .filter((p) => p.partName.trim())
-      .map((p) => ({ partName: p.partName.trim(), partNumber: p.partNumber.trim() || undefined, quantity: Math.max(1, Number(p.quantity) || 1) }));
-    setSaving(true);
+  const run = async (action: "accept" | "reject" | "complete") => {
+    setActionError("");
+    setActing(action);
     try {
-      await upsertWorkReport(ticketId, {
-        problemDiagnosed: form.problemDiagnosed.trim() || undefined,
-        workDone: form.workDone.trim() || undefined,
-        warrantyClaimRequested: form.warrantyClaimRequested,
-        parts: validParts,
-      });
-      await loadReport();
-      setEditMode(false);
+      if (action === "accept") await dealerAcceptTicket(ticket.id);
+      else if (action === "reject") await dealerRejectTicket(ticket.id);
+      else await dealerCompleteTicket(ticket.id);
+      onUpdated();
     } catch (e: unknown) {
-      setReportError(e instanceof Error ? e.message : "Failed to save report");
+      setActionError(e instanceof Error ? e.message : "Action failed");
     } finally {
-      setSaving(false);
+      setActing(null);
     }
   };
 
-  const handleImageUpload = async (file: File) => {
-    setUploadingImg(true);
-    setReportError("");
-    try {
-      await uploadWorkReportImage(ticketId, file);
-      await loadReport();
-    } catch (e: unknown) {
-      setReportError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setUploadingImg(false);
-    }
-  };
+  if (ticket.status === "CLOSED") return null;
 
-  const handleDeleteImage = async (imageId: string) => {
-    setDeletingImgId(imageId);
-    try {
-      await deleteWorkReportImage(ticketId, imageId);
-      await loadReport();
-    } catch (e: unknown) {
-      setReportError(e instanceof Error ? e.message : "Delete failed");
-    } finally {
-      setDeletingImgId(null);
-    }
-  };
-
-  if (report === undefined) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-content-secondary dark:text-content-dark-secondary py-2">
-        <Loader2 className="w-3 h-3 animate-spin" /> Loading work report...
-      </div>
-    );
-  }
+  const pending = !ticket.dealerResponse || ticket.dealerResponse === "pending";
+  const accepted = ticket.dealerResponse === "accepted";
 
   return (
-    <div className="mt-3 pt-3 border-t border-line dark:border-line-dark">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-content dark:text-content-dark uppercase tracking-wider">
-          <ClipboardList className="w-3.5 h-3.5 text-primary dark:text-primary-300" />
-          Work Report
-        </div>
-        {!editMode && (
+    <div className="space-y-2 pt-2 border-t border-line dark:border-line-dark">
+      {actionError && (
+        <p className="text-xs text-red-600 dark:text-red-400">{actionError}</p>
+      )}
+      {pending && (
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={openEdit}
-            className="text-xs px-2.5 py-1 rounded-lg bg-primary/10 text-primary dark:bg-primary-400/10 dark:text-primary-300 hover:bg-primary/20 transition-colors font-medium"
+            type="button"
+            onClick={() => run("accept")}
+            disabled={!!acting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60"
           >
-            {report ? "Edit Report" : "Create Report"}
+            {acting === "accept" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ThumbsUp className="w-3.5 h-3.5" />}
+            Accept
           </button>
-        )}
-      </div>
-
-      {reportError && (
-        <p className="text-xs text-red-500 mb-2">{reportError}</p>
-      )}
-
-      {!editMode && report && (
-        <div className="space-y-2.5 text-xs">
-          {report.problemDiagnosed && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Problem Diagnosed</p>
-              <p className="text-content dark:text-content-dark leading-relaxed">{report.problemDiagnosed}</p>
-            </div>
-          )}
-          {report.workDone && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-0.5">Work Done</p>
-              <p className="text-content dark:text-content-dark leading-relaxed">{report.workDone}</p>
-            </div>
-          )}
-          {report.warrantyClaimRequested && (
-            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" /> Warranty claim requested
-            </div>
-          )}
-          {report.parts && report.parts.length > 0 && (
-            <div>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Parts Replaced</p>
-              <div className="space-y-1">
-                {report.parts.map((p: ReplacedPart) => (
-                  <div key={p.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-tertiary dark:bg-surface-dark-tertiary">
-                    <span className="font-medium text-content dark:text-content-dark">{p.partName}</span>
-                    {p.partNumber && <span className="text-content-secondary dark:text-content-dark-secondary">#{p.partNumber}</span>}
-                    <span className="ml-auto text-content-secondary dark:text-content-dark-secondary">×{p.quantity}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Images */}
-          <div>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">
-              Images {report.images && report.images.length > 0 ? `(${report.images.length})` : ""}
-            </p>
-            {report.images && report.images.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {report.images.map((img: WorkReportImage) => (
-                  <div key={img.id} className="relative group">
-                    <a href={img.url} target="_blank" rel="noopener noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={img.url}
-                        alt={img.fileName}
-                        className="w-16 h-16 object-cover rounded-lg border border-line dark:border-line-dark hover:opacity-80 transition-opacity"
-                      />
-                    </a>
-                    <button
-                      onClick={() => handleDeleteImage(img.id)}
-                      disabled={deletingImgId === img.id}
-                      className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white shadow"
-                      title="Delete image"
-                    >
-                      {deletingImgId === img.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-content-secondary dark:text-content-dark-secondary italic">No images uploaded yet</p>
-            )}
-            <label className="mt-2 inline-flex items-center gap-1.5 cursor-pointer text-primary dark:text-primary-300 hover:underline font-medium">
-              {uploadingImg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-              {uploadingImg ? "Uploading..." : "Upload Image"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                disabled={uploadingImg}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
-              />
-            </label>
-          </div>
+          <button
+            type="button"
+            onClick={() => run("reject")}
+            disabled={!!acting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-60"
+          >
+            {acting === "reject" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ThumbsDown className="w-3.5 h-3.5" />}
+            Reject
+          </button>
         </div>
       )}
-
-      {!editMode && !report && (
-        <p className="text-xs text-content-secondary dark:text-content-dark-secondary italic">No work report yet. Create one to document the service details.</p>
+      {accepted && (
+        <button
+          type="button"
+          onClick={() => run("complete")}
+          disabled={!!acting}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary-hover disabled:opacity-60"
+        >
+          {acting === "complete" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+          Complete
+        </button>
       )}
-
-      {editMode && (
-        <div className="space-y-3 text-xs">
-          {/* Problem diagnosed */}
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Problem Diagnosed</label>
-            <textarea
-              value={form.problemDiagnosed}
-              onChange={(e) => setForm((f) => ({ ...f, problemDiagnosed: e.target.value }))}
-              rows={2}
-              placeholder="Describe the root cause found..."
-              className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-            />
-          </div>
-          {/* Work done */}
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">Work Done / Steps Taken</label>
-            <textarea
-              value={form.workDone}
-              onChange={(e) => setForm((f) => ({ ...f, workDone: e.target.value }))}
-              rows={2}
-              placeholder="Describe what was done to fix the issue..."
-              className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-            />
-          </div>
-          {/* Warranty claim */}
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.warrantyClaimRequested}
-              onChange={(e) => setForm((f) => ({ ...f, warrantyClaimRequested: e.target.checked }))}
-              className="w-4 h-4 accent-primary rounded"
-            />
-            <span className="text-content dark:text-content-dark font-medium">Warranty claim requested</span>
-          </label>
-          {/* Parts */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary">Parts Replaced</label>
-              <button
-                type="button"
-                onClick={() => setParts((p) => [...p, { partName: "", partNumber: "", quantity: "1" }])}
-                className="text-primary dark:text-primary-300 hover:underline font-medium flex items-center gap-0.5"
-              >
-                <Plus className="w-3 h-3" /> Add Part
-              </button>
-            </div>
-            {parts.map((part, idx) => (
-              <div key={idx} className="flex items-center gap-2 mb-1.5">
-                <input
-                  type="text"
-                  placeholder="Part name *"
-                  value={part.partName}
-                  onChange={(e) => setParts((ps) => ps.map((p, i) => i === idx ? { ...p, partName: e.target.value } : p))}
-                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <input
-                  type="text"
-                  placeholder="Part #"
-                  value={part.partNumber}
-                  onChange={(e) => setParts((ps) => ps.map((p, i) => i === idx ? { ...p, partNumber: e.target.value } : p))}
-                  className="w-20 px-2.5 py-1.5 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="Qty"
-                  value={part.quantity}
-                  onChange={(e) => setParts((ps) => ps.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
-                  className="w-14 px-2.5 py-1.5 rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <button
-                  type="button"
-                  onClick={() => setParts((ps) => ps.filter((_, i) => i !== idx))}
-                  className="p-1.5 text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-          {/* Images (edit mode) */}
-          <div>
-            <p className="text-[10px] uppercase tracking-wider font-bold text-content-secondary dark:text-content-dark-secondary mb-1">
-              Images {report?.images && report.images.length > 0 ? `(${report.images.length})` : ""}
-            </p>
-            {report ? (
-              <>
-                {report.images && report.images.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {report.images.map((img: WorkReportImage) => (
-                      <div key={img.id} className="relative group">
-                        <a href={img.url} target="_blank" rel="noopener noreferrer">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={img.url}
-                            alt={img.fileName}
-                            className="w-16 h-16 object-cover rounded-lg border border-line dark:border-line-dark hover:opacity-80 transition-opacity"
-                          />
-                        </a>
-                        <button
-                          onClick={() => handleDeleteImage(img.id)}
-                          disabled={deletingImgId === img.id}
-                          className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white shadow"
-                          title="Delete image"
-                        >
-                          {deletingImgId === img.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-content-secondary dark:text-content-dark-secondary italic mb-1">No images uploaded yet</p>
-                )}
-                <label className="inline-flex items-center gap-1.5 cursor-pointer text-primary dark:text-primary-300 hover:underline font-medium">
-                  {uploadingImg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-                  {uploadingImg ? "Uploading..." : "Upload Image"}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    disabled={uploadingImg}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ""; }}
-                  />
-                </label>
-              </>
-            ) : (
-              <p className="text-content-secondary dark:text-content-dark-secondary italic">Save the report first to upload images.</p>
-            )}
-          </div>
-          {/* Actions */}
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary-600 disabled:opacity-60 transition-colors"
-            >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-              {saving ? "Saving..." : "Save Report"}
-            </button>
-            <button
-              onClick={() => setEditMode(false)}
-              className="px-3.5 py-1.5 rounded-xl border border-line dark:border-line-dark text-xs text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+      {ticket.dealerResponse === "rejected" && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">You rejected this ticket. Service manager will reassign.</p>
       )}
     </div>
   );
@@ -966,16 +691,11 @@ export default function DealerPage() {
                             👷 {ticket.assignedEngineer.firstName} {ticket.assignedEngineer.lastName ?? ""}
                           </span>
                         )}
-                        <button
-                          onClick={() => {
-                            if (!isExpanded) setExpandedId(ticket.id);
-                            // scroll into view after expansion happens
-                          }}
-                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-                          title="Log service performed by your engineer"
-                        >
-                          <ClipboardList className="w-3 h-3" /> Service Report
-                        </button>
+                        {ticket.dealerResponse && (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 capitalize">
+                            {ticket.dealerResponse}
+                          </span>
+                        )}
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : ticket.id)}
                           className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary hover:text-primary dark:hover:text-primary-300 transition-colors ml-auto"
@@ -1037,9 +757,11 @@ export default function DealerPage() {
                           <div className="text-content-secondary dark:text-content-dark-secondary">
                             <span className="opacity-60">Created:</span> {formatRelativeTime(new Date(ticket.createdAt))}
                           </div>
-                          {/* Work Report — always available for dealer tickets */}
-                          <WorkReportSection ticketId={ticket.id} />
                         </div>
+                      )}
+
+                      {ticket.status !== "CLOSED" && (
+                        <DealerTicketActions ticket={ticket} onUpdated={fetchTickets} />
                       )}
                     </div>
                   </div>

@@ -373,3 +373,27 @@ export async function deleteWorkReportImage(
     method: "DELETE",
   });
 }
+
+/** Dealer accepts an assigned ticket. */
+export async function dealerAcceptTicket(ticketId: string) {
+  const data = await apiFetch<{ ticket: unknown }>(`/api/tickets/${ticketId}/dealer-accept`, {
+    method: "PATCH",
+  });
+  return data.ticket;
+}
+
+/** Dealer rejects an assigned ticket (returns to SM for engineer assignment). */
+export async function dealerRejectTicket(ticketId: string) {
+  const data = await apiFetch<{ ticket: unknown }>(`/api/tickets/${ticketId}/dealer-reject`, {
+    method: "PATCH",
+  });
+  return data.ticket;
+}
+
+/** Dealer completes an accepted ticket (closes without OTP). */
+export async function dealerCompleteTicket(ticketId: string) {
+  const data = await apiFetch<{ ticket: unknown }>(`/api/tickets/${ticketId}/dealer-complete`, {
+    method: "PATCH",
+  });
+  return data.ticket;
+}

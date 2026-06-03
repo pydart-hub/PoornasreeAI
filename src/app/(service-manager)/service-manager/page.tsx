@@ -47,6 +47,7 @@ import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/i
 import { getSocket } from "@/lib/socket-client";
 import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
 import { parseTicketDescription } from "@/components/service-manager/utils";
+import { getAssignmentMode, DEALER_RESPONSE_LABELS } from "@/components/service-manager/assignmentMode";
 import {
   type WorkReport,
   type ReplacedPart,
@@ -142,8 +143,12 @@ interface ServiceTicket {
   customer?: { firstName: string; lastName?: string | null; email: string } | null;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
-  dealer?: { firstName: string; lastName?: string | null } | null;
+  dealer?: { id?: string; firstName: string; lastName?: string | null } | null;
+  dealerId?: string | null;
   assignedDealer?: { id: string; firstName: string; lastName?: string | null } | null;
+  passtestMatched?: boolean;
+  dealerResponse?: string | null;
+  dealerRespondedAt?: string | null;
   pincode?: { id: string; code: string; place?: string | null; district?: string | null; state?: string | null } | null;
   phoneNumber?: string | null;
   customerAddress?: string | null;
@@ -758,6 +763,17 @@ export default function ServiceManagerPage() {
     return { dealer: makeGroups(dealerPool), customer: makeGroups(customerPool) };
   }, [tickets, archivedIds, dateRange, searchQuery, dealerFilter, modelFilter, complaintFilter]);
 
+  const dealerActionLog = useMemo(
+    () =>
+      tickets
+        .filter((t) => t.dealerRespondedAt && t.dealerResponse)
+        .sort(
+          (a, b) =>
+            new Date(b.dealerRespondedAt!).getTime() - new Date(a.dealerRespondedAt!).getTime(),
+        ),
+    [tickets],
+  );
+
   if (authLoading || loading) return <LoadingScreen />;
   if (!user) return null;
 
@@ -807,7 +823,7 @@ export default function ServiceManagerPage() {
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-4 h-4" />, count: myPincodes.length },
               { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-4 h-4" />, count: assistants.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-4 h-4" />, count: dealers.length },
-              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-4 h-4" />, count: workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length || undefined },
+              { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-4 h-4" />, count: dealerActionLog.length || undefined },
               { key: "engineer-updates" as PageView, label: "Engineer Updates", icon: <ClipboardList className="w-4 h-4" />, count: workReports.filter(r => r.dealer?.role === "service_engineer").length || undefined },
             ]).map((nav) => (
               <button
@@ -1067,6 +1083,7 @@ export default function ServiceManagerPage() {
                   ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
                   const complaintDisplay = ticket.problemDescription;
                   const isPending = ticket.status === "OPEN" && !ticket.assignedEngineer && !ticket.assignedDealer;
+                  const assignmentMode = getAssignmentMode(ticket);
 
                   const isOverdue = (ticket.ageHours ?? 0) > 24 && ticket.status !== "CLOSED";
                   const needsActionSoon = isPending && (ticket.ageHours ?? 0) >= 6;
@@ -1145,18 +1162,23 @@ export default function ServiceManagerPage() {
 
                         {/* ── Row 5b: Assigned dealer chip ── */}
                         {ticket.assignedDealer && (
-                          <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
-                            <Store className="w-3.5 h-3.5 shrink-0" />
-                            <span className="font-medium truncate">Dealer: {ticket.assignedDealer.firstName}{ticket.assignedDealer.lastName ? ` ${ticket.assignedDealer.lastName}` : ""}</span>
+                          <div className="flex items-center gap-2 flex-wrap text-xs text-violet-600 dark:text-violet-400">
+                            <span className="flex items-center gap-1 font-medium truncate">
+                              <Store className="w-3.5 h-3.5 shrink-0" />
+                              Dealer: {ticket.assignedDealer.firstName}{ticket.assignedDealer.lastName ? ` ${ticket.assignedDealer.lastName}` : ""}
+                            </span>
+                            {ticket.dealerResponse && (
+                              <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 text-[10px] font-semibold">
+                                {DEALER_RESPONSE_LABELS[ticket.dealerResponse] ?? ticket.dealerResponse}
+                              </span>
+                            )}
                           </div>
                         )}
 
                         {/* ── Row 6: Assign action (for OPEN tickets only) ── */}
                         <div className="flex items-center justify-end pt-1">
                           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
-                            {canAssign && !isArchived && (
-                              <>
-                                {/* Assign Engineer dropdown */}
+                            {canAssign && !isArchived && assignmentMode === "engineer" && (
                                 <div className="relative">
                                   <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
                                     disabled={assigningId === ticket.id || engineers.length === 0}
@@ -1233,42 +1255,22 @@ export default function ServiceManagerPage() {
                                     );
                                   })()}
                                 </div>
+                            )}
 
-                                {/* Send to Dealer dropdown */}
-                                <div className="relative">
-                                  <button onClick={() => setDealerDropdownOpen(dealerDropdownOpen === ticket.id ? null : ticket.id)}
-                                    disabled={assigningDealerId === ticket.id || dealers.length === 0}
-                                    className={cn(
-                                      "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
-                                      assigningDealerId === ticket.id
-                                        ? "bg-surface-secondary dark:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary"
-                                        : "bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
-                                    )}>
-                                    {assigningDealerId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Store className="w-3 h-3" />}
-                                    Dealer
-                                    <ChevronDown className="w-2.5 h-2.5" />
-                                  </button>
-
-                                  {dealerDropdownOpen === ticket.id && (
-                                    <div className="absolute right-0 bottom-full mb-1 w-52 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-56 overflow-y-auto">
-                                      <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
-                                        <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Send to Dealer</p>
-                                      </div>
-                                      {dealers.length === 0 ? (
-                                        <p className="px-3 py-2 text-xs text-content-tertiary dark:text-content-dark-tertiary text-center">No dealers available</p>
-                                      ) : (
-                                        dealers.map(d => (
-                                          <button key={d.id} onClick={() => handleAssignDealer(ticket.id, d.id)}
-                                            className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center gap-2">
-                                            <Store className="w-3 h-3 text-violet-500 shrink-0" />
-                                            <span className="truncate">{d.firstName} {d.lastName ?? ""}</span>
-                                          </button>
-                                        ))
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </>
+                            {canAssign && !isArchived && assignmentMode === "matched-dealer" && ticket.dealerId && ticket.dealer && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 truncate max-w-[120px]">
+                                  {ticket.dealer.firstName}{ticket.dealer.lastName ? ` ${ticket.dealer.lastName}` : ""}
+                                </span>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAssignDealer(ticket.id, ticket.dealerId!); }}
+                                  disabled={assigningDealerId === ticket.id}
+                                  className="flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                  {assigningDealerId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Store className="w-3 h-3" />}
+                                  Assign
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -2332,21 +2334,21 @@ export default function ServiceManagerPage() {
             </section>
           )}
 
-          {/* ═══════════════════ WORK REPORTS VIEW ═══════════════════ */}
+          {/* ═══════════════════ DEALER ACTION LOG ═══════════════════ */}
           {pageView === "work-reports" && (
             <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealer Service Updates</h2>
+                <h2 className="text-lg font-bold text-content dark:text-content-dark">Dealer Updates</h2>
                 <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                  Service &amp; replacement reports submitted by dealers — {workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length} report{workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length !== 1 ? "s" : ""}
+                  Accept, reject, and complete actions from dealers — {dealerActionLog.length} update{dealerActionLog.length !== 1 ? "s" : ""}
                 </p>
               </div>
 
-              {workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").length === 0 ? (
+              {dealerActionLog.length === 0 ? (
                 <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
                   <ClipboardList className="w-10 h-10 mb-3 opacity-40" />
-                  <p className="text-sm">No work reports yet</p>
-                  <p className="text-xs mt-1">Reports appear when dealers document their service visits</p>
+                  <p className="text-sm">No dealer actions yet</p>
+                  <p className="text-xs mt-1">Actions appear when dealers accept, reject, or complete assigned tickets</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-line dark:border-line-dark shadow-sm">
@@ -2355,56 +2357,46 @@ export default function ServiceManagerPage() {
                       <tr>
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Dealer</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Ticket #</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Action</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Machine</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Complaint</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Date</th>
-                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Parts</th>
-                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Warranty</th>
-                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">View</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Time</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">Open</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line dark:divide-line-dark bg-surface-card dark:bg-surface-dark-card">
-                      {workReports.filter(r => !r.dealer?.role || r.dealer.role === "dealer").map((r) => (
-                        <tr key={r.id} className="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
+                      {dealerActionLog.map((t) => (
+                        <tr key={t.id} className="hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors">
                           <td className="px-4 py-3 font-medium text-content dark:text-content-dark">
-                            {r.dealer ? `${r.dealer.firstName}${r.dealer.lastName ? " " + r.dealer.lastName : ""}` : "—"}
+                            {t.assignedDealer
+                              ? `${t.assignedDealer.firstName}${t.assignedDealer.lastName ? " " + t.assignedDealer.lastName : ""}`
+                              : t.dealer
+                                ? `${t.dealer.firstName}${t.dealer.lastName ? " " + t.dealer.lastName : ""}`
+                                : "—"}
                           </td>
                           <td className="px-4 py-3 font-mono text-primary dark:text-primary-300">
-                            {r.ticket?.ticketNumber ? `#${r.ticket.ticketNumber}` : "—"}
+                            {t.ticketNumber ? `#${t.ticketNumber}` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
-                            {r.ticket?.machineName ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary max-w-[200px]">
-                            <span className="line-clamp-2 text-xs leading-relaxed">
-                              {r.ticket?.issueDescription ?? "—"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
-                            {new Date(r.updatedAt).toLocaleDateString("en-IN")}
-                          </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-4 py-3">
                             <span className={cn(
-                              "px-2 py-0.5 rounded-full font-semibold",
-                              (r._count?.parts ?? 0) > 0
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                                : "text-content-tertiary dark:text-content-dark-tertiary"
+                              "px-2 py-0.5 rounded-full font-semibold capitalize",
+                              t.dealerResponse === "accepted" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+                              t.dealerResponse === "rejected" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+                              t.dealerResponse === "completed" && "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
                             )}>
-                              {r._count?.parts ?? 0}
+                              {DEALER_RESPONSE_LABELS[t.dealerResponse!] ?? t.dealerResponse}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            {r.warrantyClaimRequested ? (
-                              <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
-                                <ShieldCheck className="w-3.5 h-3.5" /> Yes
-                              </span>
-                            ) : (
-                              <span className="text-content-tertiary dark:text-content-dark-tertiary">No</span>
-                            )}
+                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
+                            {t.machineName ?? "—"}
+                          </td>
+                          <td className="px-4 py-3 text-content-secondary dark:text-content-dark-secondary">
+                            {t.dealerRespondedAt
+                              ? formatRelativeTime(new Date(t.dealerRespondedAt))
+                              : "—"}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
-                              onClick={() => setSelectedReport(r)}
+                              onClick={() => setDrawerTicket(t)}
                               className="px-3 py-1 rounded-lg bg-primary/10 text-primary dark:bg-primary-400/10 dark:text-primary-300 hover:bg-primary/20 transition-colors font-medium"
                             >
                               View

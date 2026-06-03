@@ -2,6 +2,7 @@
 
 import { Phone, UserCheck, UserX, AlertOctagon, XCircle, PhoneCall, Store } from "lucide-react";
 import type { ServiceTicket } from "./types";
+import { getAssignmentMode } from "./assignmentMode";
 
 interface DrawerActionBarProps {
   ticket: ServiceTicket;
@@ -14,6 +15,9 @@ interface DrawerActionBarProps {
 export function DrawerActionBar({ ticket, onReassign, onAssignDealer, onCancelAssignment, cancellingAssignment }: DrawerActionBarProps) {
   const phone = ticket.phoneNumber;
   const isClosed = ticket.status === "CLOSED";
+  const assignmentMode = getAssignmentMode(ticket);
+  const showEngineerAction = assignmentMode === "engineer" || !!ticket.assignedEngineer;
+  const showDealerAction = assignmentMode === "matched-dealer" || !!ticket.assignedDealer;
 
   return (
     <div className="sticky top-[auto] z-[9] bg-surface-card dark:bg-surface-dark-card border-b border-line dark:border-line-dark px-5 py-2.5">
@@ -45,7 +49,7 @@ export function DrawerActionBar({ ticket, onReassign, onAssignDealer, onCancelAs
         </button>
 
         {/* Reassign / Assign Engineer — opens popup */}
-        {!isClosed && (
+        {!isClosed && showEngineerAction && (
           <button
             onClick={onReassign}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-primary/30 text-primary dark:text-blue-400 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors whitespace-nowrap"
@@ -55,14 +59,13 @@ export function DrawerActionBar({ ticket, onReassign, onAssignDealer, onCancelAs
           </button>
         )}
 
-        {/* Assign to Dealer */}
-        {!isClosed && (
+        {!isClosed && showDealerAction && (
           <button
             onClick={onAssignDealer}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-violet-400/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/5 dark:hover:bg-violet-500/10 transition-colors whitespace-nowrap"
           >
             <Store className="w-3.5 h-3.5" />
-            {ticket.ownerType === "DEALER" ? "Reassign Dealer" : "Assign to Dealer"}
+            {ticket.assignedDealer ? "View Dealer" : "Assign to Dealer"}
           </button>
         )}
 

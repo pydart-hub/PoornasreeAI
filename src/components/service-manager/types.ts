@@ -51,6 +51,9 @@ export interface ServiceTicket {
   dealer?: { id?: string; firstName: string; lastName?: string | null } | null;
   dealerId?: string | null;
   assignedDealer?: { id: string; firstName: string; lastName?: string | null } | null;
+  passtestMatched?: boolean;
+  dealerResponse?: string | null;
+  dealerRespondedAt?: string | null;
   pincode?: PincodeInfo | null;
   phoneNumber?: string | null;
   customerAddress?: string | null;

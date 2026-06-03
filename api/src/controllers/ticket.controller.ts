@@ -256,11 +256,59 @@ export async function assignDealer(req: Request, res: Response): Promise<void> {
 
     const ticket = await TicketService.assignDealer(id, dealerId, req.user!.userId);
     io?.to(`user:${dealerId}`).emit("ticket:assigned", { ticketId: id });
+    io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
     res.json({ ticket });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
+}
+
+// ── PATCH /api/tickets/:id/dealer-accept ──────────────────────────────────
+export async function dealerAccept(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const ticket = await TicketService.dealerAccept(id, req.user!.userId);
+    io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+// ── PATCH /api/tickets/:id/dealer-reject ──────────────────────────────────
+export async function dealerReject(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const ticket = await TicketService.dealerReject(id, req.user!.userId);
+    io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+// ── PATCH /api/tickets/:id/dealer-complete ────────────────────────────────
+export async function dealerComplete(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const ticket = await TicketService.dealerComplete(id, req.user!.userId);
+    io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
+    notifyTicketClosed(ticket);
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+function notifyTicketClosed(ticket: { id: string; ticketNumber: string; customerId: string }) {
+  io?.to(`user:${ticket.customerId}`).emit("ticket:closed", {
+    ticketId: ticket.id,
+    ticketNumber: ticket.ticketNumber,
+  });
 }
 
 // ── PATCH /api/tickets/:id/start ──────────────────────────────────────────

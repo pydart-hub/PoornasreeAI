@@ -6,7 +6,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import prisma from "../lib/prisma";
-import { fetchMachineBySerial } from "./machine.service";
+import { enrichTicketFromSerial } from "./dealerMatch.service";
 import * as WhatsAppService from "./whatsapp.service";
 import { notifyTicketEvent } from "./integration-webhook.service";
 
@@ -128,8 +128,7 @@ export async function createTicket(data: {
 }) {
   const ticketNumber = generateTicketNumber();
 
-  // Enrich from Passtest machine API if a serial number was provided.
-  // Non-blocking: 404 → null (skip silently); 502/503 → log and skip.
+  // Enrich from Passtest when serial provided
   let machineName        = data.machineName?.trim()  || null;
   let machineProductCode: string | null = null;
   let machineCustomer:    string | null = null;
@@ -138,34 +137,32 @@ export async function createTicket(data: {
   let machineInvoiceNo:   string | null = null;
   let machineInvoiceDate: string | null = null;
   let machineWarranty:    number | null = null;
+  let passtestMatched    = false;
+  let passtestDealerId:   string | null = null;
+
   if (data.machineSerialNumber?.trim()) {
-    try {
-      const machineData = await fetchMachineBySerial(data.machineSerialNumber.trim());
-      if (machineData) {
-        machineName        = machineData.m_model       || machineName;
-        machineProductCode = machineData.product_code  || null;
-        machineCustomer    = machineData.customer      || null;
-        machineAddress1    = machineData.Address1      || null;
-        machineAddress2    = machineData.Address2      || null;
-        machineInvoiceNo   = machineData.invoice_no    || null;
-        machineInvoiceDate = machineData.invoice_date  || null;
-        machineWarranty    = machineData.warranty_months != null ? Number(machineData.warranty_months) : null;
-      }
-    } catch (err: unknown) {
-      const e = err as { status?: number; message?: string };
-      console.error(`[createTicket] Passtest API error for serial ${data.machineSerialNumber}: ${e.message}`);
-    }
+    const enriched = await enrichTicketFromSerial(
+      data.machineSerialNumber.trim(),
+      data.machineName,
+    );
+    passtestMatched = enriched.passtestMatched;
+    passtestDealerId = enriched.suggestedDealerId;
+    machineName        = enriched.machineFields.machineName;
+    machineProductCode = enriched.machineFields.machineProductCode;
+    machineCustomer    = enriched.machineFields.machineCustomer;
+    machineAddress1    = enriched.machineFields.machineAddress1;
+    machineAddress2    = enriched.machineFields.machineAddress2;
+    machineInvoiceNo   = enriched.machineFields.machineInvoiceNo;
+    machineInvoiceDate = enriched.machineFields.machineInvoiceDate;
+    machineWarranty    = enriched.machineFields.machineWarranty;
   }
 
   // ── Routing decision ────────────────────────────────────────────────────
-  // ALL tickets always route to MANAGER. The dealerId is stored as metadata
-  // (origin tracking) only. Service manager then decides whether to assign
-  // the ticket to an engineer or back to a dealer.
+  // ALL tickets route to MANAGER. dealerId = Passtest-suggested dealer metadata.
   let resolvedDealerId: string | null = null;
   const ownerType: TicketOwnerType = TicketOwnerType.MANAGER;
   const status: TicketStatus = TicketStatus.OPEN;
 
-  // Validate and store dealerId as origin metadata
   if (data.dealerId) {
     const dealer = await prisma.user.findUnique({
       where: { id: data.dealerId },
@@ -176,6 +173,8 @@ export async function createTicket(data: {
     } else {
       console.warn(`[createTicket] dealerId ${data.dealerId} not found or not a dealer — ignoring`);
     }
+  } else if (passtestDealerId) {
+    resolvedDealerId = passtestDealerId;
   }
 
   // All tickets go to service manager queue
@@ -209,6 +208,7 @@ export async function createTicket(data: {
       district:            data.district?.trim() || null,
       state:               data.state?.trim() || null,
       customerAddress:     data.customerAddress?.trim() || null,
+      passtestMatched,
       status,
     },
     include: TICKET_INCLUDE,
@@ -497,8 +497,81 @@ export async function assignDealer(ticketId: string, dealerId: string, assignedB
     where: { id: ticketId },
     data: {
       assignedDealerId: dealerId,
+      dealerResponse: "pending",
+      dealerRespondedAt: null,
       ...(assignedBy ? { assignedManagerId: assignedBy } : {}),
     },
     include: TICKET_INCLUDE,
   });
+}
+
+// ── dealerAccept ──────────────────────────────────────────────────────────
+export async function dealerAccept(ticketId: string, dealerUserId: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.assignedDealerId !== dealerUserId) {
+    throw Object.assign(new Error("Ticket is not assigned to you"), { status: 403 });
+  }
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot accept a closed ticket"), { status: 400 });
+  }
+
+  return prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      dealerResponse: "accepted",
+      dealerRespondedAt: new Date(),
+    },
+    include: TICKET_INCLUDE,
+  });
+}
+
+// ── dealerReject ──────────────────────────────────────────────────────────
+export async function dealerReject(ticketId: string, dealerUserId: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.assignedDealerId !== dealerUserId) {
+    throw Object.assign(new Error("Ticket is not assigned to you"), { status: 403 });
+  }
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot reject a closed ticket"), { status: 400 });
+  }
+
+  return prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      assignedDealerId: null,
+      dealerResponse: "rejected",
+      dealerRespondedAt: new Date(),
+    },
+    include: TICKET_INCLUDE,
+  });
+}
+
+// ── dealerComplete ────────────────────────────────────────────────────────
+export async function dealerComplete(ticketId: string, dealerUserId: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.assignedDealerId !== dealerUserId) {
+    throw Object.assign(new Error("Ticket is not assigned to you"), { status: 403 });
+  }
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Ticket is already closed"), { status: 400 });
+  }
+  if (ticket.dealerResponse !== "accepted") {
+    throw Object.assign(new Error("Accept the ticket before completing"), { status: 400 });
+  }
+
+  const updated = await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      dealerResponse: "completed",
+      dealerRespondedAt: new Date(),
+      status: TicketStatus.CLOSED,
+      closedAt: new Date(),
+    },
+    include: TICKET_INCLUDE,
+  });
+  notifyTicketEvent("ticket.closed", ticketId);
+  return updated;
 }

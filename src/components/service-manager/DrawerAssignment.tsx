@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/utils";
 import { AlertTriangle, UserCheck, MapPin, Loader2, ChevronDown } from "lucide-react";
 import type { ServiceTicket, Engineer, Dealer } from "./types";
+import { getAssignmentMode, DEALER_RESPONSE_LABELS } from "./assignmentMode";
 
 interface DrawerAssignmentProps {
   ticket: ServiceTicket;
@@ -16,14 +17,15 @@ interface DrawerAssignmentProps {
   onAssignDealer: (ticketId: string, dealerId: string) => Promise<void>;
 }
 
-export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assigningDealerId, onAssignEngineer, onAssignDealer }: DrawerAssignmentProps) {
+export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assigningId, assigningDealerId, onAssignEngineer, onAssignDealer }: DrawerAssignmentProps) {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [confirmEng, setConfirmEng] = useState<Engineer | null>(null);
-  const [dealerOpen, setDealerOpen] = useState(false);
-  const [confirmDealer, setConfirmDealer] = useState<Dealer | null>(null);
 
   const isClosed = ticket.status === "CLOSED";
   const engineer = ticket.assignedEngineer;
+  const assignmentMode = getAssignmentMode(ticket);
+  const showEngineerAssign = assignmentMode === "engineer" && !engineer;
+  const showMatchedDealerAssign = assignmentMode === "matched-dealer" && !ticket.assignedDealer;
 
   // Check inactivity (using updatedAt as proxy for last activity)
   const lastActivity = ticket.updatedAt ? new Date(ticket.updatedAt) : null;
@@ -35,10 +37,6 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
   const matched = ticketPincode
     ? engineers.filter(e => e.engineerPincodes?.some(p => p.id === ticketPincode.id || p.code === ticketPincode.code))
     : []; // no pincode on ticket → show no engineers
-
-  const matchedDealers = ticketPincode
-    ? dealers.filter(d => d.pincode?.id === ticketPincode.id || d.pincode?.code === ticketPincode.code)
-    : [];
 
   const handleConfirm = async () => {
     if (!confirmEng) return;
@@ -53,9 +51,10 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
         Assignment
       </h4>
 
+      {(showEngineerAssign || engineer) && (
+        <>
       {engineer ? (
         <div className="space-y-2">
-          {/* Engineer info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 rounded-full bg-primary/10 dark:bg-blue-500/15 flex items-center justify-center shrink-0">
@@ -72,8 +71,6 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
                 )}
               </div>
             </div>
-
-            {/* Inactivity warning */}
             {isInactive && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full shrink-0">
                 <AlertTriangle className="w-3 h-3" />
@@ -81,8 +78,6 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
               </span>
             )}
           </div>
-
-          {/* Reassign button */}
           {!isClosed && !reassignOpen && (
             <button
               onClick={() => setReassignOpen(true)}
@@ -93,7 +88,7 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
             </button>
           )}
         </div>
-      ) : (
+      ) : showEngineerAssign ? (
         <div className="space-y-2">
           <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
             ⚠ No engineer assigned
@@ -108,10 +103,9 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
             </button>
           )}
         </div>
-      )}
+      ) : null}
 
-      {/* Engineer selection panel */}
-      {reassignOpen && !confirmEng && (
+      {showEngineerAssign && reassignOpen && !confirmEng && (
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
@@ -156,8 +150,7 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
         </div>
       )}
 
-      {/* Confirmation panel */}
-      {confirmEng && (
+      {showEngineerAssign && confirmEng && (
         <div className="mt-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-3 space-y-2">
           <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
             {engineer ? "Reassign" : "Assign"} to {confirmEng.firstName} {confirmEng.lastName ?? ""}?
@@ -183,19 +176,20 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
           </div>
         </div>
       )}
+        </>
+      )}
 
-      {/* ── Assign to Dealer section ── */}
-      {!isClosed && (
-        <div className="mt-4 pt-3 border-t border-line dark:border-line-dark">
+      {/* ── Dealer section ── */}
+      {!isClosed && (showMatchedDealerAssign || ticket.assignedDealer) && (
+        <div className={cn(showEngineerAssign || engineer ? "mt-4 pt-3 border-t border-line dark:border-line-dark" : "")}>
           <h4 className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-2">
             Dealer Assignment
           </h4>
 
-          {/* Suggested Dealer from serial number match */}
-          {ticket.dealerId && ticket.dealer && !dealerOpen && !confirmDealer && (
-            <div className="mb-3 p-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg">
+          {showMatchedDealerAssign && ticket.dealerId && ticket.dealer && (
+            <div className="p-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg">
               <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5">
-                Suggested (from serial no.)
+                Matched dealer (Passtest serial)
               </p>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-content dark:text-content-dark font-medium">
@@ -207,15 +201,14 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shrink-0"
                 >
                   {assigningDealerId === ticket.id && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Assign to {ticket.dealer.firstName}
+                  Assign
                 </button>
               </div>
             </div>
           )}
 
-          {/* Show currently assigned dealer */}
-          {ticket.assignedDealer && !dealerOpen && !confirmDealer && (
-            <div className="flex items-center justify-between mb-2">
+          {ticket.assignedDealer && (
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center shrink-0">
                   <UserCheck className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
@@ -227,79 +220,11 @@ export function DrawerAssignment({ ticket, engineers, dealers, assigningId, assi
                   <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">Assigned for field handling</p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {!dealerOpen && !confirmDealer && (
-            <button
-              onClick={() => setDealerOpen(true)}
-              className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 hover:text-violet-700 font-medium transition-colors"
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              {ticket.assignedDealer ? "Reassign Dealer" : "Assign to Dealer"}
-            </button>
-          )}
-
-          {dealerOpen && !confirmDealer && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
-                  Select Dealer
-                  {ticketPincode && (
-                    <span className="ml-1 font-normal text-content-tertiary dark:text-content-dark-tertiary">
-                      (Zone: {ticketPincode.code})
-                    </span>
-                  )}
-                </p>
-                <button onClick={() => setDealerOpen(false)} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary">Cancel</button>
-              </div>
-              {matchedDealers.length === 0 ? (
-                <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-2 text-center">
-                  {ticketPincode
-                    ? `No dealer covers zone ${ticketPincode.code} — import dealers with matching pincode`
-                    : "No zone on ticket — set a pincode before assigning a dealer"}
-                </p>
-              ) : (
-                <div className="border border-line dark:border-line-dark rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                  {matchedDealers.map(d => (
-                    <button key={d.id} onClick={() => { setConfirmDealer(d); setDealerOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors border-b border-line dark:border-line-dark last:border-b-0">
-                      <span className="block font-medium truncate">{d.firstName} {d.lastName ?? ""}</span>
-                      {(d.pincode?.place || d.pincode?.state) && (
-                        <span className="block text-[10px] text-content-tertiary dark:text-content-dark-tertiary truncate">
-                          {[d.pincode?.place, d.pincode?.state].filter(Boolean).join(", ")}
-                          {d.pincode?.code ? ` · ${d.pincode.code}` : ""}
-                        </span>
-                      )}
-                      {d.whatsappNumber && (
-                        <span className="block text-[10px] text-content-tertiary dark:text-content-dark-tertiary">{d.whatsappNumber}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+              {ticket.dealerResponse && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 shrink-0">
+                  {DEALER_RESPONSE_LABELS[ticket.dealerResponse] ?? ticket.dealerResponse}
+                </span>
               )}
-            </div>
-          )}
-
-          {confirmDealer && (
-            <div className="bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-semibold text-violet-800 dark:text-violet-300">
-                Assign to {confirmDealer.firstName} {confirmDealer.lastName ?? ""}?
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => { await onAssignDealer(ticket.id, confirmDealer.id); setConfirmDealer(null); }}
-                  disabled={assigningDealerId === ticket.id}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
-                >
-                  {assigningDealerId === ticket.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                  Confirm
-                </button>
-                <button onClick={() => setConfirmDealer(null)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
-                  Back
-                </button>
-              </div>
             </div>
           )}
         </div>

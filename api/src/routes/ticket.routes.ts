@@ -11,6 +11,9 @@ import {
   assignEngineer,
   unassignEngineer,
   assignDealer,
+  dealerAccept,
+  dealerReject,
+  dealerComplete,
   startWork,
   requestOTP,
   verifyOTP,
@@ -38,6 +41,11 @@ router.patch("/:id/assign-engineer", authorize("service_manager", "assistant_ser
 
 // ASSIGN DEALER: service_manager or admin routes ticket to a dealer for field handling
 router.patch("/:id/assign-dealer", authorize("service_manager", "admin"), assignDealer);
+
+// DEALER RESPONSES
+router.patch("/:id/dealer-accept", authorize("dealer"), dealerAccept);
+router.patch("/:id/dealer-reject", authorize("dealer"), dealerReject);
+router.patch("/:id/dealer-complete", authorize("dealer"), dealerComplete);
 
 // UNASSIGN ENGINEER: service_manager, assistant_service_manager or admin
 router.patch("/:id/unassign-engineer", authorize("service_manager", "assistant_service_manager", "admin"), unassignEngineer);

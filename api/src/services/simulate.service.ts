@@ -229,6 +229,11 @@ function getYesNoButtons(lang: Lang): ReplyButton[] {
   ];
 }
 
+const LANG_BUTTONS: ReplyButton[] = [
+  { id: "LANG_EN", title: "🇬🇧 English" },
+  { id: "LANG_HI", title: "🇮🇳 हिंदी" },
+];
+
 function getMainMenuList(lang: Lang): ReplyList {
   return {
     buttonText: lang === "hi" ? "विकल्प देखें 📋" : "View Options 📋",
@@ -271,11 +276,16 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const upper = text.toUpperCase();
 
   // ── Global navigation commands (any state except feedback) ──────────────
-  if (upper === "MENU" || upper === "START" || upper === "RESET" || /^H[IE]+I*$/.test(upper) || /^HELL+O*$/.test(upper)) {
+  // Note: "HI" is excluded while in CHANGE_LANGUAGE — it collides with the Hindi button id.
+  if (isGlobalRestartCommand(upper)) {
     const s = await getOrCreateSession(phoneNumber);
     const meta: SessionMeta = (s.metadata as SessionMeta) ?? {};
     // If in feedback flow, don't interrupt
     if (s.state === "FEEDBACK_RATING" || s.state === "FEEDBACK_SATISFIED") {
+      return routeState(s, phoneNumber, text, meta);
+    }
+    // Let language selection handle button taps (LANG_EN / LANG_HI)
+    if (s.state === "CHANGE_LANGUAGE") {
       return routeState(s, phoneNumber, text, meta);
     }
     return startGreeting(phoneNumber);
@@ -471,10 +481,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   }
   if (choice === "6") {
     await updateSession(sessionId, "CHANGE_LANGUAGE", meta);
-    return makeReply(
-      t("LANG_SELECT", lang),
-      [{ id: "EN", title: "🇬🇧 English" }, { id: "HI", title: "🇮🇳 हिंदी" }]
-    );
+    return makeReply(t("LANG_SELECT", lang), LANG_BUTTONS);
   }
 
   return makeReply(t("VALID_OPTION", lang), undefined, getMainMenuList(lang));
@@ -982,28 +989,6 @@ async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta:
   const productName = meta.selectedProduct || md.m_model || "";
   const complaintText = meta.complaint || "Service request via chat";
 
-  let resolvedDealerId: string | undefined;
-  if (md.customer?.trim()) {
-    const customerName = md.customer.trim().toLowerCase();
-    console.log(`[simulate] Matching customer: "${customerName}" against dealer table`);
-    const dealers = await prisma.user.findMany({
-      where: { role: "dealer" },
-      select: { id: true, firstName: true, lastName: true },
-    });
-    const matched = dealers.find(d => {
-      const fullName = [d.firstName, d.lastName].filter(Boolean).join(" ").toLowerCase();
-      return fullName === customerName || d.firstName.toLowerCase() === customerName;
-    });
-    if (matched) {
-      resolvedDealerId = matched.id;
-      console.log(`[simulate] Dealer match found: ${matched.id} (${matched.firstName} ${matched.lastName})`);
-    } else {
-      console.log(`[simulate] No dealer match — routing to MANAGER`);
-    }
-  } else {
-    console.log(`[simulate] No customer name in API data — routing to MANAGER`);
-  }
-
   let pincodeId: string | undefined;
   if (meta.manualPincode) {
     let pincodeRecord = await prisma.pincode.findFirst({ where: { code: meta.manualPincode } });
@@ -1028,7 +1013,6 @@ async function createTicketFromAPI(sessionId: string, phoneNumber: string, meta:
     machineSerialNumber: serial,
     pincodeId,
     phoneNumber,
-    dealerId:            resolvedDealerId,
   });
 
   if (ticket.ownerType === "DEALER" && ticket.ownerId) {
@@ -1110,29 +1094,26 @@ async function handleChangeLanguage(sessionId: string, meta: SessionMeta, text: 
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "EN" || upper === "ENGLISH") {
+  if (upper === "LANG_EN" || upper === "EN" || upper === "ENGLISH") {
     const newMeta: SessionMeta = { ...meta, language: "en" };
     await updateSession(sessionId, "MAIN_MENU", newMeta);
     return makeReply(
       t("LANG_CHANGED_EN", "en") + "\n\n" + t("MAIN_MENU_MSG", "en"),
       undefined,
-      getMainMenuList("en")
+      getMainMenuList("en"),
     );
   }
-  if (upper === "HI" || upper === "HINDI" || text === "हिंदी") {
+  if (upper === "LANG_HI" || upper === "HINDI" || text === "हिंदी") {
     const newMeta: SessionMeta = { ...meta, language: "hi" };
     await updateSession(sessionId, "MAIN_MENU", newMeta);
     return makeReply(
       t("LANG_CHANGED_HI", "hi") + "\n\n" + t("MAIN_MENU_MSG", "hi"),
       undefined,
-      getMainMenuList("hi")
+      getMainMenuList("hi"),
     );
   }
   if (upper === "CHANGE_LANGUAGE") {
-    return makeReply(
-      t("LANG_SELECT", lang),
-      [{ id: "EN", title: "🇬🇧 English" }, { id: "HI", title: "🇮🇳 हिंदी" }]
-    );
+    return makeReply(t("LANG_SELECT", lang), LANG_BUTTONS);
   }
   // Unrecognized input → waiting-for-input nudge with 3 buttons
   return makeReply(
@@ -1146,6 +1127,16 @@ async function handleChangeLanguage(sessionId: string, meta: SessionMeta, text: 
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+
+function isGlobalRestartCommand(upper: string): boolean {
+  return (
+    upper === "MENU" ||
+    upper === "START" ||
+    upper === "RESET" ||
+    /^H[IE]+I*$/.test(upper) ||
+    /^HELL+O*$/.test(upper)
+  );
+}
 
 export type ReplyButton = { id: string; title: string };
 export type ReplyList = { buttonText: string; rows: Array<{ id: string; title: string; description?: string }> };

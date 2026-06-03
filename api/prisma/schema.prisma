@@ -245,6 +245,11 @@ model Ticket {
   customerAddress    String?   // Customer's actual service address (entered during ticket creation)
   phoneNumber        String?   // link back to simulate chat (for OTP delivery)
 
+  // Passtest / dealer workflow
+  passtestMatched    Boolean   @default(false)
+  dealerResponse     String?   // pending | accepted | rejected | completed
+  dealerRespondedAt  DateTime?
+
   // Lifecycle
   status             TicketStatus @default(OPEN)
 
