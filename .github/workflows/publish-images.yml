@@ -1,7 +1,8 @@
 # Build api + web Docker images in GitHub Actions and push to GHCR.
-# VPS fast path: bash deploy.sh pull  or  .\scripts\deploy-pull.ps1
+# On success, deploy-production.yml SSHs to VPS and runs: bash deploy.sh pull
+# Manual retry: .\scripts\deploy-pull.ps1
 #
-# After first run: set package visibility to Public (or docker login on VPS).
+# One-time: GHCR packages Public + GitHub secrets VPS_HOST, VPS_USER, VPS_SSH_KEY (see DEPLOY.md).
 
 name: Publish Docker images
 

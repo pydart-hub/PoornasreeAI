@@ -36,7 +36,12 @@ fi
 COMPOSE_BASE=( -f docker-compose.yml )
 if [ "$MODE" = "pull" ]; then
   COMPOSE_BASE=( -f docker-compose.yml -f docker-compose.images.yml )
+  SKIP_NGINX="${SKIP_NGINX:-1}"
 fi
+
+compose() {
+  docker compose "${COMPOSE_BASE[@]}" "$@"
+}
 
 cd "$REPO_DIR"
 
@@ -73,12 +78,12 @@ if [ "$MODE" = "quick" ] || [ "$MODE" = "quick-api" ]; then
   echo " Quick deploy (old-server style) — service: $QUICK_SVC"
   echo ""
   echo "[2/3] Building $QUICK_SVC..."
-  docker compose build "$QUICK_SVC" 2>&1 | tee /tmp/compose-build.log
+  compose build "$QUICK_SVC" 2>&1 | tee /tmp/compose-build.log
   echo "[3/3] Restarting $QUICK_SVC..."
-  docker compose up -d --no-deps "$QUICK_SVC" 2>&1 | tee -a /tmp/compose-build.log
+  compose up -d --no-deps "$QUICK_SVC" 2>&1 | tee -a /tmp/compose-build.log
   if [ "$QUICK_SVC" = "api" ]; then
     echo " Applying schema (API only)..."
-    docker compose exec -T api npx prisma db push --accept-data-loss \
+    compose exec -T api npx prisma db push --accept-data-loss \
       || echo "  (schema push skipped)"
   fi
   DEPLOY_END=$(date +%s)
@@ -88,7 +93,7 @@ if [ "$MODE" = "quick" ] || [ "$MODE" = "quick-api" ]; then
   echo " Quick deployment complete - $(date)"
   echo "  Duration: ${DEPLOY_SEC}s (~$((DEPLOY_SEC / 60))m $((DEPLOY_SEC % 60))s)"
   echo "============================================"
-  docker compose ps "$QUICK_SVC"
+  compose ps "$QUICK_SVC"
   exit 0
 fi
 
@@ -100,23 +105,23 @@ case "$MODE" in
     echo "[2/6] Pulling pre-built images (no compile on VPS)..."
     echo "  API: ${API_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}"
     echo "  Web: ${WEB_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}"
-    docker compose "${COMPOSE_BASE[@]}" pull api web 2>&1 | tee /tmp/compose-build.log
-    docker compose "${COMPOSE_BASE[@]}" up -d --no-build --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
+    compose pull api web 2>&1 | tee /tmp/compose-build.log
+    compose up -d --no-build --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
     ;;
   api)
     echo "[2/6] Rebuilding API container only (db/qdrant/ollama/n8n stay up)..."
-    docker compose build api 2>&1 | tee /tmp/compose-build.log
-    docker compose up -d --no-deps api 2>&1 | tee -a /tmp/compose-build.log
+    compose build api 2>&1 | tee /tmp/compose-build.log
+    compose up -d --no-deps api 2>&1 | tee -a /tmp/compose-build.log
     ;;
   web)
     echo "[2/6] Rebuilding web container only..."
-    docker compose build web 2>&1 | tee /tmp/compose-build.log
-    docker compose up -d --no-deps web 2>&1 | tee -a /tmp/compose-build.log
+    compose build web 2>&1 | tee /tmp/compose-build.log
+    compose up -d --no-deps web 2>&1 | tee -a /tmp/compose-build.log
     ;;
   full)
     echo "[2/6] Rebuilding app containers (api + web; infra stays up)..."
-    docker compose build api web 2>&1 | tee /tmp/compose-build.log
-    docker compose up -d --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
+    compose build api web 2>&1 | tee /tmp/compose-build.log
+    compose up -d --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
     ;;
   *)
     echo "Unknown mode: $MODE (use 'quick', 'quick-api', 'full', 'api', 'web', or 'pull')"
@@ -128,6 +133,7 @@ echo "  Build finished."
 echo ""
 HEALTH_MAX=30
 [ "$MODE" = "api" ] && HEALTH_MAX=18
+[ "$MODE" = "pull" ] && HEALTH_MAX=12
 echo "[3/6] Waiting for API to become healthy..."
 for i in $(seq 1 $HEALTH_MAX); do
     if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
@@ -144,9 +150,9 @@ done
 
 echo ""
 echo "[4/6] Applying Prisma schema changes..."
-docker compose exec -T api npx prisma db push --accept-data-loss || echo "  (schema push skipped or already up to date)"
+compose exec -T api npx prisma db push --accept-data-loss || echo "  (schema push skipped or already up to date)"
 if [ "${SEED_ON_DEPLOY}" = "1" ]; then
-    docker compose exec -T api npx prisma db seed || echo "  (seed failed or already up to date)"
+    compose exec -T api npx prisma db seed || echo "  (seed failed or already up to date)"
 else
     echo "  Skipping db seed (set SEED_ON_DEPLOY=1 or deploy.ps1 -Seed to run)."
 fi
@@ -157,11 +163,11 @@ if [ "${SKIP_OLLAMA}" = "1" ]; then
     echo "[5/6] Skipping Ollama check ($MODE deploy)."
 else
 echo "[5/6] Ensuring Ollama models are present..."
-OLLAMA_CONTAINER=$(docker compose ps -q ollama)
+OLLAMA_CONTAINER=$(compose ps -q ollama)
 if [ -z "$OLLAMA_CONTAINER" ]; then
     echo "  Ollama container not running — starting..."
-    docker compose up -d ollama
-    OLLAMA_CONTAINER=$(docker compose ps -q ollama)
+    compose up -d ollama
+    OLLAMA_CONTAINER=$(compose ps -q ollama)
 fi
 
 for i in $(seq 1 12); do
@@ -186,6 +192,9 @@ echo "  Done."
 fi
 
 echo ""
+if [ "${SKIP_NGINX}" = "1" ]; then
+    echo "[6/6] Skipping Nginx sync ($MODE deploy)."
+else
 echo "[6/6] Syncing Nginx socket.io proxy rule..."
 cat > /tmp/poornasree-nginx.conf << 'NGINXEOF'
 server {
@@ -254,6 +263,7 @@ else
     echo "  Nginx config updated and reloaded."
 fi
 echo "  Done."
+fi
 
 echo ""
 echo "============================================"
