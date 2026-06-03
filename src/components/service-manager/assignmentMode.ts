@@ -10,7 +10,9 @@ export function getAssignmentMode(ticket: ServiceTicket): AssignmentMode {
   if (ticket.dealerResponse === "rejected") {
     return "engineer";
   }
-  if (ticket.passtestMatched && ticket.dealerId && ticket.dealer) {
+  const hasSerial = !!ticket.machineSerialNumber?.trim();
+  const hasMatchedDealer = !!(ticket.dealerId && ticket.dealer);
+  if (hasMatchedDealer && (ticket.passtestMatched || hasSerial)) {
     return "matched-dealer";
   }
   return "engineer";

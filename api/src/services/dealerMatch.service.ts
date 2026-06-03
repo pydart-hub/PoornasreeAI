@@ -48,11 +48,35 @@ function machineToFields(
   };
 }
 
-/** Match Passtest Customer field to a dealer user by name. */
+function normalizeDealerName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** True when Passtest customer string refers to this dealer (exact or extended name). */
+export function passtestCustomerMatchesDealer(
+  customerName: string,
+  dealerFirst: string,
+  dealerLast?: string | null,
+): boolean {
+  const customer = normalizeDealerName(customerName);
+  const dealerFull = normalizeDealerName(
+    [dealerFirst, dealerLast].filter(Boolean).join(" "),
+  );
+  if (!customer || !dealerFull) return false;
+  if (customer === dealerFull) return true;
+  // Passtest often has a longer label, e.g. "AMOL SCIENTIFIC AND DAIRY MATERIAL"
+  if (customer.startsWith(`${dealerFull} `)) return true;
+  if (dealerFull.length >= 4 && customer.startsWith(dealerFull)) return true;
+  const firstOnly = normalizeDealerName(dealerFirst);
+  if (firstOnly && customer === firstOnly) return true;
+  return false;
+}
+
+/** Match Passtest Customer field to a dealer user by name (longest / best match). */
 export async function resolveDealerFromPasstestCustomer(
   customerName: string,
 ): Promise<string | null> {
-  const normalized = customerName.trim().toLowerCase();
+  const normalized = normalizeDealerName(customerName);
   if (!normalized) return null;
 
   const dealers = await prisma.user.findMany({
@@ -60,12 +84,14 @@ export async function resolveDealerFromPasstestCustomer(
     select: { id: true, firstName: true, lastName: true },
   });
 
-  const matched = dealers.find((d) => {
-    const fullName = [d.firstName, d.lastName].filter(Boolean).join(" ").toLowerCase();
-    return fullName === normalized || d.firstName.toLowerCase() === normalized;
-  });
+  let best: { id: string; score: number } | null = null;
+  for (const d of dealers) {
+    if (!passtestCustomerMatchesDealer(normalized, d.firstName, d.lastName)) continue;
+    const score = normalizeDealerName([d.firstName, d.lastName].filter(Boolean).join(" ")).length;
+    if (!best || score > best.score) best = { id: d.id, score };
+  }
 
-  return matched?.id ?? null;
+  return best?.id ?? null;
 }
 
 /** Lookup serial in Passtest and resolve suggested dealer from customer name. */

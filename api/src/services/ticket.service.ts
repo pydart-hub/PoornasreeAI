@@ -6,7 +6,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { TicketStatus, TicketOwnerType } from "@prisma/client";
 import prisma from "../lib/prisma";
-import { enrichTicketFromSerial } from "./dealerMatch.service";
+import { enrichTicketFromSerial, resolveDealerFromPasstestCustomer } from "./dealerMatch.service";
 import * as WhatsAppService from "./whatsapp.service";
 import { notifyTicketEvent } from "./integration-webhook.service";
 
@@ -251,16 +251,50 @@ export async function listTickets(filters: {
   if (filters.managerId)        where.assignedManagerId  = filters.managerId;
   if (filters.assignedDealerId) where.assignedDealerId   = filters.assignedDealerId;
 
-  return prisma.ticket.findMany({
+  const tickets = await prisma.ticket.findMany({
     where,
     include:  TICKET_INCLUDE,
     orderBy:  { createdAt: "desc" },
   });
+
+  await backfillPasstestDealerLinks(tickets);
+  return tickets;
+}
+
+/** Link OPEN tickets that have Passtest customer text but missed dealerId (name mismatch). */
+async function backfillPasstestDealerLinks(
+  tickets: Awaited<ReturnType<typeof prisma.ticket.findMany<{ include: typeof TICKET_INCLUDE }>>>,
+) {
+  const pending = tickets.filter(
+    (t) =>
+      t.status === TicketStatus.OPEN &&
+      !t.dealerId &&
+      !t.assignedDealerId &&
+      t.machineCustomer?.trim(),
+  );
+  if (!pending.length) return;
+
+  for (const t of pending) {
+    const dealerId = await resolveDealerFromPasstestCustomer(t.machineCustomer!);
+    if (!dealerId) continue;
+
+    const updated = await prisma.ticket.update({
+      where: { id: t.id },
+      data: {
+        dealerId,
+        passtestMatched: t.passtestMatched || !!t.machineSerialNumber?.trim(),
+      },
+      include: TICKET_INCLUDE,
+    });
+    Object.assign(t, updated);
+  }
 }
 
 // ── getTicket ─────────────────────────────────────────────────────────────
 export async function getTicket(id: string) {
-  return prisma.ticket.findUnique({ where: { id }, include: TICKET_INCLUDE });
+  const ticket = await prisma.ticket.findUnique({ where: { id }, include: TICKET_INCLUDE });
+  if (ticket) await backfillPasstestDealerLinks([ticket]);
+  return ticket;
 }
 
 // ── assignEngineer ────────────────────────────────────────────────────────
