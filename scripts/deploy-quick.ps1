@@ -1,10 +1,16 @@
 # ============================================================
-# deploy-web.ps1 - Fast web-only (old-server quick path)
+# deploy-quick.ps1 — Same fast habit as the OLD server
 # ============================================================
-# Alias for: .\scripts\deploy-quick.ps1
+# Old server: git pull → docker compose build web → restart
+# No long health wait, seed, Ollama, or nginx steps.
+#
+#   UI changes (default):  .\scripts\deploy-quick.ps1
+#   API changes:           .\scripts\deploy-quick.ps1 -Api
+#   SSH drops:             add -Background
 # ============================================================
 
 param(
+    [switch]$Api,
     [switch]$Background,
     [string]$Server    = "168.231.121.19",
     [string]$User      = "root",
@@ -24,5 +30,6 @@ $params = @{
     RemoteDir = $RemoteDir
     KeyFile   = $KeyFile
 }
+if ($Api) { $params.QuickApi = $true }
 if ($Background) { $params.Background = $true }
 & "$Root\deploy.ps1" @params

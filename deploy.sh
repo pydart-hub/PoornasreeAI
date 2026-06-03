@@ -6,7 +6,9 @@
 # Usage:
 #   bash deploy.sh          # rebuild api + web (keeps db/qdrant/ollama/n8n up)
 #   bash deploy.sh api      # rebuild api only (fast path for backend changes)
-#   bash deploy.sh web      # rebuild web only (redeploy-app.sh calls this)
+#   bash deploy.sh quick    # OLD SERVER STYLE: pull + build web + restart (~8-15 min)
+#   bash deploy.sh quick-api # OLD STYLE for API: pull + build api + restart (~3-6 min)
+#   bash deploy.sh web      # web + prisma/nginx checks (slower than quick)
 #   bash deploy.sh pull     # pull pre-built GHCR images (fast; requires CI images)
 #   bash deploy.sh full     # same as default
 #
@@ -26,8 +28,8 @@ MODE="${1:-full}"
 DEPLOY_START=$(date +%s)
 DEPLOY_LOG="${DEPLOY_LOG:-/tmp/deploy.log}"
 
-# api/web/pull deploys skip heavy Ollama step unless explicitly requested
-if [ "$MODE" = "api" ] || [ "$MODE" = "web" ] || [ "$MODE" = "pull" ]; then
+# api/web/pull/quick deploys skip heavy Ollama step unless explicitly requested
+if [ "$MODE" = "api" ] || [ "$MODE" = "web" ] || [ "$MODE" = "pull" ] || [ "$MODE" = "quick" ] || [ "$MODE" = "quick-api" ]; then
   SKIP_OLLAMA="${SKIP_OLLAMA:-1}"
 fi
 
@@ -62,6 +64,34 @@ if [ "${DEPLOY_REEXEC:-}" != "1" ]; then
   exec bash "$0" "$@"
 fi
 
+# ── Quick path (same as old server redeploy-app.sh) ─────────────────────────
+# git pull → docker compose build → up. No health loop, seed, Ollama, or nginx.
+if [ "$MODE" = "quick" ] || [ "$MODE" = "quick-api" ]; then
+  QUICK_SVC="web"
+  [ "$MODE" = "quick-api" ] && QUICK_SVC="api"
+  echo ""
+  echo " Quick deploy (old-server style) — service: $QUICK_SVC"
+  echo ""
+  echo "[2/3] Building $QUICK_SVC..."
+  docker compose build "$QUICK_SVC" 2>&1 | tee /tmp/compose-build.log
+  echo "[3/3] Restarting $QUICK_SVC..."
+  docker compose up -d --no-deps "$QUICK_SVC" 2>&1 | tee -a /tmp/compose-build.log
+  if [ "$QUICK_SVC" = "api" ]; then
+    echo " Applying schema (API only)..."
+    docker compose exec -T api npx prisma db push --accept-data-loss \
+      || echo "  (schema push skipped)"
+  fi
+  DEPLOY_END=$(date +%s)
+  DEPLOY_SEC=$((DEPLOY_END - DEPLOY_START))
+  echo ""
+  echo "============================================"
+  echo " Quick deployment complete - $(date)"
+  echo "  Duration: ${DEPLOY_SEC}s (~$((DEPLOY_SEC / 60))m $((DEPLOY_SEC % 60))s)"
+  echo "============================================"
+  docker compose ps "$QUICK_SVC"
+  exit 0
+fi
+
 set -o pipefail
 {
 echo ""
@@ -89,7 +119,7 @@ case "$MODE" in
     docker compose up -d --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
     ;;
   *)
-    echo "Unknown mode: $MODE (use 'full', 'api', 'web', or 'pull')"
+    echo "Unknown mode: $MODE (use 'quick', 'quick-api', 'full', 'api', 'web', or 'pull')"
     exit 1
     ;;
 esac

@@ -3,17 +3,26 @@
 Production: **https://poornasree.pydart.com**  
 VPS: `168.231.121.19` · repo on server: `/root/poornasree-ai` · branch: `AIpoorna`
 
-## Quick reference
+## Quick reference (use this daily — same as old server)
 
 | What changed | Command | Typical time |
 |--------------|---------|--------------|
-| API only (controllers, Prisma, HR sync, webhooks) | `.\scripts\deploy-api.ps1` | ~3–8 min |
-| Frontend only (Next.js pages/components) | `.\scripts\deploy-web.ps1` | ~8–15 min |
-| Both API and frontend | `.\deploy.ps1` | ~15–26 min |
+| **UI / pages (most deploys)** | `.\scripts\deploy-quick.ps1` | **~8–15 min** |
+| **API / HR / backend** | `.\scripts\deploy-quick.ps1 -Api` | **~3–6 min** |
+| Both API and frontend | `.\deploy.ps1` (full) | ~15–26 min |
 | Pre-built images from GitHub Actions (optional) | `.\scripts\deploy-pull.ps1` | ~1–3 min |
-| SSH drops during build | Add `-Background` to any script above | Same duration; finishes on VPS |
+| SSH drops during build | Add `-Background` | Finishes on VPS |
 
-**Workflow:** commit → `git push origin AIpoorna` → run the matching deploy script.
+**Workflow:** commit → `git push origin AIpoorna` → **`.\scripts\deploy-quick.ps1`**
+
+### Old server vs now
+
+| Old server (`redeploy-app.sh`) | New server (same habit) |
+|--------------------------------|-------------------------|
+| `git pull` + `docker compose build app` | `git pull` + `docker compose build web` |
+| ~8–15 min for UI | `.\scripts\deploy-quick.ps1` — **same steps, no extra waits** |
+
+Do **not** use plain `.\deploy.ps1` for small changes — that is the slow full rebuild.
 
 ## Why full deploy is slow
 
@@ -31,16 +40,22 @@ Extras (seed, Ollama checks) are skipped by default on `api`/`web` modes; they a
 ```powershell
 cd PoornasreeAI
 
-# Backend
-.\scripts\deploy-api.ps1
-.\scripts\deploy-api.ps1 -Background
+# Daily deploy (old server speed) — USE THIS
+.\scripts\deploy-quick.ps1
+.\scripts\deploy-quick.ps1 -Background
 
-# Frontend (replaces old redeploy-app.sh)
-.\scripts\deploy-web.ps1
+# API-only quick
+.\scripts\deploy-quick.ps1 -Api
 
-# Full stack
-.\deploy.ps1
+# Aliases
+.\scripts\deploy-web.ps1          # same as deploy-quick.ps1
+bash redeploy-app.sh              # on VPS — same quick path
+
+# Full stack (only when both api + web changed)
 .\deploy.ps1 -Background
+
+# Backend with extra prisma/nginx checks (slower than -Quick)
+.\scripts\deploy-api.ps1 -Quick
 
 # Run prisma seed on deploy (off by default)
 .\deploy.ps1 -Seed
@@ -50,11 +65,11 @@ cd PoornasreeAI
 
 ```bash
 cd /root/poornasree-ai
-bash deploy.sh api      # API only
-bash deploy.sh web      # web only (same as redeploy-app.sh)
-bash deploy.sh          # full
-bash deploy.sh pull     # pull GHCR images (optional CI path)
-bash redeploy-app.sh    # alias → deploy.sh web
+bash deploy.sh quick      # UI only — old server style (default habit)
+bash deploy.sh quick-api  # API only — old server style
+bash redeploy-app.sh      # alias → deploy.sh quick
+bash deploy.sh            # full (slow)
+bash deploy.sh pull       # pull GHCR images (optional CI path)
 ```
 
 Logs: `/tmp/deploy.log` · build log: `/tmp/compose-build.log`

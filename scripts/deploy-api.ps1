@@ -6,14 +6,16 @@
 #
 # Workflow:
 #   1. git add . && git commit -m "..." && git push
-#   2. .\scripts\deploy-api.ps1
-#   2b. .\scripts\deploy-api.ps1 -Background   # if SSH drops during build
+#   2. .\scripts\deploy-api.ps1 -Quick        # old-server fast path (recommended)
+#   2b. .\scripts\deploy-api.ps1 -Background
+#   Or: .\scripts\deploy-quick.ps1 -Api
 #
 # See DEPLOY.md for all deploy modes.
 # ============================================================
 
 param(
     [switch]$Background,
+    [switch]$Quick,
     [switch]$Seed,
     [string]$Server    = "168.231.121.19",
     [string]$User      = "root",
@@ -26,12 +28,17 @@ $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
 $params = @{
-    ApiOnly    = $true
     Server     = $Server
     User       = $User
     SshPort    = $SshPort
     RemoteDir  = $RemoteDir
     KeyFile    = $KeyFile
+}
+if ($Quick) {
+    $params.Quick = $true
+    $params.QuickApi = $true
+} else {
+    $params.ApiOnly = $true
 }
 if ($Background) { $params.Background = $true }
 if ($Seed) { $params.Seed = $true }

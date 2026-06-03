@@ -6,9 +6,12 @@
 #   2. .\deploy.ps1                                   (triggers VPS to pull & rebuild)
 #
 # Usage:
-#   .\deploy.ps1                    # rebuild api + web (~12-15 min)
-#   .\deploy.ps1 -ApiOnly           # API only (~3-5 min) — best for backend changes
-#   .\deploy.ps1 -WebOnly           # Next.js only (~8-10 min)
+#   .\scripts\deploy-quick.ps1      # DEFAULT for daily work — old server speed (~8-15 min UI)
+#   .\deploy.ps1                    # full rebuild api + web (~15-26 min) — rare
+#   .\deploy.ps1 -Quick             # same as deploy-quick.ps1 (UI)
+#   .\deploy.ps1 -Quick -QuickApi   # old-style API quick (~3-6 min)
+#   .\deploy.ps1 -ApiOnly           # API + extra checks (~3-8 min)
+#   .\deploy.ps1 -WebOnly           # web + extra checks (~8-15 min)
 #   .\deploy.ps1 -Background        # run on VPS in background (SSH won't drop build)
 #   .\deploy.ps1 -Seed              # also run prisma db seed (off by default)
 #   .\deploy.ps1 -PullOnly          # pull GHCR images (~1-3 min; needs CI workflow)
@@ -16,6 +19,8 @@
 # ============================================================
 
 param(
+    [switch]$Quick,
+    [switch]$QuickApi,
     [switch]$ApiOnly,
     [switch]$WebOnly,
     [switch]$PullOnly,
@@ -56,16 +61,29 @@ function Invoke-SshCapture([string]$cmd) {
     return ($out | Out-String).Trim()
 }
 
-if ($PullOnly -and ($ApiOnly -or $WebOnly)) {
-    throw "Use only one of -PullOnly, -ApiOnly, or -WebOnly"
+$flags = @($PullOnly, $Quick, $QuickApi, $ApiOnly, $WebOnly) | Where-Object { $_.IsPresent }
+if ($flags.Count -gt 1) {
+    throw "Use only one deploy mode: -Quick, -QuickApi, -ApiOnly, -WebOnly, or -PullOnly"
 }
 
-$mode = if ($PullOnly) { "pull" } elseif ($ApiOnly) { "api" } elseif ($WebOnly) { "web" } else { "full" }
+$mode = if ($PullOnly) {
+    "pull"
+} elseif ($QuickApi) {
+    "quick-api"
+} elseif ($Quick -or $WebOnly) {
+    "quick"
+} elseif ($ApiOnly) {
+    "api"
+} else {
+    "full"
+}
 $modeLabel = switch ($mode) {
-    "pull" { "Pull GHCR images (~1-3 min)" }
-    "api"  { "API only (~3-8 min)" }
-    "web"  { "Web only (~8-15 min)" }
-    default { "api + web (~15-26 min)" }
+    "pull"      { "Pull GHCR images (~1-3 min)" }
+    "quick"     { "Quick UI — old server style (~8-15 min)" }
+    "quick-api" { "Quick API — old server style (~3-6 min)" }
+    "api"       { "API only + checks (~3-8 min)" }
+    "web"       { "Web only + checks (~8-15 min)" }
+    default     { "Full api + web (~15-26 min)" }
 }
 
 $useSeed = $Seed.IsPresent
@@ -91,7 +109,14 @@ if ($Background) {
     Invoke-Ssh $startCmd | Out-Null
 
     $pollSec = 20
-    $maxMin = switch ($mode) { "pull" { 10 } "api" { 25 } "web" { 35 } default { 45 } }
+    $maxMin = switch ($mode) {
+        "pull"      { 10 }
+        "quick-api" { 20 }
+        "quick"     { 30 }
+        "api"       { 25 }
+        "web"       { 35 }
+        default     { 45 }
+    }
     $deadline = (Get-Date).AddMinutes($maxMin)
     Write-Host "       Polling every ${pollSec}s (max ~${maxMin} min). Log: ssh ... 'tail -f /tmp/deploy.log'" -ForegroundColor DarkGray
 
