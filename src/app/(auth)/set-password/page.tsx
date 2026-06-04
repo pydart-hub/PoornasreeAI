@@ -2,8 +2,8 @@
 
 import { useState, useEffect, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
+import { Logo } from "@/components/ui";
 
 function SetPasswordForm() {
   const router = useRouter();
@@ -70,7 +70,9 @@ function SetPasswordForm() {
       <div className="md:hidden min-h-[100dvh] flex flex-col bg-emerald-700">
         {/* Top brand bar */}
         <div className="flex flex-col items-center pt-12 pb-6 px-6">
-          <Image src="/fulllogo.png" alt="Poornasree Equipments" width={200} height={80} className="mb-3" />
+          <div className="bg-white/95 rounded-2xl px-4 py-2.5 shadow-md mb-3">
+            <Logo variant="brand" size="md" priority />
+          </div>
           <p className="text-emerald-200 text-sm mt-1">Set your password to get started</p>
         </div>
 
@@ -127,7 +129,9 @@ function SetPasswordForm() {
       <div className="hidden md:flex min-h-[100dvh]">
         {/* Left green panel */}
         <div className="w-1/2 bg-gradient-to-br from-emerald-700 to-emerald-900 flex flex-col items-center justify-center px-12">
-          <Image src="/fulllogo.png" alt="Poornasree Equipments" width={280} height={112} className="mb-6 brightness-0 invert" />
+          <div className="bg-white/95 rounded-2xl px-5 py-3 shadow-md mb-6">
+            <Logo variant="brand" size="lg" priority />
+          </div>
           <p className="text-emerald-200 text-base mt-3 text-center max-w-xs">
             Set up your account to start receiving and managing service tickets.
           </p>

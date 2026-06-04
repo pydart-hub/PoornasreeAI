@@ -2,8 +2,8 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Eye, EyeOff, Mail, Lock, Monitor, Users, BarChart3 } from "lucide-react";
+import { Logo } from "@/components/ui";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 // ── Feature list shown on the left hero panel ─────────────────────────
@@ -92,12 +92,8 @@ export default function LoginPage() {
 
         {/* Green hero — sits above the white card, never overlaps */}
         <div className="relative z-10 shrink-0 flex flex-col items-center gap-3 pt-12 pb-8 px-6">
-          <div className="relative w-14 h-14">
-            <Image src="/flower.png" alt="Poornasree" fill className="object-contain" priority />
-          </div>
-          <div className="text-center">
-            <p className="text-xl font-black text-white">Poornasree®</p>
-            <p className="text-[10px] tracking-[0.2em] text-white/40 uppercase mt-0.5">Equipments</p>
+          <div className="bg-white/95 rounded-2xl px-4 py-2.5 shadow-md">
+            <Logo variant="brand" size="md" priority />
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -267,14 +263,8 @@ export default function LoginPage() {
           <div className="w-full max-w-md">
 
             {/* Logo */}
-            <div className="flex flex-col items-center mb-7">
-              <div className="relative w-11 h-11 mb-2.5">
-                <Image src="/flower.png" alt="Poornasree" fill className="object-contain" priority />
-              </div>
-              <div className="text-center">
-                <p className="text-base font-bold text-gray-800 leading-none">Poornasree®</p>
-                <p className="text-[10px] tracking-[0.2em] text-gray-400 uppercase mt-0.5">Equipments</p>
-              </div>
+            <div className="flex justify-center mb-7">
+              <Logo variant="brand" size="md" priority />
             </div>
 
             {/* Heading */}

@@ -560,7 +560,7 @@ export default function UsersManagementPage() {
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <Logo variant="full" size="sm" />
+        <Logo variant="brand" size="sm" />
         <div className="flex-1" />
         <ThemeToggle />
         <Avatar

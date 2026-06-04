@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { LoadingScreen } from "@/components/ui/Loading";
+import { SidebarBrand } from "@/components/ui";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
   RefreshCw,
@@ -352,19 +353,7 @@ export default function ServiceDashboard() {
         <div className="absolute bottom-20 left-0 w-28 h-28 bg-teal-400/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col h-full min-w-[256px]">
-          {/* Logo */}
-          <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center flex-shrink-0">
-              <Wrench className="w-5 h-5 text-emerald-300" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white leading-tight">Field Engineer</p>
-              <p className="text-[10px] text-white/50 font-medium">Poornasree AI</p>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors">
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          </div>
+          <SidebarBrand title="Field Engineer" onClose={() => setSidebarOpen(false)} />
 
           {/* Stats strip */}
           <div className="px-4 py-3 border-b border-white/10">

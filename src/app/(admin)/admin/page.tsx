@@ -51,7 +51,7 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Avatar, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
+import { Avatar, Badge, LoadingScreen, ResponsiveSidebar, SidebarBrand } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import RdVideosTab from "@/components/admin/RdVideosTab";
@@ -458,18 +458,7 @@ export default function AdminPage() {
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
         <div className="flex flex-col h-full bg-gradient-to-b from-purple-950 via-violet-900 to-indigo-900">
 
-          {/* Logo row */}
-          <div className="flex items-center justify-between px-4 py-3 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                <Shield className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-sm font-bold text-white tracking-tight">Admin Panel</span>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          </div>
+          <SidebarBrand title="Admin Panel" onClose={() => setSidebarOpen(false)} compact className="border-white/10" />
 
           <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
             <a href="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-white/15 text-white">
@@ -488,7 +477,7 @@ export default function AdminPage() {
                 { key: "products",  label: "Products",  icon: <Package className="w-3.5 h-3.5" />,   count: null },
                 { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" />, count: null },
               ] as const).map(({ key, label, icon, count }) => (
-                <button key={key} onClick={() => setActiveTab(key as typeof activeTab)}
+                <button key={key} onClick={() => key === "users" ? router.push("/admin/users") : setActiveTab(key as typeof activeTab)}
                   className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
                     activeTab === key ? "bg-white/20 text-white font-semibold" : "text-white/60 hover:text-white hover:bg-white/10"
                   )}>
@@ -563,7 +552,7 @@ export default function AdminPage() {
               </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", trainedCount > 0 ? "text-emerald-200" : "text-white/40")}>Trained</p>
             </div>
-            <button onClick={() => setActiveTab("users")} className={cn("rounded-2xl px-4 py-3.5 border shadow-inner text-left transition-all hover:scale-[1.02] hover:brightness-110", users.length > 0 ? "bg-violet-500/30 border-violet-300/40" : "bg-white/10 border-white/20")}>
+            <button onClick={() => router.push("/admin/users")} className={cn("rounded-2xl px-4 py-3.5 border shadow-inner text-left transition-all hover:scale-[1.02] hover:brightness-110", users.length > 0 ? "bg-violet-500/30 border-violet-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
                 <p className={cn("text-3xl font-black", users.length > 0 ? "text-violet-200" : "text-white/50")}>{users.length}</p>
                 <Users className={cn("w-5 h-5 mt-1", users.length > 0 ? "text-violet-300 opacity-70" : "text-white/20")} />
@@ -596,7 +585,7 @@ export default function AdminPage() {
             ] as const).map((t) => (
               <button
                 key={t.key}
-                onClick={() => setActiveTab(t.key)}
+                onClick={() => t.key === "users" ? router.push("/admin/users") : setActiveTab(t.key)}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                   activeTab === t.key
