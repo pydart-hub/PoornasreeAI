@@ -344,29 +344,37 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
     const { rawToken, tokenHash, tokenExpiry } = generateSetupToken();
     const setPasswordUrl = buildSetPasswordUrl(rawToken);
 
+    const normalizedWa = engineer.whatsappNumber
+      ? parseWhatsappForStorage(engineer.whatsappNumber) ?? engineer.whatsappNumber
+      : null;
+
     await prisma.user.update({
       where: { id: engineerId },
       data: {
         setPasswordToken: tokenHash,
         setPasswordTokenExpiry: tokenExpiry,
+        ...(normalizedWa ? { whatsappNumber: normalizedWa } : {}),
       },
     });
+
+    const engineerForSend = {
+      ...engineer,
+      whatsappNumber: normalizedWa ?? engineer.whatsappNumber,
+    };
 
     const manager = engineer.manager;
     const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
     let sentViaWhatsapp = false;
-    if (engineer.whatsappNumber) {
-      try {
-        await sendEngineerSetupMessage(engineer, setPasswordUrl, managerName);
-        sentViaWhatsapp = true;
-      } catch (err) {
-        console.error("[manager] Failed to resend engineer setup link:", err);
+    if (engineerForSend.whatsappNumber) {
+      sentViaWhatsapp = await sendEngineerSetupMessage(engineerForSend, setPasswordUrl, managerName);
+      if (!sentViaWhatsapp) {
+        console.warn(`[manager] Resend: WhatsApp not delivered to ${engineerForSend.whatsappNumber}`);
       }
     } else {
       console.log(`[manager] Resend setup link for ${engineer.email} — no WhatsApp: ${setPasswordUrl}`);
     }
 
-    res.json({ setPasswordUrl, sentViaWhatsapp });
+    res.json({ setPasswordUrl, sentViaWhatsapp, whatsappNumber: engineerForSend.whatsappNumber });
   } catch (err) {
     console.error("resendEngineerSetupLink error:", err);
     res.status(500).json({ error: "Internal server error" });

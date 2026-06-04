@@ -591,7 +591,8 @@ export default function ServiceManagerPage() {
         name: `${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}`.trim(),
         email: eng.email,
         setPasswordUrl: data.setPasswordUrl,
-        hasWhatsapp: data.sentViaWhatsapp,
+        sentViaWhatsapp: !!data.sentViaWhatsapp,
+        hadWhatsappInput: !!eng.whatsappNumber,
       });
       await fetchData();
     } catch {
@@ -2710,7 +2711,7 @@ export default function ServiceManagerPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-line dark:border-line-dark bg-green-50 dark:bg-green-900/20">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                <h3 className="text-sm font-bold text-green-800 dark:text-green-300">Engineer Added Successfully</h3>
+                <h3 className="text-sm font-bold text-green-800 dark:text-green-300">Setup link ready</h3>
               </div>
               <button onClick={() => setEngineerCreated(null)} className="text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors">
                 <X className="w-4 h-4" />
@@ -2799,9 +2800,8 @@ export default function ServiceManagerPage() {
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
                   <input type="tel" value={newEng.whatsappNumber} onChange={e => setNewEng(p => ({ ...p, whatsappNumber: e.target.value }))}
-                    placeholder="e.g. 8089732385"
-                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    placeholder="91XXXXXXXXXX" />
+                    placeholder="8089732385 or 918089732385"
+                    className="w-full pl-9 pr-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                 </div>
                 <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">International format — greeting will be sent on registration</p>
               </div>

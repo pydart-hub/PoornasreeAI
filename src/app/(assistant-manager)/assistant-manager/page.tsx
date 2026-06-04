@@ -140,7 +140,13 @@ export default function AssistantManagerPage() {
   const [showAddEngineer, setShowAddEngineer] = useState(false);
   const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [addingEngineer, setAddingEngineer] = useState(false);
-  const [engineerCreated, setEngineerCreated] = useState<{ name: string; email: string; setPasswordUrl: string; hasWhatsapp: boolean } | null>(null);
+  const [engineerCreated, setEngineerCreated] = useState<{
+    name: string;
+    email: string;
+    setPasswordUrl: string;
+    sentViaWhatsapp: boolean;
+    hadWhatsappInput: boolean;
+  } | null>(null);
   const [editingEng, setEditingEng] = useState<Engineer | null>(null);
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -230,7 +236,8 @@ export default function AssistantManagerPage() {
         name: `${eng.firstName}${eng.lastName ? " " + eng.lastName : ""}`.trim(),
         email: eng.email,
         setPasswordUrl: data.setPasswordUrl,
-        hasWhatsapp: data.sentViaWhatsapp,
+        sentViaWhatsapp: !!data.sentViaWhatsapp,
+        hadWhatsappInput: !!eng.whatsappNumber,
       });
       await fetchData();
     } catch {
@@ -905,7 +912,13 @@ export default function AssistantManagerPage() {
                               else {
                                 const data = await res.json();
                                 setShowAddEngineer(false);
-                                setEngineerCreated({ name: newEng.firstName.trim(), email: newEng.email.trim(), setPasswordUrl: data.setPasswordUrl, hasWhatsapp: !!newEng.whatsappNumber.trim() });
+                                setEngineerCreated({
+                                  name: newEng.firstName.trim(),
+                                  email: newEng.email.trim(),
+                                  setPasswordUrl: data.setPasswordUrl,
+                                  sentViaWhatsapp: !!data.sentViaWhatsapp,
+                                  hadWhatsappInput: !!newEng.whatsappNumber.trim(),
+                                });
                                 setNewEng({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
                                 await fetchData();
                               }
@@ -933,9 +946,13 @@ export default function AssistantManagerPage() {
                           <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{engineerCreated.name} — {engineerCreated.email}</p>
                         </div>
                       </div>
-                      {engineerCreated.hasWhatsapp ? (
-                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary">A set-password link was sent via WhatsApp — if delivery failed, copy the link below.</p>
-                      ) : null}
+                      {engineerCreated.sentViaWhatsapp ? (
+                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary">A set-password link was sent via WhatsApp.</p>
+                      ) : engineerCreated.hadWhatsappInput ? (
+                        <p className="text-sm text-amber-700 dark:text-amber-400">WhatsApp delivery failed — copy the link below and send it manually.</p>
+                      ) : (
+                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No WhatsApp number — copy the link below and share it with the engineer.</p>
+                      )}
                       <div className="space-y-1">
                         <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Share this set-password link with the engineer:</p>
                         <div className="flex items-center gap-2 bg-surface dark:bg-surface-dark rounded-lg px-3 py-2 border border-line dark:border-line-dark">

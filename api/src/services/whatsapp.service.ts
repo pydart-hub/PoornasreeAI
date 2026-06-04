@@ -54,12 +54,20 @@ export async function sendMessage(to: string, text: string): Promise<boolean> {
       }),
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error(`[whatsapp] Send failed (${res.status}) → ${normalized}:`, JSON.stringify(err));
+    const body = await res.json().catch(() => ({})) as {
+      error?: { message?: string; code?: number };
+      messages?: { id: string }[];
+    };
+
+    if (!res.ok || body.error) {
+      console.error(`[whatsapp] Send failed (${res.status}) → ${normalized}:`, JSON.stringify(body));
       return false;
     }
-    console.log(`[whatsapp] Sent → ${normalized}: ${text.slice(0, 60)}…`);
+    if (!body.messages?.[0]?.id) {
+      console.warn(`[whatsapp] No message id in response → ${normalized}:`, JSON.stringify(body));
+      return false;
+    }
+    console.log(`[whatsapp] Sent → ${normalized} id=${body.messages[0].id}`);
     return true;
   } catch (err) {
     console.error(`[whatsapp] Network error sending to ${normalized}:`, (err as Error).message);
