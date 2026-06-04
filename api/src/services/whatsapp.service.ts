@@ -11,11 +11,30 @@ export function isConfigured(): boolean {
   return !!(env.WA_PHONE_NUMBER_ID && env.WA_ACCESS_TOKEN && env.WA_VERIFY_TOKEN);
 }
 
-/** Send a plain-text WhatsApp message to `to` (international format, e.g. 919876543210). */
-export async function sendMessage(to: string, text: string): Promise<void> {
+/**
+ * Normalize to WhatsApp Cloud API format (digits only, no +).
+ * Indian 10-digit mobiles → prefix 91.
+ */
+export function normalizeWhatsappNumber(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 10 && /^[6-9]/.test(digits)) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return digits;
+  if (digits.length >= 11 && digits.length <= 15) return digits;
+  return null;
+}
+
+/** Send a plain-text WhatsApp message. `to` should be international digits (e.g. 919876543210). */
+export async function sendMessage(to: string, text: string): Promise<boolean> {
+  const normalized = normalizeWhatsappNumber(to) ?? to.replace(/\D/g, "");
+  if (!normalized) {
+    console.warn(`[whatsapp] Invalid recipient: ${to}`);
+    return false;
+  }
+
   if (!isConfigured()) {
     console.warn("[whatsapp] Not configured — skipping sendMessage");
-    return;
+    return false;
   }
 
   const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
@@ -29,7 +48,7 @@ export async function sendMessage(to: string, text: string): Promise<void> {
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to,
+        to: normalized,
         type: "text",
         text: { body: text, preview_url: false },
       }),
@@ -37,12 +56,14 @@ export async function sendMessage(to: string, text: string): Promise<void> {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      console.error(`[whatsapp] Send failed (${res.status}):`, JSON.stringify(err));
-    } else {
-      console.log(`[whatsapp] Sent → ${to}: ${text.slice(0, 60)}…`);
+      console.error(`[whatsapp] Send failed (${res.status}) → ${normalized}:`, JSON.stringify(err));
+      return false;
     }
+    console.log(`[whatsapp] Sent → ${normalized}: ${text.slice(0, 60)}…`);
+    return true;
   } catch (err) {
-    console.error(`[whatsapp] Network error sending to ${to}:`, (err as Error).message);
+    console.error(`[whatsapp] Network error sending to ${normalized}:`, (err as Error).message);
+    return false;
   }
 }
 

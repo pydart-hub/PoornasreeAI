@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { env } from "../config/env";
+import { normalizeWhatsappNumber } from "./whatsapp.service";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const SALT_ROUNDS = 12;
@@ -155,7 +156,9 @@ export async function syncHrEngineers(): Promise<SyncResult> {
 
     for (const hr of technicians) {
       const { firstName, lastName } = splitName(hr.name);
-      const whatsappNumber = hr.ph_number?.trim().replace(/^\+/, "") || null;
+      const whatsappNumber = hr.ph_number?.trim()
+        ? normalizeWhatsappNumber(hr.ph_number.trim())
+        : null;
       const pincodeId = hr.area_pin ? await resolvePincodeId(hr.area_pin) : null;
 
       const existing = await prisma.user.findUnique({

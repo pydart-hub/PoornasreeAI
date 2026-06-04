@@ -225,7 +225,13 @@ export default function ServiceManagerPage() {
   const [showAddEngineer, setShowAddEngineer] = useState(false);
   const [newEng, setNewEng] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [addingEngineer, setAddingEngineer] = useState(false);
-  const [engineerCreated, setEngineerCreated] = useState<{ name: string; email: string; setPasswordUrl: string; hasWhatsapp: boolean } | null>(null);
+  const [engineerCreated, setEngineerCreated] = useState<{
+    name: string;
+    email: string;
+    setPasswordUrl: string;
+    sentViaWhatsapp: boolean;
+    hadWhatsappInput: boolean;
+  } | null>(null);
 
   // ── Team modal state — Edit ──
   const [editingEng, setEditingEng] = useState<Engineer | null>(null);
@@ -680,11 +686,13 @@ export default function ServiceManagerPage() {
       else {
         const data = await res.json();
         setShowAddEngineer(false);
+        const hadWhatsappInput = !!newEng.whatsappNumber.trim();
         setEngineerCreated({
           name: newEng.firstName.trim(),
           email: newEng.email.trim(),
           setPasswordUrl: data.setPasswordUrl,
-          hasWhatsapp: !!newEng.whatsappNumber.trim(),
+          sentViaWhatsapp: !!data.sentViaWhatsapp,
+          hadWhatsappInput,
         });
         setNewEng({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
         await fetchData();
@@ -2712,9 +2720,11 @@ export default function ServiceManagerPage() {
             <div className="p-5 space-y-4">
               <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
                 <span className="font-semibold text-content dark:text-content-dark">{engineerCreated.name}</span> has been added.
-                {engineerCreated.hasWhatsapp
-                  ? " A WhatsApp greeting was attempted — but if delivery failed (new number), share the link below directly."
-                  : " No WhatsApp number was provided. Share this set-password link directly."
+                {engineerCreated.sentViaWhatsapp
+                  ? " The set-password link and login details were sent on WhatsApp."
+                  : engineerCreated.hadWhatsappInput
+                    ? " WhatsApp could not be delivered. Use Resend setup link on the engineer card, or copy the link below."
+                    : " No WhatsApp number was provided. Share this set-password link directly."
                 }
               </p>
 
@@ -2788,7 +2798,8 @@ export default function ServiceManagerPage() {
                 <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
-                  <input type="text" value={newEng.whatsappNumber} onChange={e => setNewEng(p => ({ ...p, whatsappNumber: e.target.value }))}
+                  <input type="tel" value={newEng.whatsappNumber} onChange={e => setNewEng(p => ({ ...p, whatsappNumber: e.target.value }))}
+                    placeholder="e.g. 8089732385"
                     className="w-full pl-9 pr-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     placeholder="91XXXXXXXXXX" />
                 </div>

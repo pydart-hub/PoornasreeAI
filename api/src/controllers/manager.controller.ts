@@ -39,12 +39,17 @@ function isPendingSetup(setPasswordToken: string | null, setPasswordTokenExpiry:
   return !!setPasswordToken && !!setPasswordTokenExpiry && setPasswordTokenExpiry > new Date();
 }
 
+function parseWhatsappForStorage(raw: string | undefined): string | null {
+  if (!raw?.trim()) return null;
+  return WhatsAppService.normalizeWhatsappNumber(raw.trim());
+}
+
 async function sendEngineerSetupMessage(
   engineer: { firstName: string; email: string; whatsappNumber: string | null },
   setPasswordUrl: string,
   managerName: string,
-): Promise<void> {
-  if (!engineer.whatsappNumber) return;
+): Promise<boolean> {
+  if (!engineer.whatsappNumber) return false;
   const greeting = [
     `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
     "",
@@ -59,7 +64,7 @@ async function sendEngineerSetupMessage(
     "",
     "Thank you! 🙏",
   ].join("\n");
-  await WhatsAppService.sendMessage(engineer.whatsappNumber, greeting);
+  return WhatsAppService.sendMessage(engineer.whatsappNumber, greeting);
 }
 
 // ── POST /api/manager/engineers ───────────────────────────────────────────
@@ -83,6 +88,14 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
       return;
     }
 
+    const storedWhatsapp = parseWhatsappForStorage(whatsappNumber);
+    if (whatsappNumber?.trim() && !storedWhatsapp) {
+      res.status(400).json({
+        error: "Invalid WhatsApp number. Use a 10-digit Indian mobile (e.g. 8089732385) or full number with country code (e.g. 918089732385).",
+      });
+      return;
+    }
+
     // Account is locked until engineer sets their own password via the WhatsApp link.
     const unusablePasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
 
@@ -98,7 +111,7 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
         managerId,
         setPasswordToken: tokenHash,
         setPasswordTokenExpiry: tokenExpiry,
-        ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") } : {}),
+        ...(storedWhatsapp ? { whatsappNumber: storedWhatsapp } : {}),
         ...(pincodeIds && pincodeIds.length > 0
           ? { engineerPincodes: { connect: (pincodeIds as string[]).map((id: string) => ({ id })) } }
           : {}),
@@ -119,15 +132,17 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
     const setPasswordUrl = buildSetPasswordUrl(rawToken);
     const manager = engineer.manager;
     const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
+    let sentViaWhatsapp = false;
     if (engineer.whatsappNumber) {
-      sendEngineerSetupMessage(engineer, setPasswordUrl, managerName).catch((err) =>
-        console.error("[manager] Failed to send engineer greeting:", err),
-      );
+      sentViaWhatsapp = await sendEngineerSetupMessage(engineer, setPasswordUrl, managerName);
+      if (!sentViaWhatsapp) {
+        console.warn(`[manager] WhatsApp greeting not delivered to ${engineer.whatsappNumber} — share set-password URL manually`);
+      }
     } else {
       console.log(`[manager] Engineer ${engineer.email} has no WhatsApp number — set-password URL: ${setPasswordUrl}`);
     }
 
-    res.status(201).json({ engineer, setPasswordUrl });
+    res.status(201).json({ engineer, setPasswordUrl, sentViaWhatsapp });
   } catch (err) {
     console.error("createEngineer error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -220,7 +235,14 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
     const data: Record<string, unknown> = {};
     if (firstName) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
-    if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+    if (whatsappNumber !== undefined) {
+      const wa = whatsappNumber?.trim() ? parseWhatsappForStorage(whatsappNumber) : null;
+      if (whatsappNumber?.trim() && !wa) {
+        res.status(400).json({ error: "Invalid WhatsApp number format" });
+        return;
+      }
+      data.whatsappNumber = wa;
+    }
     if (email !== undefined && engineer.hrEngineerId != null) {
       res.status(400).json({ error: "Cannot change email for HR-synced engineers" });
       return;
@@ -680,7 +702,7 @@ export async function createDealer(req: Request, res: Response): Promise<void> {
         lastName: lastName?.trim() ?? null,
         role: "dealer",
         warrantyMonths: warrantyMonths != null ? Number(warrantyMonths) : null,
-        whatsappNumber: whatsappNumber?.trim().replace(/^\+/, "") || null,
+        whatsappNumber: parseWhatsappForStorage(whatsappNumber ?? "") ?? null,
         pincodeId,
       },
       select: {
@@ -741,7 +763,12 @@ export async function updateDealer(req: Request, res: Response): Promise<void> {
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
     if (warrantyMonths !== undefined) data.warrantyMonths = warrantyMonths != null ? Number(warrantyMonths) : null;
     if (whatsappNumber !== undefined) {
-      data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+      const wa = whatsappNumber?.trim() ? parseWhatsappForStorage(whatsappNumber) : null;
+      if (whatsappNumber?.trim() && !wa) {
+        res.status(400).json({ error: "Invalid WhatsApp number format" });
+        return;
+      }
+      data.whatsappNumber = wa;
     }
     if (pincode !== undefined) {
       if (pincode && pincode.trim()) {
@@ -977,7 +1004,7 @@ export async function createAssistantManager(req: Request, res: Response): Promi
         managerId,
         setPasswordToken: tokenHash,
         setPasswordTokenExpiry: tokenExpiry,
-        ...(whatsappNumber ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") } : {}),
+        ...(parseWhatsappForStorage(whatsappNumber) ? { whatsappNumber: parseWhatsappForStorage(whatsappNumber)! } : {}),
       },
       select: {
         id: true,
@@ -1069,7 +1096,14 @@ export async function updateMyAssistant(req: Request, res: Response): Promise<vo
     const data: Record<string, unknown> = {};
     if (firstName?.trim()) data.firstName = firstName.trim();
     if (lastName !== undefined) data.lastName = lastName?.trim() ?? null;
-    if (whatsappNumber !== undefined) data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+    if (whatsappNumber !== undefined) {
+      const wa = whatsappNumber?.trim() ? parseWhatsappForStorage(whatsappNumber) : null;
+      if (whatsappNumber?.trim() && !wa) {
+        res.status(400).json({ error: "Invalid WhatsApp number format" });
+        return;
+      }
+      data.whatsappNumber = wa;
+    }
     if (newPassword) {
       if (newPassword.length < 8) {
         res.status(400).json({ error: "Password must be at least 8 characters" });
@@ -1186,7 +1220,7 @@ export async function importEngineers(req: Request, res: Response): Promise<void
           managerId,
           setPasswordToken: tokenHash,
           setPasswordTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          ...(whatsappNumber ? { whatsappNumber: whatsappNumber.replace(/^\+/, "") } : {}),
+          ...(parseWhatsappForStorage(whatsappNumber) ? { whatsappNumber: parseWhatsappForStorage(whatsappNumber)! } : {}),
         },
         select: { id: true, email: true, firstName: true, whatsappNumber: true },
       });
@@ -1295,7 +1329,7 @@ export async function importAssistants(req: Request, res: Response): Promise<voi
           managerId,
           setPasswordToken: tokenHash,
           setPasswordTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          ...(whatsappNumber ? { whatsappNumber: whatsappNumber.replace(/^\+/, "") } : {}),
+          ...(parseWhatsappForStorage(whatsappNumber) ? { whatsappNumber: parseWhatsappForStorage(whatsappNumber)! } : {}),
         },
         select: { id: true, email: true, firstName: true, whatsappNumber: true },
       });
