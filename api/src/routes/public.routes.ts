@@ -1,17 +1,21 @@
 // ── Public Routes ─────────────────────────────────────────────────────────
-// No authentication required. Used by external systems to read ticket + customer data.
+// No authentication required. Read ticket data and run engineer close flow (start / OTP / verify).
 // Prefix: /api/public   (mounted in index.ts)
 
 import { Router, Request, Response } from "express";
 import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 import {
+  publicStartWork,
+  publicRequestOTP,
+  publicVerifyOTP,
+} from "../controllers/public-ticket.controller";
+import {
   PUBLIC_TICKET_SELECT,
   STATUS_BY_STAGE,
   toStageExportDto,
   type StageSlug,
 } from "../lib/ticket-export.mapper";
-
 const router = Router();
 
 const STAGE_SLUGS: StageSlug[] = [
@@ -120,6 +124,11 @@ async function getTicketByStage(stage: StageSlug, req: Request, res: Response): 
     });
   }
 }
+
+// ── Engineer close flow (no auth — ticket must have assigned engineer) ───────
+router.patch("/tickets/:id/start", publicStartWork);
+router.post("/tickets/:id/otp", publicRequestOTP);
+router.post("/tickets/:id/verify-otp", publicVerifyOTP);
 
 // ── Stage endpoints (register before /tickets/:id) ─────────────────────────
 

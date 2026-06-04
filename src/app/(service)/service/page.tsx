@@ -175,11 +175,15 @@ export default function ServiceDashboard() {
   const handleAction = useCallback(async (id: string, action: "start" | "otp") => {
     setActionLoading(id);
     const endpoint = action === "start"
-      ? `/api/tickets/${encodeURIComponent(id)}/start`
-      : `/api/tickets/${encodeURIComponent(id)}/otp`;
+      ? `/api/public/tickets/${encodeURIComponent(id)}/start`
+      : `/api/public/tickets/${encodeURIComponent(id)}/otp`;
     const method = action === "start" ? "PATCH" : "POST";
     try {
-      const res = await fetch(endpoint, { method, credentials: "include" });
+      const res = await fetch(endpoint, {
+        method,
+        headers: action === "otp" ? { "Content-Type": "application/json" } : undefined,
+        body: action === "otp" ? JSON.stringify({}) : undefined,
+      });
       if (res.ok) await fetchTickets();
     } catch { /* non-fatal */ }
     finally { setActionLoading(null); }

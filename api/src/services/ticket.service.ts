@@ -366,6 +366,19 @@ export async function unassignEngineer(ticketId: string) {
   return updated;
 }
 
+/** Resolves assigned engineer for public / WhatsApp flows (no web login). */
+export async function requireAssignedEngineerId(ticketId: string): Promise<string> {
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: { assignedEngineerId: true },
+  });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (!ticket.assignedEngineerId) {
+    throw Object.assign(new Error("No engineer assigned to this ticket"), { status: 400 });
+  }
+  return ticket.assignedEngineerId;
+}
+
 // ── startWork ─────────────────────────────────────────────────────────────
 // Engineer marks a ticket IN_PROGRESS. Records firstEngineeredAt.
 export async function startWork(ticketId: string, engineerId: string, isAdmin = false) {

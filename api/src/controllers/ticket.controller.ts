@@ -7,8 +7,7 @@ import { TicketStatus } from "@prisma/client";
 import { io } from "../lib/socket";
 import prisma from "../lib/prisma";
 import * as TicketService from "../services/ticket.service";
-import { startFeedbackFlow } from "../services/simulate.service";
-import * as WhatsAppService from "../services/whatsapp.service";
+import { afterOtpTicketClosed } from "../lib/ticket-otp-close-effects";
 import {
   syncHrEngineers,
   engineerManagerWhere,
@@ -357,26 +356,7 @@ export async function verifyOTP(req: Request, res: Response): Promise<void> {
 
     const isAdmin = req.user!.role === "admin";
     const ticket  = await TicketService.verifyOTP(id, req.user!.userId, code.trim(), isAdmin);
-
-    io?.to(`user:${ticket.customerId}`).emit("ticket:closed", {
-      ticketId: ticket.id,
-      ticketNumber: ticket.ticketNumber,
-    });
-
-    // Send feedback request via WhatsApp to the customer's phone
-    if (ticket.phoneNumber && WhatsAppService.isConfigured()) {
-      try {
-        const feedbackMsg = await startFeedbackFlow(ticket.phoneNumber, ticket.id, ticket.ticketNumber);
-        await WhatsAppService.sendMessage(ticket.phoneNumber, feedbackMsg);
-
-        // Persist the feedback message in chat history
-        await prisma.simulateMessage.create({
-          data: { phoneNumber: ticket.phoneNumber, role: "assistant", content: feedbackMsg },
-        });
-      } catch (err) {
-        console.error("[verifyOTP] Failed to send feedback request:", (err as Error).message);
-      }
-    }
+    await afterOtpTicketClosed(ticket);
 
     res.json({ message: "Ticket closed successfully", ticket });
   } catch (err: unknown) {

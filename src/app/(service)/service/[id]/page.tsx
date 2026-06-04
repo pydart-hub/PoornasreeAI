@@ -225,8 +225,8 @@ export default function WorkExecutionScreen() {
   const handleStartWork = useCallback(async () => {
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/start`, {
-        method: "PATCH", credentials: "include",
+      const res = await fetch(`/api/public/tickets/${encodeURIComponent(ticketId)}/start`, {
+        method: "PATCH",
       });
       if (res.ok) {
         await fetchTicket();
@@ -239,8 +239,8 @@ export default function WorkExecutionScreen() {
   const handleRequestOtp = useCallback(async () => {
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/otp`, {
-        method: "POST", credentials: "include",
+      const res = await fetch(`/api/public/tickets/${encodeURIComponent(ticketId)}/otp`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
@@ -257,8 +257,8 @@ export default function WorkExecutionScreen() {
     setOtpError("");
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/otp`, {
-        method: "POST", credentials: "include",
+      const res = await fetch(`/api/public/tickets/${encodeURIComponent(ticketId)}/otp`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resend: true }),
       });
@@ -277,9 +277,8 @@ export default function WorkExecutionScreen() {
     setOtpLoading(true);
     setOtpError("");
     try {
-      const res = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/verify-otp`, {
+      const res = await fetch(`/api/public/tickets/${encodeURIComponent(ticketId)}/verify-otp`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: otp }),
       });
