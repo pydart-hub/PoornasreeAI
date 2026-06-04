@@ -55,6 +55,9 @@ export const env = {
   WA_PHONE_NUMBER_ID: process.env.WA_PHONE_NUMBER_ID || "",
   WA_ACCESS_TOKEN:    process.env.WA_ACCESS_TOKEN    || "",
   WA_VERIFY_TOKEN:    process.env.WA_VERIFY_TOKEN    || "",
+  // Approved Meta template for first outbound engineer onboarding (see public/Doc/WHATSAPP_ENGINEER_SETUP_TEMPLATE.md)
+  WA_ENGINEER_SETUP_TEMPLATE: process.env.WA_ENGINEER_SETUP_TEMPLATE || "",
+  WA_ENGINEER_SETUP_TEMPLATE_LANG: process.env.WA_ENGINEER_SETUP_TEMPLATE_LANG || "en",
 
   // ── External integration ────────────────────────────────────────────────
   // Optional webhook URL — POST normalized ticket events on lifecycle changes.

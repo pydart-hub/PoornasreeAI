@@ -24,21 +24,36 @@ export function normalizeWhatsappNumber(raw: string): string | null {
   return null;
 }
 
-/** Send a plain-text WhatsApp message. `to` should be international digits (e.g. 919876543210). */
-export async function sendMessage(to: string, text: string): Promise<boolean> {
+export type SendTemplateOptions = {
+  name: string;
+  languageCode: string;
+  /** Body {{1}}, {{2}}, … in order */
+  bodyParameters: string[];
+  /** Dynamic URL button suffix (template URL ends with {{1}}) */
+  urlButtonIndex?: number;
+  urlButtonParameter?: string;
+};
+
+type WaApiResponse = {
+  error?: { message?: string; code?: number; error_subcode?: number };
+  messages?: { id: string }[];
+};
+
+async function postWhatsAppMessage(
+  to: string,
+  payload: Record<string, unknown>,
+): Promise<WaApiResponse | null> {
   const normalized = normalizeWhatsappNumber(to) ?? to.replace(/\D/g, "");
   if (!normalized) {
     console.warn(`[whatsapp] Invalid recipient: ${to}`);
-    return false;
+    return null;
   }
-
   if (!isConfigured()) {
-    console.warn("[whatsapp] Not configured — skipping sendMessage");
-    return false;
+    console.warn("[whatsapp] Not configured — skipping send");
+    return null;
   }
 
   const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
-
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -46,33 +61,72 @@ export async function sendMessage(to: string, text: string): Promise<boolean> {
         Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: normalized,
-        type: "text",
-        text: { body: text, preview_url: false },
-      }),
+      body: JSON.stringify({ messaging_product: "whatsapp", to: normalized, ...payload }),
     });
-
-    const body = await res.json().catch(() => ({})) as {
-      error?: { message?: string; code?: number };
-      messages?: { id: string }[];
-    };
-
+    const body = (await res.json().catch(() => ({}))) as WaApiResponse;
     if (!res.ok || body.error) {
-      console.error(`[whatsapp] Send failed (${res.status}) → ${normalized}:`, JSON.stringify(body));
-      return false;
+      console.error(`[whatsapp] API error (${res.status}) → ${normalized}:`, JSON.stringify(body));
+      return body;
     }
     if (!body.messages?.[0]?.id) {
-      console.warn(`[whatsapp] No message id in response → ${normalized}:`, JSON.stringify(body));
-      return false;
+      console.warn(`[whatsapp] No message id → ${normalized}:`, JSON.stringify(body));
+      return body;
     }
     console.log(`[whatsapp] Sent → ${normalized} id=${body.messages[0].id}`);
-    return true;
+    return body;
   } catch (err) {
-    console.error(`[whatsapp] Network error sending to ${normalized}:`, (err as Error).message);
-    return false;
+    console.error(`[whatsapp] Network error → ${to}:`, (err as Error).message);
+    return null;
   }
+}
+
+/**
+ * Send an approved WhatsApp message template (required for first outbound contact).
+ * Template must exist in Meta Business Manager with matching name, language, and variables.
+ */
+export async function sendTemplate(to: string, options: SendTemplateOptions): Promise<boolean> {
+  const components: Record<string, unknown>[] = [];
+
+  if (options.bodyParameters.length > 0) {
+    components.push({
+      type: "body",
+      parameters: options.bodyParameters.map((text) => ({
+        type: "text",
+        text,
+      })),
+    });
+  }
+
+  if (
+    options.urlButtonParameter !== undefined &&
+    options.urlButtonIndex !== undefined
+  ) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: String(options.urlButtonIndex),
+      parameters: [{ type: "text", text: options.urlButtonParameter }],
+    });
+  }
+
+  const result = await postWhatsAppMessage(to, {
+    type: "template",
+    template: {
+      name: options.name,
+      language: { code: options.languageCode },
+      ...(components.length > 0 ? { components } : {}),
+    },
+  });
+  return !!result?.messages?.[0]?.id;
+}
+
+/** Send a plain-text WhatsApp message. `to` should be international digits (e.g. 919876543210). */
+export async function sendMessage(to: string, text: string): Promise<boolean> {
+  const result = await postWhatsAppMessage(to, {
+    type: "text",
+    text: { body: text, preview_url: true },
+  });
+  return !!result?.messages?.[0]?.id;
 }
 
 /** WhatsApp interactive reply-button shape. Max 3 buttons, title max 20 chars. */

@@ -8,6 +8,7 @@ import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { env } from "../config/env";
 import { normalizeWhatsappNumber } from "./whatsapp.service";
+import { sendEngineerSetupNotification } from "./engineer-onboarding.service";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const SALT_ROUNDS = 12;
@@ -47,11 +48,11 @@ function hrEmail(hrId: number): string {
   return `hr-${hrId}@sync.poornasree.local`;
 }
 
-function generateSetupToken(): { tokenHash: string; tokenExpiry: Date } {
+function generateSetupToken(): { rawToken: string; tokenHash: string; tokenExpiry: Date } {
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const tokenExpiry = new Date(Date.now() + SETUP_TOKEN_TTL_MS);
-  return { tokenHash, tokenExpiry };
+  return { rawToken, tokenHash, tokenExpiry };
 }
 
 export function getLastSyncWarning(): string | undefined {
@@ -152,6 +153,13 @@ export async function syncHrEngineers(): Promise<SyncResult> {
   try {
     const technicians = await fetchHrEngineers(!isCacheFresh());
     const managerId = await resolveManagerId();
+    const manager = await prisma.user.findUnique({
+      where: { id: managerId },
+      select: { firstName: true, lastName: true },
+    });
+    const managerName = manager
+      ? `${manager.firstName}${manager.lastName ? ` ${manager.lastName}` : ""}`
+      : "your manager";
     const now = new Date();
 
     for (const hr of technicians) {
@@ -170,7 +178,7 @@ export async function syncHrEngineers(): Promise<SyncResult> {
           crypto.randomBytes(32).toString("hex"),
           SALT_ROUNDS,
         );
-        const { tokenHash, tokenExpiry } = generateSetupToken();
+        const { rawToken, tokenHash, tokenExpiry } = generateSetupToken();
 
         await prisma.user.create({
           data: {
@@ -190,6 +198,16 @@ export async function syncHrEngineers(): Promise<SyncResult> {
               : {}),
           },
         });
+        if (whatsappNumber) {
+          const sent = await sendEngineerSetupNotification(
+            { firstName, email: hrEmail(hr.id), whatsappNumber },
+            rawToken,
+            managerName,
+          );
+          if (!sent) {
+            console.warn(`[hr-engineer.service] Setup WhatsApp not sent to ${whatsappNumber} (hr id ${hr.id})`);
+          }
+        }
         created++;
         continue;
       }

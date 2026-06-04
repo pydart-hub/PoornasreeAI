@@ -9,6 +9,7 @@ import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 import ExcelJS from "exceljs";
 import * as WhatsAppService from "../services/whatsapp.service";
+import { sendEngineerSetupNotification } from "../services/engineer-onboarding.service";
 import { env } from "../config/env";
 import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
 import {
@@ -42,29 +43,6 @@ function isPendingSetup(setPasswordToken: string | null, setPasswordTokenExpiry:
 function parseWhatsappForStorage(raw: string | undefined): string | null {
   if (!raw?.trim()) return null;
   return WhatsAppService.normalizeWhatsappNumber(raw.trim());
-}
-
-async function sendEngineerSetupMessage(
-  engineer: { firstName: string; email: string; whatsappNumber: string | null },
-  setPasswordUrl: string,
-  managerName: string,
-): Promise<boolean> {
-  if (!engineer.whatsappNumber) return false;
-  const greeting = [
-    `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
-    "",
-    `You've been registered as a Service Engineer by ${managerName}.`,
-    "",
-    "To get started, please set your password by clicking the link below:",
-    setPasswordUrl,
-    "",
-    `Your login email: ${engineer.email}`,
-    "",
-    "You'll receive ticket assignments and updates here on WhatsApp.",
-    "",
-    "Thank you! 🙏",
-  ].join("\n");
-  return WhatsAppService.sendMessage(engineer.whatsappNumber, greeting);
 }
 
 // ── POST /api/manager/engineers ───────────────────────────────────────────
@@ -134,7 +112,11 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
     const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
     let sentViaWhatsapp = false;
     if (engineer.whatsappNumber) {
-      sentViaWhatsapp = await sendEngineerSetupMessage(engineer, setPasswordUrl, managerName);
+      sentViaWhatsapp = await sendEngineerSetupNotification(
+        { firstName: engineer.firstName, email: engineer.email, whatsappNumber: engineer.whatsappNumber },
+        rawToken,
+        managerName,
+      );
       if (!sentViaWhatsapp) {
         console.warn(`[manager] WhatsApp greeting not delivered to ${engineer.whatsappNumber} — share set-password URL manually`);
       }
@@ -366,7 +348,15 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
     const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
     let sentViaWhatsapp = false;
     if (engineerForSend.whatsappNumber) {
-      sentViaWhatsapp = await sendEngineerSetupMessage(engineerForSend, setPasswordUrl, managerName);
+      sentViaWhatsapp = await sendEngineerSetupNotification(
+        {
+          firstName: engineerForSend.firstName,
+          email: engineerForSend.email,
+          whatsappNumber: engineerForSend.whatsappNumber,
+        },
+        rawToken,
+        managerName,
+      );
       if (!sentViaWhatsapp) {
         console.warn(`[manager] Resend: WhatsApp not delivered to ${engineerForSend.whatsappNumber}`);
       }
