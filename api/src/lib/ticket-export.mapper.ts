@@ -80,10 +80,9 @@ function parseIssueDescription(desc: string | null | undefined) {
   const endCustomerMatch = desc.match(/End customer:\s*([^,]+)/i);
   return {
     customerName:
+      endCustomerMatch?.[1]?.trim() ||
       pairs["customer"] ||
-      pairs["customer name"] ||
-      pairs["end customer"] ||
-      endCustomerMatch?.[1]?.trim(),
+      pairs["customer name"],
     location:
       pairs["location"] ||
       [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||

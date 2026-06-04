@@ -47,19 +47,21 @@ export function parseTicketDescription(desc: string) {
     if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
   }
   const isStructured = Object.keys(pairs).length >= 2;
+  // Regex first — comma-split fails when keys contain spaces (e.g. "Service area:")
   const endCustomerMatch = desc.match(/End customer:\s*([^,]+)/i);
   const addressMatch = desc.match(/Address:\s*([^,]+)/i);
+  const serviceAreaMatch = desc.match(/Service area:\s*(.+?)(?=,\s*(?:Pincode|Dealer|Address|End customer):|$)/i);
   return {
     isStructured,
     customerName:
+      endCustomerMatch?.[1]?.trim() ||
       pairs["customer"] ||
       pairs["customer name"] ||
-      pairs["end customer"] ||
       pairs["service contact"] ||
-      endCustomerMatch?.[1]?.trim() ||
       undefined,
-    address: pairs["address"] || addressMatch?.[1]?.trim() || undefined,
+    address: addressMatch?.[1]?.trim() || pairs["address"] || undefined,
     location:
+      serviceAreaMatch?.[1]?.trim() ||
       pairs["location"] ||
       pairs["service area"] ||
       [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||
