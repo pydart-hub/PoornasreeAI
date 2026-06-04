@@ -55,6 +55,9 @@ import {
   type ReplacedPart,
   type WorkReportImage,
   listWorkReports,
+  getWorkReport,
+  workReportImageSrc,
+  isEngineerWorkReport,
 } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -260,7 +263,30 @@ export default function ServiceManagerPage() {
   // ── Work Reports state ──
   const [workReports, setWorkReports] = useState<WorkReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<WorkReport | null>(null);
+  const [reportDetailLoading, setReportDetailLoading] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+
+  const openWorkReportDetail = useCallback(async (summary: WorkReport) => {
+    setSelectedReport(summary);
+    setReportDetailLoading(true);
+    try {
+      const full = await getWorkReport(summary.ticketId);
+      if (full) {
+        setSelectedReport({
+          ...summary,
+          ...full,
+          dealer: full.dealer ?? summary.dealer,
+          ticket: full.ticket ?? summary.ticket,
+          images: full.images ?? summary.images,
+          parts: full.parts ?? summary.parts,
+        });
+      }
+    } catch {
+      /* keep summary row data */
+    } finally {
+      setReportDetailLoading(false);
+    }
+  }, []);
 
   // ── Dealer state ──
   const [dealers, setDealers] = useState<Dealer[]>([]);
@@ -820,7 +846,7 @@ export default function ServiceManagerPage() {
               { key: "assistants" as PageView, label: "Assistants", icon: <ShieldCheck className="w-4 h-4" />, count: assistants.length },
               { key: "dealers" as PageView, label: "Dealers", icon: <Store className="w-4 h-4" />, count: dealers.length },
               { key: "work-reports" as PageView, label: "Dealer Updates", icon: <ClipboardList className="w-4 h-4" />, count: dealerActionLog.length || undefined },
-              { key: "engineer-updates" as PageView, label: "Engineer Updates", icon: <ClipboardList className="w-4 h-4" />, count: workReports.filter(r => r.dealer?.role === "service_engineer").length || undefined },
+              { key: "engineer-updates" as PageView, label: "Engineer Updates", icon: <ClipboardList className="w-4 h-4" />, count: workReports.filter(isEngineerWorkReport).length || undefined },
             ]).map((nav) => (
               <button
                 key={nav.key}
@@ -2424,7 +2450,7 @@ export default function ServiceManagerPage() {
 
           {/* ════════════════ ENGINEER UPDATES VIEW ════════════════ */}
           {pageView === "engineer-updates" && (() => {
-            const engReports = workReports.filter(r => r.dealer?.role === "service_engineer");
+            const engReports = workReports.filter(isEngineerWorkReport);
             return (
               <section className="space-y-4">
                 <div>
@@ -2497,7 +2523,7 @@ export default function ServiceManagerPage() {
                             </td>
                             <td className="px-4 py-3 text-center">
                               <button
-                                onClick={() => setSelectedReport(r)}
+                                onClick={() => openWorkReportDetail(r)}
                                 className="px-3 py-1 rounded-lg bg-primary/10 text-primary dark:bg-primary-400/10 dark:text-primary-300 hover:bg-primary/20 transition-colors font-medium"
                               >
                                 View
@@ -2922,6 +2948,7 @@ export default function ServiceManagerPage() {
           onCancelAssignment={handleCancelAssignment}
           onArchive={handleArchive}
           onUnarchive={handleUnarchive}
+          onWorkReportImageClick={(url) => setLightboxImg(url)}
         />
       )}
 
@@ -3340,6 +3367,12 @@ export default function ServiceManagerPage() {
             </div>
 
             <div className="px-6 py-5 space-y-5 overflow-y-auto">
+              {reportDetailLoading && (
+                <div className="flex items-center gap-2 text-sm text-content-secondary dark:text-content-dark-secondary">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading photos and parts…
+                </div>
+              )}
               {/* Customer complaint (original issue) */}
               {(selectedReport.ticket?.issueDescription || selectedReport.ticket?.machineCustomer) && (
                 <div className="px-3 py-3 rounded-xl bg-surface-secondary dark:bg-surface-dark-secondary border border-line dark:border-line-dark space-y-1.5">
@@ -3432,13 +3465,13 @@ export default function ServiceManagerPage() {
                     {selectedReport.images.map((img: WorkReportImage) => (
                       <button
                         key={img.id}
-                        onClick={() => setLightboxImg(img.url)}
+                        onClick={() => setLightboxImg(workReportImageSrc(img.url))}
                         className="relative group rounded-xl overflow-hidden border border-line dark:border-line-dark hover:ring-2 hover:ring-primary/40 transition-all"
                         title={img.fileName}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={img.url}
+                          src={workReportImageSrc(img.url)}
                           alt={img.fileName}
                           className="w-24 h-24 object-cover"
                         />

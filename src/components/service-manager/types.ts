@@ -81,4 +81,5 @@ export interface TicketDrawerProps {
   onCancelAssignment: (ticketId: string) => Promise<void>;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
+  onWorkReportImageClick?: (url: string) => void;
 }

@@ -288,6 +288,22 @@ export interface WorkReportImage {
   createdAt: string;
 }
 
+/** Work report belongs to an engineer job (submitted by engineer or ticket has assignee). */
+export function isEngineerWorkReport(report: WorkReport): boolean {
+  if (report.dealer?.role === "service_engineer") return true;
+  if (report.ticket?.assignedEngineerId) return true;
+  return false;
+}
+
+/** Resolve work-report image URLs (stored as /uploads/... paths). */
+export function workReportImageSrc(url: string): string {
+  if (!url) return url;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("blob:")) {
+    return url;
+  }
+  return url.startsWith("/") ? url : `/${url}`;
+}
+
 export interface WorkReport {
   id: string;
   ticketId: string;
@@ -306,6 +322,13 @@ export interface WorkReport {
     machineCustomer?: string | null;
     issueDescription?: string | null;
     status: string;
+    assignedEngineerId?: string | null;
+    assignedEngineer?: {
+      id: string;
+      firstName: string;
+      lastName?: string | null;
+      role?: string | null;
+    } | null;
   } | null;
   parts?: ReplacedPart[];
   images?: WorkReportImage[];
@@ -335,7 +358,7 @@ export async function getWorkReport(ticketId: string): Promise<WorkReport | null
   }
 }
 
-/** Create or update a work report (dealer only). */
+/** Create or update a work report (dealer or assigned engineer). */
 export async function upsertWorkReport(
   ticketId: string,
   payload: UpsertWorkReportPayload
@@ -347,7 +370,7 @@ export async function upsertWorkReport(
   return data.report;
 }
 
-/** Upload an image to a work report (dealer only). Returns the created image record. */
+/** Upload an image to a work report. Returns the created image record. */
 export async function uploadWorkReportImage(
   ticketId: string,
   file: File
@@ -364,7 +387,7 @@ export async function uploadWorkReportImage(
   return (data as { image: WorkReportImage }).image;
 }
 
-/** Delete an image from a work report (dealer only). */
+/** Delete an image from a work report. */
 export async function deleteWorkReportImage(
   ticketId: string,
   imageId: string

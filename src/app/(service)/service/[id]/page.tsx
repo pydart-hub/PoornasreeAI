@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Loader2,
   Camera,
+  ImageIcon,
   StickyNote,
   Clock,
   CircleDot,
@@ -24,8 +25,9 @@ import {
   ClipboardList,
   Plus,
   Trash2,
-  Upload,
   X,
+  AlertCircle,
+  ListChecks,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 import {
@@ -33,6 +35,7 @@ import {
   upsertWorkReport,
   uploadWorkReportImage,
   deleteWorkReportImage,
+  workReportImageSrc,
   type WorkReport,
   type WorkReportImage,
 } from "@/lib/api";
@@ -157,7 +160,8 @@ export default function WorkExecutionScreen() {
 
   // Photos (local preview only — no upload endpoint)
   const [photos, setPhotos] = useState<{ url: string; tag: string }[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoCameraRef = useRef<HTMLInputElement>(null);
+  const photoGalleryRef = useRef<HTMLInputElement>(null);
 
   // OTP
   const [otpRequested, setOtpRequested] = useState(false);
@@ -174,7 +178,11 @@ export default function WorkExecutionScreen() {
   const [reportWarranty, setReportWarranty] = useState(false);
   const [reportParts, setReportParts] = useState<{ partName: string; partNumber: string; quantity: number }[]>([]);
   const [reportImageUploading, setReportImageUploading] = useState(false);
-  const reportFileRef = useRef<HTMLInputElement>(null);
+  const [reportSaveStatus, setReportSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  const [reportSaveMessage, setReportSaveMessage] = useState("");
+  const [reportImageMessage, setReportImageMessage] = useState("");
+  const reportCameraRef = useRef<HTMLInputElement>(null);
+  const reportGalleryRef = useRef<HTMLInputElement>(null);
 
   // ── Auth guard ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -301,6 +309,14 @@ export default function WorkExecutionScreen() {
             quantity: p.quantity,
           }))
         );
+        if (report.images && report.images.length > 0) {
+          setPhotos(
+            report.images.map((img, i) => ({
+              url: workReportImageSrc(img.url),
+              tag: i === 0 ? "Before" : "After",
+            }))
+          );
+        }
       }
     } catch { /* non-fatal */ }
     finally { setReportLoading(false); }
@@ -312,6 +328,8 @@ export default function WorkExecutionScreen() {
 
   const handleSaveReport = useCallback(async () => {
     setReportSaving(true);
+    setReportSaveStatus("idle");
+    setReportSaveMessage("");
     try {
       const saved = await upsertWorkReport(ticketId, {
         problemDiagnosed: reportDiagnosed,
@@ -320,21 +338,32 @@ export default function WorkExecutionScreen() {
         parts: reportParts.filter(p => p.partName.trim()),
       });
       setWorkReport(saved);
-    } catch { /* non-fatal */ }
-    finally { setReportSaving(false); }
+      setReportSaveStatus("success");
+      setReportSaveMessage("Report saved successfully.");
+    } catch (err) {
+      setReportSaveStatus("error");
+      setReportSaveMessage(err instanceof Error ? err.message : "Could not save report. Try again.");
+    } finally {
+      setReportSaving(false);
+    }
   }, [ticketId, reportDiagnosed, reportWorkDone, reportWarranty, reportParts]);
 
   const handleReportImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setReportImageUploading(true);
+    setReportImageMessage("");
     try {
       const img = await uploadWorkReportImage(ticketId, file);
       setWorkReport(prev => prev ? { ...prev, images: [...(prev.images || []), img] } : prev);
-    } catch { /* non-fatal */ }
-    finally {
+      setPhotos(prev => [...prev, { url: workReportImageSrc(img.url), tag: prev.length === 0 ? "Before" : "After" }]);
+      setReportImageMessage("Photo uploaded.");
+    } catch (err) {
+      setReportImageMessage(err instanceof Error ? err.message : "Photo upload failed.");
+    } finally {
       setReportImageUploading(false);
-      if (reportFileRef.current) reportFileRef.current.value = "";
+      if (reportCameraRef.current) reportCameraRef.current.value = "";
+      if (reportGalleryRef.current) reportGalleryRef.current.value = "";
     }
   }, [ticketId]);
 
@@ -381,16 +410,20 @@ export default function WorkExecutionScreen() {
   const handlePhotoCapture = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
     const tag = photos.length === 0 ? "Before" : "After";
-    setPhotos(prev => [...prev, { url, tag }]);
-    addLogEntry("photo", `Photo captured (${tag})`, url);
-    // Also persist to work report
+    setReportImageMessage("");
     try {
       const img = await uploadWorkReportImage(ticketId, file);
+      const url = workReportImageSrc(img.url);
+      setPhotos(prev => [...prev, { url, tag }]);
+      addLogEntry("photo", `Photo captured (${tag})`, url);
       setWorkReport(prev => prev ? { ...prev, images: [...(prev.images || []), img] } : prev);
-    } catch { /* non-fatal */ }
-    if (fileInputRef.current) fileInputRef.current.value = "";
+      setReportImageMessage("Photo uploaded — visible to service manager.");
+    } catch (err) {
+      setReportImageMessage(err instanceof Error ? err.message : "Photo upload failed. Service manager will not see this photo.");
+    }
+    if (photoCameraRef.current) photoCameraRef.current.value = "";
+    if (photoGalleryRef.current) photoGalleryRef.current.value = "";
   }, [photos.length, ticketId]);
 
   const toggleChecklist = (idx: number) => {
@@ -532,22 +565,74 @@ export default function WorkExecutionScreen() {
             </button>
           )}
 
-          {/* ── IN-PROGRESS ACTIONS ──────────────────────────────────── */}
+          {/* ── WHAT TO COMPLETE (job checklist) ───────────────────── */}
+          {ticket.status !== "CLOSED" && ticket.status !== "ASSIGNED" && (
+            <section className="bg-blue-50 rounded-xl border border-blue-100 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <ListChecks className="w-4 h-4 text-blue-600" />
+                <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wide">What to complete on this job</h3>
+              </div>
+              <ol className="text-xs text-blue-900 space-y-1 list-decimal list-inside leading-relaxed">
+                <li><strong>Field checklist</strong> — tick items as you inspect and repair.</li>
+                <li><strong>Work notes &amp; photos</strong> — add notes or capture before/after photos (saved to server).</li>
+                <li><strong>Service report</strong> — fill diagnosis, work done, parts, and report photos; tap <strong>Save Report</strong>.</li>
+                <li><strong>Close ticket</strong> — request customer OTP, then verify to close.</li>
+              </ol>
+            </section>
+          )}
+
+          {/* ── IN-PROGRESS ACTIONS (notes & quick photos) ─────────── */}
           {(ticket.status === "IN_PROGRESS" || ticket.status === "PENDING_OTP") && (
-            <div className="flex gap-2">
-              <button onClick={() => setShowNoteInput(true)}
-                className="flex-1 h-10 rounded-lg text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
+            <section className="bg-white rounded-xl border border-gray-100 p-3 space-y-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">2. Work notes &amp; photos</h3>
+              <button
+                type="button"
+                onClick={() => setShowNoteInput(true)}
+                className="w-full h-10 rounded-lg text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5"
+              >
                 <StickyNote className="w-3.5 h-3.5" />
                 Add Note
               </button>
-              <button onClick={() => fileInputRef.current?.click()}
-                className="flex-1 h-10 rounded-lg text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
-                <Camera className="w-3.5 h-3.5" />
-                Take Photo
-              </button>
-              <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-                className="hidden" onChange={handlePhotoCapture} />
-            </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => photoCameraRef.current?.click()}
+                  className="h-10 rounded-lg text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  Take Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => photoGalleryRef.current?.click()}
+                  className="h-10 rounded-lg text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  Choose File
+                </button>
+              </div>
+              <input
+                ref={photoCameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoCapture}
+              />
+              <input
+                ref={photoGalleryRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                className="hidden"
+                onChange={handlePhotoCapture}
+              />
+              {reportImageMessage && (
+                <p className={cn(
+                  "text-xs",
+                  reportImageMessage.includes("failed") ? "text-red-600" : "text-emerald-600"
+                )}>{reportImageMessage}</p>
+              )}
+            </section>
           )}
 
           {/* ── NOTE INPUT ───────────────────────────────────────────── */}
@@ -597,7 +682,7 @@ export default function WorkExecutionScreen() {
           {ticket.status !== "CLOSED" && (
             <section className="bg-white rounded-xl border border-gray-100 p-3">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Checklist</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">1. Field checklist</h3>
                 <span className="text-[10px] text-gray-400 font-medium">
                   {checkedItems.size}/{checklist.length}
                 </span>
@@ -653,7 +738,7 @@ export default function WorkExecutionScreen() {
           {/* ── OTP COMPLETION SECTION ────────────────────────────────── */}
           {ticket.status === "IN_PROGRESS" && !otpRequested && (
             <section className="bg-amber-50 rounded-xl border border-amber-200 p-4">
-              <h3 className="text-sm font-bold text-amber-800 mb-1">Ready to close?</h3>
+              <h3 className="text-sm font-bold text-amber-800 mb-1">4. Ready to close?</h3>
               <p className="text-xs text-amber-600 mb-3">Request an OTP from the customer to verify completion.</p>
               <button onClick={handleRequestOtp} disabled={actionLoading}
                 className="w-full h-10 rounded-lg text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
@@ -666,7 +751,7 @@ export default function WorkExecutionScreen() {
           {(ticket.status === "PENDING_OTP" || (ticket.status === "IN_PROGRESS" && otpRequested)) && (
             <section className="bg-purple-50 rounded-xl border border-purple-200 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-purple-800">Verify OTP</h3>
+                <h3 className="text-sm font-bold text-purple-800">4. Verify OTP</h3>
                 <button onClick={handleResendOtp} disabled={actionLoading}
                   className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 disabled:opacity-40 transition-colors underline underline-offset-2">
                   {actionLoading ? "Sending…" : "Resend OTP"}
@@ -707,13 +792,18 @@ export default function WorkExecutionScreen() {
             <section className="bg-white rounded-xl border border-gray-100 p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-semibold text-gray-800">Service Report</h3>
-                {reportLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400 ml-auto" />}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-semibold text-gray-800">3. Service report (required for manager)</h3>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Save after filling fields below. Photos upload immediately.</p>
+                </div>
+                {reportLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400 shrink-0" />}
               </div>
 
               {/* Diagnosis */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Problem Diagnosed</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  <span className="text-indigo-600 font-semibold">A.</span> Problem diagnosed
+                </label>
                 <textarea
                   value={reportDiagnosed}
                   onChange={e => setReportDiagnosed(e.target.value)}
@@ -725,7 +815,9 @@ export default function WorkExecutionScreen() {
 
               {/* Work Done */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Work Done</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  <span className="text-indigo-600 font-semibold">B.</span> Work done / steps taken
+                </label>
                 <textarea
                   value={reportWorkDone}
                   onChange={e => setReportWorkDone(e.target.value)}
@@ -743,13 +835,13 @@ export default function WorkExecutionScreen() {
                   onChange={e => setReportWarranty(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span className="text-xs text-gray-600">Warranty claim required</span>
+                <span className="text-xs text-gray-600"><span className="text-indigo-600 font-semibold">C.</span> Warranty claim required</span>
               </label>
 
               {/* Parts */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-gray-500">Replaced Parts</label>
+                  <label className="text-xs font-medium text-gray-500"><span className="text-indigo-600 font-semibold">D.</span> Replaced parts</label>
                   <button
                     onClick={() => setReportParts(prev => [...prev, { partName: "", partNumber: "", quantity: 1 }])}
                     className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
@@ -794,18 +886,44 @@ export default function WorkExecutionScreen() {
 
               {/* Photos */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-gray-500">Photos</label>
+                <label className="block text-xs font-medium text-gray-500 mb-2">
+                  <span className="text-indigo-600 font-semibold">E.</span> Report photos
+                </label>
+                <div className="grid grid-cols-2 gap-2 mb-2">
                   <button
-                    onClick={() => reportFileRef.current?.click()}
+                    type="button"
+                    onClick={() => reportCameraRef.current?.click()}
                     disabled={reportImageUploading}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 transition-colors"
+                    className="h-9 rounded-lg text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
                   >
-                    {reportImageUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                    Upload Photo
+                    {reportImageUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                    Take Photo
                   </button>
-                  <input ref={reportFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReportImageUpload} />
+                  <button
+                    type="button"
+                    onClick={() => reportGalleryRef.current?.click()}
+                    disabled={reportImageUploading}
+                    className="h-9 rounded-lg text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
+                  >
+                    {reportImageUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                    Choose File
+                  </button>
                 </div>
+                <input
+                  ref={reportCameraRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleReportImageUpload}
+                />
+                <input
+                  ref={reportGalleryRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  className="hidden"
+                  onChange={handleReportImageUpload}
+                />
                 {(workReport?.images || []).length === 0 && !reportImageUploading && (
                   <p className="text-xs text-gray-400 italic">No photos yet</p>
                 )}
@@ -814,7 +932,7 @@ export default function WorkExecutionScreen() {
                     {(workReport?.images || []).map((img: WorkReportImage) => (
                       <div key={img.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={img.url} alt={img.fileName || "photo"} className="w-full h-full object-cover" />
+                        <img src={workReportImageSrc(img.url)} alt={img.fileName || "photo"} className="w-full h-full object-cover" />
                         <button
                           onClick={() => handleDeleteReportImage(img.id)}
                           className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -827,6 +945,18 @@ export default function WorkExecutionScreen() {
                 )}
               </div>
 
+              {reportSaveMessage && (
+                <div className={cn(
+                  "flex items-start gap-2 rounded-lg px-3 py-2 text-xs",
+                  reportSaveStatus === "success" && "bg-emerald-50 text-emerald-800 border border-emerald-200",
+                  reportSaveStatus === "error" && "bg-red-50 text-red-800 border border-red-200",
+                )}>
+                  {reportSaveStatus === "error" && <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
+                  {reportSaveStatus === "success" && <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />}
+                  <span>{reportSaveMessage}</span>
+                </div>
+              )}
+
               {/* Save */}
               <button
                 onClick={handleSaveReport}
@@ -834,7 +964,7 @@ export default function WorkExecutionScreen() {
                 className="w-full h-10 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {reportSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Save Report
+                {reportSaving ? "Saving…" : "Save Report"}
               </button>
             </section>
           )}

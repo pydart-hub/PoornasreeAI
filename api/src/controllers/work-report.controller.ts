@@ -36,6 +36,24 @@ export const workReportUpload = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 }).single("image");
 
+/** Dealer/engineer access is based on ticket ownership, not workReport.dealerId alone. */
+async function canAccessTicketWorkReport(
+  userId: string,
+  role: string,
+  ticketId: string
+): Promise<boolean> {
+  if (role === "service_manager" || role === "admin") return true;
+
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: { dealerId: true, assignedEngineerId: true },
+  });
+  if (!ticket) return false;
+  if (role === "service_engineer") return ticket.assignedEngineerId === userId;
+  if (role === "dealer") return ticket.dealerId === userId;
+  return false;
+}
+
 // ── GET /api/work-reports ─────────────────────────────────────────────────
 // dealer/service_engineer: own reports | service_manager | admin: all
 export async function listWorkReports(req: Request, res: Response): Promise<void> {
@@ -61,8 +79,14 @@ export async function listWorkReports(req: Request, res: Response): Promise<void
             machineCustomer: true,
             issueDescription: true,
             status: true,
+            assignedEngineerId: true,
+            assignedEngineer: {
+              select: { id: true, firstName: true, lastName: true, role: true },
+            },
           },
         },
+        parts: { orderBy: { createdAt: "asc" } },
+        images: { orderBy: { createdAt: "asc" } },
         _count: { select: { parts: true, images: true } },
       },
     });
@@ -105,8 +129,7 @@ export async function getWorkReport(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Scope check: dealer/engineer can only see their own
-    if ((role === "dealer" || role === "service_engineer") && report.dealerId !== userId) {
+    if (!(await canAccessTicketWorkReport(userId, role, ticketId))) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
@@ -221,29 +244,17 @@ export async function uploadReportImage(req: Request, res: Response): Promise<vo
     // Ensure work report exists for this dealer's ticket
     let report = await prisma.workReport.findUnique({ where: { ticketId } });
 
-    if (!report) {
-      // Auto-create a blank report so images can be attached
-      const ticket = await prisma.ticket.findUnique({
-        where: { id: ticketId },
-        select: { dealerId: true, assignedEngineerId: true, status: true },
-      });
-      const { role } = req.user!;
-      const isOwner = role === "service_engineer"
-        ? ticket?.assignedEngineerId === userId
-        : ticket?.dealerId === userId;
-      if (!ticket || !isOwner) {
-        // Clean up uploaded file
-        fs.unlink(req.file.path, () => {});
-        res.status(403).json({ error: "Forbidden" });
-        return;
-      }
-      report = await prisma.workReport.create({
-        data: { ticketId, dealerId: userId },
-      });
-    } else if (report.dealerId !== userId) {
+    const { role } = req.user!;
+    if (!(await canAccessTicketWorkReport(userId, role, ticketId))) {
       fs.unlink(req.file.path, () => {});
       res.status(403).json({ error: "Forbidden" });
       return;
+    }
+
+    if (!report) {
+      report = await prisma.workReport.create({
+        data: { ticketId, dealerId: userId },
+      });
     }
 
     const relativeUrl = `/uploads/work-reports/${req.file.filename}`;
@@ -266,7 +277,7 @@ export async function uploadReportImage(req: Request, res: Response): Promise<vo
 
 // ── DELETE /api/work-reports/:ticketId/images/:imageId ───────────────────
 export async function deleteReportImage(req: Request, res: Response): Promise<void> {
-  const { userId } = req.user!;
+  const { userId, role } = req.user!;
   const ticketId = req.params.ticketId as string;
   const imageId = req.params.imageId as string;
 
@@ -282,10 +293,15 @@ export async function deleteReportImage(req: Request, res: Response): Promise<vo
 
     const report = await prisma.workReport.findUnique({
       where: { id: image.workReportId },
-      select: { dealerId: true, ticketId: true },
+      select: { ticketId: true },
     });
 
-    if (!report || report.ticketId !== ticketId || report.dealerId !== userId) {
+    if (!report || report.ticketId !== ticketId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    if (!(await canAccessTicketWorkReport(userId, role, ticketId))) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }

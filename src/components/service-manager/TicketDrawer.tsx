@@ -13,6 +13,7 @@ import { DrawerIssueDetails } from "./DrawerIssueDetails";
 import { DrawerCustomerInfo } from "./DrawerCustomerInfo";
 import { DrawerSLA } from "./DrawerSLA";
 import { DrawerAttachments } from "./DrawerAttachments";
+import { DrawerWorkReport } from "./DrawerWorkReport";
 import { ReassignModal } from "./ReassignModal";
 
 export function TicketDrawer({
@@ -28,6 +29,7 @@ export function TicketDrawer({
   onCancelAssignment,
   onArchive,
   onUnarchive,
+  onWorkReportImageClick,
 }: TicketDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [showReassignModal, setShowReassignModal] = useState(false);
@@ -115,6 +117,12 @@ export function TicketDrawer({
 
           {/* ── 8. Attachments ── */}
           <DrawerAttachments ticket={ticket} />
+
+          {/* ── 9. Engineer work report (photos from dashboard / WhatsApp) ── */}
+          <DrawerWorkReport
+            ticketId={ticket.id}
+            onImageClick={onWorkReportImageClick}
+          />
 
           {/* ── Footer: Meta + Archive ── */}
           <div className="px-5 py-4 border-t border-line dark:border-line-dark space-y-3">
