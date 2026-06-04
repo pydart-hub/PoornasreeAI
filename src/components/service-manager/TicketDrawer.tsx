@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { Archive, RotateCcw } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import type { TicketDrawerProps } from "./types";
-import { parseTicketDescription } from "./utils";
+import { resolveTicketCustomerName } from "./utils";
 import { DrawerHeader } from "./DrawerHeader";
 import { DrawerActionBar } from "./DrawerActionBar";
 import { DrawerTimeline } from "./DrawerTimeline";
@@ -36,9 +36,7 @@ export function TicketDrawer({
 
   // issueDescription holds structured metadata ("Customer: X, Location: Y, ...")
   // problemDescription holds the actual complaint text
-  const issueMeta = parseTicketDescription(ticket.issueDescription || "");
-  const descMeta = parseTicketDescription(ticket.problemDescription || "");
-  const customerName = ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || undefined;
+  const customerName = resolveTicketCustomerName(ticket) ?? undefined;
 
   // Close on Escape
   useEffect(() => {

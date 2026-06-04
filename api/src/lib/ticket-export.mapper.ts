@@ -77,8 +77,13 @@ function parseIssueDescription(desc: string | null | undefined) {
     const m = seg.match(/^\s*([^:]+?):\s*(.+)$/);
     if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
   }
+  const endCustomerMatch = desc.match(/End customer:\s*([^,]+)/i);
   return {
-    customerName: pairs["customer"] || pairs["customer name"],
+    customerName:
+      pairs["customer"] ||
+      pairs["customer name"] ||
+      pairs["end customer"] ||
+      endCustomerMatch?.[1]?.trim(),
     location:
       pairs["location"] ||
       [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||

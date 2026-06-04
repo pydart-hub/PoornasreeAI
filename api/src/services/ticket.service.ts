@@ -13,7 +13,7 @@ import { notifyTicketEvent } from "./integration-webhook.service";
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const TICKET_INCLUDE = {
-  customer:        { select: { id: true, firstName: true, lastName: true, email: true } },
+  customer:        { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
   dealer:          { select: { id: true, firstName: true, lastName: true, email: true } },
   assignedManager: { select: { id: true, firstName: true, lastName: true } },
   assignedEngineer:{ select: { id: true, firstName: true, lastName: true } },

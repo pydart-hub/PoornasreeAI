@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Phone } from "lucide-react";
 import type { ServiceTicket } from "./types";
-import { parseTicketDescription } from "./utils";
+import { parseTicketDescription, resolveTicketCustomerName } from "./utils";
 
 interface DrawerCustomerInfoProps {
   ticket: ServiceTicket;
@@ -15,15 +15,23 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
   const issueMeta = parseTicketDescription(ticket.issueDescription || "");
   const descMeta = parseTicketDescription(ticket.problemDescription || "");
 
-  const customerName = resolvedName || ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || null;
+  const customerName = resolvedName || resolveTicketCustomerName(ticket);
   const phone = ticket.phoneNumber || issueMeta.phone || descMeta.phone;
 
   // Only show the registered account email when the customer relation IS the actual customer
   // (not the admin proxy used for chat-submitted tickets where machineCustomer/issueDescription holds the real name)
-  const isAdminProxy = !!(ticket.machineCustomer || issueMeta.customerName || descMeta.customerName || resolvedName);
+  const isAdminProxy = !!(customerName && ticket.customer?.role === "admin");
   const customerEmail = isAdminProxy ? null : (ticket.customer?.email ?? null);
 
-  const hasAddress = ticket.customerAddress || ticket.machineAddress1 || ticket.machineAddress2 || ticket.pincode || issueMeta.location || descMeta.location;
+  const chatAddress = issueMeta.address || descMeta.address;
+  const hasAddress =
+    ticket.customerAddress ||
+    chatAddress ||
+    ticket.machineAddress1 ||
+    ticket.machineAddress2 ||
+    ticket.pincode ||
+    issueMeta.location ||
+    descMeta.location;
 
   if (!customerName && !phone && !hasAddress) return null;
 
@@ -66,8 +74,8 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
             </button>
             {addressOpen && (
               <div className="mt-1.5 text-xs text-content-secondary dark:text-content-dark-secondary space-y-0.5 pl-4 border-l-2 border-line dark:border-line-dark">
-                {ticket.customerAddress && (
-                  <p className="font-medium text-content dark:text-content-dark">📍 {ticket.customerAddress}</p>
+                {(ticket.customerAddress || chatAddress) && (
+                  <p className="font-medium text-content dark:text-content-dark">📍 {ticket.customerAddress || chatAddress}</p>
                 )}
                 {ticket.machineAddress1 && <p>{ticket.machineAddress1}</p>}
                 {ticket.machineAddress2 && <p>{ticket.machineAddress2}</p>}

@@ -45,7 +45,7 @@ export interface ServiceTicket {
   firstEngineeredAt?: string | null;
   closedAt?: string | null;
   mediaUrls?: string[];
-  customer?: { firstName: string; lastName?: string | null; email: string } | null;
+  customer?: { firstName: string; lastName?: string | null; email: string; role?: string } | null;
   assignedEngineer?: { firstName: string; lastName?: string | null } | null;
   assignedManager?: { firstName: string; lastName?: string | null } | null;
   dealer?: { id?: string; firstName: string; lastName?: string | null } | null;

@@ -47,17 +47,48 @@ export function parseTicketDescription(desc: string) {
     if (m) pairs[m[1].trim().toLowerCase()] = m[2].trim();
   }
   const isStructured = Object.keys(pairs).length >= 2;
+  const endCustomerMatch = desc.match(/End customer:\s*([^,]+)/i);
+  const addressMatch = desc.match(/Address:\s*([^,]+)/i);
   return {
     isStructured,
-    customerName: pairs["customer"] || pairs["customer name"] || undefined,
+    customerName:
+      pairs["customer"] ||
+      pairs["customer name"] ||
+      pairs["end customer"] ||
+      pairs["service contact"] ||
+      endCustomerMatch?.[1]?.trim() ||
+      undefined,
+    address: pairs["address"] || addressMatch?.[1]?.trim() || undefined,
     location:
       pairs["location"] ||
+      pairs["service area"] ||
       [pairs["address1"], pairs["address2"]].filter(Boolean).join(", ") ||
       [pairs["place"], pairs["district"], pairs["state"]].filter(Boolean).join(", ") ||
       undefined,
     phone: pairs["phone"] || undefined,
     pincode: pairs["pincode"] || undefined,
   };
+}
+
+/** Prefer Passtest / parsed chat name; never show admin proxy account as customer. */
+export function resolveTicketCustomerName(ticket: {
+  machineCustomer?: string | null;
+  issueDescription?: string | null;
+  problemDescription?: string | null;
+  customer?: { firstName?: string | null; lastName?: string | null; role?: string } | null;
+}): string | null {
+  const issueMeta = parseTicketDescription(ticket.issueDescription ?? "");
+  const descMeta = parseTicketDescription(ticket.problemDescription ?? "");
+  const name =
+    ticket.machineCustomer?.trim() ||
+    issueMeta.customerName ||
+    descMeta.customerName;
+  if (name) return name;
+  if (ticket.customer?.role === "admin") return null;
+  const first = ticket.customer?.firstName?.trim();
+  if (!first) return null;
+  const last = ticket.customer?.lastName?.trim();
+  return last ? `${first} ${last}` : first;
 }
 
 /** Chat tickets store the real complaint in problemDescription; issueDescription is metadata. */

@@ -46,7 +46,7 @@ import {
 import { getStates, getDistricts, getPincodes, type PincodeEntry } from "@/lib/indiaLocations";
 import { getSocket } from "@/lib/socket-client";
 import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
-import { parseTicketDescription } from "@/components/service-manager/utils";
+import { parseTicketDescription, resolveTicketCustomerName } from "@/components/service-manager/utils";
 import { getAssignmentMode, DEALER_RESPONSE_LABELS } from "@/components/service-manager/assignmentMode";
 import TestCustomerPanel from "@/components/admin/TestCustomerPanel";
 import {
@@ -1086,13 +1086,12 @@ export default function ServiceManagerPage() {
                 const renderTicketCard = (ticket: ServiceTicket) => {
                   const canAssign = ticket.status === "OPEN";
                   const isArchived = archivedIds.has(ticket.id);
-                  const parsed = parseTicketDescription(ticket.problemDescription);
+                  const customerDisplay = resolveTicketCustomerName(ticket);
                   const parsedIssue = parseTicketDescription(ticket.issueDescription ?? "");
-                  const customerDisplay = ticket.machineCustomer || parsedIssue.customerName || parsed.customerName || ticket.customer?.firstName;
                   const locationShort = [
                     [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
                     ticket.pincode?.code,
-                  ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsed.location;
+                  ].filter(Boolean).join(" · ") || ticket.machineAddress2 || ticket.machineAddress1 || parsedIssue.location;
                   const complaintDisplay = ticket.problemDescription;
                   const isPending = ticket.status === "OPEN" && !ticket.assignedEngineer && !ticket.assignedDealer;
                   const assignmentMode = getAssignmentMode(ticket);
@@ -1101,11 +1100,14 @@ export default function ServiceManagerPage() {
                   const needsActionSoon = isPending && (ticket.ageHours ?? 0) >= 6;
                   const borderColor = isOverdue ? "border-l-red-500" : needsActionSoon ? "border-l-amber-400" : "border-l-transparent";
 
+                  const isAssignDropdownOpen = dropdownOpen === ticket.id;
+
                   return (
                     <div key={ticket.id}
                       onClick={() => setDrawerTicket(ticket)}
                       className={cn(
-                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 shadow-sm cursor-pointer",
+                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 shadow-sm cursor-pointer",
+                        isAssignDropdownOpen ? "relative z-30 overflow-visible" : "overflow-hidden",
                         borderColor
                       )}>
                       <div className="p-3 space-y-1.5">
@@ -1192,7 +1194,12 @@ export default function ServiceManagerPage() {
                           <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                             {canAssign && !isArchived && assignmentMode === "engineer" && (
                                 <div className="relative">
-                                  <button onClick={() => setDropdownOpen(dropdownOpen === ticket.id ? null : ticket.id)}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDropdownOpen(isAssignDropdownOpen ? null : ticket.id);
+                                    }}
                                     disabled={assigningId === ticket.id || engineers.length === 0}
                                     className={cn(
                                       "flex items-center gap-1 h-7 px-2.5 rounded text-xs font-semibold transition-all",
@@ -1205,7 +1212,7 @@ export default function ServiceManagerPage() {
                                     <ChevronDown className="w-2.5 h-2.5" />
                                   </button>
 
-                                  {dropdownOpen === ticket.id && (() => {
+                                  {isAssignDropdownOpen && (() => {
                                     const ticketPincode = ticket.pincode;
                                     const matched = ticketPincode
                                       ? sortedEngineers.filter(e =>
@@ -1219,7 +1226,7 @@ export default function ServiceManagerPage() {
                                     const noZoneEngineer = hasTicketPincode && matched.length === 0;
 
                                     return (
-                                      <div className="absolute right-0 bottom-full mb-1 w-60 z-20 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                                      <div className="absolute right-0 top-full mt-1 w-60 z-40 rounded-lg bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark shadow-xl overflow-hidden max-h-64 overflow-y-auto">
                                         <div className="px-3 py-1.5 border-b border-line dark:border-line-dark">
                                           <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary">Select Engineer</p>
                                           {hasTicketPincode ? (
@@ -1246,7 +1253,13 @@ export default function ServiceManagerPage() {
                                           </div>
                                         ) : (
                                           matched.map(eng => (
-                                            <button key={eng.id} onClick={() => handleAssignEngineer(ticket.id, eng.id)}
+                                            <button
+                                              key={eng.id}
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleAssignEngineer(ticket.id, eng.id);
+                                              }}
                                               className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2">
                                               <span className="flex items-center gap-1 min-w-0">
                                                 <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
@@ -2893,8 +2906,20 @@ export default function ServiceManagerPage() {
       )}
 
       {/* Close dropdowns on outside click */}
-      {dropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(null)} />}
-      {dealerDropdownOpen && <div className="fixed inset-0 z-10" onClick={() => setDealerDropdownOpen(null)} />}
+      {dropdownOpen && (
+        <div
+          className="fixed inset-0 z-20"
+          aria-hidden
+          onClick={() => setDropdownOpen(null)}
+        />
+      )}
+      {dealerDropdownOpen && (
+        <div
+          className="fixed inset-0 z-20"
+          aria-hidden
+          onClick={() => setDealerDropdownOpen(null)}
+        />
+      )}
 
       {/* ═══════════════════ TICKET DECISION PANEL ═══════════════════ */}
       {drawerTicket && (
