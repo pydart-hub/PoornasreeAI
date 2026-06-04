@@ -4,6 +4,7 @@ set -e
 REPO_DIR="${1:-/root/poornasree-ai}"
 BLOCK='
 # Engineer WhatsApp templates (Poornasree)
+WA_BUSINESS_ACCOUNT_ID=1631698127950324
 WA_ENGINEER_SETUP_TEMPLATE=engineer_account_setup
 WA_ENGINEER_SETUP_TEMPLATE_LANG=en
 WA_ENGINEER_TICKET_TEMPLATE=engineer_ticket_assigned

@@ -12,9 +12,17 @@ function loadEnv() {
     console.error("Missing api/.env");
     process.exit(1);
   }
-  for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
-    const m = line.match(/^([^#=]+)=(.*)$/);
-    if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    process.env[key] = val;
   }
 }
 
@@ -51,13 +59,18 @@ async function main() {
     process.exit(1);
   }
 
-  const phoneRes = await graphGet(
-    `https://graph.facebook.com/v21.0/${phoneId}?fields=whatsapp_business_account`,
-    token,
-  );
-  const wabaId = phoneRes.json?.whatsapp_business_account?.id;
+  let wabaId = process.env.WA_BUSINESS_ACCOUNT_ID || "";
   if (!wabaId) {
-    console.error("Could not resolve WhatsApp Business Account ID:", JSON.stringify(phoneRes.json));
+    const phoneRes = await graphGet(
+      `https://graph.facebook.com/v21.0/${phoneId}?fields=whatsapp_business_account_id`,
+      token,
+    );
+    wabaId = phoneRes.json?.whatsapp_business_account_id || "";
+  }
+  if (!wabaId) {
+    console.error(
+      "Set WA_BUSINESS_ACCOUNT_ID in api/.env (WhatsApp Business Account ID from Meta Business Suite).",
+    );
     process.exit(1);
   }
   console.log("WABA ID:", wabaId);
