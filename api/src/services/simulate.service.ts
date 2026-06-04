@@ -25,6 +25,14 @@ import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
 import { io } from "../lib/socket";
 import { env } from "../config/env";
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CATEGORY_KEYS,
+  getCategoryLabel,
+  isProductCategory,
+  sortByCategory,
+  type ProductCategory,
+} from "../constants/productCategories";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -41,6 +49,7 @@ type SessionMeta = {
   complaint?:       string;
   pincodeDisplay?:  string;
   selectedProduct?: string;
+  productCategory?: ProductCategory;
   feedbackTicketId?: string;
   tsSessionId?:     string;
   tsSerialPath?:    boolean;
@@ -119,6 +128,10 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   PRODUCT_SELECTED: {
     en: "✅ *Product:* {product}\n\n📝 *Describe your complaint:*\n\nPlease explain the issue you are facing.\n\nExample: _LED blinking, not heating, display not working_",
     hi: "✅ *उत्पाद:* {product}\n\n📝 *अपनी शिकायत बताएं:*\n\nकृपया अपनी समस्या बताएं।\n\nउदाहरण: _LED झपक रही है, गर्म नहीं हो रहा, डिस्प्ले काम नहीं कर रहा_",
+  },
+  SELECT_CATEGORY: {
+    en: "📂 *Select product category:*",
+    hi: "📂 *उत्पाद श्रेणी चुनें:*",
   },
   SELECT_PRODUCT: {
     en: "📦 *Select your product:*",
@@ -400,6 +413,9 @@ async function routeState(
     case "MACHINE_CONFIRM":
       return handleMachineConfirm(session.id, meta, text);
 
+    case "COMPLAINT_CATEGORY":
+      return handleComplaintCategory(session.id, meta, text);
+
     case "COMPLAINT_PRODUCT":
       return handleComplaintProduct(session.id, phoneNumber, meta, text);
 
@@ -527,10 +543,9 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
   await updateSession(sessionId, "VIEW_PRODUCTS", meta);
 
   // Fetch admin-managed products from the database
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
+  const products = sortByCategory(
+    await prisma.product.findMany({ where: { isActive: true } }),
+  );
 
   if (products.length === 0) {
     return makeReply(
@@ -548,8 +563,7 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
       caption: `*${p.name}*${p.price ? `\n💰 ${p.price}` : ""}${p.detail ? `\n\n${p.detail}` : ""}${p.contactNumber ? `\n\n📞 ${p.contactNumber}` : ""}`,
     }));
 
-  // Build summary text
-  const productLines = products.map((p, i) => `${i + 1}. ${p.name}`);
+  const productLines = formatProductsGrouped(products);
   const contactNumber = products.find(p => p.contactNumber)?.contactNumber ?? DEFAULT_CONTACT;
 
   const summary = [
@@ -658,50 +672,139 @@ async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: 
   return makeReply(t("SELECT_VALID", lang), getYesNoButtons(lang));
 }
 
-// ── COMPLAINT_PRODUCT (show product list) ─────────────────────────────────
-async function showProductSelection(sessionId: string, meta: SessionMeta) {
-  const lang: Lang = (meta.language ?? "en") as Lang;
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
+// ── Product catalogue helpers ─────────────────────────────────────────────
+type CatalogueProduct = { name: string; category: string; displayOrder: number };
 
-  let productNames: string[];
-  if (products.length > 0) {
-    productNames = products.map(p => p.name);
+const FALLBACK_PRODUCTS: CatalogueProduct[] = [
+  { name: "Milk Analyzer", category: "other", displayOrder: 1 },
+  { name: "VIBRO Stirrer", category: "other", displayOrder: 2 },
+  { name: "Water Pump", category: "other", displayOrder: 3 },
+  { name: "Motor Controller", category: "other", displayOrder: 4 },
+  { name: "Display Unit", category: "other", displayOrder: 5 },
+];
+
+async function fetchActiveCatalogue(): Promise<CatalogueProduct[]> {
+  const rows = sortByCategory(
+    await prisma.product.findMany({ where: { isActive: true } }),
+  );
+  return rows.length > 0 ? rows : FALLBACK_PRODUCTS;
+}
+
+function formatProductsGrouped(products: CatalogueProduct[]): string[] {
+  const lines: string[] = [];
+  let num = 1;
+  for (const key of PRODUCT_CATEGORY_KEYS) {
+    const inCategory = products.filter(p => p.category === key);
+    if (inCategory.length === 0) continue;
+    lines.push(`*${PRODUCT_CATEGORIES[key].label}*`);
+    for (const p of inCategory) {
+      lines.push(`${num}. ${p.name}`);
+      num += 1;
+    }
+    lines.push("");
+  }
+  const uncategorized = products.filter(p => !isProductCategory(p.category));
+  if (uncategorized.length > 0) {
+    lines.push(`*Other*`);
+    for (const p of uncategorized) {
+      lines.push(`${num}. ${p.name}`);
+      num += 1;
+    }
+  }
+  return lines;
+}
+
+function usesCategoryFlow(products: CatalogueProduct[]): boolean {
+  return products.some(p => isProductCategory(p.category));
+}
+
+// ── COMPLAINT: category then product ──────────────────────────────────────
+async function showProductSelection(sessionId: string, meta: SessionMeta) {
+  const products = await fetchActiveCatalogue();
+  if (!usesCategoryFlow(products)) {
+    return showProductList(sessionId, meta, products);
+  }
+  return showCategorySelection(sessionId, meta);
+}
+
+async function showCategorySelection(sessionId: string, meta: SessionMeta) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const products = await fetchActiveCatalogue();
+  const categoryRows = PRODUCT_CATEGORY_KEYS
+    .filter(key => products.some(p => p.category === key))
+    .map((key, i) => ({
+      id: String(i + 1),
+      title: PRODUCT_CATEGORIES[key].label.slice(0, 24),
+    }));
+
+  await updateSession(sessionId, "COMPLAINT_CATEGORY", { ...meta, productCategory: undefined });
+  return makeReply(
+    t("SELECT_CATEGORY", lang),
+    undefined,
+    { buttonText: lang === "hi" ? "श्रेणी चुनें 📂" : "Select Category 📂", rows: categoryRows },
+  );
+}
+
+async function handleComplaintCategory(sessionId: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const products = await fetchActiveCatalogue();
+  const availableCategories = PRODUCT_CATEGORY_KEYS.filter(key =>
+    products.some(p => p.category === key),
+  );
+
+  const index = parseInt(text, 10) - 1;
+  let category: ProductCategory | undefined;
+  if (!isNaN(index) && index >= 0 && index < availableCategories.length) {
+    category = availableCategories[index];
   } else {
-    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
+    const match = availableCategories.find(
+      key =>
+        PRODUCT_CATEGORIES[key].label.toLowerCase().includes(text.toLowerCase()) ||
+        key.includes(text.toLowerCase()),
+    );
+    category = match;
   }
 
-  const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
+  if (!category) {
+    return showCategorySelection(sessionId, meta);
+  }
+
+  const inCategory = products.filter(p => p.category === category);
+  return showProductList(sessionId, { ...meta, productCategory: category }, inCategory);
+}
+
+async function showProductList(
+  sessionId: string,
+  meta: SessionMeta,
+  products: CatalogueProduct[],
+) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const productRows = products.map((p, i) => ({ id: String(i + 1), title: p.name.slice(0, 24) }));
   await updateSession(sessionId, "COMPLAINT_PRODUCT", meta);
+  const categoryLabel = meta.productCategory ? getCategoryLabel(meta.productCategory) : "";
+  const header = categoryLabel
+    ? `${t("SELECT_PRODUCT", lang)}\n_${categoryLabel}_`
+    : t("SELECT_PRODUCT", lang);
   return makeReply(
-    t("SELECT_PRODUCT", lang),
+    header,
     undefined,
-    { buttonText: lang === "hi" ? "उत्पाद चुनें 📦" : "Select Product 📦", rows: productRows }
+    { buttonText: lang === "hi" ? "उत्पाद चुनें 📦" : "Select Product 📦", rows: productRows },
   );
 }
 
 async function handleComplaintProduct(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  const products = await prisma.product.findMany({
-    where: { isActive: true },
-    orderBy: { displayOrder: "asc" },
-  });
-
-  let productNames: string[];
-  if (products.length > 0) {
-    productNames = products.map(p => p.name);
-  } else {
-    productNames = ["Milk Analyzer", "VIBRO Stirrer", "Water Pump", "Motor Controller", "Display Unit"];
-  }
+  const allProducts = await fetchActiveCatalogue();
+  const products = meta.productCategory
+    ? allProducts.filter(p => p.category === meta.productCategory)
+    : allProducts;
+  const productNames = products.map(p => p.name);
 
   const index = parseInt(text, 10) - 1;
   if (isNaN(index) || index < 0 || index >= productNames.length) {
     const directMatch = productNames.find(p => p.toLowerCase().includes(text.toLowerCase()));
     if (!directMatch) {
-      const productRows = productNames.map((p, i) => ({ id: String(i + 1), title: p.slice(0, 24) }));
-      return makeReply(t("SELECT_VALID_PRODUCT", lang), undefined, { buttonText: lang === "hi" ? "उत्पाद चुनें 📦" : "Select Product 📦", rows: productRows });
+      return showProductList(sessionId, meta, products);
     }
     const updatedMeta = { ...meta, selectedProduct: directMatch };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);

@@ -2,10 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Trash2, Loader2, Search, Package, Pencil, Power, X, Upload, Phone } from "lucide-react";
+import {
+  PRODUCT_CATEGORIES,
+  PRODUCT_CATEGORY_KEYS,
+  getCategoryLabel,
+  sortByCategory,
+  type ProductCategory,
+} from "@/lib/productCategories";
 
 interface Product {
   id: string;
   name: string;
+  category: string;
   detail?: string | null;
   price?: string | null;
   imageUrl?: string | null;
@@ -14,6 +22,8 @@ interface Product {
   isActive: boolean;
   createdAt: string;
 }
+
+const DEFAULT_CATEGORY: ProductCategory = "lactosure";
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
@@ -31,7 +41,14 @@ export default function ProductsTab() {
   const [search, setSearch] = useState("");
 
   // Create form
-  const [form, setForm] = useState({ name: "", detail: "", price: "", contactNumber: "", displayOrder: "0" });
+  const [form, setForm] = useState({
+    name: "",
+    category: DEFAULT_CATEGORY,
+    detail: "",
+    price: "",
+    contactNumber: "",
+    displayOrder: "0",
+  });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,7 +56,14 @@ export default function ProductsTab() {
 
   // Edit modal
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", detail: "", price: "", contactNumber: "", displayOrder: "0" });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    category: DEFAULT_CATEGORY,
+    detail: "",
+    price: "",
+    contactNumber: "",
+    displayOrder: "0",
+  });
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -71,6 +95,7 @@ export default function ProductsTab() {
     try {
       const fd = new FormData();
       fd.append("name", form.name);
+      fd.append("category", form.category);
       fd.append("detail", form.detail);
       fd.append("price", form.price);
       fd.append("contactNumber", form.contactNumber);
@@ -78,7 +103,14 @@ export default function ProductsTab() {
       if (imageFile) fd.append("image", imageFile);
 
       await apiFetch("/api/admin/products", { method: "POST", body: fd });
-      setForm({ name: "", detail: "", price: "", contactNumber: "", displayOrder: "0" });
+      setForm({
+        name: "",
+        category: DEFAULT_CATEGORY,
+        detail: "",
+        price: "",
+        contactNumber: "",
+        displayOrder: "0",
+      });
       setImageFile(null);
       setImagePreview(null);
       fetchProducts();
@@ -115,6 +147,9 @@ export default function ProductsTab() {
     setEditingProduct(p);
     setEditForm({
       name: p.name,
+      category: (PRODUCT_CATEGORY_KEYS.includes(p.category as ProductCategory)
+        ? p.category
+        : "other") as ProductCategory,
       detail: p.detail ?? "",
       price: p.price ?? "",
       contactNumber: p.contactNumber ?? "",
@@ -136,6 +171,7 @@ export default function ProductsTab() {
     try {
       const fd = new FormData();
       fd.append("name", editForm.name);
+      fd.append("category", editForm.category);
       fd.append("detail", editForm.detail);
       fd.append("price", editForm.price);
       fd.append("contactNumber", editForm.contactNumber);
@@ -162,9 +198,101 @@ export default function ProductsTab() {
     reader.readAsDataURL(file);
   };
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.detail ?? "").toLowerCase().includes(search.toLowerCase())
+  const filtered = sortByCategory(
+    products.filter(
+      p =>
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.detail ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        getCategoryLabel(p.category).toLowerCase().includes(search.toLowerCase()),
+    ),
+  );
+
+  const grouped = PRODUCT_CATEGORY_KEYS.map(key => ({
+    key,
+    label: PRODUCT_CATEGORIES[key].label,
+    items: filtered.filter(p => p.category === key),
+  })).filter(g => g.items.length > 0);
+
+  const uncategorized = filtered.filter(
+    p => !PRODUCT_CATEGORY_KEYS.includes(p.category as ProductCategory),
+  );
+
+  const categorySelect = (value: string, onChange: (v: ProductCategory) => void) => (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value as ProductCategory)}
+      className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+    >
+      {PRODUCT_CATEGORY_KEYS.map(key => (
+        <option key={key} value={key}>
+          {PRODUCT_CATEGORIES[key].label}
+        </option>
+      ))}
+    </select>
+  );
+
+  const renderProductCard = (p: Product) => (
+    <div key={p.id} className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+      {p.imageUrl ? (
+        <img
+          src={p.imageUrl}
+          alt={p.name}
+          className="w-full h-40 object-cover bg-surface-tertiary dark:bg-surface-dark-tertiary"
+        />
+      ) : (
+        <div className="w-full h-40 flex items-center justify-center bg-surface-tertiary dark:bg-surface-dark-tertiary">
+          <Package className="w-10 h-10 text-content-secondary/30" />
+        </div>
+      )}
+      <div className="p-4 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-primary dark:text-primary-300">
+              {getCategoryLabel(p.category)}
+            </p>
+            <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{p.name}</p>
+            {p.price && (
+              <p className="text-sm font-medium text-primary dark:text-primary-300 mt-0.5">{p.price}</p>
+            )}
+            {p.detail && (
+              <p className="text-xs text-content-secondary dark:text-content-dark-secondary line-clamp-2 mt-0.5">
+                {p.detail}
+              </p>
+            )}
+          </div>
+          <span className="text-xs text-content-secondary shrink-0">#{p.displayOrder}</span>
+        </div>
+        {p.contactNumber && (
+          <p className="text-xs text-content-secondary dark:text-content-dark-secondary flex items-center gap-1">
+            <Phone className="w-3 h-3" /> {p.contactNumber}
+          </p>
+        )}
+        <div className="flex items-center gap-1.5 pt-1 border-t border-line dark:border-line-dark">
+          <button
+            onClick={() => handleToggleActive(p)}
+            disabled={togglingId === p.id}
+            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${p.isActive ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"} disabled:opacity-50`}
+          >
+            {togglingId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
+            {p.isActive ? "Active" : "Inactive"}
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={() => openEditModal(p)}
+            className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => handleDelete(p.id)}
+            disabled={deletingId === p.id}
+            className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+          >
+            {deletingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -197,6 +325,10 @@ export default function ProductsTab() {
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
             className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
           />
+          <div>
+            <label className="sr-only">Category</label>
+            {categorySelect(form.category, v => setForm(f => ({ ...f, category: v })))}
+          </div>
           <input
             type="text"
             placeholder="Price (e.g. \u20b925,000)"
@@ -264,68 +396,27 @@ export default function ProductsTab() {
       ) : filtered.length === 0 ? (
         <p className="text-center py-12 text-content-secondary dark:text-content-dark-secondary text-sm">No products found</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(p => (
-            <div key={p.id} className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-              {/* Image */}
-              {p.imageUrl ? (
-                <img
-                  src={p.imageUrl}
-                  alt={p.name}
-                  className="w-full h-40 object-cover bg-surface-tertiary dark:bg-surface-dark-tertiary"
-                />
-              ) : (
-                <div className="w-full h-40 flex items-center justify-center bg-surface-tertiary dark:bg-surface-dark-tertiary">
-                  <Package className="w-10 h-10 text-content-secondary/30" />
-                </div>
-              )}
-              {/* Info */}
-              <div className="p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-content dark:text-content-dark truncate">{p.name}</p>
-                    {p.price && (
-                      <p className="text-sm font-medium text-primary dark:text-primary-300 mt-0.5">{p.price}</p>
-                    )}
-                    {p.detail && (
-                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary line-clamp-2 mt-0.5">{p.detail}</p>
-                    )}
-                  </div>
-                  <span className="text-xs text-content-secondary shrink-0">#{p.displayOrder}</span>
-                </div>
-                {p.contactNumber && (
-                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary flex items-center gap-1">
-                    <Phone className="w-3 h-3" /> {p.contactNumber}
-                  </p>
-                )}
-                {/* Actions */}
-                <div className="flex items-center gap-1.5 pt-1 border-t border-line dark:border-line-dark">
-                  <button
-                    onClick={() => handleToggleActive(p)}
-                    disabled={togglingId === p.id}
-                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${p.isActive ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"} disabled:opacity-50`}
-                  >
-                    {togglingId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Power className="w-3 h-3" />}
-                    {p.isActive ? "Active" : "Inactive"}
-                  </button>
-                  <div className="flex-1" />
-                  <button
-                    onClick={() => openEditModal(p)}
-                    className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    disabled={deletingId === p.id}
-                    className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                  >
-                    {deletingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
+        <div className="space-y-8">
+          {grouped.map(group => (
+            <div key={group.key} className="space-y-3">
+              <h3 className="text-sm font-semibold text-content dark:text-content-dark border-b border-line dark:border-line-dark pb-2">
+                {group.label} ({group.items.length})
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {group.items.map(renderProductCard)}
               </div>
             </div>
           ))}
+          {uncategorized.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-content dark:text-content-dark border-b border-line dark:border-line-dark pb-2">
+                Uncategorized ({uncategorized.length})
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {uncategorized.map(renderProductCard)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -346,6 +437,12 @@ export default function ProductsTab() {
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                   className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
                 />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-content-secondary">Category</label>
+                <div className="mt-1">
+                  {categorySelect(editForm.category, v => setEditForm(f => ({ ...f, category: v })))}
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-content-secondary">Detail</label>

@@ -365,6 +365,7 @@ model ConversationSession {
 model Product {
   id            String   @id @default(uuid())
   name          String
+  category      String   @default("other") // lactosure | lactogrand | other
   detail        String?  @db.Text
   price         String?
   imageUrl      String?

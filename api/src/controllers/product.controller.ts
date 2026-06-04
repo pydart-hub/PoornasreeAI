@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import sharp from "sharp";
 import path from "path";
 import fs from "fs";
+import { isProductCategory, sortByCategory } from "../constants/productCategories";
 
 const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
 
@@ -24,15 +25,20 @@ async function convertToJpeg(file: Express.Multer.File): Promise<string> {
   return newFilename;
 }
 
+function parseCategory(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return isProductCategory(raw) ? raw : "other";
+}
+
 // GET /api/admin/products — list all products
 export async function listProducts(_req: Request, res: Response): Promise<void> {
-  const products = await prisma.product.findMany({ orderBy: { displayOrder: "asc" } });
+  const products = sortByCategory(await prisma.product.findMany());
   res.json({ products });
 }
 
 // POST /api/admin/products — create a product (multipart: image file + JSON fields)
 export async function createProduct(req: Request, res: Response): Promise<void> {
-  const { name, detail, price, contactNumber, displayOrder } = req.body;
+  const { name, detail, price, contactNumber, displayOrder, category } = req.body;
   if (!name?.trim()) {
     res.status(400).json({ error: "Product name is required" });
     return;
@@ -44,6 +50,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
   const product = await prisma.product.create({
     data: {
       name: name.trim(),
+      category: parseCategory(category),
       detail: detail?.trim() || null,
       price: price?.trim() || null,
       imageUrl,
@@ -57,7 +64,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
 // PATCH /api/admin/products/:id — update a product
 export async function updateProduct(req: Request, res: Response): Promise<void> {
   const id = String(req.params.id);
-  const { name, detail, price, contactNumber, displayOrder, isActive } = req.body;
+  const { name, detail, price, contactNumber, displayOrder, isActive, category } = req.body;
 
   const existing = await prisma.product.findUnique({ where: { id } });
   if (!existing) {
@@ -72,6 +79,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     where: { id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
+      ...(category !== undefined && { category: parseCategory(category) }),
       ...(detail !== undefined && { detail: detail?.trim() || null }),
       ...(price !== undefined && { price: price?.trim() || null }),
       ...(imageUrl !== undefined && { imageUrl }),

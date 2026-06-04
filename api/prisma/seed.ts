@@ -196,21 +196,36 @@ async function main() {
   // ── Seed product catalogue ─────────────────────────────────────────────
   console.log("\nSeeding products...\n");
 
-  const SEED_PRODUCTS = [
-    { name: "Milk Analyzer",       displayOrder: 1 },
-    { name: "Vibro Machine",       displayOrder: 2 },
-    { name: "Solar Charger",       displayOrder: 3 },
-    { name: "Cream Separator",     displayOrder: 4 },
-    { name: "Fat Analyzer",        displayOrder: 5 },
-    { name: "Stirrer / Agitator",  displayOrder: 6 },
-    { name: "Water Pump",          displayOrder: 7 },
-    { name: "Other / General",     displayOrder: 8 },
+  const SEED_PRODUCTS: { name: string; category: string; displayOrder: number }[] = [
+    // LactoSure Models
+    { name: "LactoSure ECO V3", category: "lactosure", displayOrder: 1 },
+    { name: "LactoSure ECO S", category: "lactosure", displayOrder: 2 },
+    { name: "LactoSure ECO V", category: "lactosure", displayOrder: 3 },
+    { name: "LactoSure ECO SV", category: "lactosure", displayOrder: 4 },
+    { name: "LactoSure ECO D", category: "lactosure", displayOrder: 5 },
+    // LactoGrand Models
+    { name: "LactoGrand Lite", category: "lactogrand", displayOrder: 1 },
+    { name: "LactoGrand S Pro Connect +", category: "lactogrand", displayOrder: 2 },
+    { name: "LactoGrand S Pro", category: "lactogrand", displayOrder: 3 },
+    { name: "LactoGrand SD", category: "lactogrand", displayOrder: 4 },
+    // Other Products
+    { name: "Vibro Ultrasonic Stirrer", category: "other", displayOrder: 1 },
+    { name: "LactoSure EXD (External Display)", category: "other", displayOrder: 2 },
+    {
+      name: "LactoSure DPS-T (Data Processing System – Table Top)",
+      category: "other",
+      displayOrder: 3,
+    },
   ];
 
   for (const p of SEED_PRODUCTS) {
     const existing = await prisma.product.findFirst({ where: { name: p.name } });
     if (existing) {
-      console.log(`  ✓ Product "${p.name}" — already exists`);
+      await prisma.product.update({
+        where: { id: existing.id },
+        data: { category: p.category, displayOrder: p.displayOrder },
+      });
+      console.log(`  ✓ Product "${p.name}" — updated`);
       continue;
     }
     await prisma.product.create({ data: p });
