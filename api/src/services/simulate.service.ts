@@ -33,6 +33,10 @@ import {
   sortByCategory,
   type ProductCategory,
 } from "../constants/productCategories";
+import {
+  formatSupportContactBlock,
+  getWhatsAppSupportSettings,
+} from "./chatbotSettings.service";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -201,13 +205,9 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     en: "Please select a valid option from the menu below 👇",
     hi: "कृपया नीचे दिए मेनू से एक विकल्प चुनें 👇",
   },
-  INSTALLATION_INFO: {
-    en: "🔧 *Product Installation*\n\nFor product installation requests, please contact our service team.\n\nOr register a complaint and mention \"Installation\" as the issue.",
-    hi: "🔧 *उत्पाद इंस्टॉलेशन*\n\nइंस्टॉलेशन के लिए कृपया हमारी सेवा टीम से संपर्क करें।\n\nया शिकायत दर्ज करें और \"Installation\" समस्या के रूप में उल्लेख करें।",
-  },
   SPEAK_TO_SUPPORT: {
-    en: "📞 *Speak to Support*\n\nOur support team will reach out to you shortly.",
-    hi: "📞 *सहायता से बात करें*\n\nहमारी सहायता टीम जल्द ही आपसे संपर्क करेगी।",
+    en: "📞 *Speak to Support*\n\n{contact}\n\nOur support team will reach out to you shortly.",
+    hi: "📞 *सहायता से बात करें*\n\n{contact}\n\nहमारी सहायता टीम जल्द ही आपसे संपर्क करेगी।",
   },
   LANG_SELECT: {
     en: "🌐 *Select your preferred language:*\n\nChoose your language to continue 👇",
@@ -271,9 +271,8 @@ function getMainMenuList(lang: Lang): ReplyList {
       { id: "1", title: lang === "hi" ? "हमारे उत्पाद देखें"   : "View Our Products",      description: lang === "hi" ? "हमारा उत्पाद कैटलॉग" : "Browse our product catalog" },
       { id: "2", title: lang === "hi" ? "शिकायत दर्ज करें"    : "Complaint Registration",  description: lang === "hi" ? "नई शिकायत दर्ज करें" : "Register a new complaint" },
       { id: "3", title: lang === "hi" ? "शिकायत की स्थिति"    : "Complaint Status",         description: lang === "hi" ? "मौजूदा टिकट जांचें" : "Check existing ticket status" },
-      { id: "4", title: lang === "hi" ? "उत्पाद इंस्टॉलेशन"   : "Product Installation",     description: lang === "hi" ? "इंस्टॉलेशन अनुरोध" : "Request product installation" },
-      { id: "5", title: lang === "hi" ? "सहायता से बात करें"  : "Speak to Support",         description: lang === "hi" ? "सहायता टीम से जुड़ें" : "Connect with our support team" },
-      { id: "6", title: lang === "hi" ? "भाषा बदलें"           : "Change Language",          description: "English / हिंदी" },
+      { id: "4", title: lang === "hi" ? "सहायता से बात करें"  : "Speak to Support",         description: lang === "hi" ? "सहायता टीम से जुड़ें" : "Connect with our support team" },
+      { id: "5", title: lang === "hi" ? "भाषा बदलें"           : "Change Language",          description: "English / हिंदी" },
     ],
   };
 }
@@ -453,10 +452,6 @@ async function routeState(
       await updateSession(session.id, "MAIN_MENU", meta);
       return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
 
-    case "INSTALLATION_INFO":
-      await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
-
     case "CHANGE_LANGUAGE":
       return handleChangeLanguage(session.id, meta, text);
 
@@ -520,14 +515,12 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return showTicketStatus(sessionId, phoneNumber, meta);
   }
   if (choice === "4") {
-    await updateSession(sessionId, "INSTALLATION_INFO", meta);
-    return makeReply(t("INSTALLATION_INFO", lang), [getMenuButton(lang), COMPLAINT_BUTTON]);
+    await updateSession(sessionId, "COMPLETED", meta);
+    const support = await getWhatsAppSupportSettings();
+    const contact = formatSupportContactBlock(support);
+    return makeReply(t("SPEAK_TO_SUPPORT", lang, { contact }), [getMenuButton(lang)]);
   }
   if (choice === "5") {
-    await updateSession(sessionId, "COMPLETED", meta);
-    return makeReply(t("SPEAK_TO_SUPPORT", lang), [getMenuButton(lang)]);
-  }
-  if (choice === "6") {
     await updateSession(sessionId, "CHANGE_LANGUAGE", meta);
     return makeReply(t("LANG_SELECT", lang), LANG_BUTTONS);
   }

@@ -360,6 +360,16 @@ model ConversationSession {
   @@index([phoneNumber, state], name: "idx_convo_session_lookup")
 }
 
+// ── WhatsApp chatbot settings (singleton: id = "default") ─────────────────
+model ChatbotSetting {
+  id           String   @id @default("default")
+  supportPhone String   @default("+91 94009 61291")
+  supportEmail String?
+  supportHours String?
+  supportNote  String?  @db.Text
+  updatedAt    DateTime @updatedAt
+}
+
 // ── Product Catalogue ────────────────────────────────────────────────────
 // Admin-managed list of products shown to customers via WhatsApp "View Our Products".
 model Product {

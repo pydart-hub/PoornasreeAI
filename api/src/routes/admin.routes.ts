@@ -25,6 +25,7 @@ import { listVideos, createVideo, updateVideo, deleteVideo } from "../controller
 
 import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
 import { listProducts, createProduct, updateProduct, deleteProduct } from "../controllers/product.controller";
+import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbotSettings.controller";
 
 const router = Router();
 
@@ -170,6 +171,10 @@ router.delete("/videos/:id", deleteVideo);
 router.get("/rd-videos", listRdVideos);
 router.post("/rd-videos", upload.single("file"), createRdVideo);
 router.delete("/rd-videos/:id", deleteRdVideo);
+
+// WhatsApp chatbot settings (Speak to Support contact)
+router.get("/chatbot-settings", getChatbotSettings);
+router.patch("/chatbot-settings", updateChatbotSettings);
 
 // Product catalogue (admin CRUD with image upload)
 router.get("/products", listProducts);

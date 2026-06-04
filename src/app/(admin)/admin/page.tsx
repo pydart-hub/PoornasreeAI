@@ -57,6 +57,7 @@ import { useIsMobile } from "@/lib/useMediaQuery";
 import RdVideosTab from "@/components/admin/RdVideosTab";
 import TicketsTab from "@/components/admin/TicketsTab";
 import ProductsTab from "@/components/admin/ProductsTab";
+import WhatsAppSettingsTab from "@/components/admin/WhatsAppSettingsTab";
 
 // ─────────────────────────────────────────────
 // Types
@@ -115,7 +116,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products" | "whatsapp">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -475,6 +476,7 @@ export default function AdminPage() {
                 { key: "rdvideos",  label: "Eng. Videos", icon: <Film className="w-3.5 h-3.5" />,    count: null },
                 { key: "tickets",   label: "Tickets",   icon: <Ticket className="w-3.5 h-3.5" />,    count: null },
                 { key: "products",  label: "Products",  icon: <Package className="w-3.5 h-3.5" />,   count: null },
+                { key: "whatsapp",  label: "WhatsApp",  icon: <MessageSquare className="w-3.5 h-3.5" />, count: null },
                 { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" />, count: null },
               ] as const).map(({ key, label, icon, count }) => (
                 <button key={key} onClick={() => key === "users" ? router.push("/admin/users") : setActiveTab(key as typeof activeTab)}
@@ -582,6 +584,7 @@ export default function AdminPage() {
               { key: "rdvideos", label: "Engineers Video", icon: <Film className="w-3.5 h-3.5" /> },
               { key: "tickets", label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" /> },
               { key: "products", label: "Products", icon: <Package className="w-3.5 h-3.5" /> },
+              { key: "whatsapp", label: "WhatsApp", icon: <MessageSquare className="w-3.5 h-3.5" /> },
             ] as const).map((t) => (
               <button
                 key={t.key}
@@ -1470,6 +1473,8 @@ export default function AdminPage() {
 
           {/* ── Products Tab ── */}
           {activeTab === "products" && <ProductsTab />}
+
+          {activeTab === "whatsapp" && <WhatsAppSettingsTab />}
 
         </div>
       </main>
