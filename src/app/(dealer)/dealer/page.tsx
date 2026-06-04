@@ -434,7 +434,7 @@ export default function DealerPage() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <Logo variant="brand" size="sm" className="h-7 sm:h-8 w-auto shrink-0" />
+            <Logo variant="flower" size="sm" className="h-7 w-7 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-content dark:text-content-dark truncate">Dealer Portal</p>
               <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">

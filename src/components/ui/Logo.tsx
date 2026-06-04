@@ -2,8 +2,11 @@ import Image from "next/image";
 import { PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Canonical brand mark (public/images/flogo.png) */
+/** Full wordmark for login / marketing (public/images/flogo.png) */
 export const BRAND_LOGO_SRC = "/images/flogo.png";
+
+/** Sidebar + favicon mark (public/flower.png) */
+export const APP_ICON_SRC = "/flower.png";
 
 interface LogoProps {
   variant?: "full" | "icon" | "brand" | "flower";
@@ -21,9 +24,9 @@ const sizeMap = {
 
 const srcMap = {
   full: BRAND_LOGO_SRC,
-  icon: BRAND_LOGO_SRC,
+  icon: APP_ICON_SRC,
   brand: BRAND_LOGO_SRC,
-  flower: BRAND_LOGO_SRC,
+  flower: APP_ICON_SRC,
 };
 
 export function Logo({ variant = "full", size = "md", className, priority }: LogoProps) {
@@ -71,7 +74,7 @@ export function SidebarBrand({
           compact ? "w-8 h-8" : "w-9 h-9",
         )}
       >
-        <Logo variant="icon" size="sm" className="w-full h-full" priority />
+        <Logo variant="flower" size="sm" className="w-full h-full" priority />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-white leading-tight truncate">{title}</p>

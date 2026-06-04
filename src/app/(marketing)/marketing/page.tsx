@@ -233,7 +233,7 @@ export default function MarketingPage() {
           !sidebarOpen && "md:justify-center md:px-0"
         )}>
           <div className="w-9 h-9 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center flex-shrink-0 ring-1 ring-white/20 p-1">
-            <Logo variant="icon" size="sm" className="w-full h-full" />
+            <Logo variant="flower" size="sm" className="w-full h-full" />
           </div>
           {(sidebarOpen || mobileMenuOpen) && (
             <div>
