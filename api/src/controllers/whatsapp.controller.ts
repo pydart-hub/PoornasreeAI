@@ -9,9 +9,7 @@ import prisma from "../lib/prisma";
 import { env } from "../config/env";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
-import * as TicketService from "../services/ticket.service";
-import { startFeedbackFlow } from "../services/simulate.service";
-import { io } from "../lib/socket";
+import { handleEngineerWhatsAppMessage } from "../services/engineer-whatsapp.service";
 import type { ProductImage } from "../services/simulate.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
@@ -124,7 +122,33 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   }
 
   if (engineer) {
-    await handleEngineerMessage(from, text, engineer);
+    await handleEngineerWhatsAppMessage(from, text, engineer, async (f, t, eng) => {
+      if (t.toUpperCase().trim() === "TROUBLESHOOT") {
+        await prisma.troubleshootingSession.deleteMany({
+          where: { phoneNumber: f, status: "ACTIVE" },
+        });
+        await prisma.troubleshootingSession.create({
+          data: {
+            phoneNumber: f,
+            serialNumber: "ENGINEER",
+            problemType: "__PENDING__",
+            currentStep: 0,
+            status: "ACTIVE",
+          },
+        });
+        await WhatsAppService.sendMessage(
+          f,
+          `🔍 *Troubleshoot Mode*\n\nDescribe the issue you are facing (e.g. "no vibration", "machine not turning on"):`,
+        );
+        return;
+      }
+      const activeSession = await prisma.troubleshootingSession.findFirst({
+        where: { phoneNumber: f, status: "ACTIVE" },
+      });
+      if (activeSession) {
+        await handleEngineerTroubleshootStep(f, t, eng, activeSession);
+      }
+    });
     return;
   }
 
@@ -163,296 +187,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       await WhatsAppService.sendMessage(from, result.message);
     }
   }
-}
-
-// ── Engineer-specific WhatsApp handler ────────────────────────────────────
-// Engineers get a different experience — ticket status, assignment info, etc.
-async function handleEngineerMessage(
-  from: string,
-  text: string,
-  engineer: { id: string; firstName: string },
-): Promise<void> {
-  const upperText = text.toUpperCase().trim();
-
-  if (upperText === "MENU" || upperText === "HI" || upperText === "HII" || upperText === "HIII" || upperText === "HELLO" || upperText === "HEY") {
-    await WhatsAppService.sendInteractiveButtons(
-      from,
-      `👋 Hi ${engineer.firstName}! Welcome to Poornasree Engineer Portal.\n\nWhat would you like to do?`,
-      [
-        { id: "TICKETS",      title: "📋 My Tickets" },
-        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
-        { id: "HELP",         title: "❓ Help" },
-      ],
-    );
-    return;
-  }
-
-  if (upperText === "TICKETS") {
-    const tickets = await prisma.ticket.findMany({
-      where: {
-        assignedEngineerId: engineer.id,
-        status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
-      },
-      select: {
-        ticketNumber: true,
-        status: true,
-        problemDescription: true,
-        issueDescription: true,
-        machineName: true,
-        machineSerialNumber: true,
-        machineCustomer: true,
-        customerAddress: true,
-        updatedAt: true,
-        customer: { select: { firstName: true, lastName: true } },
-        pincode: { select: { code: true, place: true } },
-        assignedManager: { select: { firstName: true, lastName: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    });
-
-    if (tickets.length === 0) {
-      await WhatsAppService.sendMessage(from, "✅ You have no active tickets right now. Great job!");
-      return;
-    }
-
-    const lines = tickets.map((t, i) => {
-      const customerName = t.machineCustomer
-        || (t.customer ? `${t.customer.firstName} ${t.customer.lastName ?? ""}`.trim() : "Unknown");
-      const place = t.pincode?.place ?? "";
-      const pincode = t.pincode?.code ?? "";
-      const product = t.machineName ?? "—";
-      const serial = t.machineSerialNumber ?? "—";
-      const complaint = t.problemDescription ? t.problemDescription.slice(0, 100) : "—";
-      const assignedBy = t.assignedManager
-        ? `${t.assignedManager.firstName} ${t.assignedManager.lastName ?? ""}`.trim()
-        : "—";
-      const assignedAt = t.updatedAt
-        ? t.updatedAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-          + ", " + t.updatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
-        : "—";
-
-      return [
-        `${i + 1}. *${t.ticketNumber}* (${t.status})`,
-        `   👤 Name: ${customerName}`,
-        ...(t.customerAddress ? [`   🏠 Address: ${t.customerAddress}`] : []),
-        `   📍 Place: ${place}${place && pincode ? " | " : ""}Pincode: ${pincode}`,
-        `   🔧 Product: ${product}`,
-        `   🔑 S/N: ${serial}`,
-        `   📅 Assigned: ${assignedAt}`,
-        `   📝 Complaint: ${complaint}`,
-        `   👨‍💼 Assigned by: ${assignedBy}`,
-      ].join("\n");
-    });
-
-    const reply = [`📋 *Your Active Tickets (${tickets.length}):*`, "", ...lines].join("\n");
-    await WhatsAppService.sendMessage(from, reply);
-    return;
-  }
-
-  if (upperText === "TROUBLESHOOT") {
-    // Store state: waiting for the engineer to describe the issue
-    await prisma.troubleshootingSession.deleteMany({
-      where: { phoneNumber: from, status: "ACTIVE" },
-    });
-    await prisma.troubleshootingSession.create({
-      data: { phoneNumber: from, serialNumber: "ENGINEER", problemType: "__PENDING__", currentStep: 0, status: "ACTIVE" },
-    });
-    await WhatsAppService.sendMessage(
-      from,
-      `🔍 *Troubleshoot Mode*\n\nDescribe the issue you are facing (e.g. "no vibration", "machine not turning on"):`,
-    );
-    return;
-  }
-
-  // ── Engineer troubleshoot session — handle open ACTIVE session ─────────
-  // If the engineer has an active TroubleshootingSession, route all text through it.
-  const activeSession = await prisma.troubleshootingSession.findFirst({
-    where: { phoneNumber: from, status: "ACTIVE" },
-  });
-
-  if (activeSession) {
-    await handleEngineerTroubleshootStep(from, text, engineer, activeSession);
-    return;
-  }
-
-  if (upperText === "STATUS") {
-    const counts = await prisma.ticket.groupBy({
-      by: ["status"],
-      where: { assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP", "CLOSED"] } },
-      _count: { _all: true },
-    });
-
-    const get = (s: string) => counts.find(c => c.status === s)?._count._all ?? 0;
-    const reply = [
-      `📊 *Ticket Summary for ${engineer.firstName}:*`,
-      "",
-      `🔵 Assigned: ${get("ASSIGNED")}`,
-      `🟡 In Progress: ${get("IN_PROGRESS")}`,
-      `🟠 Pending OTP: ${get("PENDING_OTP")}`,
-      `✅ Closed: ${get("CLOSED")}`,
-    ].join("\n");
-    await WhatsAppService.sendMessage(from, reply);
-    return;
-  }
-
-  // ── START <ticket-number> ─────────────────────────────────────────────
-  if (upperText.startsWith("START ")) {
-    const ticketNumber = text.slice(6).trim().toUpperCase();
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
-      return;
-    }
-    try {
-      await TicketService.startWork(ticket.id, engineer.id);
-      await WhatsAppService.sendMessage(from, `✅ Ticket *${ticketNumber}* is now *IN PROGRESS*.\n\nWhen done, type:\n• *OTP ${ticketNumber}* — to request closure OTP\n• *NOTE ${ticketNumber} <your notes>* — to add work notes\n• Send a photo with caption *${ticketNumber}* — to attach a photo`);
-    } catch (e: unknown) {
-      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not start work."}`);
-    }
-    return;
-  }
-
-  // ── OTP <ticket-number> ───────────────────────────────────────────────
-  if (upperText.startsWith("OTP ")) {
-    const ticketNumber = text.slice(4).trim().toUpperCase();
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
-      return;
-    }
-    try {
-      const result = await TicketService.requestOTP(ticket.id, engineer.id);
-      const exp = result.expiresAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-      await WhatsAppService.sendMessage(from, `✅ OTP sent to the customer via WhatsApp.\n\nAsk the customer for the code, then type:\n*VERIFY ${ticketNumber} <code>*\n\nOTP expires at ${exp}.`);
-    } catch (e: unknown) {
-      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not send OTP."}`);
-    }
-    return;
-  }
-
-  // ── RESEND <ticket-number> ────────────────────────────────────────────
-  if (upperText.startsWith("RESEND ")) {
-    const ticketNumber = text.slice(7).trim().toUpperCase();
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
-      return;
-    }
-    try {
-      const result = await TicketService.requestOTP(ticket.id, engineer.id, false, true);
-      const exp = result.expiresAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
-      await WhatsAppService.sendMessage(from, `✅ OTP resent to the customer.\n\nType: *VERIFY ${ticketNumber} <code>*\n\nExpires at ${exp}.`);
-    } catch (e: unknown) {
-      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not resend OTP."}`);
-    }
-    return;
-  }
-
-  // ── VERIFY <ticket-number> <code> ─────────────────────────────────────
-  if (upperText.startsWith("VERIFY ")) {
-    const parts = text.slice(7).trim().split(/\s+/);
-    const ticketNumber = parts[0]?.toUpperCase();
-    const code = parts[1];
-    if (!ticketNumber || !code) {
-      await WhatsAppService.sendMessage(from, `⚠️ Usage: *VERIFY <ticket-number> <4-digit-code>*\nExample: VERIFY TKT-20260515-001 4823`);
-      return;
-    }
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
-      return;
-    }
-    try {
-      const closed = await TicketService.verifyOTP(ticket.id, engineer.id, code);
-      // Notify customer via socket
-      io?.to(`user:${closed.customerId}`).emit("ticket:closed", {
-        ticketId: closed.id,
-        ticketNumber: closed.ticketNumber,
-      });
-      // Send feedback request to customer
-      if (closed.phoneNumber && WhatsAppService.isConfigured()) {
-        try {
-          const feedbackMsg = await startFeedbackFlow(closed.phoneNumber, closed.id, closed.ticketNumber);
-          await WhatsAppService.sendMessage(closed.phoneNumber, feedbackMsg);
-          await prisma.simulateMessage.create({
-            data: { phoneNumber: closed.phoneNumber, role: "assistant", content: feedbackMsg },
-          });
-        } catch { /* non-fatal */ }
-      }
-      await WhatsAppService.sendMessage(from, `🎉 Ticket *${ticketNumber}* has been *CLOSED* successfully!\n\nA feedback request has been sent to the customer.`);
-    } catch (e: unknown) {
-      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not verify OTP."}`);
-    }
-    return;
-  }
-
-  // ── NOTE <ticket-number> <text> ───────────────────────────────────────
-  if (upperText.startsWith("NOTE ")) {
-    const rest = text.slice(5).trim();
-    const spaceIdx = rest.indexOf(" ");
-    if (spaceIdx === -1) {
-      await WhatsAppService.sendMessage(from, `⚠️ Usage: *NOTE <ticket-number> <your notes>*\nExample: NOTE TKT-20260515-001 Replaced motor capacitor`);
-      return;
-    }
-    const ticketNumber = rest.slice(0, spaceIdx).toUpperCase();
-    const noteText = rest.slice(spaceIdx + 1).trim();
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
-      return;
-    }
-    try {
-      await prisma.workReport.upsert({
-        where: { ticketId: ticket.id },
-        create: { ticketId: ticket.id, dealerId: engineer.id, workDone: noteText },
-        update: { workDone: noteText },
-      });
-      await WhatsAppService.sendMessage(from, `✅ Notes saved for *${ticketNumber}*.\n\nYou can also send a photo with caption *${ticketNumber}* to attach images.`);
-    } catch (e: unknown) {
-      await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not save notes."}`);
-    }
-    return;
-  }
-
-  if (upperText === "HELP") {
-    await WhatsAppService.sendMessage(
-      from,
-      `🔧 *Engineer Commands:*\n\n` +
-      `📋 *TICKETS* — View your active tickets\n` +
-      `📊 *STATUS* — View ticket count summary\n` +
-      `🔍 *TROUBLESHOOT* — Step-by-step private troubleshooting guide\n\n` +
-      `*START <ticket>* — Mark ticket as In Progress\n` +
-      `*OTP <ticket>* — Request closure OTP (sent to customer)\n` +
-      `*RESEND <ticket>* — Resend OTP to customer\n` +
-      `*VERIFY <ticket> <code>* — Enter OTP from customer to close ticket\n` +
-      `*NOTE <ticket> <text>* — Add work notes to a ticket\n\n` +
-      `📸 *Send a photo* with the ticket number as caption to attach it to the work report.\n\n` +
-      `Example ticket number: TKT-20260515-001`,
-    );
-    return;
-  }
-
-  // Default — unrecognized command
-  await WhatsAppService.sendInteractiveButtons(
-    from,
-    `Hi ${engineer.firstName}, I didn't understand that.\n\nType *HELP* for the full command list, or choose:`,
-    [
-      { id: "TICKETS",      title: "📋 My Tickets" },
-      { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
-      { id: "HELP",         title: "❓ Help" },
-    ],
-  );
 }
 
 // ── Engineer troubleshoot step handler ───────────────────────────────────

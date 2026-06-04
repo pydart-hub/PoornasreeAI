@@ -58,6 +58,9 @@ export const env = {
   // Approved Meta template for first outbound engineer onboarding (see public/Doc/WHATSAPP_ENGINEER_SETUP_TEMPLATE.md)
   WA_ENGINEER_SETUP_TEMPLATE: process.env.WA_ENGINEER_SETUP_TEMPLATE || "",
   WA_ENGINEER_SETUP_TEMPLATE_LANG: process.env.WA_ENGINEER_SETUP_TEMPLATE_LANG || "en",
+  // Utility template when a ticket is assigned (see public/Doc/WHATSAPP_ENGINEER_TICKET_ASSIGNED_TEMPLATE.md)
+  WA_ENGINEER_TICKET_TEMPLATE: process.env.WA_ENGINEER_TICKET_TEMPLATE || "",
+  WA_ENGINEER_TICKET_TEMPLATE_LANG: process.env.WA_ENGINEER_TICKET_TEMPLATE_LANG || "en",
 
   // ── External integration ────────────────────────────────────────────────
   // Optional webhook URL — POST normalized ticket events on lifecycle changes.

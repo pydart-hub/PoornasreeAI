@@ -3,6 +3,7 @@
 
 import { TicketStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import { resolveTicketCustomerName } from "./ticket-customer";
 
 export type StageSlug =
   | "created"
@@ -56,7 +57,7 @@ export const PUBLIC_TICKET_SELECT = {
   otpExpiresAt: true,
   otpAttempts: true,
   otpVerified: true,
-  customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+  customer: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
   dealer: { select: { id: true, firstName: true, lastName: true, email: true } },
   assignedManager: { select: { id: true, firstName: true, lastName: true } },
   assignedEngineer: { select: { id: true, firstName: true, lastName: true, whatsappNumber: true } },
@@ -127,11 +128,7 @@ function engineerPartyDto(
 }
 
 function resolveCustomerName(t: PublicTicketRow): string | null {
-  if (t.machineCustomer?.trim()) return t.machineCustomer.trim();
-  const fromUser = userDisplayName(t.customer);
-  if (fromUser) return fromUser;
-  const parsed = parseIssueDescription(t.issueDescription);
-  return parsed.customerName ?? null;
+  return resolveTicketCustomerName(t);
 }
 
 function resolveAddress(t: PublicTicketRow): string | null {

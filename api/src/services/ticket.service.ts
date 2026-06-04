@@ -322,6 +322,10 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
       include: TICKET_INCLUDE,
     });
     notifyTicketEvent("ticket.assigned", ticketId);
+    const { notifyEngineerTicketAssigned } = await import("./engineer-ticket-notification.service");
+    notifyEngineerTicketAssigned(ticketId).catch((err) =>
+      console.error("[ticket] Engineer WhatsApp assign notify failed:", (err as Error).message),
+    );
     return updated;
   }
 
