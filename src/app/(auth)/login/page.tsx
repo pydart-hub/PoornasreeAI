@@ -104,7 +104,7 @@ export default function LoginPage() {
         {/* White form card — slides up from below the green area */}
         <div
           className={[
-            "relative z-10 flex-1 bg-white rounded-[2rem] mx-2 mb-2 px-6 pt-6 pb-8 flex flex-col overflow-y-auto",
+            "relative z-10 flex-1 bg-white rounded-[2rem] mx-2 mb-2 px-6 pt-6 pb-8 flex flex-col overflow-y-auto font-sans",
             "transition-transform duration-700 ease-out",
             formVisible ? "translate-y-0" : "translate-y-full",
           ].join(" ")}
@@ -112,8 +112,8 @@ export default function LoginPage() {
           {/* Drag handle */}
           <div className="w-10 h-1 rounded-full bg-gray-200 self-center mb-6 shrink-0" />
 
-          <h2 className="text-2xl font-bold text-gray-900 mb-1 shrink-0">Welcome back</h2>
-          <p className="text-sm text-gray-400 mb-6 shrink-0">Sign in to continue</p>
+          <h2 className="text-xl font-semibold font-sans text-gray-900 mb-1 shrink-0">Welcome to</h2>
+          <p className="text-sm font-sans text-gray-500 mb-6 shrink-0">Sign in to continue</p>
 
           {error && (
             <div className="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm shrink-0">
@@ -214,7 +214,7 @@ export default function LoginPage() {
             {/* Live badge */}
             <div className="flex items-center gap-2 w-fit px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-300 font-medium">Live at ai.poornasreecloud.com · deploy-test</span>
+              <span className="text-xs text-emerald-300 font-medium">Live at ai.poornasreecloud.com</span>
             </div>
 
             {/* Headline */}
@@ -259,17 +259,17 @@ export default function LoginPage() {
         </div>
 
         {/* RIGHT – white form panel */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-white px-6 py-10 md:px-14 lg:px-20">
+        <div className="flex-1 flex flex-col items-center justify-center bg-white px-6 py-10 md:px-14 lg:px-20 font-sans">
           <div className="w-full max-w-md">
 
-            {/* Logo */}
-            <div className="flex justify-center mb-7">
+            {/* Logo + welcome — grouped with consistent spacing */}
+            <div className="flex flex-col items-center text-center mb-6">
               <Logo variant="brand" size="md" priority />
+              <div className="mt-4 w-full">
+                <h2 className="text-xl font-semibold text-gray-900">Welcome to</h2>
+                <p className="text-sm text-gray-500 mt-1">Sign in to your account to continue</p>
+              </div>
             </div>
-
-            {/* Heading */}
-            <h2 className="text-2xl font-bold text-gray-900 text-center mb-1">Welcome back</h2>
-            <p className="text-sm text-gray-400 text-center mb-7">Sign in to your account to continue</p>
 
             {/* Error */}
             {error && (
@@ -284,9 +284,7 @@ export default function LoginPage() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email or Username
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email or Username</label>
                 <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
                   <Mail className="w-4 h-4 text-gray-300 shrink-0" />
                   <input
