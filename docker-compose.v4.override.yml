@@ -1,0 +1,13 @@
+# Use on poornasree-v4 (65.20.72.131) — ports 3000/4000 are used by other projects.
+# Copy to docker-compose.override.yml on the server:
+#   cp docker-compose.v4.override.yml docker-compose.override.yml
+services:
+  web:
+    ports: !override
+      - "127.0.0.1:3002:3000"
+  api:
+    ports: !override
+      - "127.0.0.1:4002:4000"
+  n8n:
+    ports: !override
+      - "127.0.0.1:5679:5678"
