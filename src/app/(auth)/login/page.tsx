@@ -214,7 +214,7 @@ export default function LoginPage() {
             {/* Live badge */}
             <div className="flex items-center gap-2 w-fit px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-300 font-medium">Live at poornasree.pydart.com</span>
+              <span className="text-xs text-emerald-300 font-medium">Live at ai.poornasreecloud.com · deploy-test</span>
             </div>
 
             {/* Headline */}
