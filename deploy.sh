@@ -61,6 +61,10 @@ echo ""
 echo "[1/6] Pulling latest code from GitHub..."
 git fetch origin
 git reset --hard origin/$BRANCH
+if [ -f docker-compose.v4.override.yml ]; then
+  cp docker-compose.v4.override.yml docker-compose.override.yml
+  echo "  Applied docker-compose.v4.override.yml (shared-server ports)."
+fi
 echo "  Done."
 
 # Re-run with the freshly pulled script (otherwise step 2+ use stale deploy logic).
