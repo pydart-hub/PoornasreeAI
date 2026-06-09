@@ -653,15 +653,71 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 }
 
 // ── Complaint types list helper ───────────────────────────────────────────
-async function fetchComplaintListRows(lang: Lang) {
+async function fetchComplaintListRows(lang: Lang, productName?: string) {
   const templates = await prisma.troubleshootingTemplate.findMany({
-    where: { isActive: true },
-    select: { id: true, title: true, description: true },
+    where: {
+      isActive: true,
+      audience: { in: ["customer", "both"] },
+    },
+    select: { id: true, title: true, description: true, problemType: true },
     orderBy: { title: "asc" },
-    take: 9, // leave 1 space for "Other"
   });
 
-  const rows = templates.map((t) => ({
+  let filteredTemplates = templates;
+
+  if (productName) {
+    const normProduct = productName.toLowerCase();
+
+    if (normProduct.includes("vibro")) {
+      // Vibro Stirrer: match templates with "vibro" or "vibration" in title or problemType
+      filteredTemplates = templates.filter(t =>
+        t.problemType.toLowerCase().includes("vibro") ||
+        t.problemType.toLowerCase().includes("vibration") ||
+        t.title.toLowerCase().includes("vibro") ||
+        t.title.toLowerCase().includes("vibration")
+      );
+    } else if (normProduct.includes("dps") || normProduct.includes("dpst") || normProduct.includes("data processing")) {
+      // DPS-T / Data Processing System: match templates with "dpst" or "dps"
+      filteredTemplates = templates.filter(t =>
+        t.problemType.toLowerCase().includes("dpst") ||
+        t.problemType.toLowerCase().includes("dps") ||
+        t.title.toLowerCase().includes("dpst") ||
+        t.title.toLowerCase().includes("dps")
+      );
+    } else if (normProduct.includes("solar") || normProduct.includes("charger")) {
+      // Solar Charger: match templates with "solar" or "charger"
+      filteredTemplates = templates.filter(t =>
+        t.problemType.toLowerCase().includes("solar") ||
+        t.title.toLowerCase().includes("solar")
+      );
+    } else if (
+      normProduct.includes("analyzer") ||
+      normProduct.includes("lactosure") ||
+      normProduct.includes("lactogrand")
+    ) {
+      // Milk Analyzer models (Lactosure / Lactogrand):
+      // They use mainboard, pump, ecod, compact adapter, charger adapter.
+      // They should NOT see vibro or solar charger issues.
+      filteredTemplates = templates.filter(t =>
+        !t.problemType.toLowerCase().includes("vibro") &&
+        !t.problemType.toLowerCase().includes("solar_charger") &&
+        !t.title.toLowerCase().includes("vibro") &&
+        !t.title.toLowerCase().includes("solar charger")
+      );
+    } else {
+      // If we don't recognize the product, check keyword overlaps
+      filteredTemplates = templates.filter(t => {
+        const words = normProduct.split(/\s+/).filter(w => w.length >= 3);
+        return words.some(w => t.problemType.toLowerCase().includes(w) || t.title.toLowerCase().includes(w));
+      });
+      // If nothing matches, fallback to all templates
+      if (filteredTemplates.length === 0) {
+        filteredTemplates = templates;
+      }
+    }
+  }
+
+  const rows = filteredTemplates.slice(0, 9).map((t) => ({
     id: `COMPLAINT_${t.id}`,
     title: t.title.slice(0, 24),
     description: t.description?.slice(0, 72),
@@ -681,7 +737,7 @@ async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: 
   const lang: Lang = (meta.language ?? "en") as Lang;
   if (text === "1" || /^yes/i.test(text)) {
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
-    const listRows = await fetchComplaintListRows(lang);
+    const listRows = await fetchComplaintListRows(lang, meta.machineData?.m_model);
     return makeReply(
       t("DESCRIBE_COMPLAINT", lang),
       undefined,
@@ -831,7 +887,7 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
     }
     const updatedMeta = { ...meta, selectedProduct: directMatch };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-    const listRows = await fetchComplaintListRows(lang);
+    const listRows = await fetchComplaintListRows(lang, directMatch);
     return makeReply(
       t("PRODUCT_SELECTED", lang, { product: directMatch }),
       undefined,
@@ -842,7 +898,7 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
   const selectedProduct = productNames[index];
   const updatedMeta = { ...meta, selectedProduct };
   await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-  const listRows = await fetchComplaintListRows(lang);
+  const listRows = await fetchComplaintListRows(lang, selectedProduct);
   return makeReply(
     t("PRODUCT_SELECTED", lang, { product: selectedProduct }),
     undefined,
@@ -854,6 +910,7 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
 async function handleComplaintDescribe(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   let complaintText = text.trim();
+  let selectedTemplate: any = null;
 
   // If they selected a complaint from the list
   if (complaintText.startsWith("COMPLAINT_")) {
@@ -862,9 +919,12 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
       return makeReply(t("DESCRIBE_SHORT", lang));
     }
     const templateId = complaintText.replace("COMPLAINT_", "");
-    const template = await prisma.troubleshootingTemplate.findUnique({ where: { id: templateId } });
-    if (template) {
-      complaintText = template.title;
+    selectedTemplate = await prisma.troubleshootingTemplate.findUnique({
+      where: { id: templateId },
+      include: { steps: { orderBy: { stepNumber: "asc" } } },
+    });
+    if (selectedTemplate) {
+      complaintText = selectedTemplate.title;
     } else {
       complaintText = ""; // Not found, will prompt to describe
     }
@@ -876,7 +936,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   const updatedMeta: SessionMeta = { ...meta, complaint: complaintText };
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
-  const template = await findTroubleshootingTemplate(complaintText, productName);
+  const template = selectedTemplate || await findTroubleshootingTemplate(complaintText, productName);
 
   // ── Video recommendations: search by complaint + product name ──────────
   const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
@@ -908,7 +968,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     );
   }
 
-  const stepsText = steps.map((s, i) => `${i + 1}. ${s}`).join("\n");
+  const stepsText = steps.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
 
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
