@@ -28,10 +28,15 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
 
     const result = await SimulateService.handleMessage(phone, text);
 
-    // Persist bot reply
+    // Persist bot reply (and any follow-up, e.g. video links)
     if (result.message) {
       await prisma.simulateMessage.create({
         data: { phoneNumber: phone, role: "bot", content: result.message },
+      });
+    }
+    if (result.followUpMessage) {
+      await prisma.simulateMessage.create({
+        data: { phoneNumber: phone, role: "bot", content: result.followUpMessage },
       });
     }
 

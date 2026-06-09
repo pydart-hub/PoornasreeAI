@@ -10,7 +10,7 @@ import { env } from "../config/env";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import { handleEngineerWhatsAppMessage } from "../services/engineer-whatsapp.service";
-import type { ProductImage } from "../services/simulate.service";
+import type { SimulateReply } from "../services/simulate.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -164,28 +164,36 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   // Run through FSM
   const result = await SimulateService.handleMessage(from, text);
 
-  // Persist bot reply
-  if (result.message) {
+  await deliverBotReply(from, result);
+}
+
+/** Persist and send the FSM reply; video links go in a separate text message. */
+async function deliverBotReply(to: string, result: SimulateReply): Promise<void> {
+  if (!result.message) return;
+
+  await prisma.simulateMessage.create({
+    data: { phoneNumber: to, role: "bot", content: result.message },
+  });
+
+  if (result.images?.length) {
+    for (const img of result.images) {
+      await WhatsAppService.sendImage(to, img.url, img.caption);
+    }
+  }
+
+  if (result.list?.rows?.length) {
+    await WhatsAppService.sendInteractiveList(to, result.message, result.list.buttonText, result.list.rows);
+  } else if (result.buttons?.length) {
+    await WhatsAppService.sendInteractiveButtons(to, result.message, result.buttons);
+  } else {
+    await WhatsAppService.sendMessage(to, result.message);
+  }
+
+  if (result.followUpMessage) {
     await prisma.simulateMessage.create({
-      data: { phoneNumber: from, role: "bot", content: result.message },
+      data: { phoneNumber: to, role: "bot", content: result.followUpMessage },
     });
-
-    // Send product images first (if any)
-    const images = (result as { images?: ProductImage[] }).images;
-    if (images && images.length > 0) {
-      for (const img of images) {
-        await WhatsAppService.sendImage(from, img.url, img.caption);
-      }
-    }
-
-    // Send reply via WhatsApp — use interactive list/buttons when available
-    if (result.list && result.list.rows?.length > 0) {
-      await WhatsAppService.sendInteractiveList(from, result.message, result.list.buttonText, result.list.rows);
-    } else if (result.buttons && result.buttons.length > 0) {
-      await WhatsAppService.sendInteractiveButtons(from, result.message, result.buttons);
-    } else {
-      await WhatsAppService.sendMessage(from, result.message);
-    }
+    await WhatsAppService.sendMessage(to, result.followUpMessage);
   }
 }
 

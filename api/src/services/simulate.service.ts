@@ -37,6 +37,7 @@ import {
   formatSupportContactBlock,
   getWhatsAppSupportSettings,
 } from "./chatbotSettings.service";
+import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -845,9 +846,18 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
+  const videoQuery = [productName, text].filter(Boolean).join(" ");
+  const videos = await findVideosForQuery(videoQuery, 2);
+  const followUpMessage = videos.length > 0
+    ? formatVideoSuggestions(videos, lang).trim()
+    : undefined;
+
   return makeReply(
     t("STEPS_FOUND", lang, { complaint: text, steps: stepsText }),
-    [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }]
+    [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }],
+    undefined,
+    undefined,
+    followUpMessage,
   );
 }
 
@@ -1526,9 +1536,23 @@ function isGlobalRestartCommand(upper: string): boolean {
 export type ReplyButton = { id: string; title: string };
 export type ReplyList = { buttonText: string; rows: Array<{ id: string; title: string; description?: string }> };
 export type ProductImage = { url: string; caption: string };
+export type SimulateReply = {
+  message: string;
+  buttons?: ReplyButton[];
+  list?: ReplyList;
+  images?: ProductImage[];
+  /** Plain-text follow-up (e.g. video links) sent after interactive replies on WhatsApp. */
+  followUpMessage?: string;
+};
 
-function makeReply(message: string, buttons?: ReplyButton[], list?: ReplyList, images?: ProductImage[]) {
-  return { message, buttons, list, images };
+function makeReply(
+  message: string,
+  buttons?: ReplyButton[],
+  list?: ReplyList,
+  images?: ProductImage[],
+  followUpMessage?: string,
+): SimulateReply {
+  return { message, buttons, list, images, followUpMessage };
 }
 
 async function getOrCreateSession(phoneNumber: string) {

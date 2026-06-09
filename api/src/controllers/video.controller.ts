@@ -24,6 +24,61 @@ function isValidYouTubeUrl(url: string): boolean {
  * Given a user query, find up to `limit` matching VideoResources by
  * keyword overlap. Returns an empty array if no matches or DB has no videos.
  */
+const STOP_WORDS = new Set([
+  "the", "and", "for", "are", "not", "how", "why", "what", "when",
+  "where", "which", "can", "this", "that", "its", "was", "with",
+  "have", "has", "from", "but", "our", "your", "my", "his", "her",
+  "they", "them", "also", "any", "all", "get", "got", "did", "does",
+  "will", "been", "who", "you", "too", "use", "used", "via",
+]);
+
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+
+/** Score how well admin keywords match a customer query (higher = better). */
+export function scoreVideoMatch(query: string, keywords: string): number {
+  const normalizedQuery = query.toLowerCase().trim();
+  const keywordText = keywords.toLowerCase().trim();
+  if (!normalizedQuery || !keywordText) return 0;
+
+  // Strong match when the full keyword phrase appears in the query (e.g. "milk analyzer").
+  if (keywordText.length >= 4 && normalizedQuery.includes(keywordText)) {
+    return 10;
+  }
+
+  const queryWords = tokenizeQuery(query);
+  const keywordTokens = keywordText
+    .split(/[,\s]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 2);
+
+  if (queryWords.length === 0 || keywordTokens.length === 0) return 0;
+
+  return queryWords.filter((qw) =>
+    keywordTokens.some((kt) => kt === qw || kt.includes(qw) || qw.includes(kt))
+  ).length;
+}
+
+/** Format matched videos for WhatsApp / plain-text chat replies. */
+export function formatVideoSuggestions(
+  videos: Array<{ title: string; youtubeUrl: string }>,
+  lang: "en" | "hi" = "en"
+): string {
+  if (videos.length === 0) return "";
+
+  const header = lang === "hi" ? "\n\n📺 *संबंधित वीडियो:*" : "\n\n📺 *Related Videos:*";
+  const lines = videos
+    .map((v) => `▶️ *${v.title}*\n${v.youtubeUrl}`)
+    .join("\n\n");
+
+  return `${header}\n${lines}`;
+}
+
 export async function findVideosForQuery(
   query: string,
   limit = 3
@@ -32,36 +87,13 @@ export async function findVideosForQuery(
     const allVideos = await prisma.videoResource.findMany();
     if (allVideos.length === 0) return [];
 
-    // Common stop words — excluded from matching to avoid noise
-    const STOP_WORDS = new Set([
-      "the", "and", "for", "are", "not", "how", "why", "what", "when",
-      "where", "which", "can", "this", "that", "its", "was", "with",
-      "have", "has", "from", "but", "our", "your", "my", "his", "her",
-      "they", "them", "also", "any", "all", "get", "got", "did", "does",
-      "will", "been", "who", "you", "too", "use", "used", "via",
-    ]);
+    const normalizedQuery = query.toLowerCase().trim();
+    if (!normalizedQuery) return [];
 
-    // Tokenise query — keep words longer than 2 chars and not stop words
-    const queryWords = query
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-
-    if (queryWords.length === 0) return [];
-
-    // Score each video by how many query words appear anywhere in its keywords text.
-    // This handles both comma-separated ("milk,analyzer,clean") and
-    // phrase-style ("how to clean milk analyzer") keyword entries.
     const scored = allVideos
-      .map((v) => {
-        const keywordText = v.keywords.toLowerCase();
-        const score = queryWords.filter((qw) => keywordText.includes(qw)).length;
-        return { video: v, score };
-      })
-      // Require at least 2 meaningful query words to match to avoid noise
-      .filter((s: { score: number }) => s.score >= 2)
-      .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
+      .map((v) => ({ video: v, score: scoreVideoMatch(normalizedQuery, v.keywords) }))
+      .filter((s) => s.score >= 1)
+      .sort((a, b) => b.score - a.score);
 
     return scored.slice(0, limit).map((s) => ({
       id: s.video.id,

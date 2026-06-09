@@ -221,9 +221,13 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
     });
 
     // ── Video recommendations ──────────────────────────────────────────────
-    // Skip video suggestions when no training documents are available.
+    // Show curated videos after a real troubleshooting answer (not on errors / no-docs).
     const isNoDocs = assistantContent.startsWith("__NO_DOCS__");
-    let videos = isNoDocs ? [] : await findVideosForQuery(content.trim(), 3);
+    const noAnswer = assistantContent.includes("couldn't find this information in the documentation");
+    let videos: Awaited<ReturnType<typeof findVideosForQuery>> = [];
+    if (!isNoDocs && !noAnswer) {
+      videos = await findVideosForQuery(searchQuery, 3);
+    }
 
     // Strip the internal marker before sending to client
     if (isNoDocs) {
