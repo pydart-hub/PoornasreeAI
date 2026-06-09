@@ -652,12 +652,41 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
   return makeReply(t("SERIAL_NOT_FOUND", lang, { serial }), [getSkipButton(lang)]);
 }
 
+// ── Complaint types list helper ───────────────────────────────────────────
+async function fetchComplaintListRows(lang: Lang) {
+  const templates = await prisma.troubleshootingTemplate.findMany({
+    where: { isActive: true, audience: { in: ["customer", "both"] } },
+    select: { id: true, title: true, description: true },
+    orderBy: { title: "asc" },
+    take: 9, // leave 1 space for "Other"
+  });
+
+  const rows = templates.map((t) => ({
+    id: `COMPLAINT_${t.id}`,
+    title: t.title.slice(0, 24),
+    description: t.description?.slice(0, 72),
+  }));
+
+  rows.push({
+    id: "COMPLAINT_OTHER",
+    title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
+    description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue",
+  });
+
+  return rows;
+}
+
 // ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
 async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   if (text === "1" || /^yes/i.test(text)) {
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
-    return makeReply(t("DESCRIBE_COMPLAINT", lang));
+    const listRows = await fetchComplaintListRows(lang);
+    return makeReply(
+      t("DESCRIBE_COMPLAINT", lang),
+      undefined,
+      listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+    );
   }
   if (text === "2" || /^no/i.test(text)) {
     const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
@@ -802,34 +831,61 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
     }
     const updatedMeta = { ...meta, selectedProduct: directMatch };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-    return makeReply(t("PRODUCT_SELECTED", lang, { product: directMatch }));
+    const listRows = await fetchComplaintListRows(lang);
+    return makeReply(
+      t("PRODUCT_SELECTED", lang, { product: directMatch }),
+      undefined,
+      listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+    );
   }
 
   const selectedProduct = productNames[index];
   const updatedMeta = { ...meta, selectedProduct };
   await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-  return makeReply(t("PRODUCT_SELECTED", lang, { product: selectedProduct }));
+  const listRows = await fetchComplaintListRows(lang);
+  return makeReply(
+    t("PRODUCT_SELECTED", lang, { product: selectedProduct }),
+    undefined,
+    listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+  );
 }
 
 // ── COMPLAINT_DESCRIBE ────────────────────────────────────────────────────
 async function handleComplaintDescribe(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  if (text.length < 3) {
+  let complaintText = text.trim();
+
+  // If they selected a complaint from the list
+  if (complaintText.startsWith("COMPLAINT_")) {
+    if (complaintText === "COMPLAINT_OTHER") {
+      // Prompt them to type manually while staying in COMPLAINT_DESCRIBE state
+      return makeReply(t("DESCRIBE_SHORT", lang));
+    }
+    const templateId = complaintText.replace("COMPLAINT_", "");
+    const template = await prisma.troubleshootingTemplate.findUnique({ where: { id: templateId } });
+    if (template) {
+      complaintText = template.title;
+    } else {
+      complaintText = ""; // Not found, will prompt to describe
+    }
+  }
+
+  if (complaintText.length < 3) {
     return makeReply(t("DESCRIBE_SHORT", lang));
   }
 
-  const updatedMeta: SessionMeta = { ...meta, complaint: text };
+  const updatedMeta: SessionMeta = { ...meta, complaint: complaintText };
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
-  const template = await findTroubleshootingTemplate(text, productName);
+  const template = await findTroubleshootingTemplate(complaintText, productName);
 
   // ── Video recommendations: search by complaint + product name ──────────
-  const videoSearchQuery = productName ? `${productName} ${text}` : text;
+  const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
   const videos = await findVideosForQuery(videoSearchQuery, 3);
 
   if (!template || template.steps.length === 0) {
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
     return makeReply(
-      t("NO_STEPS", lang, { complaint: text }),
+      t("NO_STEPS", lang, { complaint: complaintText }),
       [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
       undefined,
       undefined,
@@ -844,7 +900,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   if (steps.length === 0) {
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
     return makeReply(
-      t("NO_STEPS", lang, { complaint: text }),
+      t("NO_STEPS", lang, { complaint: complaintText }),
       [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
       undefined,
       undefined,
@@ -857,7 +913,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
   return makeReply(
-    t("STEPS_FOUND", lang, { complaint: text, steps: stepsText }),
+    t("STEPS_FOUND", lang, { complaint: complaintText, steps: stepsText }),
     [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }],
     undefined,
     undefined,
