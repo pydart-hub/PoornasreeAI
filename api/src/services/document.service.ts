@@ -320,7 +320,7 @@ export async function processDocument(
     const userChatSheet = wb.getWorksheet("USER CHAT");
     if (userChatSheet) {
       // ── Detect CHATBOT_DATAS format and convert to intents ──────────
-      const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string }> = [];
+      const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
       const seenTags = new Set<string>();
       let lastProduct = "";
 
@@ -394,10 +394,60 @@ export async function processDocument(
           patterns: [...new Set(patterns)],
           responses: [respLines.join("\n")],
           role: documentType,
+          complaint: toTitleCase(complaint),
         });
       });
 
       if (intents.length > 0) {
+        // Upsert into TroubleshootingTemplate DB for WhatsApp bot
+        for (const intent of intents) {
+          if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
+          const response = intent.responses[0] as string;
+          const stepLines = response.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
+          const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
+          if (steps.length === 0) continue;
+          const title = intent.complaint || (intent.tag as string)
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (c: string) => c.toUpperCase());
+          const description = Array.isArray(intent.patterns)
+            ? intent.patterns.join(" | ")
+            : intent.tag;
+          try {
+            const existing = await prisma.troubleshootingTemplate.findUnique({
+              where: { problemType: intent.tag },
+            });
+            const audience = documentType === "service" ? "engineer" : "customer";
+            if (existing) {
+              await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
+              await prisma.troubleshootingTemplate.update({
+                where: { id: existing.id },
+                data: {
+                  title,
+                  description,
+                  audience,
+                  steps: {
+                    create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                  },
+                },
+              });
+            } else {
+              await prisma.troubleshootingTemplate.create({
+                data: {
+                  problemType: intent.tag,
+                  title,
+                  description,
+                  audience,
+                  steps: {
+                    create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                  },
+                },
+              });
+            }
+          } catch {
+            // non-blocking
+          }
+        }
+
         return embedStructuredEntries(
           documentId,
           documentType,
