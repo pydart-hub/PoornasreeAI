@@ -655,7 +655,7 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 // ── Complaint types list helper ───────────────────────────────────────────
 async function fetchComplaintListRows(lang: Lang) {
   const templates = await prisma.troubleshootingTemplate.findMany({
-    where: { isActive: true, audience: { in: ["customer", "both"] } },
+    where: { isActive: true },
     select: { id: true, title: true, description: true },
     orderBy: { title: "asc" },
     take: 9, // leave 1 space for "Other"
