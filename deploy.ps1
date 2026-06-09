@@ -3,12 +3,12 @@
 # ============================================================
 # Workflow (fast — recommended):
 #   1. git push origin AIpoorna  →  CI builds images  →  auto deploy-production (pull on VPS)
-#   2. Or manually: .\scripts\deploy-pull.ps1  (~1-3 min on VPS)
+#   2. Or manually: .\ops\deploy\deploy-pull.ps1  (~1-3 min on VPS)
 #
 # Usage:
 #   git push only                 # DEFAULT — GitHub Actions build + pull deploy
 #   .\scripts\deploy-pull.ps1     # manual pull deploy (same as CI deploy step)
-#   .\scripts\deploy-quick.ps1    # legacy VPS build web (~8-15 min)
+#   .\ops\deploy\deploy-quick.ps1 # legacy VPS build web (~8-15 min)
 #   .\deploy.ps1                  # legacy full VPS build (~15-26 min)
 #   .\deploy.ps1 -Quick             # same as deploy-quick.ps1 (UI)
 #   .\deploy.ps1 -Quick -QuickApi   # old-style API quick (~3-6 min)
@@ -29,11 +29,11 @@ param(
     [switch]$Background,
     [switch]$Seed,
     [string]$ImageTag = "AIpoorna",
-    [string]$Server    = "168.231.121.19",
+    [string]$Server    = "65.20.72.131",
     [string]$User      = "root",
     [int]   $SshPort   = 22,
     [string]$RemoteDir = "/root/poornasree-ai",
-    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI"
+    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -165,6 +165,6 @@ Invoke-Ssh "curl -sf http://localhost:4000/health && echo ' API healthy' || echo
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
 Write-Host " Deployment complete!" -ForegroundColor Green
-Write-Host " App: https://poornasree.pydart.com" -ForegroundColor Green
+Write-Host " App: https://ai.poornasreecloud.com" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""

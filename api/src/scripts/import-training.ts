@@ -28,10 +28,9 @@ async function main() {
 
   // Try a few common paths for the file
   const candidates = [
-    path.resolve(__dirname, `../../../public/Doc/${cliFileName}`),
-    path.resolve(__dirname, `../../public/Doc/${cliFileName}`),
-    `/home/deploy/poornasree-ai/public/Doc/${cliFileName}`,
-    `/root/poornasree-ai/public/Doc/${cliFileName}`,
+    path.resolve(__dirname, `../../../data/training/${cliFileName}`),
+    path.resolve(__dirname, `../../data/training/${cliFileName}`),
+    `/root/poornasree-ai/data/training/${cliFileName}`,
   ];
 
   let trainingPath = "";

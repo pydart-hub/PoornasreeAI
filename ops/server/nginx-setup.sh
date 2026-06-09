@@ -6,7 +6,7 @@
 
 set -e
 
-REPO_DIR="/home/deploy/poornasree-ai"
+REPO_DIR="/root/poornasree-ai"
 NGINX_CONF="/etc/nginx/sites-available/poornasree"
 SUDO_PASS="Poornasree@2026"
 

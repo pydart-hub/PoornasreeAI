@@ -2,13 +2,29 @@
 
 ---
 
-**Stage:** 01 of 04
-**Provider:** Hostinger VPS
-**Server:** `187.77.188.63`
-**App:** `poornasree-AI`
-**OS:** Ubuntu 24.04.4 LTS
-**Status:** 🔲 IN PROGRESS
+**Stage:** 01 of 04  
+**Provider:** Hostinger VPS  
+**Server IP:** `168.231.121.19`  
+**Domain:** `poornasree.pydart.com`  
+**SSH alias:** `poornasree`  
+**App:** `poornasree-AI`  
+**Repo on VPS:** `/root/poornasree-ai`  
+**OS:** Ubuntu 24.04.4 LTS  
+**Local user:** `abhis` (Windows)  
+**Status:** 🔲 IN PROGRESS  
 **Depends on:** —
+
+### Quick reference
+
+| Item | Value |
+|------|--------|
+| Connect | `ssh poornasree` |
+| Private key | `C:\Users\abhis\.ssh\poornasreeAI` |
+| Public key | `C:\Users\abhis\.ssh\poornasreeAI.pub` |
+| SSH config | `C:\Users\abhis\.ssh\config` |
+| Server user | `root` |
+| SSH port | `22` |
+| Linux hostname | `poornasree-ai` (set in Step 1.3) |
 
 ---
 
@@ -31,36 +47,41 @@
 
 ## Step 0.1 — Get Your Local SSH Public Key
 
-Run on your **local Windows machine**.
+Run on your **local Windows machine** (`abhis`).
+
+**Private key:** `C:\Users\abhis\.ssh\poornasreeAI`  
+**Public key:** `C:\Users\abhis\.ssh\poornasreeAI.pub`
 
 **PowerShell:**
+
 ```powershell
-Get-Content "$env:USERPROFILE\.ssh\id_ed25519_vutr.pub"
+Get-Content "$env:USERPROFILE\.ssh\poornasreeAI.pub"
 ```
 
 **Command Prompt (cmd.exe):**
 ```cmd
-type %USERPROFILE%\.ssh\id_ed25519_vutr.pub
+type %USERPROFILE%\.ssh\poornasreeAI.pub
 ```
 
 **Your key:**
 ```
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHbIFbF1QtnyMiFtV5Ba7Sj+d4ZJqLPOMf30md6FLS3Q smartuplearningventures@gmail.com
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkMZJuErCY6SZdJ03W2DGrTRmIDEXTxTK8Uomo+YKAM poornasreeAI
 ```
 
 ---
 
 ## Step 0.2 — Add Server to Local SSH Config
 
-This allows `ssh poornasree-ai` without specifying the key every time.
+This allows `ssh poornasree` without specifying the key every time.
 
-Check `C:\Users\offic\.ssh\config` — it should already contain:
+Check `C:\Users\abhis\.ssh\config` — it should already contain:
 ```
-Host poornasree-ai
-    HostName 187.77.188.63
+Host poornasree
+    HostName 168.231.121.19
     User root
-    IdentityFile ~/.ssh/id_ed25519_vutr
-    IdentitiesOnly yes
+    Port 22
+    IdentityFile ~/.ssh/poornasreeAI
+    StrictHostKeyChecking no
 ```
 
 Verify (PowerShell):
@@ -68,39 +89,63 @@ Verify (PowerShell):
 Get-Content "$env:USERPROFILE\.ssh\config"
 ```
 
-If the `poornasree-ai` block is missing, add it:
+If the `poornasree` block is missing, add it:
 ```powershell
-Add-Content "$env:USERPROFILE\.ssh\config" "`nHost poornasree-ai`n    HostName 187.77.188.63`n    User root`n    IdentityFile ~/.ssh/id_ed25519_vutr`n    IdentitiesOnly yes"
+Add-Content "$env:USERPROFILE\.ssh\config" "`nHost poornasree`n    HostName 168.231.121.19`n    User root`n    Port 22`n    IdentityFile ~/.ssh/poornasreeAI`n    StrictHostKeyChecking no"
 ```
 
 ---
 
 ## Step 1.1 — Install SSH Public Key on Server
 
-**Get your root password from Hostinger:**
+**Get your root password from Hostinger (one-time, if needed):**
 1. Log in to [hPanel](https://hpanel.hostinger.com)
-2. Go to **VPS** → select your server
+2. Go to **VPS** → select server `168.231.121.19`
 3. Click **Overview** → copy the **Root Password**
    (or reset it under **OS & Panel** → **Reset Root Password**)
 
-Connect with password first (one-time only):
+**Option A — Hostinger hPanel SSH Keys (recommended):**
 
-```bash
-ssh root@187.77.188.63
+1. hPanel → **VPS** → your server → **Settings** → **SSH keys**
+2. Click **Add SSH key**
+3. Paste this public key:
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkMZJuErCY6SZdJ03W2DGrTRmIDEXTxTK8Uomo+YKAM poornasreeAI
 ```
 
-Once logged in, run:
+4. Save and attach the key to the VPS
+
+**Option B — Hostinger browser terminal:**
+
+hPanel → VPS → **Terminal**, then run as `root`:
+
 ```bash
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
-echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHbIFbF1QtnyMiFtV5Ba7Sj+d4ZJqLPOMf30md6FLS3Q smartuplearningventures@gmail.com" >> ~/.ssh/authorized_keys
+grep -qxF 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkMZJuErCY6SZdJ03W2DGrTRmIDEXTxTK8Uomo+YKAM poornasreeAI' ~/.ssh/authorized_keys 2>/dev/null || echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkMZJuErCY6SZdJ03W2DGrTRmIDEXTxTK8Uomo+YKAM poornasreeAI' >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 cat ~/.ssh/authorized_keys
 ```
 
-Expected output:
+**Option C — SSH with root password (one-time only):**
+
+```powershell
+ssh root@168.231.121.19
 ```
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHbIFbF1QtnyMiFtV5Ba7Sj+d4ZJqLPOMf30md6FLS3Q smartuplearningventures@gmail.com
+
+Or after Step 0.2 is done:
+
+```powershell
+ssh poornasree
+```
+
+Then run the same commands as Option B.
+
+Expected output:
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkMZJuErCY6SZdJ03W2DGrTRmIDEXTxTK8Uomo+YKAM poornasreeAI
 ```
 
 ---
@@ -109,22 +154,26 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHbIFbF1QtnyMiFtV5Ba7Sj+d4ZJqLPOMf30md6FLS3Q
 
 > ⚠️ Do NOT close the current session yet.
 
-Open a **new terminal** on your local machine and run:
-```
-ssh poornasree-ai
+Open a **new PowerShell terminal** on your local machine and run:
+
+```powershell
+ssh poornasree
 ```
 
-✅ Expected: logs in with **no password prompt** 
-❌ If still asks for password: check Step 0.2 SSH config and Step 1.1 key
+✅ Expected: logs in with **no password prompt**  
+❌ If still asks for password: see [SSH troubleshooting](#ssh-troubleshooting) below
 
-Once confirmed working, all future connections use:
-```
-ssh poornasree-ai
+All future connections:
+
+```powershell
+ssh poornasree
 ```
 
 ---
 
 ## Step 1.3 — Set Hostname & Timezone
+
+> **Note:** Linux hostname is `poornasree-ai`. SSH alias `poornasree` is only on your local machine.
 
 ```bash
 hostnamectl set-hostname poornasree-ai
@@ -171,11 +220,10 @@ sshd -T | grep -E "passwordauthentication|permitrootlogin|maxauthtries"
 Expected:
 ```
 passwordauthentication no
-permitroottlogin prohibit-password
-maxauthtries 3
-```
+permitrootlogin prohibit-password
+maxauthtries 3```
 
-> ⚠️ **Test `ssh poornasree-ai` still works in a new terminal before logging out!**
+> ⚠️ **Test `ssh poornasree` still works in a new terminal before logging out!**
 
 ---
 
@@ -419,26 +467,62 @@ echo "=== Auto-Updates ===" && systemctl is-active unattended-upgrades
 
 ---
 
-## Add SSH Config Alias (Local Machine)
+## SSH Troubleshooting
 
-Add this to `C:\Users\offic\.ssh\config` on your local machine for easy access:
+If `ssh poornasree` still asks for a password:
 
-> **Note:** Reusing the existing `id_ed25519_vutr` key (originally created for the Vultr/smartup server). This is fine — the key works on any server, it's just a local filename.
-
-```
-Host poornasree-ai
-    HostName 187.77.188.63
-    User root
-    IdentityFile ~/.ssh/id_ed25519_vutr
-```
-
-Then connect with:
+**1. Verify local config (PowerShell):**
 ```powershell
-ssh poornasree-ai
+Get-Content "$env:USERPROFILE\.ssh\config"
+ssh -v poornasree
+```
+
+**2. On the server (Hostinger terminal), check permissions:**
+```bash
+ls -la ~/.ssh/
+ls -la ~/.ssh/authorized_keys
+cat ~/.ssh/authorized_keys
+```
+
+Expected:
+- `~/.ssh` → `drwx------` (700)
+- `authorized_keys` → `-rw-------` (600)
+
+**3. Confirm SSH allows key auth:**
+```bash
+grep -E '^(PubkeyAuthentication|AuthorizedKeysFile|PermitRootLogin)' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null
+```
+
+**4. Re-add key if missing (server terminal):**
+```bash
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMkMZJuErCY6SZdJ03W2DGrTRmIDEXTxTK8Uomo+YKAM poornasreeAI' >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
 ```
 
 ---
 
+## Local SSH Config (Summary)
+
+See **Step 0.2** for full setup. Your `C:\Users\abhis\.ssh\config` should contain:
+
+```
+Host poornasree
+    HostName 168.231.121.19
+    User root
+    Port 22
+    IdentityFile ~/.ssh/poornasreeAI
+    StrictHostKeyChecking no
+```
+
+Connect:
+
+```powershell
+ssh poornasree
+```
+
+See also: [plan.md §13 Server & SSH Access](../plan.md)
+
+---
 ## Next Stage
 
 **→ [Stage 02: App Stack Installation (Node.js + MySQL + Nginx)](STAGE_02_APP_STACK.md)**

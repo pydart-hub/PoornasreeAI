@@ -19,11 +19,19 @@ export interface JwtPayload {
   pincodeId?: string | null;
 }
 
+/** Cookie (web) or `Authorization: Bearer` (external / mobile app) — same JWT. */
+export function getAuthToken(req: Request): string | undefined {
+  const cookie = req.cookies?.token;
+  if (cookie) return cookie;
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) return header.slice(7).trim();
+  return undefined;
+}
+
 // ── Protect middleware ────────────────────────────────────────────────
-// Reads the JWT from the signed HTTP-only cookie, verifies it, and
-// attaches { userId, role } to req.user. Rejects with 401 on failure.
+// Verifies JWT from cookie or Bearer token; attaches req.user.
 export function protect(req: Request, res: Response, next: NextFunction): void {
-  const token: string | undefined = req.cookies?.token;
+  const token = getAuthToken(req);
 
   if (!token) {
     res.status(401).json({ error: "Not authenticated" });

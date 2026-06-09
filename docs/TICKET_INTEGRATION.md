@@ -462,7 +462,7 @@ Payload `data` matches the public stage GET shape for that ticket.
 
 ```powershell
 cd PoornasreeAI/api
-powershell -File scripts/test-stage-e2e.ps1
+powershell -File tests/e2e/test-stage-e2e.ps1
 ```
 
 Seed accounts: `dealer@poornasree.com` / `Dealer@1234`, `admin@poornasree.com` / `Admin@1234`, `engineer1@poornasree.com` / `Engineer@1234`.

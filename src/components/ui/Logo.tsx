@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 /** Full wordmark for login / marketing (public/images/flogo.png) */
 export const BRAND_LOGO_SRC = "/images/flogo.png";
 
-/** Sidebar + favicon mark (public/flower.png) */
-export const APP_ICON_SRC = "/flower.png";
+/** Sidebar + favicon mark (public/images/flower.png) */
+export const APP_ICON_SRC = "/images/flower.png";
 
 interface LogoProps {
   variant?: "full" | "icon" | "brand" | "flower";

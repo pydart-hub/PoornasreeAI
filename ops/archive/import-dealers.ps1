@@ -1,11 +1,15 @@
 # ============================================================
 # import-dealers.ps1 — Bulk import 67 dealers from Excel data
+# Targets: poornasree VPS (168.231.121.19) via SSH alias
+# SSH key : ~/.ssh/poornasreeAI
+# Run     : .\import-dealers.ps1
 # ============================================================
 param(
-    [string]$Server    = "187.77.188.63",
-    [string]$User      = "deploy",
-    [int]   $SshPort   = 2222,
-    [string]$RemoteDir = "/home/deploy/poornasree-ai"
+    [string]$Server    = "65.20.72.131",
+    [string]$User      = "root",
+    [int]   $SshPort   = 22,
+    [string]$RemoteDir = "/root/poornasree-ai",
+    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI2"
 )
 $ErrorActionPreference = "Stop"
 
@@ -120,6 +124,7 @@ main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1
 Write-Host "[1/1] Running import inside API container on VPS..." -ForegroundColor Yellow
 
 $sshArgs = @(
+    "-i", $KeyFile,
     "-p", "$SshPort",
     "-o", "StrictHostKeyChecking=no",
     "-o", "ConnectTimeout=30",

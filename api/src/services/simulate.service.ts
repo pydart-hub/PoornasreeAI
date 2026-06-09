@@ -1,4 +1,4 @@
-﻿// ── Simulate Service (WhatsApp Customer Chat FSM) ────────────────────────
+// ── Simulate Service (WhatsApp Customer Chat FSM) ────────────────────────
 //
 // Flow overview:
 //   GREETING        → check registration → greet or ask phone
@@ -23,6 +23,7 @@ import prisma from "../lib/prisma";
 import { fetchPlaceFromPincode } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
+import { findVideosForQuery } from "../controllers/video.controller";
 import { io } from "../lib/socket";
 import { env } from "../config/env";
 import {
@@ -821,11 +822,18 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
   const template = await findTroubleshootingTemplate(text, productName);
 
+  // ── Video recommendations: search by complaint + product name ──────────
+  const videoSearchQuery = productName ? `${productName} ${text}` : text;
+  const videos = await findVideosForQuery(videoSearchQuery, 3);
+
   if (!template || template.steps.length === 0) {
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
     return makeReply(
       t("NO_STEPS", lang, { complaint: text }),
-      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)]
+      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
+      undefined,
+      undefined,
+      videos,
     );
   }
 
@@ -837,7 +845,10 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
     return makeReply(
       t("NO_STEPS", lang, { complaint: text }),
-      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)]
+      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
+      undefined,
+      undefined,
+      videos,
     );
   }
 
@@ -847,7 +858,10 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   return makeReply(
     t("STEPS_FOUND", lang, { complaint: text, steps: stepsText }),
-    [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }]
+    [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }],
+    undefined,
+    undefined,
+    videos,
   );
 }
 
@@ -1526,9 +1540,10 @@ function isGlobalRestartCommand(upper: string): boolean {
 export type ReplyButton = { id: string; title: string };
 export type ReplyList = { buttonText: string; rows: Array<{ id: string; title: string; description?: string }> };
 export type ProductImage = { url: string; caption: string };
+export type ReplyVideo = { id: string; title: string; description: string | null; youtubeUrl: string; keywords: string };
 
-function makeReply(message: string, buttons?: ReplyButton[], list?: ReplyList, images?: ProductImage[]) {
-  return { message, buttons, list, images };
+function makeReply(message: string, buttons?: ReplyButton[], list?: ReplyList, images?: ProductImage[], videos?: ReplyVideo[]) {
+  return { message, buttons, list, images, videos };
 }
 
 async function getOrCreateSession(phoneNumber: string) {

@@ -1,7 +1,7 @@
 /**
  * convert-chatbot-excel.js
- * Reads public/Doc/CHATBOT_DATAS.xlsx (USER CHAT sheet) and outputs
- * public/Doc/chatbot-training.json in the { intents: [...] } format
+ * Reads data/training/CHATBOT_DATAS.xlsx (USER CHAT sheet) and outputs
+ * data/training/chatbot-training.json in the { intents: [...] } format
  * used by training-indexer.ts.
  *
  * Run: node api/src/scripts/convert-chatbot-excel.js
@@ -12,8 +12,8 @@ const path = require("path");
 const fs   = require("fs");
 
 const ROOT      = path.resolve(__dirname, "../../..");
-const EXCEL_IN  = path.join(ROOT, "public/Doc/CHATBOT_DATAS.xlsx");
-const JSON_OUT  = path.join(ROOT, "public/Doc/chatbot-training.json");
+const EXCEL_IN  = path.join(ROOT, "data/training/CHATBOT_DATAS.xlsx");
+const JSON_OUT  = path.join(ROOT, "data/training/chatbot-training.json");
 
 // Natural-language pattern generator per product+complaint
 function buildPatterns(product, complaint) {

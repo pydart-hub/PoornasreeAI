@@ -48,17 +48,17 @@ export const env = {
 
   // ── Frontend URL ────────────────────────────
   // Used to build links (e.g. set-password) sent via WhatsApp.
-  FRONTEND_URL: optional("FRONTEND_URL", "https://poornasree.pydart.com"),
+  FRONTEND_URL: optional("FRONTEND_URL", "https://ai.poornasreecloud.com"),
 
   // ── WhatsApp Cloud API ──────────────────────
   // Optional — set in .env. Required for real WhatsApp messages via Meta webhook.
   WA_PHONE_NUMBER_ID: process.env.WA_PHONE_NUMBER_ID || "",
   WA_ACCESS_TOKEN:    process.env.WA_ACCESS_TOKEN    || "",
   WA_VERIFY_TOKEN:    process.env.WA_VERIFY_TOKEN    || "",
-  // Approved Meta template for first outbound engineer onboarding (see public/Doc/WHATSAPP_ENGINEER_SETUP_TEMPLATE.md)
+  // Approved Meta template for first outbound engineer onboarding (see docs/WHATSAPP_ENGINEER_SETUP_TEMPLATE.md)
   WA_ENGINEER_SETUP_TEMPLATE: process.env.WA_ENGINEER_SETUP_TEMPLATE || "",
   WA_ENGINEER_SETUP_TEMPLATE_LANG: process.env.WA_ENGINEER_SETUP_TEMPLATE_LANG || "en",
-  // Utility template when a ticket is assigned (see public/Doc/WHATSAPP_ENGINEER_TICKET_ASSIGNED_TEMPLATE.md)
+  // Utility template when a ticket is assigned (see docs/WHATSAPP_ENGINEER_TICKET_ASSIGNED_TEMPLATE.md)
   WA_ENGINEER_TICKET_TEMPLATE: process.env.WA_ENGINEER_TICKET_TEMPLATE || "",
   WA_ENGINEER_TICKET_TEMPLATE_LANG: process.env.WA_ENGINEER_TICKET_TEMPLATE_LANG || "en",
 
