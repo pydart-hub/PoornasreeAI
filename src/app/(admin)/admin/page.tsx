@@ -516,7 +516,7 @@ export default function AdminPage() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* ── Gradient Header Banner ── */}
-        <div className="shrink-0 bg-gradient-to-r from-purple-950 via-violet-900 to-indigo-900 px-4 sm:px-6 pt-3 pb-4">
+        <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
           {/* Top row */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -543,9 +543,9 @@ export default function AdminPage() {
             <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
               <div className="flex items-start justify-between">
                 <p className="text-3xl font-black text-white">{documents.length}</p>
-                <FileText className="w-5 h-5 text-violet-200 opacity-70 mt-1" />
+                <FileText className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
               </div>
-              <p className="text-[11px] text-violet-200 font-semibold mt-1 uppercase tracking-wide">Documents</p>
+              <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Documents</p>
             </div>
             <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", trainedCount > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
@@ -554,19 +554,19 @@ export default function AdminPage() {
               </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", trainedCount > 0 ? "text-emerald-200" : "text-white/40")}>Trained</p>
             </div>
-            <button onClick={() => router.push("/admin/users")} className={cn("rounded-2xl px-4 py-3.5 border shadow-inner text-left transition-all hover:scale-[1.02] hover:brightness-110", users.length > 0 ? "bg-violet-500/30 border-violet-300/40" : "bg-white/10 border-white/20")}>
+            <button onClick={() => router.push("/admin/users")} className={cn("rounded-2xl px-4 py-3.5 border shadow-inner text-left transition-all hover:scale-[1.02] hover:brightness-110", users.length > 0 ? "bg-primary-500/30 border-primary-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", users.length > 0 ? "text-violet-200" : "text-white/50")}>{users.length}</p>
-                <Users className={cn("w-5 h-5 mt-1", users.length > 0 ? "text-violet-300 opacity-70" : "text-white/20")} />
+                <p className={cn("text-3xl font-black", users.length > 0 ? "text-primary-200" : "text-white/50")}>{users.length}</p>
+                <Users className={cn("w-5 h-5 mt-1", users.length > 0 ? "text-primary-300 opacity-70" : "text-white/20")} />
               </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", users.length > 0 ? "text-violet-200" : "text-white/40")}>Manage Users</p>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", users.length > 0 ? "text-primary-200" : "text-white/40")}>Manage Users</p>
             </button>
             <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
               <div className="flex items-start justify-between">
                 <p className="text-3xl font-black text-white">{users.reduce((s, u) => s + (u._count?.conversations ?? 0), 0)}</p>
-                <MessageSquare className="w-5 h-5 text-violet-200 opacity-70 mt-1" />
+                <MessageSquare className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
               </div>
-              <p className="text-[11px] text-violet-200 font-semibold mt-1 uppercase tracking-wide">Conversations</p>
+              <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Conversations</p>
             </div>
           </div>
         </div>
@@ -592,7 +592,7 @@ export default function AdminPage() {
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
                   activeTab === t.key
-                    ? "bg-purple-600 text-white shadow-sm"
+                    ? "bg-primary-600 text-white shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
                 )}
               >
@@ -751,7 +751,7 @@ export default function AdminPage() {
                             "text-xs font-medium px-2 py-0.5 rounded-full",
                             doc.documentType === "service"
                               ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                              : "bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                              : "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
                           )}>
                             {doc.documentType === "service" ? "🔧 Service" : "👤 Customer"}
                           </span>
@@ -1239,7 +1239,7 @@ export default function AdminPage() {
                     {/* KPI Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-violet-50 dark:bg-violet-500/10 mb-2"><MessageSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" /></div>
+                        <div className="inline-flex p-2 rounded-xl bg-primary-50 dark:bg-primary-500/10 mb-2"><MessageSquare className="w-5 h-5 text-primary-600 dark:text-primary-400" /></div>
                         <p className="text-xl font-bold text-content dark:text-content-dark">{customerAnalytics.totalConversations}</p>
                         <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Customer Conversations</p>
                       </div>
@@ -1299,7 +1299,7 @@ export default function AdminPage() {
                       {customerAnalytics.topQuestions.length > 0 && (
                         <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
                           <div className="flex items-center gap-2 mb-4">
-                            <MessageSquare className="w-4 h-4 text-violet-500" />
+                            <MessageSquare className="w-4 h-4 text-primary-500" />
                             <h3 className="text-sm font-semibold text-content dark:text-content-dark">Most Asked (Keywords)</h3>
                           </div>
                           <ResponsiveContainer width="100%" height={240}>

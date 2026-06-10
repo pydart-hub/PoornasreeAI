@@ -270,9 +270,9 @@ export default function CustomerServiceDashboard() {
                   )}
                 >
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-sky-400 rounded-full" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-full" />
                   )}
-                  <span className={cn(isActive ? "text-sky-300" : "text-white/50 group-hover:text-white/70")}>
+                  <span className={cn(isActive ? "text-primary-300" : "text-white/50 group-hover:text-white/70")}>
                     <Icon className="w-4 h-4 shrink-0" />
                   </span>
                   <span className="flex-1 text-left">{label}</span>
@@ -605,7 +605,7 @@ export default function CustomerServiceDashboard() {
                   {/* Stats cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                      { label: "Total Conversations", value: analytics.totalConversations, icon: MessageSquare, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-500/10" },
+                      { label: "Total Conversations", value: analytics.totalConversations, icon: MessageSquare, color: "text-primary-600 dark:text-primary-400", bg: "bg-primary-50 dark:bg-primary-500/10" },
                       { label: "Support Requests", value: analytics.totalSupportRequests, icon: Inbox, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10" },
                       { label: "Resolved", value: analytics.resolvedCount, icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
                       { label: "Pending", value: analytics.pendingCount, icon: Clock, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-50 dark:bg-rose-500/10" },
@@ -627,7 +627,7 @@ export default function CustomerServiceDashboard() {
                     {/* Top Questions */}
                     <div className="rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark p-4">
                       <div className="flex items-center gap-2 mb-3">
-                        <HelpCircle className="h-4 w-4 text-blue-500" />
+                        <HelpCircle className="h-4 w-4 text-primary-500" />
                         <h3 className="text-sm font-semibold text-content dark:text-content-dark">Most Asked Questions</h3>
                       </div>
                       {analytics.topQuestions.length === 0 ? (
@@ -644,7 +644,7 @@ export default function CustomerServiceDashboard() {
                                   <span className="text-[10px] text-content-secondary dark:text-content-dark-secondary font-medium">{q.count}</span>
                                 </div>
                                 <div className="h-1.5 bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-full overflow-hidden">
-                                  <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                                  <div className="h-full bg-primary-500 dark:bg-primary-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
                                 </div>
                               </div>
                             );
@@ -756,7 +756,7 @@ export default function CustomerServiceDashboard() {
             className={cn(
               "flex items-center gap-2 px-3 py-2.5 rounded-xl shadow-lg text-xs font-medium pointer-events-auto border animate-in slide-in-from-right-4 fade-in duration-200",
               t.type === "success" && "bg-surface-card dark:bg-surface-dark-card text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700/50",
-              t.type === "info" && "bg-surface-card dark:bg-surface-dark-card text-primary dark:text-primary-300 border-blue-200 dark:border-blue-700/50",
+              t.type === "info" && "bg-surface-card dark:bg-surface-dark-card text-primary dark:text-primary-300 border-primary-200 dark:border-primary-700/50",
               t.type === "warning" && "bg-surface-card dark:bg-surface-dark-card text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700/50"
             )}
           >

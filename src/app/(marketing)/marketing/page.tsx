@@ -181,10 +181,10 @@ export default function MarketingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center">
             <Zap className="w-6 h-6 text-white" />
           </div>
-          <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-primary-400" />
         </div>
       </div>
     );
@@ -225,7 +225,7 @@ export default function MarketingPage() {
       )}>
         {/* Decorative blobs */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-400/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-20 left-0 w-24 h-24 bg-violet-400/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute bottom-20 left-0 w-24 h-24 bg-primary-400/20 rounded-full blur-2xl pointer-events-none" />
 
         {/* Logo */}
         <div className={cn(
@@ -238,7 +238,7 @@ export default function MarketingPage() {
           {(sidebarOpen || mobileMenuOpen) && (
             <div>
               <p className="text-sm font-bold text-white leading-tight">Marketing Hub</p>
-              <p className="text-[10px] text-violet-300/70 font-medium">Poornasree AI</p>
+              <p className="text-[10px] text-primary-300/70 font-medium">Poornasree AI</p>
             </div>
           )}
           <button
@@ -260,21 +260,21 @@ export default function MarketingPage() {
                 "group relative",
                 activeTab === item.key
                   ? "bg-white/15 text-white shadow-sm ring-1 ring-white/20"
-                  : "text-violet-200/60 hover:text-white hover:bg-white/8",
+                  : "text-primary-200/60 hover:text-white hover:bg-white/8",
                 !sidebarOpen && "md:justify-center md:px-0"
               )}
             >
               {activeTab === item.key && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-fuchsia-400 rounded-full" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-full" />
               )}
-              <span className={cn(activeTab === item.key ? "text-fuchsia-300" : "text-violet-300/60 group-hover:text-violet-200")}>
+              <span className={cn(activeTab === y ? "text-primary-300" : "text-primary-300/60 group-hover:text-primary-200")}>
                 {item.icon}
               </span>
               {(sidebarOpen || mobileMenuOpen) && (
                 <>
                   <span className="flex-1 text-left">{item.label}</span>
                   {item.badge != null && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-fuchsia-500/30 text-fuchsia-200">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary-500/30 text-primary-200">
                       {item.badge}
                     </span>
                   )}
@@ -296,7 +296,7 @@ export default function MarketingPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
-                <p className="text-[10px] text-violet-300/60 truncate">{user.email}</p>
+                <p className="text-[10px] text-primary-300/60 truncate">{user.email}</p>
               </div>
             </div>
           )}
@@ -304,7 +304,7 @@ export default function MarketingPage() {
             onClick={() => { logout(); router.replace("/login"); }}
             className={cn(
               "w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium",
-              "text-violet-300/60 hover:text-white hover:bg-white/10 transition-colors",
+              "text-primary-300/60 hover:text-white hover:bg-white/10 transition-colors",
               !sidebarOpen && "md:justify-center md:px-0"
             )}
           >
@@ -340,13 +340,13 @@ export default function MarketingPage() {
 
           <button
             onClick={loadAll}
-            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-violet-600 transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary-600 transition-colors"
             title="Refresh"
           >
             <RefreshCw className={cn("w-4 h-4", statsLoading && "animate-spin")} />
           </button>
 
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-xs font-bold text-white">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-xs font-bold text-white">
             {user.firstName[0].toUpperCase()}
           </div>
         </header>
@@ -395,10 +395,10 @@ function OverviewTab({
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Hero greeting */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-6 md:p-8 text-white shadow-xl shadow-violet-500/25">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-600 to-primary-600 p-6 md:p-8 text-white shadow-xl shadow-violet-500/25">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIwLjMiIG9wYWNpdHk9IjAuMiIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30" />
         <div className="absolute top-4 right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-        <div className="absolute bottom-0 right-24 w-20 h-20 bg-fuchsia-300/20 rounded-full blur-xl" />
+        <div className="absolute bottom-0 right-24 w-20 h-20 bg-primary-300/20 rounded-full blur-xl" />
         <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -445,8 +445,8 @@ function OverviewTab({
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard icon={<Users className="w-5 h-5" />} label="Total Leads" value={leads.length} gradient="bg-gradient-to-br from-blue-500 to-cyan-500" trend="+imported" />
-          <StatCard icon={<Megaphone className="w-5 h-5" />} label="Campaigns" value={campaigns.length} gradient="bg-gradient-to-br from-violet-500 to-purple-600" />
-          <StatCard icon={<Send className="w-5 h-5" />} label="Messages Sent" value={sentCount.toLocaleString()} gradient="bg-gradient-to-br from-fuchsia-500 to-pink-500" trend={`${sentCampaigns} delivered`} />
+          <StatCard icon={<Megaphone className="w-5 h-5" />} label="Campaigns" value={campaigns.length} gradient="bg-gradient-to-br from-primary-500 to-primary-600" />
+          <StatCard icon={<Send className="w-5 h-5" />} label="Messages Sent" value={sentCount.toLocaleString()} gradient="bg-gradient-to-br from-primary-500 to-pink-500" trend={`${sentCampaigns} delivered`} />
           <StatCard icon={<Target className="w-5 h-5" />} label="Draft Queued" value={draftCount} gradient="bg-gradient-to-br from-amber-500 to-orange-500" />
         </div>
       )}
@@ -459,9 +459,9 @@ function OverviewTab({
             icon: <Palette className="w-6 h-6" />,
             title: "Brand Identity",
             desc: "Update logo, colors, tagline & company info",
-            gradient: "from-violet-500/10 to-purple-500/10",
-            border: "border-violet-200 dark:border-violet-800/50",
-            iconBg: "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300",
+            gradient: "from-primary-500/10 to-primary-500/10",
+            border: "border-primary-200 dark:border-primary-800/50",
+            iconBg: "bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300",
           },
           {
             tab: "leads" as Tab,
@@ -477,9 +477,9 @@ function OverviewTab({
             icon: <Megaphone className="w-6 h-6" />,
             title: "WhatsApp Campaigns",
             desc: "Create & blast marketing campaigns to leads",
-            gradient: "from-fuchsia-500/10 to-pink-500/10",
-            border: "border-fuchsia-200 dark:border-fuchsia-800/50",
-            iconBg: "bg-fuchsia-100 dark:bg-fuchsia-900/40 text-fuchsia-600 dark:text-fuchsia-300",
+            gradient: "from-primary-500/10 to-pink-500/10",
+            border: "border-primary-200 dark:border-primary-800/50",
+            iconBg: "bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300",
           },
         ].map((card) => (
           <button
@@ -508,14 +508,14 @@ function OverviewTab({
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
             <h3 className="font-semibold text-sm text-slate-800 dark:text-slate-100">Recent Leads</h3>
-            <button onClick={() => onNavigate("leads")} className="text-xs text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1">
+            <button onClick={() => onNavigate("leads")} className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
               View all <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {leads.slice(0, 5).map((lead) => (
               <div key={lead.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                   {lead.name[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -523,7 +523,7 @@ function OverviewTab({
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">{lead.phone}</p>
                 </div>
                 {lead.tags && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300">
                     {lead.tags.split(",")[0]}
                   </span>
                 )}
@@ -614,7 +614,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
   if (loading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
       </div>
     );
   }
@@ -633,7 +633,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
       {/* Logo card */}
       <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
         <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
-          <Globe className="w-4 h-4 text-violet-500" /> Company Logo
+          <Globe className="w-4 h-4 text-primary-500" /> Company Logo
         </h3>
         <div className="flex items-center gap-4">
           <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-800 overflow-hidden">
@@ -643,7 +643,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
               : <ImageIcon className="w-6 h-6 text-slate-400" />
             }
           </div>
-          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium cursor-pointer transition-colors shadow-sm shadow-violet-500/30">
+          <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium cursor-pointer transition-colors shadow-sm shadow-violet-500/30">
             <Upload className="w-4 h-4" /> Upload Logo
             <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
           </label>
@@ -653,7 +653,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
       {/* Brand info card */}
       <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
         <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
-          <Star className="w-4 h-4 text-fuchsia-500" /> Brand Info
+          <Star className="w-4 h-4 text-primary-500" /> Brand Info
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
@@ -662,7 +662,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
               type="text" value={form.companyName}
               onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
               placeholder="e.g. Poornasree Engineering"
-              className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition"
+              className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition"
             />
           </div>
           <div className="sm:col-span-2">
@@ -671,7 +671,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
               type="text" value={form.tagline}
               onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))}
               placeholder="e.g. Engineering excellence, every time"
-              className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition"
+              className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition"
             />
           </div>
           <div className="sm:col-span-2">
@@ -681,7 +681,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
               onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               rows={2}
               placeholder="Company address"
-              className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition resize-none"
+              className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition resize-none"
             />
           </div>
         </div>
@@ -735,7 +735,7 @@ function BrandingSection({ onBrandingUpdate }: { onBrandingUpdate: (b: Branding)
 
       <button
         onClick={handleSave} disabled={saving}
-        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white font-semibold text-sm shadow-lg shadow-violet-500/30 disabled:opacity-50 transition-all"
+        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-600 hover:from-primary-700 hover:to-primary-700 text-white font-semibold text-sm shadow-lg shadow-violet-500/30 disabled:opacity-50 transition-all"
       >
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
         Save Brand Identity
@@ -847,7 +847,7 @@ function LeadsSection({ onLeadsChange }: { onLeadsChange: (leads: MarketingLead[
           </button>
           <button
             onClick={() => setShowAddForm(s => !s)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm shadow-violet-500/30"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm shadow-violet-500/30"
           >
             {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showAddForm ? "Cancel" : "Add Lead"}
@@ -859,29 +859,29 @@ function LeadsSection({ onLeadsChange }: { onLeadsChange: (leads: MarketingLead[
 
       {/* Add form */}
       {showAddForm && (
-        <form onSubmit={handleAdd} className="p-5 rounded-2xl border border-violet-200 dark:border-violet-800/50 bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/30 dark:to-fuchsia-950/30 space-y-4">
-          <h3 className="font-semibold text-sm text-violet-800 dark:text-violet-300 flex items-center gap-2">
+        <form onSubmit={handleAdd} className="p-5 rounded-2xl border border-primary-200 dark:border-primary-800/50 bg-gradient-to-br from-primary-50 to-primary-50 dark:from-primary-950/30 dark:to-primary-950/30 space-y-4">
+          <h3 className="font-semibold text-sm text-primary-800 dark:text-primary-300 flex items-center gap-2">
             <Plus className="w-4 h-4" /> New Lead
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input
               required placeholder="Full Name *" value={addForm.name}
               onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-              className="px-3 py-2.5 rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+              className="px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/40 focus:outline-none"
             />
             <input
               required placeholder="Phone (e.g. 919876543210) *" value={addForm.phone}
               onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
-              className="px-3 py-2.5 rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-900 text-sm font-mono focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+              className="px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-900 text-sm font-mono focus:ring-2 focus:ring-primary-500/40 focus:outline-none"
             />
             <input
               placeholder="Tags (comma-separated)" value={addForm.tags}
               onChange={e => setAddForm(f => ({ ...f, tags: e.target.value }))}
-              className="px-3 py-2.5 rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-violet-500/40 focus:outline-none"
+              className="px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/40 focus:outline-none"
             />
           </div>
           <button type="submit" disabled={adding}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors">
             {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Add to List
           </button>
@@ -894,14 +894,14 @@ function LeadsSection({ onLeadsChange }: { onLeadsChange: (leads: MarketingLead[
         <input
           placeholder="Search by name or phone…"
           value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full max-w-sm pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+          className="w-full max-w-sm pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
         />
       </div>
 
       {/* Table */}
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
+          <Loader2 className="w-7 h-7 animate-spin text-primary-500" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400 dark:text-slate-500">
@@ -926,7 +926,7 @@ function LeadsSection({ onLeadsChange }: { onLeadsChange: (leads: MarketingLead[
                 <tr key={lead.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                         {lead.name[0].toUpperCase()}
                       </div>
                       <span className="font-medium text-slate-800 dark:text-slate-100">{lead.name}</span>
@@ -936,7 +936,7 @@ function LeadsSection({ onLeadsChange }: { onLeadsChange: (leads: MarketingLead[
                   <td className="hidden sm:table-cell px-4 py-3">
                     {lead.tags
                       ? lead.tags.split(",").map(t => (
-                          <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-full text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                          <span key={t} className="inline-block mr-1 px-2 py-0.5 rounded-full text-[10px] bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300">
                             {t.trim()}
                           </span>
                         ))
@@ -1088,7 +1088,7 @@ function CampaignsSection() {
           </button>
           <button
             onClick={() => setShowForm(s => !s)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm shadow-violet-500/30"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-600 text-white text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm shadow-violet-500/30"
           >
             {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showForm ? "Cancel" : "New Campaign"}
@@ -1100,23 +1100,23 @@ function CampaignsSection() {
 
       {/* Create form */}
       {showForm && (
-        <form onSubmit={handleCreate} className="p-6 rounded-2xl border border-violet-200 dark:border-violet-800/50 bg-gradient-to-br from-violet-50/80 to-fuchsia-50/80 dark:from-violet-950/30 dark:to-fuchsia-950/30 space-y-5">
-          <h3 className="font-bold text-sm text-violet-800 dark:text-violet-300 flex items-center gap-2">
+        <form onSubmit={handleCreate} className="p-6 rounded-2xl border border-primary-200 dark:border-primary-800/50 bg-gradient-to-br from-primary-50/80 to-primary-50/80 dark:from-primary-950/30 dark:to-primary-950/30 space-y-5">
+          <h3 className="font-bold text-sm text-primary-800 dark:text-primary-300 flex items-center gap-2">
             <Megaphone className="w-4 h-4" /> Create Campaign
           </h3>
 
           {/* Image upload */}
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Campaign Image *</label>
-            <label className="mt-2 flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-2xl border-2 border-dashed border-violet-300 dark:border-violet-700 cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors">
-              <ImageIcon className="w-8 h-8 text-violet-400" />
+            <label className="mt-2 flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-2xl border-2 border-dashed border-primary-300 dark:border-primary-700 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-950/20 transition-colors">
+              <ImageIcon className="w-8 h-8 text-primary-400" />
               <span className="text-sm text-slate-500">{imageFile ? imageFile.name : "Click to upload image or collage"}</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} required />
             </label>
             {imagePreview && (
               <div className="mt-3 relative w-40 group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imagePreview} alt="Preview" className="w-40 h-28 object-cover rounded-xl border border-violet-200 dark:border-violet-700" />
+                <img src={imagePreview} alt="Preview" className="w-40 h-28 object-cover rounded-xl border border-primary-200 dark:border-primary-700" />
                 <button type="button" onClick={() => { setImageFile(null); setImagePreview(null); }}
                   className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-sm">
                   <X className="w-3 h-3" />
@@ -1129,14 +1129,14 @@ function CampaignsSection() {
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Campaign Title *</label>
               <input required value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Monsoon Sale 2026"
-                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40" />
+                className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40" />
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Select Leads</label>
-              <div className="mt-1.5 flex items-center gap-3 px-3 py-2.5 rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-900 text-sm">
-                <span className="font-medium text-violet-700 dark:text-violet-300">{selectedLeadIds.size}</span>
+              <div className="mt-1.5 flex items-center gap-3 px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-900 text-sm">
+                <span className="font-medium text-primary-700 dark:text-primary-300">{selectedLeadIds.size}</span>
                 <span className="text-slate-400">/ {leads.length} selected</span>
-                <button type="button" onClick={() => setSelectedLeadIds(new Set(leads.map(l => l.id)))} className="ml-auto text-xs text-violet-600 hover:underline">All</button>
+                <button type="button" onClick={() => setSelectedLeadIds(new Set(leads.map(l => l.id)))} className="ml-auto text-xs text-primary-600 hover:underline">All</button>
                 <button type="button" onClick={() => setSelectedLeadIds(new Set())} className="text-xs text-slate-400 hover:underline">None</button>
               </div>
             </div>
@@ -1146,16 +1146,16 @@ function CampaignsSection() {
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Caption (sent with image)</label>
             <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={3}
               placeholder="Exciting offers from Poornasree! Contact us for details."
-              className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-900 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40" />
+              className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-900 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40" />
           </div>
 
           {/* Lead checkboxes */}
           {leads.length > 0 && (
-            <div className="max-h-40 overflow-y-auto rounded-xl border border-violet-200 dark:border-violet-700 divide-y divide-violet-100 dark:divide-violet-800 bg-white dark:bg-slate-900">
+            <div className="max-h-40 overflow-y-auto rounded-xl border border-primary-200 dark:border-primary-700 divide-y divide-violet-100 dark:divide-violet-800 bg-white dark:bg-slate-900">
               {leads.map(lead => (
-                <label key={lead.id} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors">
+                <label key={lead.id} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-950/20 transition-colors">
                   <input type="checkbox" checked={selectedLeadIds.has(lead.id)} onChange={() => toggleLead(lead.id)}
-                    className="rounded border-violet-300 accent-violet-600" />
+                    className="rounded border-primary-300 accent-violet-600" />
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{lead.name}</span>
                   <span className="text-xs text-slate-400 font-mono">{lead.phone}</span>
                 </label>
@@ -1164,7 +1164,7 @@ function CampaignsSection() {
           )}
 
           <button type="submit" disabled={creating || !imageFile || !title}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:opacity-90 text-white font-semibold text-sm disabled:opacity-50 transition-all shadow-lg shadow-violet-500/30">
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-600 hover:opacity-90 text-white font-semibold text-sm disabled:opacity-50 transition-all shadow-lg shadow-violet-500/30">
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />}
             Create Campaign
           </button>
@@ -1189,7 +1189,7 @@ function CampaignsSection() {
       {/* Campaign grid */}
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-violet-500" />
+          <Loader2 className="w-7 h-7 animate-spin text-primary-500" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400 dark:text-slate-500">
@@ -1234,7 +1234,7 @@ function CampaignsSection() {
                       "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
                       camp.status === "sent"
                         ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-default"
-                        : "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:opacity-90 shadow-sm shadow-violet-500/20 disabled:opacity-50"
+                        : "bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:opacity-90 shadow-sm shadow-violet-500/20 disabled:opacity-50"
                     )}
                   >
                     {sendingId === camp.id

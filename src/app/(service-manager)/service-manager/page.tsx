@@ -859,9 +859,9 @@ export default function ServiceManagerPage() {
                 )}
               >
                 {pageView === nav.key && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-cyan-400 rounded-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-full" />
                 )}
-                <span className={cn(pageView === nav.key ? "text-cyan-300" : "text-white/50 group-hover:text-white/70")}>
+                <span className={cn(pageView === nav.key ? "text-primary-300" : "text-white/50 group-hover:text-white/70")}>
                   {nav.icon}
                 </span>
                 <span className="flex-1 text-left">{nav.label}</span>
@@ -899,7 +899,7 @@ export default function ServiceManagerPage() {
       {/* ═══════════════════ CONTENT ═══════════════════ */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* ═══════════════════ HEADER BANNER ═══════════════════ */}
-        <div className="shrink-0 bg-gradient-to-r from-blue-950 via-indigo-900 to-blue-900 px-4 sm:px-6 pt-3 pb-4">
+        <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
           {/* Top row */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -930,9 +930,9 @@ export default function ServiceManagerPage() {
             <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
               <div className="flex items-start justify-between">
                 <p className="text-3xl font-black text-white">{total}</p>
-                <Ticket className="w-5 h-5 text-blue-200 opacity-70 mt-1" />
+                <Ticket className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
               </div>
-              <p className="text-[11px] text-blue-200 font-semibold mt-1 uppercase tracking-wide">Total Tickets</p>
+              <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Total Tickets</p>
             </div>
             <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", unassigned > 0 ? "bg-red-500/30 border-red-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
@@ -941,12 +941,12 @@ export default function ServiceManagerPage() {
               </div>
               <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", unassigned > 0 ? "text-red-200" : "text-white/40")}>Open</p>
             </div>
-            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", active > 0 ? "bg-cyan-500/30 border-cyan-300/40" : "bg-white/10 border-white/20")}>
+            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", active > 0 ? "bg-primary-500/30 border-primary-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", active > 0 ? "text-cyan-200" : "text-white/50")}>{active}</p>
-                <Zap className={cn("w-5 h-5 mt-1", active > 0 ? "text-cyan-300 opacity-70" : "text-white/20")} />
+                <p className={cn("text-3xl font-black", active > 0 ? "text-primary-200" : "text-white/50")}>{active}</p>
+                <Zap className={cn("w-5 h-5 mt-1", active > 0 ? "text-primary-300 opacity-70" : "text-white/20")} />
               </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", active > 0 ? "text-cyan-200" : "text-white/40")}>Active</p>
+              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", active > 0 ? "text-primary-200" : "text-white/40")}>Active</p>
             </div>
             <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", closed > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
               <div className="flex items-start justify-between">
@@ -1007,7 +1007,7 @@ export default function ServiceManagerPage() {
                       className={cn(
                         "px-3 py-1 rounded-md text-xs font-medium transition-all",
                         dateRange === d.key
-                          ? "bg-white dark:bg-surface-dark shadow-sm text-blue-700 dark:text-blue-300 font-semibold"
+                          ? "bg-white dark:bg-surface-dark shadow-sm text-primary-700 dark:text-primary-300 font-semibold"
                           : "text-content-tertiary dark:text-content-dark-tertiary hover:text-content dark:hover:text-content-dark"
                       )}>{d.label}</button>
                   ))}
@@ -1017,7 +1017,7 @@ export default function ServiceManagerPage() {
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
                     <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                       placeholder="Search tickets..."
-                      className="w-full sm:w-48 pl-8 pr-3 py-1.5 rounded-lg text-xs bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content dark:text-content-dark placeholder:text-content-tertiary dark:placeholder:text-content-dark-tertiary focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                      className="w-full sm:w-48 pl-8 pr-3 py-1.5 rounded-lg text-xs bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content dark:text-content-dark placeholder:text-content-tertiary dark:placeholder:text-content-dark-tertiary focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400" />
                   </div>
                   {hasActiveFilters && (
                     <button onClick={resetFilters} className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Clear filters"><RotateCcw className="w-3.5 h-3.5" /></button>
@@ -1026,8 +1026,8 @@ export default function ServiceManagerPage() {
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                       showFilters
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-blue-400"
+                        ? "bg-primary-600 text-white shadow-sm"
+                        : "bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary-400"
                     )}>
                     <Filter className="w-3 h-3" /> Filters
                   </button>
@@ -1045,7 +1045,7 @@ export default function ServiceManagerPage() {
                         URL.revokeObjectURL(url);
                       } catch { setError("Export failed"); }
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-blue-400 transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary-400 transition-colors">
                     <Download className="w-3 h-3" /> Export
                   </button>
                 </div>
@@ -1118,7 +1118,7 @@ export default function ServiceManagerPage() {
                     <div key={ticket.id}
                       onClick={() => setDrawerTicket(ticket)}
                       className={cn(
-                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-500 shadow-sm cursor-pointer",
+                        "bg-white dark:bg-surface-dark-card rounded-xl border border-slate-200 dark:border-line-dark border-l-4 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-500 shadow-sm cursor-pointer",
                         isAssignDropdownOpen ? "relative z-30 overflow-visible" : "overflow-hidden",
                         borderColor
                       )}>
@@ -1181,7 +1181,7 @@ export default function ServiceManagerPage() {
                         {/* ── Row 5: Assigned engineer chip ── */}
                         {ticket.assignedEngineer && (
                           <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary">
-                            <UserCircle className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                            <UserCircle className="w-3.5 h-3.5 text-primary-500 shrink-0" />
                             <span className="font-medium truncate">{ticket.assignedEngineer.firstName}{ticket.assignedEngineer.lastName ? ` ${ticket.assignedEngineer.lastName}` : ""}</span>
                           </div>
                         )}
@@ -1320,7 +1320,7 @@ export default function ServiceManagerPage() {
                 const groupTheme: Record<string, { badge: string; label: string; dot: string }> = {
                   "Needs Assignment": { badge: "bg-red-100 text-red-700 border border-red-200", label: "text-red-700 dark:text-red-400", dot: "bg-red-500" },
                   "With Dealer":      { badge: "bg-violet-100 text-violet-700 border border-violet-200", label: "text-violet-700 dark:text-violet-400", dot: "bg-violet-500" },
-                  "With Engineer":    { badge: "bg-cyan-100 text-cyan-700 border border-cyan-200", label: "text-cyan-700 dark:text-cyan-400", dot: "bg-cyan-500" },
+                  "With Engineer":    { badge: "bg-primary-100 text-primary-700 border border-primary-200", label: "text-primary-700 dark:text-primary-400", dot: "bg-primary-500" },
                   "Closed":           { badge: "bg-emerald-100 text-emerald-700 border border-emerald-200", label: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
                 };
 
@@ -1385,8 +1385,8 @@ export default function ServiceManagerPage() {
                     {(customerGroups.needsAssignment.length + customerGroups.withDealer.length + customerGroups.withEngineer.length + customerGroups.closed.length) > 0 && (
                       <div>
                         <div className="flex items-center gap-2 mb-3">
-                          <UserCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                          <h3 className="text-sm font-bold text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">Customer Tickets</h3>
+                          <UserCheck className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                          <h3 className="text-sm font-bold text-primary-700 dark:text-primary-300 uppercase tracking-wide">Customer Tickets</h3>
                         </div>
                         <div className="space-y-5">
                           {renderGroup("Needs Assignment", "⚠️", customerGroups.needsAssignment)}
@@ -1480,7 +1480,7 @@ export default function ServiceManagerPage() {
                           )}
                           <button
                             onClick={() => openEditModal(eng)}
-                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-primary-50 transition-colors"
                             title="Edit engineer"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -1518,7 +1518,7 @@ export default function ServiceManagerPage() {
                       {eng.engineerPincodes && eng.engineerPincodes.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {eng.engineerPincodes.map(p => (
-                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-primary">
+                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-primary-50 text-primary">
                               <MapPin className="w-2.5 h-2.5" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code}
                             </span>
                           ))}
@@ -1576,7 +1576,7 @@ export default function ServiceManagerPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400">
+                          <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-400">
                             {asst._count.managedEngineers} eng
                           </span>
                           <button
@@ -1591,7 +1591,7 @@ export default function ServiceManagerPage() {
                                 pincodeIds: asst.engineerPincodes.map(p => p.id),
                               });
                             }}
-                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-primary-50 transition-colors"
                             title="Edit assistant"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -1619,7 +1619,7 @@ export default function ServiceManagerPage() {
                       {asst.engineerPincodes.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
                           {asst.engineerPincodes.map(p => (
-                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+                            <span key={p.id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
                               <MapPin className="w-2.5 h-2.5" /> {[p.place, p.district].filter(Boolean).join(", ") || p.code}
                             </span>
                           ))}
@@ -2127,8 +2127,8 @@ export default function ServiceManagerPage() {
                                 alreadySaved
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-not-allowed opacity-60"
                                   : isChosen
-                                    ? "border-primary bg-blue-50 text-primary font-semibold"
-                                    : "border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary/40 hover:bg-blue-50/50"
+                                    ? "border-primary bg-primary-50 text-primary font-semibold"
+                                    : "border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary/40 hover:bg-primary-50/50"
                               )}>
                               <span className="font-mono font-bold shrink-0">{p.code}</span>
                               <span className="truncate text-content-tertiary dark:text-content-dark-tertiary">{p.name}</span>
@@ -2148,10 +2148,10 @@ export default function ServiceManagerPage() {
                     <div className="flex flex-wrap gap-2">
                       {locSelected.map(p => (
                         <span key={p.code}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-100 text-primary-700 border border-primary-200">
                           {p.code}
                           <button type="button" onClick={() => setLocSelected(prev => prev.filter(s => s.code !== p.code))}
-                            className="ml-0.5 text-blue-400 hover:text-blue-700">
+                            className="ml-0.5 text-primary-400 hover:text-primary-700">
                             <X className="w-3 h-3" />
                           </button>
                         </span>
@@ -2187,14 +2187,14 @@ export default function ServiceManagerPage() {
                         {!isEditing ? (
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-blue-50 text-primary border border-blue-200">
+                              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-primary-50 text-primary border border-primary-200">
                                 {p.code}
                               </span>
                               <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{[p.place, p.district, p.state].filter(Boolean).join(", ") || "—"}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => openEditPincode(p)}
-                                className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors" title="Edit">
+                                className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-primary-50 transition-colors" title="Edit">
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={() => handleDeletePincode(p.id)} disabled={deletingPincodeId === p.id}
@@ -2315,7 +2315,7 @@ export default function ServiceManagerPage() {
                             </span>
                           )}
                           {dlr.warrantyMonths && (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-100 text-primary-700">
                               {dlr.warrantyMonths}m warranty
                             </span>
                           )}
@@ -2343,7 +2343,7 @@ export default function ServiceManagerPage() {
                                 whatsappNumber: dlr.whatsappNumber ?? "",
                               });
                             }}
-                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-primary-50 transition-colors"
                             title="Edit dealer">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -2505,7 +2505,7 @@ export default function ServiceManagerPage() {
                               <span className={cn(
                                 "px-2 py-0.5 rounded-full font-semibold",
                                 (r._count?.images ?? 0) > 0
-                                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                                  ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                                   : "text-content-tertiary dark:text-content-dark-tertiary"
                               )}>
                                 {r._count?.images ?? 0}
@@ -2515,7 +2515,7 @@ export default function ServiceManagerPage() {
                               <span className={cn(
                                 "px-2 py-0.5 rounded-full font-semibold",
                                 (r._count?.parts ?? 0) > 0
-                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                  ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                                   : "text-content-tertiary dark:text-content-dark-tertiary"
                               )}>
                                 {r._count?.parts ?? 0}

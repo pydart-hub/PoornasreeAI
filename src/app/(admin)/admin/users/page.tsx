@@ -575,8 +575,8 @@ export default function UsersManagementPage() {
         {/* Page heading */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-violet-50 dark:bg-violet-500/10">
-              <Users className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            <div className="p-2.5 rounded-xl bg-primary-50 dark:bg-primary-500/10">
+              <Users className="w-5 h-5 text-primary-600 dark:text-primary-400" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-content dark:text-content-dark">
@@ -591,7 +591,7 @@ export default function UsersManagementPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={openDealerImportModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 active:scale-95 transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 active:scale-95 transition-all shadow-sm"
             >
               <Store className="w-4 h-4" />
               Import Dealers
@@ -1315,7 +1315,7 @@ export default function UsersManagementPage() {
           <div className="relative w-full max-w-md bg-surface dark:bg-surface-dark-card rounded-2xl shadow-2xl border border-line dark:border-line-dark overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark">
               <div className="flex items-center gap-2">
-                <Store className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                <Store className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                 <h2 className="text-base font-semibold text-content dark:text-content-dark">Import Dealers</h2>
               </div>
               <button onClick={closeDealerImportModal} disabled={dealerImportLoading} className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40">
@@ -1323,7 +1323,7 @@ export default function UsersManagementPage() {
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              <div className="rounded-xl border border-violet-200 dark:border-violet-500/30 bg-violet-50 dark:bg-violet-500/10 p-4 text-xs text-violet-800 dark:text-violet-300 space-y-1">
+              <div className="rounded-xl border border-primary-200 dark:border-primary-500/30 bg-primary-50 dark:bg-primary-500/10 p-4 text-xs text-primary-800 dark:text-primary-300 space-y-1">
                 <p className="font-semibold mb-1">Excel columns (header may be on row 5):</p>
                 <p>• <span className="font-medium">DEALER NAME</span> (required)</p>
                 <p>• STATE, PINCODE, CITY, MOBILE NUMBER</p>
@@ -1345,9 +1345,9 @@ export default function UsersManagementPage() {
 
               <label className={cn(
                 "flex flex-col items-center justify-center gap-2 w-full h-24 rounded-xl border-2 border-dashed cursor-pointer transition-colors",
-                dealerImportLoading ? "opacity-50 cursor-not-allowed border-line dark:border-line-dark" : "border-violet-300 dark:border-violet-500/40 hover:bg-violet-50 dark:hover:bg-violet-500/10"
+                dealerImportLoading ? "opacity-50 cursor-not-allowed border-line dark:border-line-dark" : "border-primary-300 dark:border-primary-500/40 hover:bg-primary-50 dark:hover:bg-primary-500/10"
               )}>
-                <Upload className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                <Upload className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                 <span className="text-sm text-content-secondary dark:text-content-dark-secondary">
                   {dealerImportFile ? dealerImportFile.name : "Click to select .xlsx file"}
                 </span>
@@ -1391,7 +1391,7 @@ export default function UsersManagementPage() {
               <button
                 onClick={handleDealerImport}
                 disabled={!dealerImportFile || dealerImportLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {dealerImportLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Importing…</>

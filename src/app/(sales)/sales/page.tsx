@@ -379,9 +379,9 @@ export default function SalesPage() {
                 )}
               >
                 {activeTab === item.key && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-cyan-400 rounded-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-full" />
                 )}
-                <span className={cn(activeTab === item.key ? "text-cyan-300" : "text-white/50 group-hover:text-white/70")}>
+                <span className={cn(activeTab === y ? "text-primary-300" : "text-white/50 group-hover:text-white/70")}>
                   {item.icon}
                 </span>
                 <span className="flex-1 text-left">{item.label}</span>

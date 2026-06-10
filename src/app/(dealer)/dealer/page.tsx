@@ -168,7 +168,7 @@ function DealerTicketActions({
         </button>
       )}
       {ticket.dealerResponse === "rejected" && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">You rejected this ticket. Service manager will reassign.</p>
+        <p className="text-xs text-primary-600 dark:text-amber-400">You rejected this ticket. Service manager will reassign.</p>
       )}
     </div>
   );
@@ -586,7 +586,7 @@ export default function DealerPage() {
                           selectedComplaint && selectedComplaint !== "__other__"
                             ? "text-content dark:text-content-dark"
                             : selectedComplaint === "__other__"
-                              ? "text-amber-600 dark:text-amber-400"
+                              ? "text-primary-600 dark:text-amber-400"
                               : "text-content-secondary dark:text-content-dark-secondary"
                         )}>
                           {selectedComplaint && selectedComplaint !== "__other__"
@@ -661,7 +661,7 @@ export default function DealerPage() {
                                   className={cn(
                                     "w-full text-left px-3 py-2.5 text-sm transition-colors",
                                     selectedComplaint === "__other__"
-                                      ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium"
+                                      ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-primary-300 font-medium"
                                       : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
                                   )}
                                 >

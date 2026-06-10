@@ -504,7 +504,7 @@ export default function WorkExecutionScreen() {
                 </div>
                 {phoneNumber && (
                   <a href={`tel:${phoneNumber}`}
-                    className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                    className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-primary-600 hover:text-emerald-700 px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 transition-colors">
                     <Phone className="w-3 h-3" />
                     Call
                   </a>
@@ -540,7 +540,7 @@ export default function WorkExecutionScreen() {
                       )}
                       <span className={cn(
                         "text-[9px] font-medium text-center leading-tight",
-                        done ? "text-emerald-600" : active ? "text-blue-600" : "text-gray-300"
+                        done ? "text-primary-600" : active ? "text-blue-600" : "text-gray-300"
                       )}>{step.label}</span>
                     </div>
                     {i < STEPS.length - 1 && (
@@ -628,7 +628,7 @@ export default function WorkExecutionScreen() {
               {reportImageMessage && (
                 <p className={cn(
                   "text-xs",
-                  reportImageMessage.includes("failed") ? "text-red-600" : "text-emerald-600"
+                  reportImageMessage.includes("failed") ? "text-red-600" : "text-primary-600"
                 )}>{reportImageMessage}</p>
               )}
             </section>
@@ -780,7 +780,7 @@ export default function WorkExecutionScreen() {
             <section className="bg-emerald-50 rounded-xl border border-emerald-200 p-4 text-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
               <h3 className="text-sm font-bold text-emerald-800">Job Completed</h3>
-              <p className="text-xs text-emerald-600 mt-1">
+              <p className="text-xs text-primary-600 mt-1">
                 {ticket.closedAt ? `Closed ${formatRelativeTime(new Date(ticket.closedAt))}` : "This ticket is closed."}
               </p>
             </section>

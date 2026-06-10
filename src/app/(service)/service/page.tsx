@@ -329,7 +329,7 @@ export default function ServiceDashboard() {
         {ticket.status === "CLOSED" && (
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm font-medium text-emerald-600">Completed</span>
+            <span className="text-sm font-medium text-primary-600">Completed</span>
           </div>
         )}
       </div>
@@ -367,7 +367,7 @@ export default function ServiceDashboard() {
                 <p className="text-[10px] text-white/60 font-medium">Active</p>
               </div>
               <div className="bg-white/10 rounded-xl px-3 py-2 text-center">
-                <p className="text-xl font-bold text-emerald-300">{allTickets.length}</p>
+                <p className="text-xl font-bold text-primary-300">{allTickets.length}</p>
                 <p className="text-[10px] text-white/60 font-medium">Total</p>
               </div>
             </div>
@@ -390,7 +390,7 @@ export default function ServiceDashboard() {
                     isActive ? "bg-white/15 text-white shadow-sm ring-1 ring-white/10" : "text-white/60 hover:text-white hover:bg-white/8"
                   )}>
                   {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-400 rounded-full" />}
-                  <span className={cn(isActive ? "text-emerald-300" : "text-white/50 group-hover:text-white/70")}>{item.icon}</span>
+                  <span className={cn(isActive ? "text-primary-300" : "text-white/50 group-hover:text-white/70")}>{item.icon}</span>
                   <span className="flex-1 text-left">{item.label}</span>
                   {count > 0 && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/60">{count}</span>
