@@ -7,6 +7,6 @@
 
 services:
   api:
-    image: ${API_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}
+    image: ${API_IMAGE:-ghcr.io/stibe-labs/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}
   web:
-    image: ${WEB_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}
+    image: ${WEB_IMAGE:-ghcr.io/stibe-labs/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}

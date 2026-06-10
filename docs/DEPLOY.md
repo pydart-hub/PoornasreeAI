@@ -54,7 +54,7 @@ Manual deploy only if auto-deploy is off or you need to retry:
 
 After the first **Publish Docker images** workflow run:
 
-- Open **GitHub → pydart-hub/PoornasreeAI → Packages**
+- Open **GitHub → stibe-labs/PoornasreeAI → Packages**
 - Set **poornasree-ai-api** and **poornasree-ai-web** to **Public**  
   (or keep private and log in on the VPS — step 3b)
 
@@ -88,8 +88,8 @@ On VPS `/root/poornasree-ai/.env`:
 
 ```env
 IMAGE_TAG=AIpoorna
-API_IMAGE=ghcr.io/pydart-hub/poornasree-ai-api:AIpoorna
-WEB_IMAGE=ghcr.io/pydart-hub/poornasree-ai-web:AIpoorna
+API_IMAGE=ghcr.io/stibe-labs/poornasree-ai-api:AIpoorna
+WEB_IMAGE=ghcr.io/stibe-labs/poornasree-ai-web:AIpoorna
 ```
 
 Defaults in [`docker-compose.images.yml`](docker-compose.images.yml) work without this.

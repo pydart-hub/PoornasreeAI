@@ -21,6 +21,6 @@ git push origin AIpoorna                              # CI build + auto deploy
 .\deploy.ps1 -QuickApi                                # VPS build API (~3–6 min)
 ```
 
-**CI / GHCR:** GitHub Actions must be enabled on `pydart-hub` (billing unlocked). If CI fails, `deploy.sh pull` falls back to building on the VPS. For private GHCR packages, set `GHCR_TOKEN` in server `.env`.
+**CI / GHCR:** GitHub Actions must be enabled on `stibe-labs` (billing unlocked). If CI fails, `deploy.sh pull` falls back to building on the VPS. For private GHCR packages, set `GHCR_TOKEN` in server `.env`.
 
 Operational scripts live under `ops/` — see [ops/README.md](ops/README.md).

@@ -24,11 +24,11 @@ jobs:
           - service: api
             context: ./api
             dockerfile: ./api/Dockerfile
-            image: ghcr.io/pydart-hub/poornasree-ai-api
+            image: ghcr.io/stibe-labs/poornasree-ai-api
           - service: web
             context: .
             dockerfile: ./Dockerfile
-            image: ghcr.io/pydart-hub/poornasree-ai-web
+            image: ghcr.io/stibe-labs/poornasree-ai-web
     permissions:
       contents: read
       packages: write

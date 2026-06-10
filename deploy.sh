@@ -51,7 +51,7 @@ compose() {
 }
 
 ghcr_login() {
-  if docker pull ghcr.io/pydart-hub/poornasree-ai-api:AIpoorna >/dev/null 2>&1; then
+  if docker pull ghcr.io/stibe-labs/poornasree-ai-api:AIpoorna >/dev/null 2>&1; then
     return 0
   fi
   if [ -f .env ] && grep -q '^GHCR_TOKEN=' .env 2>/dev/null; then
@@ -59,7 +59,7 @@ ghcr_login() {
     source .env
     if [ -n "${GHCR_TOKEN:-}" ]; then
       echo "  Logging in to GHCR..."
-      echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-pydart-hub}" --password-stdin
+      echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-stibe-labs}" --password-stdin
     fi
   fi
 }
@@ -138,8 +138,8 @@ echo ""
 case "$MODE" in
   pull)
     echo "[2/6] Pulling pre-built images (no compile on VPS)..."
-    echo "  API: ${API_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}"
-    echo "  Web: ${WEB_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}"
+    echo "  API: ${API_IMAGE:-ghcr.io/stibe-labs/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}"
+    echo "  Web: ${WEB_IMAGE:-ghcr.io/stibe-labs/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}"
     ghcr_login || true
     if ! compose pull api web 2>&1 | tee /tmp/compose-build.log; then
       echo "  WARN: GHCR pull failed — building api + web on VPS (slower)..."

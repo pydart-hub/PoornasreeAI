@@ -8,7 +8,7 @@ echo "=== [2/4] Cloning repository ==="
 if [ -d "/root/poornasree-ai/.git" ]; then
   echo "Repo already cloned — skipping."
 else
-  git clone https://github.com/pydart-hub/PoornasreeAI.git /root/poornasree-ai
+  git clone https://github.com/stibe-labs/PoornasreeAI.git /root/poornasree-ai
 fi
 
 cd /root/poornasree-ai
