@@ -1,5 +1,5 @@
 // ── Template Controller ──────────────────────────────────────────────────
-// Admin CRUD for TroubleshootingTemplate + TroubleshootingStep.
+// Admin CRUD for DocumentIssue + DocumentIssueStep.
 
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
@@ -7,7 +7,9 @@ import prisma from "../lib/prisma";
 // ── GET /api/admin/templates ─────────────────────────────────────────────
 export async function listTemplates(req: Request, res: Response): Promise<void> {
   try {
-    const templates = await prisma.troubleshootingTemplate.findMany({
+    const documentId = req.query.documentId ? String(req.query.documentId) : undefined;
+    const templates = await prisma.documentIssue.findMany({
+      where: documentId ? { documentId } : {},
       include: { steps: { orderBy: { stepNumber: "asc" } } },
       orderBy: { createdAt: "desc" },
     });
@@ -22,7 +24,7 @@ export async function listTemplates(req: Request, res: Response): Promise<void> 
 export async function getTemplate(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id);
-    const template = await prisma.troubleshootingTemplate.findUnique({
+    const template = await prisma.documentIssue.findUnique({
       where: { id },
       include: { steps: { orderBy: { stepNumber: "asc" } } },
     });
@@ -37,7 +39,7 @@ export async function getTemplate(req: Request, res: Response): Promise<void> {
 // ── POST /api/admin/templates ────────────────────────────────────────────
 export async function createTemplate(req: Request, res: Response): Promise<void> {
   try {
-    const { problemType, title, description, audience, steps } = req.body;
+    const { problemType, title, description, audience, steps, documentId } = req.body;
     if (!problemType || !title || !Array.isArray(steps) || steps.length === 0) {
       res.status(400).json({ error: "problemType, title, and steps[] are required" });
       return;
@@ -49,13 +51,13 @@ export async function createTemplate(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const existing = await prisma.troubleshootingTemplate.findUnique({ where: { problemType } });
+    const existing = await prisma.documentIssue.findUnique({ where: { problemType } });
     if (existing) {
       res.status(409).json({ error: `Template for "${problemType}" already exists` });
       return;
     }
 
-    const template = await prisma.troubleshootingTemplate.create({
+    const template = await prisma.documentIssue.create({
       data: {
         problemType,
         title,
@@ -83,12 +85,13 @@ export async function createTemplate(req: Request, res: Response): Promise<void>
 export async function updateTemplate(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id);
-    const { title, description, isActive, audience, steps } = req.body;
+    const { title, description, isActive, audience, steps, documentId } = req.body;
 
-    const existing = await prisma.troubleshootingTemplate.findUnique({ where: { id } });
+    const existing = await prisma.documentIssue.findUnique({ where: { id } });
     if (!existing) { res.status(404).json({ error: "Template not found" }); return; }
 
     const data: Record<string, unknown> = {};
+    if (documentId !== undefined) data.documentId = documentId;
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
     if (isActive !== undefined) data.isActive = isActive;
@@ -103,7 +106,7 @@ export async function updateTemplate(req: Request, res: Response): Promise<void>
 
     // If steps provided, replace all existing steps
     if (Array.isArray(steps) && steps.length > 0) {
-      await prisma.troubleshootingStep.deleteMany({ where: { templateId: id } });
+      await prisma.documentIssueStep.deleteMany({ where: { issueId: id } });
       data.steps = {
         create: (steps as string[]).map((s, i) => ({
           stepNumber: i + 1,
@@ -112,7 +115,7 @@ export async function updateTemplate(req: Request, res: Response): Promise<void>
       };
     }
 
-    const template = await prisma.troubleshootingTemplate.update({
+    const template = await prisma.documentIssue.update({
       where: { id },
       data,
       include: { steps: { orderBy: { stepNumber: "asc" } } },
@@ -129,10 +132,10 @@ export async function updateTemplate(req: Request, res: Response): Promise<void>
 export async function deleteTemplate(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id);
-    const existing = await prisma.troubleshootingTemplate.findUnique({ where: { id } });
+    const existing = await prisma.documentIssue.findUnique({ where: { id } });
     if (!existing) { res.status(404).json({ error: "Template not found" }); return; }
 
-    await prisma.troubleshootingTemplate.delete({ where: { id } });
+    await prisma.documentIssue.delete({ where: { id } });
     res.json({ message: "Template deleted" });
   } catch (err) {
     console.error("deleteTemplate error:", err);

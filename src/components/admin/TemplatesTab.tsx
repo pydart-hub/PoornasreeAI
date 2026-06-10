@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Trash2, Loader2, Pencil, BookOpen, X, Check, Power } from "lucide-react";
 
-interface TroubleshootingStep {
+interface DocumentIssueStep {
   id: string;
   stepNumber: number;
   stepContent: string;
@@ -16,7 +16,7 @@ interface Template {
   description?: string | null;
   isActive: boolean;
   audience: string;
-  steps: TroubleshootingStep[];
+  steps: DocumentIssueStep[];
   createdAt: string;
 }
 
@@ -31,7 +31,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return data as T;
 }
 
-export default function TemplatesTab() {
+export default function TemplatesTab({ documentId }: { documentId?: string }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ problemType: "", title: "", description: "", audience: "customer", steps: [""] });
@@ -47,7 +47,7 @@ export default function TemplatesTab() {
   const fetchTemplates = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<{ templates: Template[] }>("/api/admin/templates");
+      const data = await apiFetch<{ templates: Template[] }>(`/api/admin/templates${documentId ? `?documentId=${documentId}` : ""}`);
       setTemplates(data.templates);
     } catch { /* ignore */ }
     setLoading(false);
@@ -66,7 +66,7 @@ export default function TemplatesTab() {
     try {
       await apiFetch("/api/admin/templates", {
         method: "POST",
-        body: JSON.stringify({ ...form, steps }),
+        body: JSON.stringify({ ...form, steps, documentId }),
       });
     setForm({ problemType: "", title: "", description: "", audience: "customer", steps: [""] });
       fetchTemplates();

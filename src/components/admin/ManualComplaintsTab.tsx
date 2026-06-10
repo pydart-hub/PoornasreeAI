@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, AlertCircle, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ApiManualComplaint {
@@ -70,6 +70,11 @@ export default function ManualComplaintsTab() {
     } finally {
       setActionId(null);
     }
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Copied to clipboard! You can now paste this as a new problem type or title in the Documents -> Edit section.");
   };
 
   const handleScan = async () => {
@@ -193,14 +198,23 @@ export default function ManualComplaintsTab() {
               </div>
               <div className="shrink-0 flex items-center gap-2">
                 {!c.isReviewed && (
-                  <button
-                    onClick={() => handleReview(c.id)}
+                  <>
+                    <button
+                      onClick={() => handleCopy(c.complaint)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      Copy
+                    </button>
+                    <button
+                      onClick={() => handleReview(c.id)}
                     disabled={actionId === c.id}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
                   >
                     {actionId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                     Mark Reviewed
                   </button>
+                  </>
                 )}
                 <button
                   onClick={() => handleDelete(c.id)}

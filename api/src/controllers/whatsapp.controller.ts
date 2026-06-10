@@ -228,7 +228,7 @@ async function handleEngineerTroubleshootStep(
   // ── Phase 1: Engineer just described the issue — find template ─────────
   if (session.problemType === "__PENDING__") {
     // Find a matching engineer-audience template
-    const template = await prisma.troubleshootingTemplate.findFirst({
+    const template = await prisma.documentIssue.findFirst({
       where: {
         isActive: true,
         audience: { in: ["engineer", "both"] },
@@ -242,7 +242,7 @@ async function handleEngineerTroubleshootStep(
     if (!matched || matched.steps.length === 0) {
       const words = text.split(/\s+/).filter((w) => w.length >= 5);
       for (const word of words) {
-        const m = await prisma.troubleshootingTemplate.findFirst({
+        const m = await prisma.documentIssue.findFirst({
           where: {
             isActive: true,
             audience: { in: ["engineer", "both"] },
@@ -304,7 +304,7 @@ async function handleEngineerTroubleshootStep(
   }
 
   if (upper === "ENG_NEXT" || upper === "2") {
-    const template = await prisma.troubleshootingTemplate.findUnique({
+    const template = await prisma.documentIssue.findUnique({
       where: { problemType: session.problemType },
       include: { steps: { orderBy: { stepNumber: "asc" } } },
     });
@@ -352,7 +352,7 @@ async function handleEngineerTroubleshootStep(
   }
 
   // Unrecognised input during a session — re-show current step
-  const template = await prisma.troubleshootingTemplate.findUnique({
+  const template = await prisma.documentIssue.findUnique({
     where: { problemType: session.problemType },
     include: { steps: { where: { stepNumber: session.currentStep }, take: 1 } },
   });

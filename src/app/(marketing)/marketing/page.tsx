@@ -267,7 +267,7 @@ export default function MarketingPage() {
               {activeTab === item.key && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-full" />
               )}
-              <span className={cn(activeTab === y ? "text-primary-300" : "text-primary-300/60 group-hover:text-primary-200")}>
+              <span className={cn(activeTab === item.key ? "text-primary-300" : "text-primary-300/60 group-hover:text-primary-200")}>
                 {item.icon}
               </span>
               {(sidebarOpen || mobileMenuOpen) && (

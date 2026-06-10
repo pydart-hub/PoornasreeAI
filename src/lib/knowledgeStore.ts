@@ -7,7 +7,7 @@
 export interface KnowledgeRow {
   id: string;
   complaint: string;
-  troubleshootingSteps: string;
+  documentIssueSteps: string;
   createdAt: string;
   updatedAt: string;
   source: "admin";
@@ -42,7 +42,7 @@ export function addKnowledgeRow(row: Omit<KnowledgeRow, "id" | "createdAt" | "up
 }
 
 /** Update an existing knowledge row */
-export function updateKnowledgeRow(id: string, updates: Partial<Pick<KnowledgeRow, "complaint" | "troubleshootingSteps">>): KnowledgeRow | null {
+export function updateKnowledgeRow(id: string, updates: Partial<Pick<KnowledgeRow, "complaint" | "documentIssueSteps">>): KnowledgeRow | null {
   const rows = getKnowledgeRows();
   const index = rows.findIndex((r) => r.id === id);
   if (index === -1) return null;

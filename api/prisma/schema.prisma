@@ -114,6 +114,7 @@ model Document {
 
   uploadedBy   User            @relation(fields: [uploadedById], references: [id])
   chunks       DocumentChunk[]
+  issues       DocumentIssue[]
 }
 
 // ── Document Chunks for RAG vector search ──────────────────────────────────
@@ -296,33 +297,35 @@ model SimulateMessage {
   @@index([phoneNumber, createdAt])
 }
 
-// ── Troubleshooting Template ─────────────────────────────────────────────
-// Admin-defined step-by-step resolution guides keyed by problemType.
-model TroubleshootingTemplate {
+// ── Document Issue (Replaces TroubleshootingTemplate) ────────────────────────────────────────────────────────
+// Structured complaints and steps extracted directly from uploaded Documents.
+model DocumentIssue {
   id          String   @id @default(uuid())
+  documentId  String?
   problemType String   @unique             // e.g. "power_issue", "no_display"
   title       String
   description String?  @db.Text
   isActive    Boolean  @default(true)
-  // audience: "customer" = customer WhatsApp only, "engineer" = service engineers only, "both" = all
   audience    String   @default("customer")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  steps       TroubleshootingStep[]
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  steps       DocumentIssueStep[]
 }
 
-// ── Troubleshooting Step ─────────────────────────────────────────────────
-// Ordered steps within a template.
-model TroubleshootingStep {
+// ── Document Issue Step ────────────────────────────────────────────────────────
+// Ordered steps within a DocumentIssue.
+model DocumentIssueStep {
   id          String @id @default(uuid())
-  templateId  String
+  issueId     String
   stepNumber  Int
   stepContent String @db.Text
+  createdAt   DateTime @default(now())
 
-  template    TroubleshootingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  issue       DocumentIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
-  @@unique([templateId, stepNumber])
+  @@unique([issueId, stepNumber])
 }
 
 // ── Troubleshooting Session ──────────────────────────────────────────────

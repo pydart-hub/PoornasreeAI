@@ -286,9 +286,12 @@ export async function listDocuments(req: Request, res: Response): Promise<void> 
 
     const documents = await prisma.document.findMany({
       include: {
-        uploadedBy: { select: { firstName: true, lastName: true } },
-        _count: { select: { chunks: true } },
-      },
+          uploadedBy: { select: { firstName: true, lastName: true } },
+          _count: { select: { chunks: true } },
+          issues: {
+            include: { steps: { orderBy: { stepNumber: "asc" } } }
+          }
+        },
       orderBy: { createdAt: "desc" },
     });
 

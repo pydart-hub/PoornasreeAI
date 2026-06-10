@@ -4,28 +4,28 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, Trash2, Pencil, Plus, ChevronDown, ChevronUp, X, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface TroubleshootingStep {
+interface DocumentIssueStep {
   id: string;
   stepNumber: number;
   stepContent: string;
 }
 
-interface TroubleshootingTemplate {
+interface DocumentIssue {
   id: string;
   problemType: string;
   title: string;
   description: string | null;
   isActive: boolean;
   audience: string;
-  steps: TroubleshootingStep[];
+  steps: DocumentIssueStep[];
 }
 
-export default function TroubleshootingTemplatesTab() {
-  const [templates, setTemplates] = useState<TroubleshootingTemplate[]>([]);
+export default function DocumentIssuesTab() {
+  const [templates, setTemplates] = useState<DocumentIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [editingTemplate, setEditingTemplate] = useState<TroubleshootingTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<DocumentIssue | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   // Form state
@@ -58,7 +58,7 @@ export default function TroubleshootingTemplatesTab() {
     fetchTemplates();
   }, [fetchTemplates]);
 
-  const handleEdit = (t: TroubleshootingTemplate) => {
+  const handleEdit = (t: DocumentIssue) => {
     setEditingTemplate(t);
     setIsAdding(false);
     setFormData({

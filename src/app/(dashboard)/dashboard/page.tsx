@@ -191,7 +191,7 @@ export default function AdminDashboard() {
     if (!newComplaint.trim() || !newTroubleshooting.trim()) return;
     addKnowledgeRow({
       complaint: newComplaint,
-      troubleshootingSteps: newTroubleshooting,
+      documentIssueSteps: newTroubleshooting,
     });
     setNewComplaint("");
     setNewTroubleshooting("");
@@ -678,7 +678,7 @@ export default function AdminDashboard() {
                         )}
                       >
                         <p className="text-sm font-medium text-content dark:text-content-dark">{row.complaint}</p>
-                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary whitespace-pre-wrap">{row.troubleshootingSteps}</p>
+                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary whitespace-pre-wrap">{row.documentIssueSteps}</p>
                         <div className="flex items-center justify-end w-full sm:w-auto">
                           <button
                             onClick={() => handleDeleteKnowledge(row.id)}

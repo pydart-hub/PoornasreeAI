@@ -168,7 +168,7 @@ async function main() {
   ];
 
   for (const t of SEED_TEMPLATES) {
-    const existing = await prisma.troubleshootingTemplate.findUnique({
+    const existing = await prisma.documentIssue.findUnique({
       where: { problemType: t.problemType },
     });
 
@@ -177,7 +177,7 @@ async function main() {
       continue;
     }
 
-    await prisma.troubleshootingTemplate.create({
+    await prisma.documentIssue.create({
       data: {
         problemType: t.problemType,
         title: t.title,

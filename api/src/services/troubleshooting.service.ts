@@ -39,7 +39,7 @@ export async function startSession(phoneNumber: string, serialNumber: string, pr
   }
 
   // Validate template exists and is active
-  const template = await prisma.troubleshootingTemplate.findUnique({
+  const template = await prisma.documentIssue.findUnique({
     where: { problemType },
     include: { steps: { orderBy: { stepNumber: "asc" as const } } },
   });
@@ -201,7 +201,7 @@ export async function escalateSession(sessionId: string) {
 // ── Private helpers ──────────────────────────────────────────────────────
 
 async function getStepContent(problemType: string, stepNumber: number): Promise<string> {
-  const template = await prisma.troubleshootingTemplate.findUnique({
+  const template = await prisma.documentIssue.findUnique({
     where: { problemType },
     include: { steps: { where: { stepNumber }, take: 1 } },
   });
@@ -212,7 +212,7 @@ async function getStepContent(problemType: string, stepNumber: number): Promise<
 }
 
 async function getStepCount(problemType: string): Promise<number> {
-  const template = await prisma.troubleshootingTemplate.findUnique({
+  const template = await prisma.documentIssue.findUnique({
     where: { problemType },
     include: { _count: { select: { steps: true } } },
   });

@@ -93,7 +93,7 @@ export async function getSuggestions(req: Request, res: Response): Promise<void>
 
 /**
  * POST /api/admin/documents/:id/extract-templates
- * Takes an uploaded JSON document and creates TroubleshootingTemplate rows from it.
+ * Takes an uploaded JSON document and creates DocumentIssue rows from it.
  */
 export async function extractTemplates(req: Request, res: Response): Promise<void> {
   try {

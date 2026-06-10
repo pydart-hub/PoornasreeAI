@@ -166,7 +166,7 @@ export function searchDocuments(query: string): { fileName: string; snippet: str
 
   // 1. Search Manual Knowledge Rows
   for (const row of knowledgeRows) {
-    const content = `${row.complaint}\n${row.troubleshootingSteps}`.toLowerCase();
+    const content = `${row.complaint}\n${row.documentIssueSteps}`.toLowerCase();
     let score = 0;
     for (const word of queryWords) {
       if (content.includes(word)) score++;
@@ -175,7 +175,7 @@ export function searchDocuments(query: string): { fileName: string; snippet: str
     if (score > 0) {
       results.push({
         fileName: "Manual Knowledge Base",
-        snippet: `Complaint: ${row.complaint}\nTroubleshooting: ${row.troubleshootingSteps}`
+        snippet: `Complaint: ${row.complaint}\nTroubleshooting: ${row.documentIssueSteps}`
       });
     }
   }

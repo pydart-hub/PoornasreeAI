@@ -1,5 +1,5 @@
 /**
- * Import an intents-format JSON file into TroubleshootingTemplate DB.
+ * Import an intents-format JSON file into DocumentIssue DB.
  * Run with:
  *   npx ts-node src/scripts/import-training.ts                         # service engineer templates from training.json
  *   npx ts-node src/scripts/import-training.ts --file chatbot-training.json --audience customer
@@ -87,13 +87,13 @@ async function main() {
         : intent.tag;
 
     try {
-      const existing = await prisma.troubleshootingTemplate.findUnique({
+      const existing = await prisma.documentIssue.findUnique({
         where: { problemType: intent.tag },
       });
 
       if (existing) {
-        await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
-        await prisma.troubleshootingTemplate.update({
+        await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+        await prisma.documentIssue.update({
           where: { id: existing.id },
           data: {
             title,
@@ -111,7 +111,7 @@ async function main() {
         console.log(`✏️  Updated: ${intent.tag} (${steps.length} steps)`);
         updated++;
       } else {
-        await prisma.troubleshootingTemplate.create({
+        await prisma.documentIssue.create({
           data: {
             problemType: intent.tag,
             title,

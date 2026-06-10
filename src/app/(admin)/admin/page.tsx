@@ -59,7 +59,7 @@ import RdVideosTab from "@/components/admin/RdVideosTab";
 import TicketsTab from "@/components/admin/TicketsTab";
 import ProductsTab from "@/components/admin/ProductsTab";
 import WhatsAppSettingsTab from "@/components/admin/WhatsAppSettingsTab";
-import TroubleshootingTemplatesTab from "@/components/admin/TroubleshootingTemplatesTab";
+import TemplatesTab from "@/components/admin/TemplatesTab";
 import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 
 // ─────────────────────────────────────────────
@@ -134,6 +134,7 @@ export default function AdminPage() {
   const [dragOver, setDragOver] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [uploadDocType, setUploadDocType] = useState<"service" | "customer">("service");
 
   // Videos state
@@ -522,6 +523,23 @@ export default function AdminPage() {
         </div>
       </ResponsiveSidebar>
 
+      {/* Issues Modal */}
+      {editingDocId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-surface dark:bg-surface-dark w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl flex flex-col">
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-line dark:border-line-dark bg-surface dark:bg-surface-dark">
+              <h2 className="text-lg font-bold text-content dark:text-content-dark">Edit Document Issues</h2>
+              <button onClick={() => setEditingDocId(null)} className="p-2 rounded-full hover:bg-surface-hover dark:hover:bg-surface-dark-hover text-content-secondary">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <TemplatesTab documentId={editingDocId} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main ── */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-slate-100">
 
@@ -747,6 +765,13 @@ export default function AdminPage() {
                             {doc.status === "trained" ? "Trained" : "Pending"}
                           </Badge>
                           <button
+                            onClick={() => setEditingDocId(doc.id)}
+                            className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 dark:hover:bg-primary-900/30 transition-colors"
+                            title="Edit Issues"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleDeleteDoc(doc.id)}
                             disabled={deletingDocId === doc.id}
                             className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
@@ -765,8 +790,7 @@ export default function AdminPage() {
 
               {/* Added: Troubleshooting Templates & Manual Complaints */}
               <div className="pt-8 space-y-8">
-                <TroubleshootingTemplatesTab />
-                <ManualComplaintsTab />
+                                <ManualComplaintsTab />
               </div>
             </section>
           )}

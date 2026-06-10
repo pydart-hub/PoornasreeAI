@@ -1,6 +1,6 @@
 // ── Complaint Controller ──────────────────────────────────────────────────
 // Returns complaint types extracted from admin-uploaded documents.
-// Source: TroubleshootingTemplate table (populated by document.service.ts
+// Source: DocumentIssue table (populated by document.service.ts
 // when admin uploads Excel/JSON files).
 
 import { Request, Response } from "express";
@@ -11,7 +11,7 @@ import prisma from "../lib/prisma";
 // Any authenticated user can call this endpoint.
 export async function listComplaintTypes(_req: Request, res: Response): Promise<void> {
   try {
-    const templates = await prisma.troubleshootingTemplate.findMany({
+    const templates = await prisma.documentIssue.findMany({
       where: { isActive: true },
       select: {
         id: true,

@@ -640,7 +640,7 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 
 // ── Complaint types list helper ───────────────────────────────────────────
 async function fetchComplaintListRows(lang: Lang, productName?: string) {
-  const templates = await prisma.troubleshootingTemplate.findMany({
+  const templates = await prisma.documentIssue.findMany({
     where: {
       isActive: true,
       audience: { in: ["customer", "both"] },
@@ -916,7 +916,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
       return makeReply(t("DESCRIBE_SHORT", lang));
     }
     const templateId = complaintText.replace("COMPLAINT_", "");
-    selectedTemplate = await prisma.troubleshootingTemplate.findUnique({
+    selectedTemplate = await prisma.documentIssue.findUnique({
       where: { id: templateId },
       include: { steps: { orderBy: { stepNumber: "asc" } } },
     });
@@ -945,7 +945,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     }).catch(e => console.error("[simulate] failed to log manual complaint:", e));
   }
 
-  const template = selectedTemplate || await findTroubleshootingTemplate(complaintText, productName);
+  const template = selectedTemplate || await findDocumentIssue(complaintText, productName);
 
   // ── Video recommendations: search by complaint + product name ──────────
   const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
@@ -1351,7 +1351,7 @@ function isActionableStep(content: string): boolean {
   return !FALLBACK_STEP_RE.test(content);
 }
 
-async function findTroubleshootingTemplate(
+async function findDocumentIssue(
   complaintText: string,
   productName: string,
   audienceFilter: string[] = ["customer", "both"],
@@ -1361,7 +1361,7 @@ async function findTroubleshootingTemplate(
   // Search by description, hard-filtered by audience.
   async function findByDescription(text: string) {
     if (!text.trim()) return null;
-    const match = await prisma.troubleshootingTemplate.findFirst({
+    const match = await prisma.documentIssue.findFirst({
       where: {
         isActive: true,
         audience: { in: audienceFilter },
@@ -1387,7 +1387,7 @@ async function findTroubleshootingTemplate(
 
   // 3. Match by product name (title or problemType)
   if (productName.trim()) {
-    const productMatch = await prisma.troubleshootingTemplate.findFirst({
+    const productMatch = await prisma.documentIssue.findFirst({
       where: {
         isActive: true,
         audience: { in: audienceFilter },

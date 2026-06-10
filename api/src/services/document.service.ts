@@ -1,3 +1,4 @@
+import axios from "axios";
 // ── Document Processing Service ───────────────────────────────────────
 // Extracts text from a PDF, splits it into chunks, embeds each chunk
 // via Ollama, stores the vector in Qdrant, and saves a DocumentChunk
@@ -96,8 +97,8 @@ export interface ProcessResult {
 }
 
 // ── Template extraction from JSON ──────────────────────────────────────
-// Takes a document file path (JSON) and creates/updates TroubleshootingTemplate
-// + TroubleshootingStep rows in the DB.
+// Takes a document file path (JSON) and creates/updates DocumentIssue
+// + DocumentIssueStep rows in the DB.
 // Expected JSON format:
 //   { "templates": [{ "problemType": "...", "title": "...", "description": "...", "steps": ["step1", "step2"] }] }
 
@@ -135,14 +136,14 @@ export async function extractTemplatesFromDocument(
     }
 
     try {
-      const existing = await prisma.troubleshootingTemplate.findUnique({
+      const existing = await prisma.documentIssue.findUnique({
         where: { problemType },
       });
 
       if (existing) {
         // Update: replace title/description/audience and recreate steps
-        await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
-        await prisma.troubleshootingTemplate.update({
+        await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+        await prisma.documentIssue.update({
           where: { id: existing.id },
           data: {
             title,
@@ -159,7 +160,7 @@ export async function extractTemplatesFromDocument(
         updated++;
       } else {
         // Create new template with steps
-        await prisma.troubleshootingTemplate.create({
+        await prisma.documentIssue.create({
           data: {
             problemType,
             title,
@@ -251,7 +252,7 @@ export async function processDocument(
         })
       );
 
-      // Also upsert into TroubleshootingTemplate DB for WhatsApp bot
+      // Also upsert into DocumentIssue DB for WhatsApp bot
       for (const intent of parsed.intents) {
         if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
         const response = intent.responses[0] as string;
@@ -265,14 +266,14 @@ export async function processDocument(
           ? intent.patterns.join(" | ")
           : intent.tag;
         try {
-          const existing = await prisma.troubleshootingTemplate.findUnique({
+          const existing = await prisma.documentIssue.findUnique({
             where: { problemType: intent.tag },
           });
           // Map documentType to template audience
           const audience = documentType === "service" ? "engineer" : "customer";
           if (existing) {
-            await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
-            await prisma.troubleshootingTemplate.update({
+            await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+            await prisma.documentIssue.update({
               where: { id: existing.id },
               data: {
                 title,
@@ -284,7 +285,7 @@ export async function processDocument(
               },
             });
           } else {
-            await prisma.troubleshootingTemplate.create({
+            await prisma.documentIssue.create({
               data: {
                 problemType: intent.tag,
                 title,
@@ -399,7 +400,7 @@ export async function processDocument(
       });
 
       if (intents.length > 0) {
-        // Upsert into TroubleshootingTemplate DB for WhatsApp bot
+        // Upsert into DocumentIssue DB for WhatsApp bot
         for (const intent of intents) {
           if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
           const response = intent.responses[0] as string;
@@ -413,13 +414,13 @@ export async function processDocument(
             ? intent.patterns.join(" | ")
             : intent.tag;
           try {
-            const existing = await prisma.troubleshootingTemplate.findUnique({
+            const existing = await prisma.documentIssue.findUnique({
               where: { problemType: intent.tag },
             });
             const audience = "both"; // Force both so customers always see it
             if (existing) {
-              await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
-              await prisma.troubleshootingTemplate.update({
+              await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+              await prisma.documentIssue.update({
                 where: { id: existing.id },
                 data: {
                   title,
@@ -431,7 +432,7 @@ export async function processDocument(
                 },
               });
             } else {
-              await prisma.troubleshootingTemplate.create({
+              await prisma.documentIssue.create({
                 data: {
                   problemType: intent.tag,
                   title,
@@ -476,6 +477,8 @@ export async function processDocument(
 
   // ── Unstructured file: text-chunking path (LLM synthesises answer) ───
   const text = await extractText(buffer, mimetype);
+  // NEW: Also run LLM extraction to automatically populate DocumentIssues for dropdowns
+  await extractIssuesFromLLM(documentId, text, documentType);
   return embedTextChunks(documentId, documentType, chunkText(text));
 }
 
@@ -565,4 +568,91 @@ async function embedTextChunks(
   }
 
   return { totalChunks: chunks.length, embedded, failed };
+}
+
+async function extractIssuesFromLLM(documentId: string, text: string, documentType: string) {
+  const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
+  const GEN_MODEL = "phi3:mini";
+
+  const prompt = `You are a technical support extraction system. 
+Analyze the following document text and extract all distinct customer complaints, issues, or error codes, along with their step-by-step troubleshooting solutions.
+Respond ONLY with a valid JSON array of objects, like this:
+[
+  {
+    "problemType": "power_issue",
+    "title": "Machine will not turn on",
+    "description": "The machine shows no sign of power when plugged in.",
+    "steps": ["Check power cable", "Verify wall outlet", "Check internal fuse"]
+  }
+]
+If no clear troubleshooting instructions are found, output an empty array [].
+DO NOT output any markdown blocks or explanations, just the raw JSON array.
+
+TEXT:
+${text.substring(0, 10000)}`;
+
+  try {
+    const { data } = await axios.post(`${OLLAMA_URL}/api/chat`, {
+      model: GEN_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      stream: false,
+      format: "json",
+      keep_alive: "10m",
+    });
+
+    let raw = data.message.content.trim();
+    if (raw.startsWith('```json')) raw = raw.replace(/```json/g, '').replace(/```/g, '');
+    
+    let parsed: any[] = [];
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      console.error("[doc] Failed to parse LLM JSON output", e);
+      return;
+    }
+    
+    if (Array.isArray(parsed)) {
+      const audience = documentType === "service" ? "engineer" : "customer";
+      for (const item of parsed) {
+         if (item.problemType && item.title && Array.isArray(item.steps) && item.steps.length > 0) {
+            const problemTypeSlug = item.problemType.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 50);
+            
+            const existing = await prisma.documentIssue.findUnique({
+               where: { problemType: problemTypeSlug }
+            });
+            
+            if (existing) {
+               await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+               await prisma.documentIssue.update({
+                 where: { id: existing.id },
+                 data: {
+                   documentId,
+                   title: item.title,
+                   description: item.description,
+                   audience,
+                   steps: {
+                     create: item.steps.map((s: string, i: number) => ({ stepNumber: i+1, stepContent: s }))
+                   }
+                 }
+               });
+            } else {
+               await prisma.documentIssue.create({
+                 data: {
+                   documentId,
+                   problemType: problemTypeSlug,
+                   title: item.title,
+                   description: item.description,
+                   audience,
+                   steps: {
+                     create: item.steps.map((s: string, i: number) => ({ stepNumber: i+1, stepContent: s }))
+                   }
+                 }
+               });
+            }
+         }
+      }
+    }
+  } catch (e) {
+    console.error("[doc] LLM Extraction failed:", e);
+  }
 }
