@@ -22,6 +22,8 @@ import {
   Clock,
   Search,
   Shield,
+  Database,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Logo, Avatar, ThemeToggle, Badge, LoadingScreen, ResponsiveSidebar } from "@/components/ui";
@@ -35,6 +37,13 @@ import {
   formatFileSize,
   type TrainedDocument,
 } from "@/lib/documentStore";
+import {
+  getKnowledgeRows,
+  addKnowledgeRow,
+  deleteKnowledgeRow,
+  type KnowledgeRow,
+} from "@/lib/knowledgeStore";
+import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 
 // ─────────────────────────────────────────────────────────────
 // MOCK USERS (mirrors AuthProvider mock data)
@@ -96,8 +105,11 @@ export default function AdminDashboard() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "knowledge">("documents");
   const [documents, setDocuments] = useState<TrainedDocument[]>([]);
+  const [knowledgeRows, setKnowledgeRows] = useState<KnowledgeRow[]>([]);
+  const [newComplaint, setNewComplaint] = useState("");
+  const [newTroubleshooting, setNewTroubleshooting] = useState("");
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [userSearch, setUserSearch] = useState("");
@@ -106,6 +118,7 @@ export default function AdminDashboard() {
   // Load documents
   const refreshDocuments = useCallback(() => {
     setDocuments(getDocuments());
+    setKnowledgeRows(getKnowledgeRows());
   }, []);
 
   useEffect(() => {
@@ -172,6 +185,24 @@ export default function AdminDashboard() {
     deleteDocument(id);
     refreshDocuments();
   }, [refreshDocuments]);
+
+  const handleAddKnowledge = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComplaint.trim() || !newTroubleshooting.trim()) return;
+    addKnowledgeRow({
+      complaint: newComplaint,
+      troubleshootingSteps: newTroubleshooting,
+    });
+    setNewComplaint("");
+    setNewTroubleshooting("");
+    refreshDocuments();
+  };
+
+  const handleDeleteKnowledge = (id: string) => {
+    if (!confirm("Delete this entry?")) return;
+    deleteKnowledgeRow(id);
+    refreshDocuments();
+  };
 
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -278,6 +309,22 @@ export default function AdminDashboard() {
               <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
                 {ALL_USERS.length}
               </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("knowledge")}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors mt-0.5",
+                activeTab === "knowledge"
+                  ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+              )}
+            >
+              <Database className="w-3.5 h-3.5" /> Knowledge Base
+              {knowledgeRows.length > 0 && (
+                <span className="ml-auto text-xs bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 px-1.5 py-0.5 rounded-full">
+                  {knowledgeRows.length}
+                </span>
+              )}
             </button>
           </div>
         </nav>
@@ -396,6 +443,18 @@ export default function AdminDashboard() {
             >
               <Users className="w-3.5 h-3.5" />
               <span>Users</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("knowledge")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                activeTab === "knowledge"
+                  ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
+                  : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+              )}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Knowledge Base</span>
             </button>
           </div>
 
@@ -549,6 +608,96 @@ export default function AdminDashboard() {
                   <li>When any user asks a question about machine malfunction, the AI searches your uploaded documents and gives answers based on the instructions in those documents</li>
                 </ol>
               </div>
+            </section>
+          )}
+
+          {/* ── Knowledge Base Tab ── */}
+          {activeTab === "knowledge" && (
+            <section className="space-y-8">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-base font-bold text-content dark:text-content-dark">
+                      Structured Knowledge Base
+                    </h2>
+                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
+                      Manually add complaints and troubleshooting steps to train the AI.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Add new entry form */}
+                <form onSubmit={handleAddKnowledge} className="mb-6 p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark flex gap-3 flex-col sm:flex-row items-end">
+                  <div className="flex-1 w-full space-y-1">
+                    <label className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Complaint</label>
+                    <input
+                      required
+                      value={newComplaint}
+                      onChange={(e) => setNewComplaint(e.target.value)}
+                      placeholder="e.g. Machine is making a loud noise"
+                      className="w-full h-10 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div className="flex-1 w-full space-y-1">
+                    <label className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Troubleshooting Steps</label>
+                    <input
+                      required
+                      value={newTroubleshooting}
+                      onChange={(e) => setNewTroubleshooting(e.target.value)}
+                      placeholder="e.g. Check the motor bearings and tighten belts"
+                      className="w-full h-10 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="h-10 px-4 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-600 transition-colors flex items-center gap-2 w-full sm:w-auto justify-center"
+                  >
+                    <Plus className="w-4 h-4" /> Add
+                  </button>
+                </form>
+
+                {/* Excel-like Table View */}
+                <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+                  <div className="hidden sm:grid sm:grid-cols-[1fr_2fr_auto] gap-4 px-5 py-3 border-b border-line dark:border-line-dark bg-surface-tertiary dark:bg-surface-dark-tertiary">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary">Complaint</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary">Troubleshooting Steps</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary text-right">Actions</span>
+                  </div>
+
+                  {knowledgeRows.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No manual entries yet. Add one above.</p>
+                    </div>
+                  ) : (
+                    knowledgeRows.map((row, i) => (
+                      <div
+                        key={row.id}
+                        className={cn(
+                          "flex flex-col sm:grid sm:grid-cols-[1fr_2fr_auto] gap-2 sm:gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors items-start sm:items-center",
+                          i < knowledgeRows.length - 1 && "border-b border-line dark:border-line-dark"
+                        )}
+                      >
+                        <p className="text-sm font-medium text-content dark:text-content-dark">{row.complaint}</p>
+                        <p className="text-sm text-content-secondary dark:text-content-dark-secondary whitespace-pre-wrap">{row.troubleshootingSteps}</p>
+                        <div className="flex items-center justify-end w-full sm:w-auto">
+                          <button
+                            onClick={() => handleDeleteKnowledge(row.id)}
+                            className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                            title="Delete entry"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <hr className="border-line dark:border-line-dark" />
+              
+              {/* Manual Customer Complaints View */}
+              <ManualComplaintsTab />
             </section>
           )}
 

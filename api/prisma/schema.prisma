@@ -341,6 +341,17 @@ model TroubleshootingSession {
   @@index([phoneNumber, serialNumber, status], name: "idx_session_lookup")
 }
 
+// ── Manual Complaint (from customer chat) ────────────────────────────────
+// Records complaints entered manually by customers when they select "Other".
+model ManualComplaint {
+  id          String   @id @default(uuid())
+  phoneNumber String
+  machineName String?
+  complaint   String   @db.Text
+  isReviewed  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
 // ── Conversation Session (WhatsApp simulation gatekeeper) ────────────────
 // V-Guard-style FSM per phone number. One active session per phoneNumber.
 // States: GREETING | MAIN_MENU | PRODUCT_SELECT | TROUBLESHOOTING |

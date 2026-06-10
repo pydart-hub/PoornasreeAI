@@ -59,6 +59,8 @@ import RdVideosTab from "@/components/admin/RdVideosTab";
 import TicketsTab from "@/components/admin/TicketsTab";
 import ProductsTab from "@/components/admin/ProductsTab";
 import WhatsAppSettingsTab from "@/components/admin/WhatsAppSettingsTab";
+import TroubleshootingTemplatesTab from "@/components/admin/TroubleshootingTemplatesTab";
+import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 
 // ─────────────────────────────────────────────
 // Types
@@ -759,6 +761,12 @@ export default function AdminPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Added: Troubleshooting Templates & Manual Complaints */}
+              <div className="pt-8 space-y-8">
+                <TroubleshootingTemplatesTab />
+                <ManualComplaintsTab />
               </div>
             </section>
           )}

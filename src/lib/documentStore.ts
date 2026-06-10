@@ -140,13 +140,16 @@ async function extractTextFromDocx(file: File): Promise<string> {
   return `[DOCX file: ${file.name} — content stored for reference]`;
 }
 
+import { getKnowledgeRows } from "./knowledgeStore";
+
 /**
  * Search trained documents for content relevant to a query.
  * Returns matching snippets from all trained documents.
  */
 export function searchDocuments(query: string): { fileName: string; snippet: string }[] {
   const docs = getDocuments().filter((d) => d.status === "trained");
-  if (docs.length === 0) return [];
+  const knowledgeRows = getKnowledgeRows();
+  if (docs.length === 0 && knowledgeRows.length === 0) return [];
 
   const results: { fileName: string; snippet: string }[] = [];
   const queryWords = query
@@ -161,6 +164,23 @@ export function searchDocuments(query: string): { fileName: string; snippet: str
 
   if (queryWords.length === 0) return [];
 
+  // 1. Search Manual Knowledge Rows
+  for (const row of knowledgeRows) {
+    const content = `${row.complaint}\n${row.troubleshootingSteps}`.toLowerCase();
+    let score = 0;
+    for (const word of queryWords) {
+      if (content.includes(word)) score++;
+    }
+    
+    if (score > 0) {
+      results.push({
+        fileName: "Manual Knowledge Base",
+        snippet: `Complaint: ${row.complaint}\nTroubleshooting: ${row.troubleshootingSteps}`
+      });
+    }
+  }
+
+  // 2. Search Unstructured Documents
   for (const doc of docs) {
     const content = doc.content.toLowerCase();
     const lines = doc.content.split(/\n/);

@@ -933,6 +933,18 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   const updatedMeta: SessionMeta = { ...meta, complaint: complaintText };
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
+
+  // If this was typed manually (not selected from list), log it
+  if (!text.trim().startsWith("COMPLAINT_")) {
+    await prisma.manualComplaint.create({
+      data: {
+        phoneNumber,
+        machineName: productName || null,
+        complaint: text.trim(),
+      }
+    }).catch(e => console.error("[simulate] failed to log manual complaint:", e));
+  }
+
   const template = selectedTemplate || await findTroubleshootingTemplate(complaintText, productName);
 
   // ── Video recommendations: search by complaint + product name ──────────

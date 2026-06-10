@@ -28,6 +28,7 @@ import { listProducts, createProduct, updateProduct, deleteProduct } from "../co
 import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbotSettings.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
+import { listManualComplaints, reviewManualComplaint, deleteManualComplaint } from "../controllers/manualComplaint.controller";
 
 const router = Router();
 
@@ -200,5 +201,10 @@ router.delete("/products/:id", deleteProduct);
 
 // WhatsApp customer test reset (admin only — remove when no longer needed)
 router.delete("/test/customer", clearTestCustomer);
+
+// Manual Complaints (from customer chat)
+router.get("/manual-complaints", listManualComplaints);
+router.patch("/manual-complaints/:id/review", reviewManualComplaint);
+router.delete("/manual-complaints/:id", deleteManualComplaint);
 
 export default router;
