@@ -1,0 +1,754 @@
+{
+  "intents": [
+    {
+      "tag": "vibro_not_working_no_led",
+      "patterns": [
+        "VIBRO is not working and LED is not on",
+        "Vibro power issue, no LED",
+        "My vibro won't turn on"
+      ],
+      "responses": [
+        "To fix the VIBRO (NOT ON LED), follow these steps:\n1. CHECK THE FUSE -> REPLACE FUSE.\n2. CHECK THE POWER SUPPLY -> REPLACE POWER SUPPLY.\n3. CHECK THE SUPPLY VOLTAGE (11v TO 14V) -> REPLACE POWER SUPPLY.\n4. CHECK THE GUN ELEMENT SHORT -> REPLACE THE GUN.\n5. REPLACE THE DC CONNECTOR.\n6. CHECK THE STIRRER BOARD -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_led_on_off",
+      "patterns": [
+        "VIBRO is not working but LED just goes on and off",
+        "Vibro LED blinking but not working",
+        "Vibro LED flashes on and off"
+      ],
+      "responses": [
+        "To troubleshoot VIBRO (LED JUST ON AND OFF):\n1. CHECK THE GUN ELEMENT SHORT -> REPLACE THE GUN.\n2. CHECK DC CONNECTOR -> REPLACE THE DC CONNECTOR.\n3. CHECK THE STIRRER BOARD -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_no_vibration",
+      "patterns": [
+        "Machine is on but vibration is not present",
+        "Vibro on but no vibration",
+        "Vibration stopped working on vibro"
+      ],
+      "responses": [
+        "To resolve VIBRO (MACHINE ON BUT NO VIBRATION):\n1. CHECK THE SUPPLY VOLTAGE (11v TO 14V) -> REPLACE POWER SUPPLY.\n2. CHECK THE GUN ELEMENT SHORT -> REPLACE THE GUN.\n3. CHECK THE FREQ.POT AND CABLE -> REPLACE THE FREQ.POT.\n4. CHECK THE STIRRER BOARD -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_continuous_vibration",
+      "patterns": [
+        "Machine continuously vibrating",
+        "Vibro won't stop vibrating",
+        "Continuous vibration issue"
+      ],
+      "responses": [
+        "To fix VIBRO (MACHINE CONTINIOUSLY VIBRATING):\n1. CHECK THE TIMER POT. AND CABLE -> REPLACE THE TIMER POT.\n2. CHECK THE STIRRER BOARD -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_low_vibration",
+      "patterns": [
+        "Low vibration on the machine",
+        "Vibro vibration is very weak",
+        "Vibration is not strong enough"
+      ],
+      "responses": [
+        "To fix VIBRO (LOW VIBRATION):\n1. CHECK THE SUPPLY VOLTAGE (11v TO 14V) -> REPLACE POWER SUPPLY.\n2. CHECK THE FREQ.POT AND CABLE -> REPLACE THE FREQ.POT.\n3. CHECK THE STIRRER BOARD FREQ.TRIMPOT ADJUST -> ADJUST THE FREQ.TRIMPOT.\n4. CHECK THE STIRRER BOARD -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_vibration_led_not_working",
+      "patterns": [
+        "Vibration indication LED is not working",
+        "Vibro indication light is off",
+        "Vibration LED is dead"
+      ],
+      "responses": [
+        "To troubleshoot VIBRO (VIBRATION INDICATION LED NOT WORKING):\n1. CHECK THE LED IS WORKING AND CHECK THE CONNECTING CABLE QUALITY -> REPLACE THE LED AND CABLE ASSY.\n2. CHECK THE VOLTAGE OF THE INDICATION LINE -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_power_led_not_working",
+      "patterns": [
+        "Power LED is not working on vibro",
+        "Main power light is out",
+        "Vibro power LED off"
+      ],
+      "responses": [
+        "To troubleshoot VIBRO (POWER LED NOT WORKING):\n1. CHECK THE LED IS WORKING AND CHECK THE CONNECTING CABLE QUALITY -> REPLACE THE LED AND CABLE ASSY.\n2. CHECK THE VOLTAGE OF THE INDICATION LINE -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "vibro_stirrer_only_on_adapter_plugging",
+      "patterns": [
+        "Stirrer working only during adapter plugging time",
+        "Vibro not working by the push switch",
+        "Push switch not starting vibro stirrer"
+      ],
+      "responses": [
+        "To fix VIBRO (STIRRER WORKING ONLY THE ADAPTER PLUGGING TIME / PUSH SWITCH FAIL):\n1. CHECK THE KEY FUNCTIONALITY AND CABLE ASSY. QUALITY -> REPLACE THE KEY.\n2. CHECK THE STIRRER BOARD -> REPLACE THE STIRRER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_no_charging_voltage",
+      "patterns": [
+        "Not present the battery charging voltage - 0V",
+        "Solar charger board voltage is zero",
+        "Battery is not getting charged, 0V"
+      ],
+      "responses": [
+        " To fix SOLAR CHARGER BOARD (BATTERY CHARGING VOLTAGE - 0V):\n1. CHECK THE CHARGER ADAPTER VOLTAGES - 12.5V AND 24V -> REPLACED THE CHARGER ADAPTER.\n2. CHECK THE CHARGER FUSE -> REPLACE THE FUSE.\n3. CHECK THE CHARGER ADAPTER TO SOLARCHARGER BOARD WIRING.\n4. CHECK THE SOLAR CHARGER BOARD COMPONENTS DAMAGE -> REPLACE THE SOLAR CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_low_voltage",
+      "patterns": [
+        "Battery charging voltage is low",
+        "Solar charger output is low"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (BATTERY CHARGING VOLTAGE IS LOW):\n1. CHECK THE CHARGER ADAPTER VOLTAGES - 12.5V AND 24V -> REPLACED THE CHARGER ADAPTER.\n2. REMOVE THE BATTERY AND CHECK THE VOLTAGE ADJUST TRIM.POT. OF THE SOLAR CHARGER BOARD -> REPLACE THE CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_high_voltage",
+      "patterns": [
+        "Battery charging voltage is too high",
+        "Solar charger overcharging"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (BATTERY CHARGING VOLTAGE IS TOO HIGH):\n1. REMOVE THE BATTERY AND CHECK THE VOLTAGE ADJUST TRIM.POT. OF THE SOLAR CHARGER BOARD -> REPLACE THE CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_battery_not_charging",
+      "patterns": [
+        "Battery charging voltage is correct but battery not charging",
+        "Voltage is fine but battery won't charge"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (VOLTAGE CORRECT BUT BATTERY NOT CHARGING):\n1. CHECK THE BATTERY CONDITION -> REPLACE THE BATTERY.\n2. CHECK THE SOLAR CHARGER BOARD COMPONENTS DAMAGE -> REPLACE THE SOLAR CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_led_not_working",
+      "patterns": [
+        "Battery charging indication LED not working",
+        "Solar charger LED broken"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (BATTERY CHARGING INDICATION LED NOT WORKING):\n1. CHECK THE BATTERY CONDITION -> REPLACE THE BATTERY.\n2. CHECK THE LED IS WORKING AND CHECK THE CONNECTING CABLE QUALITY -> REPLACE THE LED AND CABLE ASSY.\n3. CHECK THE VOLTAGE OF THE CURRENT INDICATION LINE -> REPLACE THE SOLAR CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_low_voltage_cutoff_not_working",
+      "patterns": [
+        "Low voltage cutoff not working",
+        "Cutoff relay failing"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (LOW VOLTAGE CUTOFF NOT WORKING):\n1. CHECK THE LOW VOLTAGE CUTOFF RELAY(K2) IS WORKING(POWER ON SWITCH SUDDEN ON/OFF/ON) -> REPLACE THE SOLARCHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_cutoff_led_not_working",
+      "patterns": [
+        "Low voltage cutoff LED not working"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (LOW VOLTAGE CUTOFF LED NOT WORKING):\n1. CHECK THE LED IS WORKING AND CHECK THE CONNECTING CABLE QUALITY -> REPLACE THE LED AND CABLE ASSY.\n2. CHECK THE VOLTAGE OF THE CUTOFF INDICATION LINE -> REPLACE THE SOLAR CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_machine_full_time_battery",
+      "patterns": [
+        "Machine full time working from battery but battery not full",
+        "Always on battery power"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (MACHINE FULL TIME WORKING FROM BATTERY):\n1. CHECK THE CHARGER ADAPTER VOLTAGES - 12.5V AND 24V -> REPLACE THE CHARGER ADAPTER.\n2. CHECK THE SOLAR CHARGER BOARD LOW VOLTAGE SETTING TRIM POT. -> REPLACE THE SOLARCHARGER BOARD.\n3. CHECK THE CHARGER ADAPTER DETECTION RELAY(K1) IS WORKING -> REPLACE THE SOLARCHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "solar_charger_not_working_from_external_battery",
+      "patterns": [
+        "Machine not working from the external connected battery"
+      ],
+      "responses": [
+        "To fix SOLAR CHARGER BOARD (NOT WORKING FROM EXTERNAL BATTERY):\n1. CHECK THE EXTERNAL BATTERY VOLTAGE ABOVE 11.5V -> CHARGE THE EXTERNAL BATTERY.\n2. CHECK THE RELAY(K1) IS WORKING (USE THE CHARGER ADAPTER) -> REPLACE THE SOLAR CHARGER BOARD.\n3. CHECK THE LOW VOLTAGE CUTOFF TRIM POT. OF THE SOLAR CHARGER BOARD -> REPLACE THE SOLAR CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "compact_adapter_output_zero",
+      "patterns": [
+        "Adapter output voltage is zero LSE V3 ECO V",
+        "Compact adapter has 0V output"
+      ],
+      "responses": [
+        "To fix COMPACT ADAPTER (OUTPUT VOLTAGE IS ZERO):\n1. CHECK THE STATUS LED IS GLOWING.\n2. OPEN THE ADAPTER AND CHECK PCB QUALITY( COMPONENTS BURN OR NOT).\n3. CHECK THE AC CORD -> REPLACE AC CORD.\n4. CHECK THE ADAPTER PCB -> REPLACE THE ADAPTER PCB."
+      ]
+    },
+    {
+      "tag": "compact_adapter_output_zero_led_on",
+      "patterns": [
+        "Adapter output voltage is zero but LED is glowing",
+        "0V output but adapter light is on"
+      ],
+      "responses": [
+        "To fix COMPACT ADAPTER (OUTPUT VOLTAGE ZERO BUT LED GLOWING):\n1. CHECK THE OUTPUT DC CONNECTER OF THE ADAPTER -> REPLACE THE OUTPUT DC CABLE."
+      ]
+    },
+    {
+      "tag": "compact_adapter_low_voltage",
+      "patterns": [
+        "Adapter output voltage showing 8v to 9v",
+        "Compact adapter low voltage output"
+      ],
+      "responses": [
+        "To fix COMPACT ADAPTER (OUTPUT SHOWING 8V TO 9V):\n1. OPEN THE ADAPTER AND CHECK PCB QUALITY( COMPONENTS BURN OR NOT) -> REPLACE THE ADAPTER PCB."
+      ]
+    },
+    {
+      "tag": "charger_adapter_output_zero",
+      "patterns": [
+        "Charger adapter output voltage is zero LSE-S V3 ECOD ECOSV",
+        "No voltage from charger adapter"
+      ],
+      "responses": [
+        "To fix CHARGER ADAPTER (OUTPUT VOLTAGE ZERO):\n1. CHECK THE STATUS LED IS GLOWING.\n2. OPEN THE ADAPTER AND CHECK PCB QUALITY( COMPONENTS BURN OR NOT).\n3. CHECK THE AC CORD -> REPLACE AC CORD.\n4. CHECK THE CHARGER ADAPTER PCB -> REPLACE THE CHARGER ADAPTER PCB."
+      ]
+    },
+    {
+      "tag": "charger_adapter_output_zero_led_on",
+      "patterns": [
+        "Charger adapter output voltage is zero but LED is glowing"
+      ],
+      "responses": [
+        "To fix CHARGER ADAPTER (OUTPUT ZERO BUT LED GLOWING):\n1. CHECK THE OUTPUT DC CONNECTER OF THE ADAPTER -> REPLACE THE OUTPUT DC CABLE."
+      ]
+    },
+    {
+      "tag": "charger_adapter_12v_low",
+      "patterns": [
+        "Adapter output 12 voltage showing 8V to 9V but 24V is 24V",
+        "12V line is low on charger adapter"
+      ],
+      "responses": [
+        "To fix CHARGER ADAPTER (12V SHOWING 8V TO 9V AND 24V IS 24V):\n1. OPEN THE ADAPTER AND CHECK PCB QUALITY( COMPONENTS BURN OR NOT) -> REPLACE THE CHARGER ADAPTER PCB."
+      ]
+    },
+    {
+      "tag": "charger_adapter_24v_low",
+      "patterns": [
+        "Adapter output 12 voltage showing 12V and 24V is low voltage or zero"
+      ],
+      "responses": [
+        "To fix CHARGER ADAPTER (12V OK, 24V LOW OR ZERO):\n1. OPEN THE ADAPTER AND CHECK PCB QUALITY( COMPONENTS BURN OR NOT) -> REPLACE THE CHARGER ADAPTER PCB."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_please_wait",
+      "patterns": [
+        "System on time please wait notification continuously showing",
+        "Stuck on please wait screen"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (PLEASE WAIT CONTINUOUSLY SHOWING):\n1. CHECK THE SD CARD IS OK -> REPLACE THE SD CARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_display_blank",
+      "patterns": [
+        "Display is blank on DPST board",
+        "Blank LCD screen"
+      ],
+      "responses": [
+        " To fix ECOD-DPST BOARD (DISPLAY BLANK):\n1. CHECK THE DPST BOARD BREATHING LED IS BLINKING -> REPLACE THE DPST BOARD.\n2. CHECK THE DIRECTION OF THE DISPLAY FRC CABLE CONNECTOR -> CONNECT THE FRC CONNECTOR AT OPPOSITE DIRECTION.\n3. CHECK THE DISPLAY FRC CABLE QUALITY AND LCD QUALITY -> REPLACE THE DISPLAY."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_display_half",
+      "patterns": [
+        "Display shown half portion only",
+        "Only half the screen is working"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (DISPLAY SHOWN HALF PORTION ONLY):\n1. CHECK THE DPST TO LCD FRC CABLE AND CONNECTOR QUALITY -> REPLACE THE DPST TO LCD CABLE.\n2. CHECK THE DISPLAY MODULE FUNCTIONALITY -> REPLACE THE LCD MODULE.\n3. CHECK THE DPST BOARD FUNCTIONALITY -> REPLACE THE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_rtc_reset",
+      "patterns": [
+        "RTC time not saved",
+        "Restart time time changed or re-setted"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (RTC TIME NOT SAVED):\n1. CHECK THE CMOS BATTERY VOLTAGE ABOVE 2V -> REPLACE THE CMOS BATTERY.\n2. CHECK THE U5 AND PROCESSOR CONNECTING LINE SOLDERING -> RE-SOLDER THAT CONNECTION."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_rtc_not_running",
+      "patterns": [
+        "RTC time not running",
+        "Clock is frozen"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (RTC TIME NOT RUNNING):\n1. CHECK THE U5 IC CRYSTAL - Y3 AND ALSO CHECK C37 & C38 -> REPLACE THE Y3 CRYSTAL AND C37&C38."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_keypad_not_working",
+      "patterns": [
+        "DPST key pad not working",
+        "Buttons not responding on DPST"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (DPST KEY PAD NOT WORKING):\n1. CHECK THE DIRECTION OF THE KEYPAD FRC-10 CABLE CONNECTOR -> CONNECT THE FRC-10 CONNECTOR AT OPPOSITE DIRECTION.\n2. CHECK THE DPST KEYPAD QUALITY -> REPLACE THE DPST KEYPAD.\n3. CHECK THE DPST BOARD QUALITY -> REPLACE THE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_usb_error",
+      "patterns": [
+        "USB initialization error shown",
+        "USB error on screen"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (USB INITIALIZATION ERROR):\n1. CHECK THE DPST TO BACKPANEL CABLE QUALITY AND DIRECTION OF THE FRC CONNECTOR -> REPLACE THE FRC CABLE OR CONNECT OPPOSITE.\n2. CONNECT THE NEW BACK PANEL BOARD AND CHECK -> REPLACE THE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_weighing_scale",
+      "patterns": [
+        "Weighing scale not working",
+        "Scale disconnected"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (WEIGHING SCALE NOT WORKING):\n1. CHECK THE REQUIRED SETTINGS IS APPLIED -> SET THE REQUIRED SETTINGS VALUES.\n2. CHECK THE SCALE INTERFACING CABLE CONNECTIVITY -> REPLACE THE CABLE.\n3. CHECK THE BACK PANEL TO DPST SCALE CABLE -> REPLACE THE CABLE.\n4. CHECK THE BACKPANEL PCB FUNCTANALITY -> REPLACE PCB.\n5. CHECK THE DPST BOARD FUNCTANALITY -> REPLACE THE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_computer_output",
+      "patterns": [
+        "Computer output not present"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (COMPUTER OUTPUT NOT PRESENT):\n1. CHECK THE DATAOUTPUT FORMAT OF THE ANALYZER SETTINGS -> SET REQUIRED VALUES.\n2. CHECK THE MACHINE COMPUTER OUT TO COMPUTER CABLE CONNECTIVITY -> REPLACE CABLE.\n3. CHECK THE ANALYZER MAIN BOARD TO BACKPANEL INTERFACING CABLE -> REPLACE CABLE.\n4. CHECK THE BACKPANEL PCB FUNCTANALITY -> REPLACE PCB.\n5. CHECK THE ANALYZER MAIN BOARD FUNCTANALITY -> REPLACE MAIN BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_external_display",
+      "patterns": [
+        "External display data not present"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (EXTERNAL DISPLAY DATA NOT PRESENT):\n1. CHECK THE MACHINE EXTERNAL DISPLAY OUT TO DISPLAY CABLE CONNECTIVITY -> REPLACE CABLE.\n2. CHECK THE DPST BOARD TO BACKPANEL EXTERNAL DISPLAY CABLE -> REPLACE CABLE.\n3. CHECK THE BACKPANEL PCB FUNCTANALITY -> REPLACE PCB.\n4. CHECK THE DPST BOARD FUNCTANALITY -> REPLACE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_rate_chart",
+      "patterns": [
+        "Rate not taken from the chart",
+        "Rate not viewable"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (RATE NOT TAKEN FROM THE CHART / NOT VIEW):\n1. CHECK THE SD CARD IS OK -> REPLACE THE SD CARD.\n2. CHECK THE RATE CHART FILE IS SAVED IN THE SD CARD.\n3. CHECK THE SAVED FILE TYPE AND DATAS FORMAT IN CSV -> SAVE TO THE CORRECT FORMAT AND TYPE (CSV).\n4. CHECK THE DPST BOARD FUNCTANALITY -> REPLACE THE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_farmer_details",
+      "patterns": [
+        "Farmer details not shown"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (FARMER DETAILS NOT SHOWN):\n1. CHECK THE SD CARD IS OK -> REPLACE THE SD CARD.\n2. CHECK THE RATE CHART FILE IS SAVED IN THE SD CARD.\n3. CHECK THE SAVED FILE TYPE AND DATAS FORMAT IN CSV -> SAVE AS CSV.\n4. CHECK THE DPST BOARD FUNCTANALITY -> REPLACE THE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_analyzer_connectivity",
+      "patterns": [
+        "Analyzer connectivity error shown"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (ANALYZER CONNECTIVITY ERROR):\n1. CHECK THE ANALYZER TO DPST BOARD INTERFACING CABLE AND CONNECTOR QUALITY -> REPLACE CABLE.\n2. CHECK THE ANALYZER MAIN BOARD FUNCTANALITY -> REPLACE MAIN BOARD.\n3. CHECK THE ANALYZER DPST BOARD FUNCTANALITY -> REPLACE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_wifi_gsm_error",
+      "patterns": [
+        "WiFi GSM module error shown",
+        "Cellular or wifi not connecting"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (WIFI/GSM MODULE ERROR SHOWN):\n1. CHECK THE WIFI/GSM SETTINGS DETAILS -> ENTER THE REQUIRED SETTINGS.\n2. CHECK THE DPST TO BACKPANEL FRC CABLE AND CONNECTION DIRECTION -> REPLACE OR RECONNECT FRC CABLE.\n3. CHECK THE WIFI/GSM MODULE BREATHING LED IS WORKING -> REPLACE THE WIFI/GSM MODULE.\n4. CHECK THE ANTENNA SMA CABLE CONNECTION AND CONNECTOR -> REPLACE THE ANTENNA AND SMA CABLE."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_sms_not_sending",
+      "patterns": [
+        "SMS not send to the farmer",
+        "Messages failing to send"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (SMS NOT SEND TO THE FARMER):\n1. CHECK THE GSM/SIM MODULE CONNECTIVITY (INSERTED SIM DIRECTION) AND SIM VALIDITY -> CORRECT CONNECTIVITY / EXTEND VALIDITY.\n2. CHECK THE FARMER DETAILS ENTERED ARE CORRECT -> PROPERLY ENTER DETAILS.\n3. CHECK THE ENTERED SMS ENABLE SETTINGS ARE CORRECT -> ENTER CORRECT SETTINGS."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_cloud_error",
+      "patterns": [
+        "Tested result to cloud updation error shown",
+        "Cannot upload to cloud"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (TESTED RESULT TO CLOUD UPDATION ERROR):\n1. CHECK THE WIFI/GSM CONNECTIVITY -> ENTER PROPER SETTINGS.\n2. CHECK THE ENTERED CLOUD DETAILS ARE CORRECT -> ENTER PROPER CLOUD ADDRESS.\n3. CHECK THE SAME MACHINE ID AND MODEL DETAILS ARE ENTERED IN CLOUD APPLICATION -> ENTER IN WEB APPLICATION."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_sd_card_save_error",
+      "patterns": [
+        "Chart file not shown",
+        "Farmer details not saved",
+        "Collection not saved"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (CHART/FARMER/COLLECTION NOT SAVED):\n1. CHECK THE SD CARD FILE FORMAT TYPE- (USE FAT SYSTEM) -> FORMAT THE SD CARD AT FAT FILE SYSTEM USE THE COMPUTER.\n2. CHECK THE SD CARD IS DETECTED THE MACHINE (READ/WRITABLE) -> FORMAT THE SD CARD USE THAT MACHINE."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_sample_test_timeout",
+      "patterns": [
+        "Sample testing time the count continuously counted above 50 seconds",
+        "Test taking too long"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (SAMPLE TESTING TIME CONTINUOUSLY COUNTED ABOVE 50 SEC):\n1. CHECK THE DPST BOARD TO ANALYZER MAIN BOARD INTERFACE CABLE -> REPLACE CABLE.\n2. CHECK THE DPST BOARD FUNCTIONALITY -> REPLACE DPST BOARD.\n3. CHECK THE ANALYZER MAIN BOARD FUNCTIONALITY -> REPLACE MAIN BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_communication_failure",
+      "patterns": [
+        "DPST board to analyzer main board communication not properly working"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (COMMUNICATION NOT PROPERLY WORKING):\n1. CHECK THE ANALYZER MAINBOARD MACHINE MODEL SELECTION IS 'ECOD'."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_pendrive_failure",
+      "patterns": [
+        "Pendrive detection failure",
+        "USB drive not reading"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (PENDRIVE DETECTION FAILURE):\n1. CHECK THE PENDRIVE FUNCTIONALITY AND FILE FORMAT IS FAT FILE SYSTEM -> CHANGE FILE FORMAT TO FAT.\n2. CHECK THE BACKPANEL BOARD FUCTIONALITY -> REPLACE BACKPANEL BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_external_keyboard_failure",
+      "patterns": [
+        "External keyboard not detected"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (EXTERNAL KEYBOARD NOT DETECTED):\n1. CHECK THE DPST BOARD TO BACKPANEL BOARD FRC CABLE QUALITY AND CONNECTOR DIRECTION -> REPLACE OR RECONNECT FRC CABLE.\n2. CHECK THE BACKPANEL BOARD FUCTIONALITY -> REPLACE BACKPANEL BOARD.\n3. CHECK THE DPST BOARD FUNCTIONALITY -> REPLACE DPST BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_external_display_failure",
+      "patterns": [
+        "External display not working"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (EXTERNAL DISPLAY NOT WORKING):\n1. CHECK THE DPST BOARD TO BACKPANEL BOARD FRC CABLE QUALITY AND CONNECTOR DIRECTION -> REPLACE OR RECONNECT FRC CABLE.\n2. CHECK THE BACKPANEL BOARD FUCTIONALITY -> REPLACE BACKPANEL BOARD.\n3. CHECK THE DPST BOARD FUNCTIONALITY -> REPLACE DPST BOARD.\n4. CHECK THE EXTERNAL DISPLAY INTERFACING CABLE -> REPLACE EXTERNAL DISPLAY INTERFACING CABLE."
+      ]
+    },
+    {
+      "tag": "ecod_dpst_printer_failure",
+      "patterns": [
+        "Printer not working"
+      ],
+      "responses": [
+        "To fix ECOD-DPST BOARD (PRINTER NOT WORKING):\n1. CHECK THE PRINTER POWER SUPPLY - 8 TO 9V -> CHANGE THE POWER CABLE OR PRINTER SUPPLY BOARD.\n2. CHECK THE PRINTER FUNCTIONALLY WORKING - SELF TEST PRINTOUT -> CHANGE THE PRINTER.\n3. CHECK THE PRINTER SETTINGS -> CHANGE THE SETTINGS.\n4. CHECK THE COMMUNICATION CABLE -> CHANGE THE CABLE."
+      ]
+    },
+    {
+      "tag": "pump_not_working",
+      "patterns": [
+        "Pump not working",
+        "Motor completely dead"
+      ],
+      "responses": [
+        "To fix PUMP (NOT WORKING):\n1. CHECK THE ANALYZER MAINBOARD BREATHING LIGHT IS WORKING -> REPLACE THE ANALYZER BOARD.\n2. CHECK THE MOTOR CABLE AND CONNECTOR CONNECTIVITY -> REPLACE THE MOTOR.\n3. CHECK THE MOTOR MOTION SENSING BOARD CABLE AND CONNECTOR -> REPLACE THE CABLE.\n4. CHECK THE MOTOR MOTION SENSOR BOARD FUNCTANALITY -> REPLACE THE MOTOR MOTION SENSOR BOARD.\n5. CHECK THE MOTOR DRIVER MODULE QUALITY -> REPLACE THE MOTOR DRIVER MODULE.\n6. CHECK THE ANALYZER MAINBOARD FUNCTIONALITY -> REPLACE THE ANALYZER MAINBOARD."
+      ]
+    },
+    {
+      "tag": "pump_nut_bolt_clamp_hit",
+      "patterns": [
+        "Pump nut and bolt move to oneside only and hit into the clamp"
+      ],
+      "responses": [
+        "To fix PUMP (NUT AND BOLT MOVE TO ONESIDE AND HIT CLAMP):\n1. CHECK THE MOTOR MOTION SENSING BOARD CABLE AND CONNECTOR -> REPLACE THE MOTOR MOTION SENSING BOARD CABLE.\n2. CHECK THE MOTOR MOTION SENSING BOARD FUNCTIONALITY -> REPLACE THE SENSING BOARD.\n3. CHECK THE ANALYZER MAINBOARD FUNCTIONALITY -> REPLACE THE ANALYZER MAINBOARD."
+      ]
+    },
+    {
+      "tag": "pump_sense_error",
+      "patterns": [
+        "Pump sense error"
+      ],
+      "responses": [
+        "To fix PUMP (PUMP SENSE ERROR):\n1. CHECK THE MOTOR MOTION SENSING BOARD CABLE AND CONNECTOR -> REPLACE SENSING BOARD CABLE.\n2. CHECK THE MOTOR MOTION SENSING BOARD FUNCTIONALITY -> REPLACE SENSING BOARD.\n3. CHECK THE ANALYZER MAINBOARD FUNCTIONALITY -> REPLACE ANALYZER MAINBOARD."
+      ]
+    },
+    {
+      "tag": "ecod_battery_low_error",
+      "patterns": [
+        "Low battery error shown"
+      ],
+      "responses": [
+        "To fix ECOD/ECOSV/LSES V3 BATTERY PROBLEMS (LOW BATTERY ERROR):\n1. CHECK THE BATTERY VOLT ABOVE 11.5V -> REPLACE THE BATTERY.\n2. CHECK THE SOLARCHARGER BOARD TO ANALYZER INTERFACE CABLE -> REPLACE THE INTERFACE CABLE.\n3. CHECK THE ANALYZER MAINBOARD FUNCTIONALITY -> REPLACE THE ANALYZER MAINBOARD.\n4. CHECK THE SOLAR CHARGER BOARD FUNCTANALITY -> REPLACE THE SOLAR CHARGER BOARD."
+      ]
+    },
+    {
+      "tag": "ecod_battery_full_led_error",
+      "patterns": [
+        "Battery full LED indication not working"
+      ],
+      "responses": [
+        "To fix ECOD/ECOSV/LSES V3 BATTERY PROBLEMS (BATTERY FULL LED NOT WORKING):\n1. CHECK THE ANALYZER MAINBOARD IS COMPLETED THE WARMING PROCESS -> APPLY TO CANCELLED THE WARMING PROCESS.\n2. CHECK THE VOLTAGE OF THE BATTERY ABOVE 14.3V -> CHARGE THE BATTERY AT FULL.\n3. CHECK THE CHARGER BOARD TO ANALYZER MAINBOARD INTERFACING CABLE -> REPLACE CABLE.\n4. CHECK VOLTAGE OF SOLAR CHARGER BOARD TO BATTERY CABLE LINE WITHOUT CONNECTING BATTERY (14.45V) -> ADJUST TRIMPOT AND SET AT 14.45V.\n5. CHECK THE BATTERY FULL INDICATION LED IS WORKING -> REPLACE THE LED.\n6. CHECK THE ANALYZER MAIN BOARD TO LED CABLE -> REPLACE CABLE.\n7. CHECK THE ANALYZER MAINBOARD FUNCTIONALITY -> REPLACE MAINBOARD."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_temp_set_error",
+      "patterns": [
+        "T2 TEMP.SET ERROR",
+        "Temperature set error"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (T2/TEMP.SET ERROR):\n1. CHECK THE LEAKAGE/BLOCK OF THE SAMPLE SUCKING SECTIONS.\n2. CHECK THE INLET PIPE IS BROKEN OR BLOCKED -> REPLACE INLET PIPE.\n3. CHECK THE INLET TUBE TO PREHEATER SILICON TUBE -> REPLACE/TIE SILICON TUBE.\n4. CHECK THE PRE HEATER TO SENSOR SILICON TUBE -> REPLACE/TIE SILICON TUBE.\n5. CHECK THE SENSOR TO SYRINGE SILICON TUBE -> REPLACE/TIE SILICON TUBE.\n6. CHECK THE SYRINGE IS DAMAGE -> REPLACE THE SYRINGE.\n7. CHECK THE BELLOW TO L-PLUG SILICON TUBE BROKEN OR BUR HOLDED -> REPLACE SILICON TUBE/BUR.\n8. CHECK THE L-PLUG BROKEN AND O-RING QUALITY -> REPLACE L-PLUG/O-RING.\n9. CHECK THE BELLOW QUALITY -> REPLACE BELLOW.\n10. CHECK THE SENSOR INNER BOX SIDE ANY LEAKAGE/BLOCK -> REPLACE MAINBOARD AND SENSOR BOARD PAIR.\n11. CHECK MAINBOARD FUNCTIONALITY -> REPLACE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_box_temp_error",
+      "patterns": [
+        "BOX TEMP ERROR"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (BOX TEMP ERROR):\n1. CHECK THE JUMPER QUALITY OF THE MAINBOARD TO SENSOR BOARD SUPPLY LINE -> REPLACE THE JUMPER.\n2. CHECK THE SENSOR BOARD FUNCTIONALITY -> REPLACE THE SENSOR BOARD.\n3. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_sample_not_found",
+      "patterns": [
+        "SAMPLE NOT FOUND",
+        "AIR IN MILK"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (SAMPLE NOT FOUND/AIR IN MILK):\n1. CHECK THE SAMPLE SUCKING SECTION ANY LEAKAGE/BLOCK -> REPLACE THE DAMAGE ITEM.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_plunge_in_water",
+      "patterns": [
+        "PLUNGE IN WATER",
+        "WATER IN SENSOR"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (PLUNGE IN WATER/WATER IN SENSOR):\n1. CHECK THE SAMPLE LIQUID PRESENTS IN THE SENSOR TUBE -> REMOVE THE SAMPLE LIQUID.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_hot_sample_error",
+      "patterns": [
+        "HOT SAMPLE ERROR",
+        "Sample is too hot"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (HOT SAMPLE ERROR):\n1. CHECK THE TEST SAMPLE TEMPERATURE BELOW 40 DEGREE -> REPLACE THE SAMPLE.\n2. CHECK THE SENSOR BOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR.\n3. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_count_zero",
+      "patterns": [
+        "COUNT ZERO",
+        "RESULT ZERO"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (COUNT ZERO / RESULT ZERO):\n1. CHECK THE SENSOR BLOCK / LEAKAGE AND TEST COUNT VALUE -> CLEAN THE SENSOR.\n2. CHECK THE SENSOR GAIN SET AT PROPER VALUE -> SET THE NORMAL GAIN SETTINGS.\n3. CHECK THE SENSOR BOARD FUNCTIONALITY -> REPLACE THE SENSOR BOARD.\n4. CHECK MAIN BOARD FUNCTIONALITY -> REPLACE MAINBOARD AND SENSOR PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_reading_variation",
+      "patterns": [
+        "READING VARIATION",
+        "Inconsistent readings"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (READING VARIATION):\n1. CHECK THE SENSOR AND SILICONE TUBES ARE CLEANED -> CLEAN THE SENSOR AND SILICONE TUBES.\n2. CHECK THE SENSOR GAIN SET AT PROPER VALUE -> SET THE NORMAL GAIN SETTINGS.\n3. CHECK THE PROPER OFFSET APPLY AND TEST READING -> REPLACE MAINBOARD AND SENSOR BOARD PAIR.\n4. CHECK MAIN BOARD FUNCTIONALITY -> REPLACE MAINBOARD AND SENSOR PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_fat_in_water",
+      "patterns": [
+        "FAT SHOWN IN WATER"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (FAT SHOWN IN WATER):\n1. CHECK THE ANALYZER OTHER MILK SAMPLES TEST READINGS ARE 'OK' -> IF NOT OK CHECK THE CALIBRATION DETAILS.\n2. CHECK THE SENSOR AND TUBE WELL CLEANED -> TO CLEAN THE SENSOR AND TUBE, APPLY WATER ZERO OPERATION AND TEST AGAIN.\n3. ENSURE THE PAIRED MAIN BOARD IS FUNCTIONALLY OK OTHERWISE BOARD REPLACE."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_lcd_computer_mode",
+      "patterns": [
+        "LCD CONTINIOUSLY SHOWING COMPUTER MODE"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (LCD CONTINIOUSLY SHOWING COMPUTER MODE):\n1. CHECK THE FRONTPANEL KEYPAD KEYS QUALITY -> REPLACE THE KEYPAD.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_lcd_version",
+      "patterns": [
+        "LCD CONTINIOUSLY SHOWING VERSION"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (LCD CONTINIOUSLY SHOWING VERSION):\n1. CHECK THE FRONTPANEL KEYPAD KEYS QUALITY -> REPLACE THE KEYPAD.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_fuse_burn",
+      "patterns": [
+        "WARMING STARTING TIME MACHINE WILL OFF",
+        "FUSE BURN"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (WARMING STARTING TIME MACHINE WILL OFF/FUSE BURN):\n1. CHECK THE MAINBOARD FUNCTIONALITY - MOSFET FAILURE -> REPLACE MAIN BOARD AND SENSOR BOARD PAIR.\n2. CHECK THE SENSOR BOARD COIL IS BURN -> REPLACE MAIN BOARD AND SENSOR BOARD PAIR.\n3. CHECK THE ON/OFF SWITCH FUNCTIONALITY AND FUSE CARRER & FUSE IS TIGHT -> REPLACE SWITCH OR RE-SET FUSE AND CARRIER.\n4. CHECK THE POWER CABLE OR CONNECTOR IS LOOSE -> REPLACE FAULTY ITEM."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_pendrive_keyboard_undetected",
+      "patterns": [
+        "PENDRIVE AND KEYBOARD NOT DETECTED"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (PENDRIVE AND KEYBOARD NOT DETECTED):\n1. CHECK THE MAINBOARD USB SETTING IS CORRECT -> CORRECT THE USB SETTINGS.\n2. CHECK THE USB CONNECTOR AND INTERFACING CABLE -> REPLACE THE CONNECTOR OR CABLE.\n3. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR BOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_wifi_gsm_error",
+      "patterns": [
+        "WIFI/GSM MODULE ERROR SHOWN"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (WIFI/GSM MODULE ERROR SHOWN):\n1. CHECK THE WIFI/GSM SETTINGS DETAILS -> ENTER REQUIRED SETTINGS.\n2. CHECK THE MAINBOARD TO MODULES OR BACKPANEL FRC CABLE -> REPLACE OR RECONNECT AT CORRECT DIRECTION.\n3. CHECK THE WIFI/GSM MODULE BREATHING LED IS WORKING -> REPLACE MODULE.\n4. CHECK THE ANTENNA SMA CABLE CONNECTION AND CONNECTOR -> REPLACE ANTENNA AND SMA CABLE."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_frontpanel_keypad",
+      "patterns": [
+        "FRONTPANEL KEYPAD NOT WORKING"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (FRONTPANEL KEYPAD NOT WORKING):\n1. CHECK THE KEYPAD, INTERFACING CABLE AND CONNECTOR QUALITY -> REPLACE THE KEYPAD, INTERFACING CABLE AND CONNECTOR.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_lcd_blank",
+      "patterns": [
+        "LCD NOT WORKING",
+        "BLANK DISPLAY"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (LCD NOT WORKING - BLANK DISPLAY):\n1. CHECK THE LCD, INTERFACE CABLE AND CONNECTOR QUALITY -> REPLACE THE LCD, INTERFACING CABLE AND CONNECTOR.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_rtc_not_running",
+      "patterns": [
+        "RTC TIME NOT RUNNING"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (RTC TIME NOT RUNNING):\n1. CHECK THE RTC MODULE IC CRYSTAL AND FILTER CAPACITORS -> REPLACE CRYSTAL AND CAPACITORS.\n2. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_computer_output_not_present",
+      "patterns": [
+        "COMPUTER OUTPUT NOT PRESENT"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (COMPUTER OUTPUT NOT PRESENT):\n1. CHECK THE DATAOUTPUT FORMAT OF THE ANALYZER SETTINGS -> SET REQUIRED SETTINGS VALUES.\n2. CHECK THE MACHINE COMPUTER OUT TO COMPUTER CABLE CONNECTIVITY -> REPLACE CABLE.\n3. CHECK THE MAINBOARD FUNCTIONALITY -> REPLACE THE MAINBOARD AND SENSOR PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_rtc_time_not_saved",
+      "patterns": [
+        "RTC TIME NOT SAVED",
+        "RESTART TIME TIME CHANGED"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (RTC TIME NOT SAVED):\n1. CHECK THE CMOS BATTERY VOLTAGE ABOVE 2V -> REPLACE THE CMOS BATTERY.\n2. CHECK THE RTC MODULE AND MAINBOARD FUNCTIONALITY -> REPLACE THE RTC MODULE OR MAINBOARD PAIR."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_sms_not_send",
+      "patterns": [
+        "SMS NOT SEND TO THE FARMER"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (SMS NOT SEND TO THE FARMER):\n1. CHECK THE GSM/SIM MODULE CONNECTIVITY AND SIM VALIDITY -> CORRECT CONNECTIVITY AND EXTEND VALIDITY.\n2. CHECK THE FARMER DETAILS ENTERED ARE CORRECT -> PROPERLY ENTER FARMER DETAILS.\n3. CHECK THE ENTERED SMS ENABLE SETTINGS ARE CORRECT -> ENTER CORRECT SETTINGS."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_cloud_error",
+      "patterns": [
+        "TESTED RESULT TO CLOUD UPDATION ERROR SHOWN"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (TESTED RESULT TO CLOUD UPDATION ERROR):\n1. CHECK THE WIFI/GSM CONNECTIVITY -> ENTER PROPER SETTINGS.\n2. CHECK THE ENTERED THE CLOUD DETAILS ARE CORRECT -> ENTER PROPER CLOUD ADDRESS AND DETAILS.\n3. CHECK THE SAME MACHINE ID AND MODEL DETAILS ARE ENTERED IN THE CLOUD APPLICATION -> ENTER ID AND MODEL IN WEB APP."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_rate_not_taken",
+      "patterns": [
+        "RATE NOT TAKEN FROM THE CHART",
+        "NOT VIEW"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (RATE NOT TAKEN FROM THE CHART / NOT VIEW):\n1. CHECK THE RATE CHART SETTINGS ENTERED PROPERLY -> ENTER THE CORRECT SETTINGS."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_farmer_details_not_shown",
+      "patterns": [
+        "FARMER DETAILS NOT SHOWN"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (FARMER DETAILS NOT SHOWN):\n1. CHECK THE FARMER DETAILS ARE ENTERED CORRECTLY -> ENTER THE CORRECT DETAILS."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_weighing_scale",
+      "patterns": [
+        "WEIGHING SCALE NOT WORKING"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (WEIGHING SCALE NOT WORKING):\n1. CHECK THE REQUIRED SETTINGS IS APPLIED -> SET REQUIRED SETTINGS VALUES.\n2. CHECK THE MAIN BOARD TO BACKPANEL BOARD FRC CABLE -> REPLACE CABLE AND RECONNECT.\n3. CHECK THE BACKPANEL PCB FUNCTANALITY -> REPLACE BACKPANEL PCB.\n4. CHECK THE MAIN BOARD FUNCTANALITY -> REPLACE MAINBOARD AND SENSOR PAIR.\n5. CHECK THE WEIGHING SCALE INTERFACING CABLE -> REPLACE CABLE."
+      ]
+    },
+    {
+      "tag": "analyzer_mainboard_external_display",
+      "patterns": [
+        "EXTERNAL DISPLAY NOT WORKING"
+      ],
+      "responses": [
+        "To fix ANALYZER MAINBOARD (EXTERNAL DISPLAY NOT WORKING):\n1. CHECK THE MAIN BOARD TO BACKPANEL BOARD FRC CABLE -> REPLACE CABLE AND RECONNECT.\n2. CHECK THE BACKPANEL BOARD FUCTIONALITY -> REPLACE BACKPANEL BOARD.\n3. CHECK THE MAIN BOARD FUNCTIONALITY -> REPLACE MAIN BOARD.\n4. CHECK THE EXTERNAL DISPLAY INTERFACING CABLE -> REPLACE CABLE."
+      ]
+    },
+    {
+      "tag": "others_analyzer_not_working",
+      "patterns": [
+        "ANALYZER NOT WORKING",
+        "Analyzer is completely dead"
+      ],
+      "responses": [
+        "To fix OTHERS (ANALYZER NOT WORKING):\n1. CHECK THE FUSE -> REPLACE THE FUSE.\n2. CHECK THE ADAPTER / BATTERY VOLTAGE ABOVE 11.5V -> REPLACE THE ADAPTER / BATTERY.\n3. CHECK THE ON/OFF SWITCH FUNCTIONALITY -> REPLACE THE ON/OFF SWITCH.\n4. CHECK THE INTERNAL BARDS SUPPLY LINE IS SHORTCIRCUIT -> REPLACE THE SHORTED BOARD.\n5. CHECK THE INTERNAL SUPPLY LINE OPEN/LOOSE FAULT -> REPLACE THE FAULTY CONNECTOR/CABLES."
+      ]
+    }
+  ]
+}
