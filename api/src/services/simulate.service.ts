@@ -83,10 +83,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     en: "📱 This mobile number is not registered with us.\n\nIf you are a Registered Customer, please provide your registered 10 digit mobile number.\n\nEg. 9633503333\n\nOr press *Skip* to Continue. 👇",
     hi: "📱 यह मोबाइल नंबर हमारे यहाँ पंजीकृत नहीं है।\n\nयदि आप पंजीकृत ग्राहक हैं, तो कृपया अपना 10 अंकों का पंजीकृत मोबाइल नंबर दें।\n\nजैसे: 9633503333\n\nया जारी रखने के लिए *Skip* दबाएं। 👇",
   },
-  TIMEOUT_MSG: {
-    en: "Sorry!!! ☹️ Your session has ended as there was no response from your side.\n\nThank you for reaching out to Poornasree HelpDesk. 🙂",
-    hi: "क्षमा करें!!! ☹️ आपकी तरफ से कोई जवाब न आने के कारण आपका सत्र समाप्त हो गया है।\n\nपूर्णश्री हेल्पडेस्क से संपर्क करने के लिए धन्यवाद। 🙂",
-  },
+
   WELCOME_BACK: {
     en: "Welcome back, *{name}*! 👋\n\n",
     hi: "वापसी पर स्वागत है, *{name}*! 👋\n\n",
@@ -298,8 +295,6 @@ const RATING_LIST: ReplyList = {
   ],
 };
 
-// ── Session timeout constant ──────────────────────────────────────────────
-const SESSION_TIMEOUT_MS = 60_000; // 1 minute
 
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function handleMessage(phoneNumber: string, message: string) {
@@ -334,17 +329,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (meta.language ?? "en") as Lang;
 
-  // ── Session timeout: 1 minute of customer inactivity ─────────────────────────
-  if (
-    session.state !== "GREETING" &&
-    session.state !== "COMPLETED" &&
-    session.state !== "FEEDBACK_RATING" &&
-    session.state !== "FEEDBACK_SATISFIED" &&
-    Date.now() - session.updatedAt.getTime() > SESSION_TIMEOUT_MS
-  ) {
-    await updateSession(session.id, "COMPLETED", {});
-    return makeReply(t("TIMEOUT_MSG", lang));
-  }
+
 
   return routeState(session, phoneNumber, text, meta);
 }
