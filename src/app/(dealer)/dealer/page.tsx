@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
@@ -194,6 +194,15 @@ export default function DealerPage() {
     machineSerial: "",
   });
 
+  // ── Complaint types dropdown state ──────────────────────────────────
+  interface ComplaintType { id: string; value: string; title: string; description: string | null; }
+  const [complaintTypes, setComplaintTypes] = useState<ComplaintType[]>([]);
+  const [complaintTypesLoading, setComplaintTypesLoading] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState("");
+  const [complaintSearch, setComplaintSearch] = useState("");
+  const [showComplaintDropdown, setShowComplaintDropdown] = useState(false);
+  const complaintDropdownRef = useRef<HTMLDivElement>(null);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
@@ -235,6 +244,42 @@ export default function DealerPage() {
     if (user?.role === "dealer") fetchTickets();
   }, [user, fetchTickets]);
 
+  // ── Fetch complaint types from admin-uploaded documents ──────────────
+  const fetchComplaintTypes = useCallback(async () => {
+    setComplaintTypesLoading(true);
+    try {
+      const res = await fetch("/api/complaints/types", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setComplaintTypes(data.complaintTypes ?? []);
+      }
+    } catch { /* non-fatal */ }
+    finally { setComplaintTypesLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (user?.role === "dealer") fetchComplaintTypes();
+  }, [user, fetchComplaintTypes]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (complaintDropdownRef.current && !complaintDropdownRef.current.contains(e.target as Node)) {
+        setShowComplaintDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filtered complaint types for search
+  const filteredComplaintTypes = complaintSearch.trim()
+    ? complaintTypes.filter((ct) =>
+        ct.title.toLowerCase().includes(complaintSearch.toLowerCase()) ||
+        (ct.description ?? "").toLowerCase().includes(complaintSearch.toLowerCase())
+      )
+    : complaintTypes;
+
   const handleRefresh = () => {
     setRefreshing(true);
     fetchTickets();
@@ -242,8 +287,13 @@ export default function DealerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.problemDescription.trim()) {
-      setError("Problem description is required");
+    // Use selected complaint title or custom text
+    const problemText = selectedComplaint === "__other__"
+      ? form.problemDescription.trim()
+      : selectedComplaint || form.problemDescription.trim();
+
+    if (!problemText) {
+      setError("Please select a complaint type or describe the issue");
       return;
     }
     setSubmitting(true);
@@ -255,7 +305,7 @@ export default function DealerPage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          problemDescription: form.problemDescription.trim(),
+          problemDescription: problemText,
           machineName: form.machineName.trim() || undefined,
           machineSerialNumber: form.machineSerial.trim() || undefined,
         }),
@@ -266,6 +316,8 @@ export default function DealerPage() {
       } else {
         setSuccess(`Ticket #${data.ticket?.ticketNumber || data.ticket?.id.slice(0, 8)} raised — sent to Service Manager for review.`);
         setForm({ problemDescription: "", machineName: "", machineSerial: "" });
+        setSelectedComplaint("");
+        setComplaintSearch("");
         setShowForm(false);
         await fetchTickets();
       }
@@ -512,15 +564,143 @@ export default function DealerPage() {
             <form onSubmit={handleSubmit} className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-4 border-t border-line dark:border-line-dark pt-4">
               <div>
                 <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                  Problem Description <span className="text-red-500">*</span>
+                  Complaint Type <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  value={form.problemDescription}
-                  onChange={(e) => setForm((f) => ({ ...f, problemDescription: e.target.value }))}
-                  placeholder="Describe the issue in detail..."
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                />
+
+                {/* ── Complaint dropdown (when types are available) ── */}
+                {complaintTypes.length > 0 ? (
+                  <div className="space-y-3">
+                    <div ref={complaintDropdownRef} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowComplaintDropdown((v) => !v)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left transition-all",
+                          showComplaintDropdown
+                            ? "border-primary dark:border-primary-400 ring-2 ring-primary/20 dark:ring-primary-400/20"
+                            : "border-line dark:border-line-dark hover:border-primary/40 dark:hover:border-primary-400/40",
+                          "bg-surface dark:bg-surface-dark"
+                        )}
+                      >
+                        <span className={cn(
+                          selectedComplaint && selectedComplaint !== "__other__"
+                            ? "text-content dark:text-content-dark"
+                            : selectedComplaint === "__other__"
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-content-secondary dark:text-content-dark-secondary"
+                        )}>
+                          {selectedComplaint && selectedComplaint !== "__other__"
+                            ? selectedComplaint
+                            : selectedComplaint === "__other__"
+                              ? "Other (describe manually)"
+                              : "Select a complaint type…"}
+                        </span>
+                        <ChevronDown className={cn(
+                          "w-4 h-4 text-content-secondary dark:text-content-dark-secondary transition-transform",
+                          showComplaintDropdown && "rotate-180"
+                        )} />
+                      </button>
+
+                      {/* Dropdown panel */}
+                      {showComplaintDropdown && (
+                        <div className="absolute z-30 mt-1 w-full max-h-60 rounded-xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card shadow-xl overflow-hidden animate-fade-in">
+                          {/* Search input */}
+                          <div className="px-3 py-2 border-b border-line dark:border-line-dark">
+                            <input
+                              type="text"
+                              value={complaintSearch}
+                              onChange={(e) => setComplaintSearch(e.target.value)}
+                              placeholder="Search complaint types…"
+                              autoFocus
+                              className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            />
+                          </div>
+
+                          {/* Options */}
+                          <div className="max-h-48 overflow-y-auto scrollbar-thin">
+                            {complaintTypesLoading ? (
+                              <div className="flex items-center justify-center py-6 text-sm text-content-secondary dark:text-content-dark-secondary">
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…
+                              </div>
+                            ) : filteredComplaintTypes.length === 0 && complaintSearch.trim() ? (
+                              <div className="py-4 px-3 text-center text-sm text-content-secondary dark:text-content-dark-secondary">
+                                No matching complaint types
+                              </div>
+                            ) : (
+                              <>
+                                {filteredComplaintTypes.map((ct) => (
+                                  <button
+                                    key={ct.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedComplaint(ct.title);
+                                      setShowComplaintDropdown(false);
+                                      setComplaintSearch("");
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-3 py-2.5 text-sm transition-colors border-b border-line/50 dark:border-line-dark/50 last:border-b-0",
+                                      selectedComplaint === ct.title
+                                        ? "bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium"
+                                        : "text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                                    )}
+                                  >
+                                    <p className="font-medium leading-tight">{ct.title}</p>
+                                    {ct.description && (
+                                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-0.5 line-clamp-1">{ct.description}</p>
+                                    )}
+                                  </button>
+                                ))}
+                                {/* "Other" option — always shown */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedComplaint("__other__");
+                                    setShowComplaintDropdown(false);
+                                    setComplaintSearch("");
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-3 py-2.5 text-sm transition-colors",
+                                    selectedComplaint === "__other__"
+                                      ? "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 font-medium"
+                                      : "text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
+                                  )}
+                                >
+                                  <p className="font-medium">✏️ Other (describe manually)</p>
+                                  <p className="text-xs opacity-60 mt-0.5">Type your own complaint description</p>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Show textarea only when "Other" is selected */}
+                    {selectedComplaint === "__other__" && (
+                      <div>
+                        <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                          Describe the issue <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          value={form.problemDescription}
+                          onChange={(e) => setForm((f) => ({ ...f, problemDescription: e.target.value }))}
+                          placeholder="Describe the issue in detail…"
+                          rows={3}
+                          className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ── Fallback: plain textarea when no complaint types exist ── */
+                  <textarea
+                    value={form.problemDescription}
+                    onChange={(e) => setForm((f) => ({ ...f, problemDescription: e.target.value }))}
+                    placeholder="Describe the issue in detail…"
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary dark:placeholder:text-content-dark-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                  />
+                )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

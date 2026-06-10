@@ -33,24 +33,24 @@ const TRAINING_FILES = [
     name: "training.json",
     candidates: [
       "/app/data/training.json",
-      path.resolve(process.cwd(), "../public/Doc/training.json"),
-      path.resolve(__dirname, "../../../public/Doc/training.json"),
+      path.resolve(process.cwd(), "../data/training/training.json"),
+      path.resolve(__dirname, "../../../data/training/training.json"),
     ],
   },
   {
     name: "customer-training.json",
     candidates: [
       "/app/data/customer-training.json",
-      path.resolve(process.cwd(), "../public/Doc/customer-training.json"),
-      path.resolve(__dirname, "../../../public/Doc/customer-training.json"),
+      path.resolve(process.cwd(), "../data/training/customer-training.json"),
+      path.resolve(__dirname, "../../../data/training/customer-training.json"),
     ],
   },
   {
     name: "chatbot-training.json",
     candidates: [
       "/app/data/chatbot-training.json",
-      path.resolve(process.cwd(), "../public/Doc/chatbot-training.json"),
-      path.resolve(__dirname, "../../../public/Doc/chatbot-training.json"),
+      path.resolve(process.cwd(), "../data/training/chatbot-training.json"),
+      path.resolve(__dirname, "../../../data/training/chatbot-training.json"),
     ],
   },
 ];

@@ -4,6 +4,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma";
 import { env } from "../config/env";
+import { getAuthToken } from "../middleware/auth";
 
 const SALT_ROUNDS = 12;
 
@@ -97,7 +98,8 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
     });
 
     const { passwordHash: _, ...safeUser } = user;
-    res.status(200).json({ message: "Login successful", user: safeUser });
+    // token in body lets external/mobile apps use Bearer on the same /api/tickets/* routes as the web app
+    res.status(200).json({ message: "Login successful", user: safeUser, token });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -107,7 +109,7 @@ export async function loginUser(req: Request, res: Response): Promise<void> {
 // ── Me (session check) ──────────────────────────
 export async function getMe(req: Request, res: Response): Promise<void> {
   try {
-    const token = req.cookies?.token;
+    const token = getAuthToken(req);
     if (!token) {
       res.status(401).json({ error: "Not authenticated" });
       return;

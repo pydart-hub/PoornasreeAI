@@ -65,6 +65,9 @@ if [ -f docker-compose.v4.override.yml ]; then
   cp docker-compose.v4.override.yml docker-compose.override.yml
   echo "  Applied docker-compose.v4.override.yml (shared-server ports)."
 fi
+if [ -f docker-compose.override.yml ]; then
+  COMPOSE_BASE=( -f docker-compose.yml -f docker-compose.override.yml )
+fi
 echo "  Done."
 
 # Re-run with the freshly pulled script (otherwise step 2+ use stale deploy logic).

@@ -3,12 +3,12 @@
 # ============================================================
 # Workflow (fast — recommended):
 #   1. git push origin AIpoorna  →  CI builds images  →  auto deploy-production (pull on VPS)
-#   2. Or manually: .\scripts\deploy-pull.ps1  (~1-3 min on VPS)
+#   2. Or manually: .\ops\deploy\deploy-pull.ps1  (~1-3 min on VPS)
 #
 # Usage:
 #   git push only                 # DEFAULT — GitHub Actions build + pull deploy
 #   .\scripts\deploy-pull.ps1     # manual pull deploy (same as CI deploy step)
-#   .\scripts\deploy-quick.ps1    # legacy VPS build web (~8-15 min)
+#   .\ops\deploy\deploy-quick.ps1 # legacy VPS build web (~8-15 min)
 #   .\deploy.ps1                  # legacy full VPS build (~15-26 min)
 #   .\deploy.ps1 -Quick             # same as deploy-quick.ps1 (UI)
 #   .\deploy.ps1 -Quick -QuickApi   # old-style API quick (~3-6 min)

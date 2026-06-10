@@ -26,6 +26,8 @@ import { listVideos, createVideo, updateVideo, deleteVideo } from "../controller
 import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
 import { listProducts, createProduct, updateProduct, deleteProduct } from "../controllers/product.controller";
 import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbotSettings.controller";
+import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
+import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
 
 const router = Router();
 
@@ -164,6 +166,20 @@ router.get("/videos", listVideos);
 router.post("/videos", createVideo);
 router.patch("/videos/:id", updateVideo);
 router.delete("/videos/:id", deleteVideo);
+
+// Troubleshooting templates (admin CRUD)
+router.get("/templates", listTemplates);
+router.get("/templates/:id", getTemplate);
+router.post("/templates", createTemplate);
+router.patch("/templates/:id", updateTemplate);
+router.delete("/templates/:id", deleteTemplate);
+
+// Machines (admin CRUD)
+router.get("/machines", listMachines);
+router.get("/machines/search", searchMachines);
+router.post("/machines", createMachine);
+router.patch("/machines/:id", updateMachine);
+router.delete("/machines/:id", deleteMachine);
 
 // Branding and marketing features moved to /api/marketing (marketing role)
 

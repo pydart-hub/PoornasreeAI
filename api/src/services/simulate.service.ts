@@ -1,4 +1,4 @@
-﻿// ── Simulate Service (WhatsApp Customer Chat FSM) ────────────────────────
+// ── Simulate Service (WhatsApp Customer Chat FSM) ────────────────────────
 //
 // Flow overview:
 //   GREETING        → check registration → greet or ask phone
@@ -23,6 +23,7 @@ import prisma from "../lib/prisma";
 import { fetchPlaceFromPincode } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
+import { findVideosForQuery } from "../controllers/video.controller";
 import { io } from "../lib/socket";
 import { env } from "../config/env";
 import {
@@ -652,12 +653,97 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
   return makeReply(t("SERIAL_NOT_FOUND", lang, { serial }), [getSkipButton(lang)]);
 }
 
+// ── Complaint types list helper ───────────────────────────────────────────
+async function fetchComplaintListRows(lang: Lang, productName?: string) {
+  const templates = await prisma.troubleshootingTemplate.findMany({
+    where: {
+      isActive: true,
+      audience: { in: ["customer", "both"] },
+    },
+    select: { id: true, title: true, description: true, problemType: true },
+    orderBy: { title: "asc" },
+  });
+
+  let filteredTemplates = templates;
+
+  if (productName) {
+    const normProduct = productName.toLowerCase();
+
+    if (normProduct.includes("vibro")) {
+      // Vibro Stirrer: match templates with "vibro" or "vibration" in title or problemType
+      filteredTemplates = templates.filter(t =>
+        t.problemType.toLowerCase().includes("vibro") ||
+        t.problemType.toLowerCase().includes("vibration") ||
+        t.title.toLowerCase().includes("vibro") ||
+        t.title.toLowerCase().includes("vibration")
+      );
+    } else if (normProduct.includes("dps") || normProduct.includes("dpst") || normProduct.includes("data processing")) {
+      // DPS-T / Data Processing System: match templates with "dpst" or "dps"
+      filteredTemplates = templates.filter(t =>
+        t.problemType.toLowerCase().includes("dpst") ||
+        t.problemType.toLowerCase().includes("dps") ||
+        t.title.toLowerCase().includes("dpst") ||
+        t.title.toLowerCase().includes("dps")
+      );
+    } else if (normProduct.includes("solar") || normProduct.includes("charger")) {
+      // Solar Charger: match templates with "solar" or "charger"
+      filteredTemplates = templates.filter(t =>
+        t.problemType.toLowerCase().includes("solar") ||
+        t.title.toLowerCase().includes("solar")
+      );
+    } else if (
+      normProduct.includes("analyzer") ||
+      normProduct.includes("lactosure") ||
+      normProduct.includes("lactogrand")
+    ) {
+      // Milk Analyzer models (Lactosure / Lactogrand):
+      // They use mainboard, pump, ecod, compact adapter, charger adapter.
+      // They should NOT see vibro or solar charger issues.
+      filteredTemplates = templates.filter(t =>
+        !t.problemType.toLowerCase().includes("vibro") &&
+        !t.problemType.toLowerCase().includes("solar_charger") &&
+        !t.title.toLowerCase().includes("vibro") &&
+        !t.title.toLowerCase().includes("solar charger")
+      );
+    } else {
+      // If we don't recognize the product, check keyword overlaps
+      filteredTemplates = templates.filter(t => {
+        const words = normProduct.split(/\s+/).filter(w => w.length >= 3);
+        return words.some(w => t.problemType.toLowerCase().includes(w) || t.title.toLowerCase().includes(w));
+      });
+      // If nothing matches, fallback to all templates
+      if (filteredTemplates.length === 0) {
+        filteredTemplates = templates;
+      }
+    }
+  }
+
+  const rows = filteredTemplates.slice(0, 9).map((t) => ({
+    id: `COMPLAINT_${t.id}`,
+    title: t.title.slice(0, 24),
+    description: t.description?.slice(0, 72),
+  }));
+
+  rows.push({
+    id: "COMPLAINT_OTHER",
+    title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
+    description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue",
+  });
+
+  return rows;
+}
+
 // ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
 async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   if (text === "1" || /^yes/i.test(text)) {
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
-    return makeReply(t("DESCRIBE_COMPLAINT", lang));
+    const listRows = await fetchComplaintListRows(lang, meta.machineData?.m_model);
+    return makeReply(
+      t("DESCRIBE_COMPLAINT", lang),
+      undefined,
+      listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+    );
   }
   if (text === "2" || /^no/i.test(text)) {
     const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
@@ -802,31 +888,70 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
     }
     const updatedMeta = { ...meta, selectedProduct: directMatch };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-    return makeReply(t("PRODUCT_SELECTED", lang, { product: directMatch }));
+    const listRows = await fetchComplaintListRows(lang, directMatch);
+    return makeReply(
+      t("PRODUCT_SELECTED", lang, { product: directMatch }),
+      undefined,
+      listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+    );
   }
 
   const selectedProduct = productNames[index];
   const updatedMeta = { ...meta, selectedProduct };
   await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-  return makeReply(t("PRODUCT_SELECTED", lang, { product: selectedProduct }));
+  const listRows = await fetchComplaintListRows(lang, selectedProduct);
+  return makeReply(
+    t("PRODUCT_SELECTED", lang, { product: selectedProduct }),
+    undefined,
+    listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+  );
 }
 
 // ── COMPLAINT_DESCRIBE ────────────────────────────────────────────────────
 async function handleComplaintDescribe(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  if (text.length < 3) {
+  let complaintText = text.trim();
+  let selectedTemplate: any = null;
+
+  // If they selected a complaint from the list
+  if (complaintText.startsWith("COMPLAINT_")) {
+    if (complaintText === "COMPLAINT_OTHER") {
+      // Prompt them to type manually while staying in COMPLAINT_DESCRIBE state
+      return makeReply(t("DESCRIBE_SHORT", lang));
+    }
+    const templateId = complaintText.replace("COMPLAINT_", "");
+    selectedTemplate = await prisma.troubleshootingTemplate.findUnique({
+      where: { id: templateId },
+      include: { steps: { orderBy: { stepNumber: "asc" } } },
+    });
+    if (selectedTemplate) {
+      complaintText = selectedTemplate.title;
+    } else {
+      complaintText = ""; // Not found, will prompt to describe
+    }
+  }
+
+  if (complaintText.length < 3) {
     return makeReply(t("DESCRIBE_SHORT", lang));
   }
 
-  const updatedMeta: SessionMeta = { ...meta, complaint: text };
+  const updatedMeta: SessionMeta = { ...meta, complaint: complaintText };
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
-  const template = await findTroubleshootingTemplate(text, productName);
+  const template = selectedTemplate || await findTroubleshootingTemplate(complaintText, productName);
+
+  // ── Video recommendations: search by complaint + product name ──────────
+  const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
+  const videos = await findVideosForQuery(videoSearchQuery, 3);
 
   if (!template || template.steps.length === 0) {
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
+    const noStepsFollowUp = videos.length > 0 ? formatVideoSuggestions(videos, lang).trim() : undefined;
     return makeReply(
-      t("NO_STEPS", lang, { complaint: text }),
-      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)]
+      t("NO_STEPS", lang, { complaint: complaintText }),
+      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
+      undefined,
+      undefined,
+      noStepsFollowUp,
     );
   }
 
@@ -836,24 +961,26 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   if (steps.length === 0) {
     await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
+    const emptyStepsFollowUp = videos.length > 0 ? formatVideoSuggestions(videos, lang).trim() : undefined;
     return makeReply(
-      t("NO_STEPS", lang, { complaint: text }),
-      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)]
+      t("NO_STEPS", lang, { complaint: complaintText }),
+      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
+      undefined,
+      undefined,
+      emptyStepsFollowUp,
     );
   }
 
-  const stepsText = steps.map((s, i) => `${i + 1}. ${s}`).join("\n");
+  const stepsText = steps.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
 
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
-  const videoQuery = [productName, text].filter(Boolean).join(" ");
-  const videos = await findVideosForQuery(videoQuery, 2);
   const followUpMessage = videos.length > 0
     ? formatVideoSuggestions(videos, lang).trim()
     : undefined;
 
   return makeReply(
-    t("STEPS_FOUND", lang, { complaint: text, steps: stepsText }),
+    t("STEPS_FOUND", lang, { complaint: complaintText, steps: stepsText }),
     [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }],
     undefined,
     undefined,

@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PoornasreeAI
 
-## Getting Started
+WhatsApp-driven service management platform for Poornasree Equipments — customer chat, tickets, engineer assignment, OTP verification, and admin dashboards.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Layer | Tech |
+|-------|------|
+| Frontend | Next.js 14 (`src/`) |
+| Backend | Express + Prisma (`api/`) |
+| Database | MySQL 8 |
+| WhatsApp | Meta Cloud API |
+| Deploy | Docker Compose + GHCR images |
+
+## Project layout
+
+```
+PoornasreeAI/
+├── src/              Next.js frontend (dashboards, admin UI)
+├── api/              Express API + Prisma + WhatsApp webhook
+├── public/images/    Web assets (logos, product photos)
+├── docs/             Documentation (not web-served)
+├── data/             Training JSON, dealer Excel, reference files
+├── ops/              Deploy, server setup, data import scripts
+├── infra/nginx/      Nginx configs for production domains
+├── tests/            E2E and simulation test scripts
+├── scripts/          Thin wrappers → ops/deploy/ (backward compatible)
+├── deploy.sh         Main VPS deploy script (used by CI)
+└── deploy.ps1        Windows SSH deploy wrapper
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quick start (local)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Frontend
+npm install && npm run dev
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# API (separate terminal)
+cd api && npm install && npm run dev
+```
 
-## Learn More
+## Deploy
 
-To learn more about Next.js, take a look at the following resources:
+See **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```powershell
+git push origin AIpoorna          # CI builds + auto deploys
+.\scripts\deploy-pull.ps1           # Manual fast pull (~1–3 min)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Key docs
 
-## Deploy on Vercel
+| Doc | Purpose |
+|-----|---------|
+| [docs/DEPLOY.md](docs/DEPLOY.md) | VPS deployment guide |
+| [docs/plan.md](docs/plan.md) | Architecture & WhatsApp flow |
+| [docs/TICKET_INTEGRATION.md](docs/TICKET_INTEGRATION.md) | Public ticket API |
+| [docs/API.md](docs/API.md) | API reference |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## WhatsApp code
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Live customer chat logic: `api/src/services/simulate.service.ts`  
+Webhook handler: `api/src/controllers/whatsapp.controller.ts`

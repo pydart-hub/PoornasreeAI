@@ -270,5 +270,59 @@ NOT a chatbot anymore.
 
 ────────────────────────────────────────────────────────
 
+## 13. SERVER & SSH ACCESS
+
+**Provider:** Azure VPS (poornasree-v4)  
+**Server IP:** `65.20.72.131`  
+**Domain:** `https://ai.poornasreecloud.com`  
+**App:** `poornasree-AI`  
+**OS:** Ubuntu 24.04 LTS  
+**SSH alias:** `poornasree-v4`
+
+> Legacy server (deprecated): `168.231.121.19` / `poornasree.pydart.com`
+
+### Local SSH key (Windows — `abhis`)
+
+**Private key:** `C:\Users\abhis\.ssh\poornasreeAI2`  
+**Public key:** `C:\Users\abhis\.ssh\poornasreeAI2.pub`
+
+**Get key locally (PowerShell):**
+```powershell
+Get-Content "$env:USERPROFILE\.ssh\poornasreeAI2.pub"
+```
+
+### Local SSH config
+
+File: `C:\Users\abhis\.ssh\config`
+
+```
+Host poornasree-v4
+    HostName 65.20.72.131
+    User root
+    Port 22
+    IdentityFile ~/.ssh/poornasreeAI2
+    IdentitiesOnly yes
+```
+
+### Connect
+
+```powershell
+ssh poornasree-v4
+```
+
+### Port isolation (shared server)
+
+Other projects use `:3000` (psr-v4) and `:3001` (machine-detector). PoornasreeAI uses isolated localhost ports via `docker-compose.override.yml`:
+
+| Service | Host port |
+|---------|-----------|
+| web     | 127.0.0.1:3002 |
+| api     | 127.0.0.1:4002 |
+| n8n     | 127.0.0.1:5679 |
+
+Nginx site: `/etc/nginx/sites-available/poornasree-ai` (does not touch `psr-v4` or `machine-detector`).
+
+────────────────────────────────────────────────────────
+
 END OF FINAL PLAN
 ────────────────────────────────────────────────────────
