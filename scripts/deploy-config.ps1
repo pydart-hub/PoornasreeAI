@@ -5,6 +5,6 @@ $script:DeployServer       = "65.20.72.131"   # SSH HostName (alias: poornasree-
 $script:DeployUser         = "root"
 $script:DeploySshPort     = 22
 $script:DeployRemoteDir   = "/root/poornasree-ai"
-$script:DeployKeyFile      = "$env:USERPROFILE\.ssh\poornasree-v4-new"
+$script:DeployKeyFile      = "$env:USERPROFILE\.ssh\poornasree-staff"
 $script:DeployApiHealthPort = 4002             # v4: 4002 api, 3002 web (see docker-compose.v4.override.yml)
 $script:DeployAppUrl       = "https://ai.poornasreecloud.com"

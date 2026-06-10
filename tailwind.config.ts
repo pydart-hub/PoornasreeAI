@@ -12,19 +12,19 @@ const config: Config = {
       colors: {
         // Core brand
         primary: {
-          DEFAULT: "#2B5F9E",
-          hover: "#234D80",
-          light: "#F4F7FB",
-          50: "#EBF0F7",
-          100: "#D6E1EF",
-          200: "#ADC3DF",
-          300: "#85A5CF",
-          400: "#5C87BF",
-          500: "#2B5F9E",
-          600: "#234D80",
-          700: "#1B3B62",
-          800: "#132944",
-          900: "#0C1726",
+          DEFAULT: "#00529D",
+          hover: "#00417D",
+          light: "#F2F7FA",
+          50: "#E5EDF5",
+          100: "#CCDCEB",
+          200: "#99B9D7",
+          300: "#6697C4",
+          400: "#3274B0",
+          500: "#00529D",
+          600: "#00417D",
+          700: "#00315E",
+          800: "#00203E",
+          900: "#00101F",
         },
         accent: {
           DEFAULT: "#9CCB3B",
@@ -74,10 +74,10 @@ const config: Config = {
         },
         // Chat bubbles
         bubble: {
-          user: "#2B5F9E",
+          user: "#00529D",
           bot: "#EDF2FB",
           dark: {
-            user: "#2B5F9E",
+            user: "#00529D",
             bot: "#1E293B",
           },
         },
