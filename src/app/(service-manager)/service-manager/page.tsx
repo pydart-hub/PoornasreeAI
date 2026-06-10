@@ -368,7 +368,7 @@ export default function ServiceManagerPage() {
         throw new Error(text.slice(0, 120) || `Import failed (HTTP ${res.status})`);
       }
       if (!res.ok) throw new Error(String(data.error || "Import failed"));
-      setImportResult(data);
+      setImportResult(data as any);
       setImportFile(null);
       // Refresh the relevant list
       if (showImportModal === "engineers") {

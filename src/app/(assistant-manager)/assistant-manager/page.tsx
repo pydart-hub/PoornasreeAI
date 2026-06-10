@@ -1112,10 +1112,13 @@ export default function AssistantManagerPage() {
         <TicketDrawer
           ticket={drawerTicket}
           engineers={engineers}
+          dealers={[]}
           isArchived={false}
           assigningId={assigningId}
+          assigningDealerId={null}
           onClose={() => setDrawerTicket(null)}
           onAssignEngineer={handleAssignEngineer}
+          onAssignDealer={async () => {}}
           onCancelAssignment={async (ticketId) => {
             try {
               const res = await fetch(`/api/tickets/${ticketId}/unassign-engineer`, {

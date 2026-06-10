@@ -105,7 +105,7 @@ export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assigni
         </div>
       ) : null}
 
-      {showEngineerAssign && reassignOpen && !confirmEng && (
+      {reassignOpen && !confirmEng && (
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
@@ -150,7 +150,7 @@ export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assigni
         </div>
       )}
 
-      {showEngineerAssign && confirmEng && (
+      {confirmEng && (
         <div className="mt-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-3 space-y-2">
           <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
             {engineer ? "Reassign" : "Assign"} to {confirmEng.firstName} {confirmEng.lastName ?? ""}?
