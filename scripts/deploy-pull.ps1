@@ -12,12 +12,19 @@
 param(
     [switch]$Background,
     [string]$ImageTag = "AIpoorna",
-    [string]$Server    = "168.231.121.19",
-    [string]$User      = "root",
-    [int]   $SshPort   = 22,
-    [string]$RemoteDir = "/root/poornasree-ai",
-    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI"
+    [string]$Server,
+    [string]$User,
+    [int]   $SshPort,
+    [string]$RemoteDir,
+    [string]$KeyFile
 )
+
+. "$PSScriptRoot/deploy-config.ps1"
+if (-not $Server)    { $Server    = $DeployServer }
+if (-not $User)      { $User      = $DeployUser }
+if (-not $SshPort)   { $SshPort   = $DeploySshPort }
+if (-not $RemoteDir) { $RemoteDir = $DeployRemoteDir }
+if (-not $KeyFile)   { $KeyFile   = $DeployKeyFile }
 
 $ErrorActionPreference = "Stop"
 

@@ -29,12 +29,19 @@ param(
     [switch]$Background,
     [switch]$Seed,
     [string]$ImageTag = "AIpoorna",
-    [string]$Server    = "168.231.121.19",
-    [string]$User      = "root",
-    [int]   $SshPort   = 22,
-    [string]$RemoteDir = "/root/poornasree-ai",
-    [string]$KeyFile   = "$env:USERPROFILE\.ssh\poornasreeAI"
+    [string]$Server,
+    [string]$User,
+    [int]   $SshPort,
+    [string]$RemoteDir,
+    [string]$KeyFile
 )
+
+. "$PSScriptRoot/scripts/deploy-config.ps1"
+if (-not $Server)    { $Server    = $DeployServer }
+if (-not $User)      { $User      = $DeployUser }
+if (-not $SshPort)   { $SshPort   = $DeploySshPort }
+if (-not $RemoteDir) { $RemoteDir = $DeployRemoteDir }
+if (-not $KeyFile)   { $KeyFile   = $DeployKeyFile }
 
 $ErrorActionPreference = "Stop"
 
@@ -160,11 +167,11 @@ Write-Host ""
 Write-Host "[2/2] Verifying containers..." -ForegroundColor Yellow
 
 Invoke-Ssh "cd '$RemoteDir' && docker compose ps"
-Invoke-Ssh "curl -sf http://localhost:4000/health && echo ' API healthy' || echo ' API not responding — check /tmp/deploy.log on VPS'"
+Invoke-Ssh "curl -sf http://localhost:$($DeployApiHealthPort)/health && echo ' API healthy' || echo ' API not responding — check /tmp/deploy.log on VPS'"
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
 Write-Host " Deployment complete!" -ForegroundColor Green
-Write-Host " App: https://poornasree.pydart.com" -ForegroundColor Green
+Write-Host " App: $DeployAppUrl" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""

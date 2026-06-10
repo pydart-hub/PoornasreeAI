@@ -1,6 +1,6 @@
 # ============================================================
 # import-dealers-v2.ps1 — Bulk import dealers from Excel data
-# Targets: poornasree VPS (168.231.121.19) via SSH alias
+# Targets: poornasree-v4 VPS (65.20.72.131) via SSH
 # SSH key : ~/.ssh/poornasreeAI
 # Run     : .\import-dealers-v2.ps1
 # ============================================================
@@ -132,7 +132,7 @@ $bytes   = [System.Text.Encoding]::UTF8.GetBytes($nodeScript)
 $encoded = [Convert]::ToBase64String($bytes)
 
 $cmd = "cd /root/poornasree-ai && printf '%s' '$encoded' | base64 -d | docker compose exec -T api node -"
-& ssh -i "$env:USERPROFILE\.ssh\poornasreeAI" "root@168.231.121.19" $cmd
+& ssh -i "$env:USERPROFILE\.ssh\poornasreeAI" "root@65.20.72.131" $cmd
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green

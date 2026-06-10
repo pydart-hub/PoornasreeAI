@@ -1,7 +1,7 @@
 # PoornasreeAI — Deployment guide
 
-Production: **https://poornasree.pydart.com**  
-VPS: `168.231.121.19` · repo on server: `/root/poornasree-ai` · branch: `AIpoorna`
+Production: **https://ai.poornasreecloud.com**  
+VPS: `65.20.72.131` (`poornasree-v4`) · repo on server: `/root/poornasree-ai` · branch: `AIpoorna`
 
 ---
 
@@ -61,9 +61,11 @@ After the first **Publish Docker images** workflow run:
 
 **Settings → Secrets and variables → Actions → New repository secret:**
 
+> If `VPS_HOST` still points at the old server (`168.231.121.19`), update it — CI deploys will hit the wrong machine.
+
 | Secret | Value |
 |--------|--------|
-| `VPS_HOST` | `168.231.121.19` |
+| `VPS_HOST` | `65.20.72.131` |
 | `VPS_USER` | `root` |
 | `VPS_SSH_KEY` | Full private key from `%USERPROFILE%\.ssh\poornasreeAI` (same key `deploy.ps1` uses) |
 
@@ -77,7 +79,7 @@ You can also run **Deploy production (pull images)** manually from the Actions t
 #### 3b. VPS docker login (only if packages are private)
 
 ```bash
-ssh root@168.231.121.19
+ssh root@65.20.72.131
 echo YOUR_GITHUB_PAT | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 ```
 
@@ -154,8 +156,9 @@ Current scripts use `up -d --no-deps` so **db, qdrant, ollama, n8n** stay runnin
 | Pull deploy `401 Unauthorized` | Make GHCR packages **Public** or `docker login ghcr.io` on VPS |
 | Publish images failed | Fix Dockerfile/build in Actions log first |
 | Auto deploy OK but old UI | Hard-refresh browser; confirm image tag `AIpoorna` |
-| API unhealthy | `ssh root@168.231.121.19` → `docker compose logs api --tail 50` |
-| SSH drops during manual deploy | `.\scripts\deploy-pull.ps1 -Background` |
+| API unhealthy | `ssh root@65.20.72.131` → `docker compose logs api --tail 50` |
+| SSH drops during manual deploy | Fix VPN/Tailscale first, then `.\scripts\deploy-pull.ps1 -Background` |
+| Wrong server / old IP | All scripts use `scripts/deploy-config.ps1` → `65.20.72.131` (not `168.231.121.19`) |
 
 ---
 
