@@ -1,6 +1,7 @@
 # Deployment guide
 
 Production: **https://ai.poornasreecloud.com**  
+GitHub: **https://github.com/stibe-labs/PoornasreeAI** (`stibelabs@gmail.com`)  
 VPS: `65.20.72.131` (`poornasree-v4`) · repo on server: `/root/poornasree-ai` · branch: `AIpoorna`
 
 See **[docs/DEPLOY.md](docs/DEPLOY.md)** for the full deployment documentation.

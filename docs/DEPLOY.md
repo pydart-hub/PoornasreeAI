@@ -1,6 +1,7 @@
 # PoornasreeAI — Deployment guide
 
 Production: **https://ai.poornasreecloud.com**  
+GitHub: **https://github.com/stibe-labs/PoornasreeAI** (`stibelabs@gmail.com`)  
 VPS: `65.20.72.131` (`poornasree-v4`) · repo on server: `/root/poornasree-ai` · branch: `AIpoorna`  
 SSH alias: `poornasree-v4` · key: `~/.ssh/poornasreeAI2`
 
