@@ -718,11 +718,22 @@ async function fetchComplaintListRows(lang: Lang, productName?: string) {
     }
   }
 
-  const rows = filteredTemplates.slice(0, 9).map((t) => ({
-    id: `COMPLAINT_${t.id}`,
-    title: t.title.slice(0, 24),
-    description: t.description?.slice(0, 72),
-  }));
+  const seenTitles = new Set<string>();
+  const rows = filteredTemplates.slice(0, 9).map((t) => {
+    let title = t.title.slice(0, 24).trim();
+    let counter = 1;
+    while (seenTitles.has(title.toLowerCase())) {
+      const suffix = ` ${counter}`;
+      title = t.title.slice(0, 24 - suffix.length).trim() + suffix;
+      counter++;
+    }
+    seenTitles.add(title.toLowerCase());
+    return {
+      id: `COMPLAINT_${t.id}`,
+      title,
+      description: t.description?.slice(0, 72),
+    };
+  });
 
   rows.push({
     id: "COMPLAINT_OTHER",

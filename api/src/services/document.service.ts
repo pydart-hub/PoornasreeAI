@@ -416,7 +416,7 @@ export async function processDocument(
             const existing = await prisma.troubleshootingTemplate.findUnique({
               where: { problemType: intent.tag },
             });
-            const audience = documentType === "service" ? "engineer" : "customer";
+            const audience = "both"; // Force both so customers always see it
             if (existing) {
               await prisma.troubleshootingStep.deleteMany({ where: { templateId: existing.id } });
               await prisma.troubleshootingTemplate.update({
