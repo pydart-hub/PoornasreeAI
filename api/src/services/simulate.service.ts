@@ -23,7 +23,7 @@ import prisma from "../lib/prisma";
 import { fetchPlaceFromPincode } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
-import { findVideosForQuery } from "../controllers/video.controller";
+
 import { io } from "../lib/socket";
 import { env } from "../config/env";
 import {
