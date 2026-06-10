@@ -523,10 +523,11 @@ export default function AdminPage() {
       </ResponsiveSidebar>
 
       {/* ── Main ── */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-slate-100">
 
-        {/* ── Gradient Header Banner ── */}
-        <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
+        <main className="flex-1 overflow-y-auto scrollbar-thin">
+          {/* ── Gradient Header Banner ── */}
+          <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
           {/* Top row */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -581,7 +582,6 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto bg-slate-100 scrollbar-thin">
           <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto space-y-4">
 
           {/* Tab switcher removed as it is now integrated exclusively into the permanent mini-rail sidebar */}

@@ -349,6 +349,7 @@ model ManualComplaint {
   machineName String?
   complaint   String   @db.Text
   isReviewed  Boolean  @default(false)
+  hasMatch    Boolean  @default(false)
   createdAt   DateTime @default(now())
 }
 

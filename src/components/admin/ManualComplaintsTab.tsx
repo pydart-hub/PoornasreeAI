@@ -10,6 +10,8 @@ interface ApiManualComplaint {
   machineName: string | null;
   complaint: string;
   isReviewed: boolean;
+  hasMatch: boolean;
+  isEngineer?: boolean;
   createdAt: string;
 }
 
@@ -17,6 +19,8 @@ export default function ManualComplaintsTab() {
   const [complaints, setComplaints] = useState<ApiManualComplaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"customer" | "engineer">("customer");
+  const [scanning, setScanning] = useState(false);
 
   const fetchComplaints = useCallback(async () => {
     setLoading(true);
@@ -68,6 +72,26 @@ export default function ManualComplaintsTab() {
     }
   };
 
+  const handleScan = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch("/api/admin/manual-complaints/scan", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Auto-scan complete! Resolved ${data.matchCount} complaints that matched existing customer documents.`);
+        fetchComplaints();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to run auto-scan.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
   if (loading && complaints.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -76,34 +100,71 @@ export default function ManualComplaintsTab() {
     );
   }
 
+  const visibleComplaints = complaints.filter(
+    (c) => !c.hasMatch && (activeTab === "customer" ? !c.isEngineer : c.isEngineer)
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
         <div>
           <h2 className="text-base font-bold text-content dark:text-content-dark">
-            Manual Customer Complaints
+            Manual Complaints
           </h2>
           <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-            Complaints entered manually by customers when they select "Other".
+            Complaints entered manually when AI couldn't find a solution.
           </p>
         </div>
+        <button
+          onClick={handleScan}
+          disabled={scanning}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors disabled:opacity-50 shrink-0"
+        >
+          {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+          Auto-Scan Knowledge Base
+        </button>
       </div>
 
-      {complaints.length === 0 ? (
+      <div className="flex items-center gap-2 p-1 bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-xl w-fit mb-4">
+        <button
+          onClick={() => setActiveTab("customer")}
+          className={cn(
+            "px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors",
+            activeTab === "customer"
+              ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
+              : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+          )}
+        >
+          Customers
+        </button>
+        <button
+          onClick={() => setActiveTab("engineer")}
+          className={cn(
+            "px-4 py-1.5 text-sm font-semibold rounded-lg transition-colors",
+            activeTab === "engineer"
+              ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
+              : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+          )}
+        >
+          Engineers
+        </button>
+      </div>
+
+      {visibleComplaints.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-line dark:border-line-dark">
           <AlertCircle className="w-10 h-10 text-content-secondary dark:text-content-dark-secondary mx-auto mb-3 opacity-40" />
           <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-            No manual complaints found
+            No unresolved manual complaints for this group.
           </p>
         </div>
       ) : (
         <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-          {complaints.map((c, i) => (
+          {visibleComplaints.map((c, i) => (
             <div
               key={c.id}
               className={cn(
                 "flex flex-col sm:flex-row sm:items-center gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors",
-                i < complaints.length - 1 && "border-b border-line dark:border-line-dark",
+                i < visibleComplaints.length - 1 && "border-b border-line dark:border-line-dark",
                 c.isReviewed && "opacity-60 bg-surface-hover dark:bg-surface-dark-hover"
               )}
             >
