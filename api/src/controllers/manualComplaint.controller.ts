@@ -17,7 +17,7 @@ export const listManualComplaints = async (req: Request, res: Response): Promise
 // PATCH /api/admin/manual-complaints/:id/review
 export const reviewManualComplaint = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const complaint = await prisma.manualComplaint.update({
       where: { id },
       data: { isReviewed: true },
@@ -32,7 +32,7 @@ export const reviewManualComplaint = async (req: Request, res: Response): Promis
 // DELETE /api/admin/manual-complaints/:id
 export const deleteManualComplaint = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     await prisma.manualComplaint.delete({ where: { id } });
     res.json({ success: true });
   } catch (error) {
