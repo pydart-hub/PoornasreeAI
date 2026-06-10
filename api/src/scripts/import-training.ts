@@ -74,13 +74,17 @@ async function main() {
       continue;
     }
 
-    const title = (intent.tag as string)
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c: string) => c.toUpperCase());
+    const title = intent.title 
+      ? intent.title 
+      : (intent.tag as string)
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c: string) => c.toUpperCase());
 
-    const description = Array.isArray(intent.patterns)
-      ? intent.patterns.join(" | ")
-      : intent.tag;
+    const description = intent.description
+      ? intent.description
+      : Array.isArray(intent.patterns)
+        ? intent.patterns.join(" | ")
+        : intent.tag;
 
     try {
       const existing = await prisma.troubleshootingTemplate.findUnique({

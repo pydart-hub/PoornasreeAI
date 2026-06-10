@@ -12,7 +12,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your VIBRO — NOT WORKING (NOT On LED):\n1. Check: CHECK THE FUSE → REPLACE FUSE\n2. Check: CHECK THE POWER SUPPLY → REPLACE POWER SUPPLY\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Not Working (No LED)",
+      "description": "Vibro machine is not working or LED is off"
     },
     {
       "tag": "chatbot_vibro_machine_continiously_vibrating",
@@ -26,7 +28,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your VIBRO — MACHINE CONTINIOUSLY VIBRATING:\n1. Check: CHECK THE TIMER POT. POSITION → ADJUST THE TIMER POT.\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Continuous Vibrating",
+      "description": "Machine is continuously vibrating"
     },
     {
       "tag": "chatbot_vibro_low_vibration",
@@ -40,7 +44,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your VIBRO — LOW VIBRATION:\n1. Check: CHECK THE FREQUENCY POT POSITION → ADJUST THE FREQUENCY POT.\n2. Check: CHECK THE SUPPLY ADAPTER-LED Is On → REPLACE POWER SUPPLY\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Low Vibration",
+      "description": "Vibration is too low"
     },
     {
       "tag": "chatbot_compact_adapter_adapter_output_voltage_is_nill",
@@ -54,7 +60,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your COMPACT ADAPTER — ADAPTER OUTPUT VOLTAGE Is NILL:\n1. Check: CHECK THE STATUS LED Is GLOWING → REPLACE ADAPTER\n2. Check: CHECK THE Ac CORD PIN AND POWER SWITCH Is On → REPLACE ADAPTER\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "No Output Voltage",
+      "description": "Adapter output voltage is nil"
     },
     {
       "tag": "chatbot_charger_adapter_adapter_output_voltage_is_nill",
@@ -68,7 +76,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your CHARGER ADAPTER — ADAPTER OUTPUT VOLTAGE Is NILL:\n1. Check: CHECK THE STATUS LED Is GLOWING → CHECK THE FUSE\n2. Check: CHECK THE Ac CORD PIN AND POWER SWITCH Is On → REPLACE ADAPTER\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "No Output Voltage",
+      "description": "Adapter output voltage is nil"
     },
     {
       "tag": "chatbot_analyzer_analyzer_not_on",
@@ -82,7 +92,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — ANALYZER NOT On:\n1. Check: CHECK THE FUSE → REPLACE THE FUSE\n2. Check: CHECK THE ADAPTER → REPLACE THE ADAPTER\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Analyzer Not On",
+      "description": "Analyzer is not turning on"
     },
     {
       "tag": "chatbot_analyzer_low_battery_error_shown",
@@ -96,7 +108,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — LOW BATTERY ERROR SHOWN:\n1. Check: CHECK THE ADAPTER OUTPUT → REPLACE THE ADAPTER\n2. Check: CHECK THE MACHINE FUSE → REPLACE THE FUSE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Low Battery Error",
+      "description": "Low battery error is shown"
     },
     {
       "tag": "chatbot_analyzer_t2_temp_set_error_sample_not_found_air_in_milk",
@@ -110,7 +124,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR In MILK:\n1. Check: CHECK THE LEAKAGE/BLOCK Of THE SAMPLE SUCKING SECTIONS → CHECK THE SILICON TUBE BROKEN/BEND\n2. Check: CHECK THE L-PLUG PROPERLY INSERT → CHECK THE O-RING\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "T2/Temp Set Error",
+      "description": "T2/Temp set error, sample not found, or air in milk"
     },
     {
       "tag": "chatbot_analyzer_plunge_in_water_water_in_sensor",
@@ -124,7 +140,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — PLUNGE In WATER/WATER In SENSOR:\n1. Check: CHECK THE SAMPLE LIQUID PRESENTS In THE SENSOR TUBE → REMOVE THE SAMPLE LIQUID-MANULLY PLUNGE\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Water In Sensor",
+      "description": "Plunge in water or water in sensor"
     },
     {
       "tag": "chatbot_analyzer_hot_sample_error",
@@ -138,7 +156,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — HOT SAMPLE ERROR:\n1. Check: CHECK THE TEST SAMPLE TEMPERATURE BELOW 40 DEGREE → REPLACE THE SAMPLE\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Hot Sample Error",
+      "description": "Hot sample error is shown"
     },
     {
       "tag": "chatbot_analyzer_pen_drive_and_keyboard_not_detected",
@@ -152,7 +172,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — PEN-DRIVE AND KEYBOARD NOT DETECTED:\n1. CHECK THE USB SETTING Is CORRECT\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "USB/Keyboard Error",
+      "description": "Pen-drive and keyboard not detected"
     },
     {
       "tag": "chatbot_analyzer_wifi_gsm_error_shown",
@@ -166,7 +188,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — WIFI/GSM ERROR SHOWN:\n1. Check: CHECK THE WIFI/GSM SETTINGS DETAILS → ENTER THE REQUIRED SETTINGS\n2. CHECK THE ANTENNA Is CONNECTED\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "WiFi/GSM Error",
+      "description": "WiFi/GSM error is shown"
     },
     {
       "tag": "chatbot_analyzer_date_and_time_not_shown_correct",
@@ -180,7 +204,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — DATE AND TIME NOT SHOWN CORRECT:\n1. Check: CHECK THE CLOCK SETTINGS → ENTER THE CORRECT DATE AND TIME\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Date/Time Incorrect",
+      "description": "Date and time not shown correctly"
     },
     {
       "tag": "chatbot_analyzer_computer_output_not_present",
@@ -193,7 +219,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — COMPUTER OUTPUT NOT PRESENT:\n1. Check: CHECK THE DATAOUTPUT FORMAT Of THE ANALYZER SETTINGS → SET THE REQUIRED SETTINGS VALUES\n2. Check: CHECK THE MACHINE COMPUTER OUT To COMPUTER CABLE CONNECTIVITY → REPLACE THE COMPUTER OUT To COMPUTER CABLE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "No Computer Output",
+      "description": "Computer output not present"
     },
     {
       "tag": "chatbot_analyzer_external_display_not_showing_the_result",
@@ -207,7 +235,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — EXTERNAL DISPLAY NOT SHOWING THE RESULT:\n1. Check: CHECK THE REQUIRED OUTPUT DATA FORMAT Is APPLIED → SET THE REQUIRED SETTINGS VALUES\n2. Check: CHECK THE ANALYSER To EXTERNAL DISPLAY DATA CABLE CONNECTIVITY → PROPERLY CONNECT Or REPLACE THE CABLE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "No External Display",
+      "description": "External display not showing the result"
     },
     {
       "tag": "chatbot_analyzer_fat_shown_in_water",
@@ -221,7 +251,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — FAT SHOWN In WATER:\n1. Check: CHECK THE ANALYZER OTHER MILK SAMPLES TEST READINGS ARE 'OK' → If NOT Ok CHECK THE CALIBRATION DETAILS\n2. Check: CHECK THE SENSOR AND TUBE WELL CLEANED → To CLEAN THE SENSOR AND TUBE\n3. APPLY WATER ZERO OPERATION AND TEST AGAIN\n4. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Fat Shown In Water",
+      "description": "Fat shown in water"
     },
     {
       "tag": "chatbot_analyzer_reading_variation",
@@ -235,7 +267,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — READING VARIATION:\n1. Check: CHECK THE LEAKAGE/BLOCK Of THE SAMPLE SUCKING SECTIONS → To CORRECT THE SAMPLE SUCKING SECTIONS\n2. CHECK THE SILICON TUBE BROKEN/BEND\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Reading Variation",
+      "description": "Reading variation in the analyzer"
     },
     {
       "tag": "chatbot_analyzer_sms_not_send_to_the_farmer",
@@ -249,7 +283,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — SMS NOT SEND To THE FARMER:\n1. Check: CHECK THE GSM/SIM MODULE CONNECTIVITY (INSERTED SIM DIRECTION ) AND CHECK THE SIM VALIDITY → CORRECT THE MODULE/SIM CONNECTIVITY AND EXTEND THE SIM VALIDITY\n2. Check: CHECK THE FARMER DETAILS ENTERED ARE CORRECT → PROPERLY ENTER THE FARMER DETAILS\n3. Check: CHECK THE ENTERED SMS ENABLE SETTINGS ARE CORRECT → ENTER THE CORRECT SETTINGS\n4. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "SMS Not Sent",
+      "description": "SMS not sent to the farmer"
     },
     {
       "tag": "chatbot_analyzer_farmer_details_not_shown",
@@ -263,7 +299,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — FARMER DETAILS NOT SHOWN:\n1. Check: CHECK THE FARMER DETAILS ARE ENTERED CORRECTLY → ENTER THE CORRECT DETAILS\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Farmer Details Missing",
+      "description": "Farmer details not shown"
     },
     {
       "tag": "chatbot_analyzer_printer_is_not_print",
@@ -277,7 +315,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — PRINTER Is NOT PRINT:\n1. Check: CHECK THE PRINTER SETTINGS ENTERED CORRECTLY → ENTER THE CORRECT SETTINGS\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Printer Not Printing",
+      "description": "Printer is not printing"
     },
     {
       "tag": "chatbot_analyzer_weighing_scale_not_working",
@@ -291,7 +331,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — WEIGHING SCALE NOT WORKING:\n1. Check: CHECK THE REQUIRED SETTINGS Is APPLIED → SET THE REQUIRED SETTINGS VALUES\n2. Check: CHECK THE ANALYSER To WEIGHNING SCALE DATA CABLE CONNECTIVITY → PROPERLY CONNECT Or REPLACE THE CABLE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Scale Not Working",
+      "description": "Weighing scale not working"
     },
     {
       "tag": "chatbot_analyzer_rate_not_taken_from_the_chart_not_view",
@@ -305,7 +347,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — RATE NOT TAKEN FROM THE CHART / NOT VIEW:\n1. Check: CHECK THE RATE CHART SETTINGS ENTERED PROPERLY → ENTER THE CORRECT SETTINGS\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Rate Chart Error",
+      "description": "Rate not taken from the chart or not viewing"
     },
     {
       "tag": "chatbot_analyzer_tested_result_to_cloud_updation_error_shown",
@@ -319,7 +363,9 @@
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — TESTED RESULT To CLOUD UPDATION ERROR SHOWN:\n1. Check: CHECK THE WIFI/GSM CONNECTIVITY → ENTER THE PROPER SETTINGS AND SET THE WIFI/GSM MODULE CONNECTIVITY\n2. Check: CHECK THE ENTERED THE CLOUD DETAILS ARE CORRECT → PROPER CLOUD ADDRESS AND DETAILS ARE ENTER\n3. Check: CHECK THE SAME MACHINE Id AND MODEL DETAILS ARE ENTERED In THE CLOUD APPLICATION-(MACHINE REGISTRATION) → ENTER THAT MACHINE Id AND MODEL In THE WEB APPLICATION\n4. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
-      ]
+      ],
+      "title": "Cloud Sync Error",
+      "description": "Tested result to cloud updation error shown"
     }
   ]
 }
