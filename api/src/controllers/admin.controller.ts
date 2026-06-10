@@ -383,6 +383,8 @@ export async function reindexDocuments(
           csv: "text/csv",
           txt: "text/plain",
           docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          xls: "application/vnd.ms-excel",
         };
         const mimetype = mimeMap[ext ?? ""] || "application/pdf";
 
