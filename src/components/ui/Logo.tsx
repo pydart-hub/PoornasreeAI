@@ -50,6 +50,7 @@ interface SidebarBrandProps {
   onClose?: () => void;
   compact?: boolean;
   className?: string;
+  showText?: boolean;
 }
 
 /** Sidebar header: brand logo + portal title (all role dashboards). */
@@ -59,12 +60,14 @@ export function SidebarBrand({
   onClose,
   compact = false,
   className,
+  showText = true,
 }: SidebarBrandProps) {
   return (
     <div
       className={cn(
-        "flex items-center gap-3 shrink-0 border-b border-white/10",
+        "flex items-center gap-3 shrink-0 border-b border-white/10 transition-all",
         compact ? "px-4 py-3" : "px-4 py-5",
+        !showText && "justify-center px-0",
         className,
       )}
     >
@@ -76,10 +79,12 @@ export function SidebarBrand({
       >
         <Logo variant="flower" size="sm" className="w-full h-full" priority />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-white leading-tight truncate">{title}</p>
-        <p className="text-[10px] text-white/50 font-medium truncate">{subtitle}</p>
-      </div>
+      {showText && (
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white leading-tight truncate">{title}</p>
+          <p className="text-[10px] text-white/50 font-medium truncate">{subtitle}</p>
+        </div>
+      )}
       {onClose && (
         <button
           type="button"

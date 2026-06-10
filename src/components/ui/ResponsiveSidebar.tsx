@@ -10,6 +10,8 @@ interface ResponsiveSidebarProps {
   children: ReactNode;
   /** Pixel width on desktop / overlay width on mobile (default 280) */
   width?: number;
+  /** Pixel width on desktop when closed (default 0) */
+  miniWidth?: number;
   /** Which edge the sidebar sits on (default "left") */
   side?: "left" | "right";
   className?: string;
@@ -71,7 +73,10 @@ export default function ResponsiveSidebar({
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        style={{ ["--sidebar-w" as string]: `${width}px` }}
+        style={{ 
+          ["--sidebar-w" as string]: `${width}px`,
+          ["--sidebar-mini-w" as string]: `${miniWidth}px`
+        }}
         className={cn(
           // Base
           "flex flex-col h-full bg-surface-sidebar dark:bg-surface-dark-sidebar border-line dark:border-line-dark transition-all duration-300 ease-in-out shrink-0",
@@ -88,8 +93,8 @@ export default function ResponsiveSidebar({
           // Desktop: relative, collapsible
           !isMobile && [
             "relative",
-            open ? "w-[var(--sidebar-w)]" : "w-0 overflow-hidden",
-            !open && (isLeft ? "border-r-0" : "border-l-0"),
+            open ? "w-[var(--sidebar-w)]" : "w-[var(--sidebar-mini-w)] overflow-hidden",
+            !open && miniWidth === 0 && (isLeft ? "border-r-0" : "border-l-0"),
           ],
 
           className,

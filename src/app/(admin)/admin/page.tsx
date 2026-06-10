@@ -457,19 +457,19 @@ export default function AdminPage() {
     <div className="h-[100dvh] flex overflow-hidden">
 
       {/* ── Sidebar ── */}
-      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260} miniWidth={68}>
         <div className="flex flex-col h-full bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900">
 
-          <SidebarBrand title="Admin Panel" compact className="border-white/10" />
+          <SidebarBrand title="Admin Panel" compact className="border-white/10" showText={sidebarOpen} />
 
           <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-            <a href="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-white/15 text-white">
-              <LayoutDashboard className="w-4 h-4 opacity-70" />
-              Overview
+            <a href="/admin" className={cn("flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-white/15 text-white", !sidebarOpen && "justify-center")}>
+              <LayoutDashboard className="w-5 h-5 shrink-0 opacity-70" />
+              {sidebarOpen && <span>Overview</span>}
             </a>
 
             <div className="pt-3 pb-1 px-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 px-2">Manage</p>
+              {sidebarOpen && <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 px-2">Manage</p>}
               {([
                 { key: "documents", label: "Documents", icon: <FileText className="w-3.5 h-3.5" />, count: documents.length },
                 { key: "users",     label: "Users",     icon: <Users className="w-3.5 h-3.5" />,     count: users.length },
@@ -482,14 +482,19 @@ export default function AdminPage() {
               ] as const).map(({ key, label, icon, count }) => (
                 <button key={key} onClick={() => key === "users" ? router.push("/admin/users") : setActiveTab(key as typeof activeTab)}
                   className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                    activeTab === key ? "bg-white/20 text-white font-semibold" : "text-white/60 hover:text-white hover:bg-white/10"
+                    activeTab === key ? "bg-white/20 text-white font-semibold" : "text-white/60 hover:text-white hover:bg-white/10",
+                    !sidebarOpen && "justify-center"
                   )}>
-                  {icon}
-                  {label}
-                  {count !== null && (
-                    <span className={cn("ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full",
-                      activeTab === key ? "bg-white/20 text-white" : "bg-white/10 text-white/60"
-                    )}>{count}</span>
+                  <div className="shrink-0">{icon}</div>
+                  {sidebarOpen && (
+                    <>
+                      <span>{label}</span>
+                      {count !== null && (
+                        <span className={cn("ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full",
+                          activeTab === key ? "bg-white/20 text-white" : "bg-white/10 text-white/60"
+                        )}>{count}</span>
+                      )}
+                    </>
                   )}
                 </button>
               ))}
@@ -497,17 +502,19 @@ export default function AdminPage() {
           </nav>
 
           <div className="shrink-0 border-t border-white/10 px-3 py-3 space-y-2">
-            <div className="flex items-center gap-2 px-2 py-2 rounded-xl">
+            <div className={cn("flex items-center gap-2 rounded-xl", sidebarOpen ? "px-2 py-2" : "justify-center py-1")}>
               <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
-                <p className="text-[10px] text-white/50 truncate">{user.email}</p>
-              </div>
+              {sidebarOpen && (
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
+                  <p className="text-[10px] text-white/50 truncate">{user.email}</p>
+                </div>
+              )}
             </div>
             <button onClick={() => { logout(); router.replace("/login"); }}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-              <LogOut className="w-4 h-4 flex-shrink-0" />
-              Sign out
+              className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors", !sidebarOpen && "justify-center")}>
+              <LogOut className="w-5 h-5 flex-shrink-0" />
+              {sidebarOpen && <span>Sign out</span>}
             </button>
           </div>
         </div>
@@ -575,33 +582,7 @@ export default function AdminPage() {
         <main className="flex-1 overflow-y-auto bg-slate-100 scrollbar-thin">
           <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto space-y-4">
 
-          {/* Tab switcher */}
-          <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-white border border-slate-200 shadow-sm w-fit">
-            {([
-              { key: "documents", label: "Documents", icon: <FileUp className="w-3.5 h-3.5" /> },
-              { key: "users", label: "Users", icon: <Users className="w-3.5 h-3.5" /> },
-              { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" /> },
-              { key: "videos", label: "Videos", icon: <Youtube className="w-3.5 h-3.5" /> },
-              { key: "rdvideos", label: "Engineers Video", icon: <Film className="w-3.5 h-3.5" /> },
-              { key: "tickets", label: "Tickets", icon: <Ticket className="w-3.5 h-3.5" /> },
-              { key: "products", label: "Products", icon: <Package className="w-3.5 h-3.5" /> },
-              { key: "whatsapp", label: "WhatsApp", icon: <MessageSquare className="w-3.5 h-3.5" /> },
-            ] as const).map((t) => (
-              <button
-                key={t.key}
-                onClick={() => t.key === "users" ? router.push("/admin/users") : setActiveTab(t.key)}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  activeTab === t.key
-                    ? "bg-primary-600 text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                {t.icon}
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {/* Tab switcher removed as it is now integrated exclusively into the permanent mini-rail sidebar */}
 
           {/* ── Documents Tab ── */}
           {activeTab === "documents" && (
