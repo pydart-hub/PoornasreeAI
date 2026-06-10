@@ -459,7 +459,7 @@ export default function AdminPage() {
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
         <div className="flex flex-col h-full bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900">
 
-          <SidebarBrand title="Admin Panel" onClose={() => setSidebarOpen(false)} compact className="border-white/10" />
+          <SidebarBrand title="Admin Panel" onClose={isMobile ? () => setSidebarOpen(false) : undefined} compact className="border-white/10" />
 
           <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
             <a href="/admin" className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-white/15 text-white">
@@ -521,7 +521,7 @@ export default function AdminPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <button onClick={() => setSidebarOpen((v) => !v)}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
+                className="md:hidden p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
                 <Menu className="w-5 h-5" />
               </button>
               <div>
