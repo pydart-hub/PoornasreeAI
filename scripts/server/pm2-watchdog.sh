@@ -22,8 +22,14 @@ fi
 online_count=$("$PM2" jlist 2>/dev/null | python3 -c "import sys,json; print(sum(1 for p in json.load(sys.stdin) if p.get('pm2_env',{}).get('status')=='online'))" 2>/dev/null || echo 0)
 
 if [ "${online_count:-0}" -eq 0 ]; then
-  logger -t "$LOG_TAG" "No PM2 apps online; resurrecting from dump"
-  "$PM2" resurrect >>/var/log/pm2-watchdog.log 2>&1 || true
-  "$PM2" restart all >>/var/log/pm2-watchdog.log 2>&1 || true
-  "$PM2" save >>/var/log/pm2-watchdog.log 2>&1 || true
+  logger -t "$LOG_TAG" "No PM2 apps online; running safe start"
+  if [ -x /usr/local/bin/pm2-safe-start.sh ]; then
+    /usr/local/bin/pm2-safe-start.sh >>/var/log/pm2-watchdog.log 2>&1 || true
+  else
+    "$PM2" resurrect >>/var/log/pm2-watchdog.log 2>&1 || true
+    for app in psr-v4 pulse-scheduler machine-detector security-monitor; do
+      "$PM2" restart "$app" >>/var/log/pm2-watchdog.log 2>&1 || true
+    done
+    "$PM2" save >>/var/log/pm2-watchdog.log 2>&1 || true
+  fi
 fi

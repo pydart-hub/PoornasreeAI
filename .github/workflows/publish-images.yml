@@ -13,12 +13,22 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  API_IMAGE: ghcr.io/pydart-hub/poornasree-ai-api
-  WEB_IMAGE: ghcr.io/pydart-hub/poornasree-ai-web
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            context: ./api
+            dockerfile: ./api/Dockerfile
+            image: ghcr.io/pydart-hub/poornasree-ai-api
+          - service: web
+            context: .
+            dockerfile: ./Dockerfile
+            image: ghcr.io/pydart-hub/poornasree-ai-web
     permissions:
       contents: read
       packages: write
@@ -37,42 +47,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata (API)
-        id: meta_api
+      - name: Docker metadata (${{ matrix.service }})
+        id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.API_IMAGE }}
+          images: ${{ matrix.image }}
           tags: |
             type=raw,value=AIpoorna
             type=sha,prefix=
 
-      - name: Build and push API
+      - name: Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v6
         with:
-          context: ./api
-          file: ./api/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
-          tags: ${{ steps.meta_api.outputs.tags }}
-          labels: ${{ steps.meta_api.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Docker metadata (Web)
-        id: meta_web
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.WEB_IMAGE }}
-          tags: |
-            type=raw,value=AIpoorna
-            type=sha,prefix=
-
-      - name: Build and push Web
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta_web.outputs.tags }}
-          labels: ${{ steps.meta_web.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

@@ -11,6 +11,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 echo "==> Installing watchdog, PM2 watchdog, and persistence-guard scripts"
 install -m 755 "$SCRIPT_DIR/poornasree-ai-watchdog.sh" /usr/local/bin/poornasree-ai-watchdog.sh
 install -m 755 "$SCRIPT_DIR/pm2-watchdog.sh" /usr/local/bin/pm2-watchdog.sh
+install -m 755 "$SCRIPT_DIR/pm2-safe-start.sh" /usr/local/bin/pm2-safe-start.sh
+install -m 755 "$SCRIPT_DIR/bpf-guard.sh" /usr/local/bin/bpf-guard.sh
 install -m 755 "$SCRIPT_DIR/rondo-guard.sh" /usr/local/bin/persistence-guard.sh
 
 echo "==> Installing protected chattr bundle (malware deletes /usr/bin/chattr)"
@@ -127,13 +129,43 @@ Restart=always
 RestartSec=30
 EOF
 
+cat >/etc/systemd/system/bpf-guard.service <<'EOF'
+[Unit]
+Description=Remove hid_tail_call eBPF rootkit
+DefaultDependencies=no
+After=local-fs.target
+Before=docker.service containerd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/bpf-guard.sh
+RemainAfterExit=yes
+EOF
+
+cat >/etc/systemd/system/bpf-guard.timer <<'EOF'
+[Unit]
+Description=Run bpf-guard every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target
+EOF
+
+echo 'kernel.unprivileged_bpf_disabled = 2' >/etc/sysctl.d/99-disable-bpf.conf
+sysctl -p /etc/sysctl.d/99-disable-bpf.conf 2>/dev/null || true
+
 systemctl disable --now rondo-guard.timer 2>/dev/null || true
 systemctl disable --now sys-health.timer 2>/dev/null || true
 rm -f /etc/systemd/system/sys-health.service /etc/systemd/system/sys-health.timer
 rm -f /etc/systemd/system/rondo-guard.service /etc/systemd/system/rondo-guard.timer
 systemctl daemon-reload
-systemctl enable poornasree-ai.service poornasree-ai-watchdog.timer persistence-guard.timer pm2-watchdog.timer
-systemctl start poornasree-ai-watchdog.timer persistence-guard.timer pm2-watchdog.timer
+systemctl enable poornasree-ai.service poornasree-ai-watchdog.timer persistence-guard.timer pm2-watchdog.timer bpf-guard.service bpf-guard.timer
+systemctl start poornasree-ai-watchdog.timer persistence-guard.timer pm2-watchdog.timer bpf-guard.timer
+systemctl start bpf-guard.service || true
 
 echo "==> Setting Docker services to restart always"
 cd /root/poornasree-ai

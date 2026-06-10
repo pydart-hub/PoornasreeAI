@@ -33,14 +33,43 @@ if [ "$MODE" = "api" ] || [ "$MODE" = "web" ] || [ "$MODE" = "pull" ] || [ "$MOD
   SKIP_OLLAMA="${SKIP_OLLAMA:-1}"
 fi
 
-COMPOSE_BASE=( -f docker-compose.yml )
-if [ "$MODE" = "pull" ]; then
-  COMPOSE_BASE=( -f docker-compose.yml -f docker-compose.images.yml )
-  SKIP_NGINX="${SKIP_NGINX:-1}"
-fi
+set_compose_base() {
+  COMPOSE_BASE=( -f docker-compose.yml )
+  if [ "$MODE" = "pull" ]; then
+    COMPOSE_BASE+=( -f docker-compose.images.yml )
+    SKIP_NGINX="${SKIP_NGINX:-1}"
+  fi
+  if [ -f docker-compose.override.yml ]; then
+    COMPOSE_BASE+=( -f docker-compose.override.yml )
+  fi
+}
+
+set_compose_base
 
 compose() {
   docker compose "${COMPOSE_BASE[@]}" "$@"
+}
+
+ghcr_login() {
+  if docker pull ghcr.io/pydart-hub/poornasree-ai-api:AIpoorna >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -f .env ] && grep -q '^GHCR_TOKEN=' .env 2>/dev/null; then
+    # shellcheck disable=SC1091
+    source .env
+    if [ -n "${GHCR_TOKEN:-}" ]; then
+      echo "  Logging in to GHCR..."
+      echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-pydart-hub}" --password-stdin
+    fi
+  fi
+}
+
+api_health_url() {
+  if [ -f docker-compose.override.yml ]; then
+    echo "http://127.0.0.1:4002/health"
+  else
+    echo "${API_HEALTH_URL:-http://127.0.0.1:4000/health}"
+  fi
 }
 
 cd "$REPO_DIR"
@@ -65,9 +94,8 @@ if [ -f docker-compose.v4.override.yml ]; then
   cp docker-compose.v4.override.yml docker-compose.override.yml
   echo "  Applied docker-compose.v4.override.yml (shared-server ports)."
 fi
-if [ -f docker-compose.override.yml ]; then
-  COMPOSE_BASE=( -f docker-compose.yml -f docker-compose.override.yml )
-fi
+set_compose_base
+echo "  Compose: ${COMPOSE_BASE[*]}"
 echo "  Done."
 
 # Re-run with the freshly pulled script (otherwise step 2+ use stale deploy logic).
@@ -112,8 +140,14 @@ case "$MODE" in
     echo "[2/6] Pulling pre-built images (no compile on VPS)..."
     echo "  API: ${API_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-api:${IMAGE_TAG:-AIpoorna}}"
     echo "  Web: ${WEB_IMAGE:-ghcr.io/pydart-hub/poornasree-ai-web:${IMAGE_TAG:-AIpoorna}}"
-    compose pull api web 2>&1 | tee /tmp/compose-build.log
-    compose up -d --no-build --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
+    ghcr_login || true
+    if ! compose pull api web 2>&1 | tee /tmp/compose-build.log; then
+      echo "  WARN: GHCR pull failed — building api + web on VPS (slower)..."
+      compose build api web 2>&1 | tee -a /tmp/compose-build.log
+      compose up -d --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
+    else
+      compose up -d --no-build --no-deps api web 2>&1 | tee -a /tmp/compose-build.log
+    fi
     ;;
   api)
     echo "[2/6] Rebuilding API container only (db/qdrant/ollama/n8n stay up)..."
@@ -141,9 +175,11 @@ echo ""
 HEALTH_MAX=30
 [ "$MODE" = "api" ] && HEALTH_MAX=18
 [ "$MODE" = "pull" ] && HEALTH_MAX=12
-echo "[3/6] Waiting for API to become healthy..."
+HEALTH_URL=$(api_health_url)
+echo "[3/6] Waiting for API to become healthy ($HEALTH_URL)..."
 for i in $(seq 1 $HEALTH_MAX); do
-    if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
+    if curl -sf "$HEALTH_URL" > /dev/null 2>&1 \
+       || compose exec -T api curl -sf http://localhost:4000/health > /dev/null 2>&1; then
         echo "  API healthy."
         break
     fi

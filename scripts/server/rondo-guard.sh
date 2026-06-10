@@ -20,7 +20,7 @@ kill_rondo_processes() {
     exe=$(readlink "$d/exe" 2>/dev/null || true)
     cmd=$(tr '\0' ' ' <"$d/cmdline" 2>/dev/null || true)
     case "$exe $cmd" in
-      */etc/rondo/rondo*|*react.x86*|*/bin/softirq*|*vjevkhfxq*|*45.125.66.100*|*45.94.31.89*)
+      */etc/rondo/rondo*|*react.x86*|*/bin/softirq*|*vjevkhfxq*|*/tmp/udhcpc*|*/tmp/watchdog*|*45.125.66.100*|*45.94.31.89*)
         kill -9 "$pid" 2>/dev/null || true
         logger -t "$LOG_TAG" "Killed malware process pid=$pid"
         changed=1
@@ -44,6 +44,8 @@ remove_rondo_artifacts() {
     /etc/init.d/rondo
     /bin/softirq
     /usr/lib/systemd/vjevkhfxq
+    /tmp/udhcpc
+    /tmp/watchdog
   )
 
   for path in "${paths[@]}"; do
@@ -123,6 +125,21 @@ block_rondo_path() {
     logger -t "$LOG_TAG" "Replaced /etc/rondo directory with immutable blocker file"
     changed=1
   fi
+
+  for blocker in /tmp/udhcpc /tmp/watchdog; do
+    if [ -e "$blocker" ] && [ ! -f "$blocker" ] || [ -f "$blocker" ] && [ -s "$blocker" ]; then
+      strip_immutable "$blocker"
+      rm -f "$blocker" 2>/dev/null || true
+    fi
+    if [ ! -e "$blocker" ]; then
+      touch "$blocker"
+      if [ -x "$CHATTR" ]; then
+        "$CHATTR" +i "$blocker" 2>/dev/null || true
+      fi
+      logger -t "$LOG_TAG" "Blocked $blocker with immutable file"
+      changed=1
+    fi
+  done
 }
 
 ensure_docker_running() {
