@@ -14,7 +14,7 @@ echo "=== PoornasreeAI migration to $DOMAIN ==="
 
 # ── 1. Clone repo if missing ───────────────────────────────────────────────
 if [ ! -d "$REPO_DIR/.git" ]; then
-  git clone -b "$BRANCH" https://github.com/stibe-labs/PoornasreeAI.git "$REPO_DIR"
+  git clone -b "$BRANCH" https://github.com/pydart-hub/PoornasreeAI.git "$REPO_DIR"
 fi
 cd "$REPO_DIR"
 git fetch origin

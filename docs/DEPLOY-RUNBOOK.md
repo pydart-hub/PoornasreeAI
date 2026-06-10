@@ -5,7 +5,7 @@ Use this checklist **every time** you deploy to production.
 | | |
 |---|---|
 | **Live site** | https://ai.poornasreecloud.com |
-| **GitHub** | https://github.com/stibe-labs/PoornasreeAI |
+| **GitHub** | https://github.com/pydart-hub/PoornasreeAI |
 | **Branch** | `AIpoorna` |
 | **Server** | `65.20.72.131` (SSH alias: `poornasree-v4`) |
 | **SSH key** | `~/.ssh/poornasree-v4-new` (Windows: `%USERPROFILE%\.ssh\poornasree-v4-new`) |
@@ -26,7 +26,7 @@ git push origin AIpoorna
 ```
 
 Confirm the push succeeded on GitHub:  
-https://github.com/stibe-labs/PoornasreeAI/commits/AIpoorna
+https://github.com/pydart-hub/PoornasreeAI/commits/AIpoorna
 
 ---
 
@@ -113,7 +113,7 @@ Paste and run:
 
 ```bash
 cd /root/poornasree-ai
-git remote set-url origin https://github.com/stibe-labs/PoornasreeAI.git
+git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git
 git pull origin AIpoorna
 cp -f docker-compose.v4.override.yml docker-compose.override.yml
 
@@ -163,7 +163,7 @@ Expected: `site:200`
 
 ## Step 5 — Done checklist
 
-- [ ] Code pushed to `stibe-labs/PoornasreeAI` → `AIpoorna`
+- [ ] Code pushed to `pydart-hub/PoornasreeAI` → `AIpoorna`
 - [ ] Deploy command finished without errors
 - [ ] API health OK (`4002`)
 - [ ] Web returns 200 (`3002`)
@@ -195,7 +195,7 @@ Old-style **quick** deploy (same as the original server process):
 | Old UI in browser | Hard refresh (`Ctrl+Shift+R`) or incognito |
 | API unhealthy | `ssh poornasree-v4` → `docker compose logs api --tail 80` |
 | Build failed | `ssh poornasree-v4` → `tail -100 /tmp/compose-build.log` |
-| Wrong GitHub repo on server | `git remote set-url origin https://github.com/stibe-labs/PoornasreeAI.git` |
+| Wrong GitHub repo on server | `git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git` |
 
 **Logs on VPS:**
 

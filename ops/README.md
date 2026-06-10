@@ -17,7 +17,7 @@
 | `server-setup.sh` | Fresh VPS bootstrap |
 | `install-docker.sh` | Install Docker CE |
 | `migrate-v4-remote.sh` | v4 server migration |
-| `retarget-github-remote.sh` | Point VPS git remote at stibe-labs |
+| `retarget-github-remote.sh` | Point VPS git remote at pydart-hub |
 | `patch-vps-wa-env.sh` | Append WhatsApp template env vars |
 | `check-users.sh` | List DB users via Prisma |
 | `test-login.sh` | Login smoke test |

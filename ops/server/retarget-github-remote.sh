@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Point VPS git remote at stibe-labs/PoornasreeAI (run once after GitHub migration).
+# Point VPS git remote at pydart-hub/PoornasreeAI (run once if remote is wrong).
 set -euo pipefail
 REPO_DIR="${REPO_DIR:-/root/poornasree-ai}"
-NEW_URL="https://github.com/stibe-labs/PoornasreeAI.git"
+NEW_URL="https://github.com/pydart-hub/PoornasreeAI.git"
 
 cd "$REPO_DIR"
 git remote set-url origin "$NEW_URL"

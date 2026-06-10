@@ -24,7 +24,7 @@ done
 
 run_deploy() {
   local m="$1"
-  local cmd="cd '$REMOTE_DIR' && git remote set-url origin https://github.com/stibe-labs/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $m"
+  local cmd="cd '$REMOTE_DIR' && git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $m"
   if [[ "$BACKGROUND" -eq 1 ]]; then
     ssh "$SSH_HOST" "cd '$REMOTE_DIR' && : > /tmp/deploy.log && nohup bash -c \"$cmd\" >> /tmp/deploy.log 2>&1 & echo started; sleep 2; tail -5 /tmp/deploy.log"
     echo "Background deploy ($m). Watch: ssh $SSH_HOST 'tail -f /tmp/deploy.log'"

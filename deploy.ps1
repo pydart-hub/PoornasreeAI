@@ -55,7 +55,7 @@ function Invoke-SshCapture([string]$cmd) {
     return ($out | Out-String).Trim()
 }
 
-$deployCmd = "cd '$RemoteDir' && git remote set-url origin https://github.com/stibe-labs/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $mode"
+$deployCmd = "cd '$RemoteDir' && git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $mode"
 
 Write-Host ""
 Write-Host " PoornasreeAI deploy — $mode" -ForegroundColor Cyan
