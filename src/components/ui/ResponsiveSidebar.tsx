@@ -28,6 +28,7 @@ export default function ResponsiveSidebar({
   onClose,
   children,
   width = 280,
+  miniWidth = 0,
   side = "left",
   className,
 }: ResponsiveSidebarProps) {
