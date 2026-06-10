@@ -457,7 +457,7 @@ export default function AdminPage() {
 
       {/* ── Sidebar ── */}
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260}>
-        <div className="flex flex-col h-full bg-gradient-to-b from-purple-950 via-violet-900 to-indigo-900">
+        <div className="flex flex-col h-full bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900">
 
           <SidebarBrand title="Admin Panel" onClose={() => setSidebarOpen(false)} compact className="border-white/10" />
 

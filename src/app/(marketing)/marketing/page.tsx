@@ -215,7 +215,7 @@ export default function MarketingPage() {
 
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300",
-        "bg-gradient-to-b from-violet-950 via-purple-900 to-fuchsia-950",
+        "bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900",
         "shadow-2xl shadow-violet-950/50",
         // Desktop
         sidebarOpen ? "md:w-64" : "md:w-16",
@@ -224,7 +224,7 @@ export default function MarketingPage() {
         "md:relative md:inset-auto md:h-screen"
       )}>
         {/* Decorative blobs */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-20 left-0 w-24 h-24 bg-violet-400/20 rounded-full blur-2xl pointer-events-none" />
 
         {/* Logo */}
@@ -291,7 +291,7 @@ export default function MarketingPage() {
         )}>
           {(sidebarOpen || mobileMenuOpen) && (
             <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/8">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-fuchsia-400 to-violet-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                 {user.firstName[0].toUpperCase()}
               </div>
               <div className="min-w-0">

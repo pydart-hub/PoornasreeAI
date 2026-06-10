@@ -341,9 +341,9 @@ export default function AssistantManagerPage() {
       {/* ═══════════════════ SIDEBAR ═══════════════════ */}
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260} className="overflow-hidden">
         {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-950 via-amber-900 to-orange-900" />
-        <div className="absolute top-0 right-0 w-40 h-40 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-20 left-0 w-28 h-28 bg-orange-400/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-primary-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 left-0 w-28 h-28 bg-primary-400/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col h-full">
           <SidebarBrand title="Asst. Manager" onClose={() => setSidebarOpen(false)} />
@@ -381,7 +381,7 @@ export default function AssistantManagerPage() {
           {/* User footer */}
           <div className="px-3 py-4 border-t border-white/10 space-y-2 shrink-0">
             <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/8">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                 {user.firstName[0]?.toUpperCase()}
               </div>
               <div className="min-w-0">

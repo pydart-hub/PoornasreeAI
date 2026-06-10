@@ -348,13 +348,13 @@ export default function ServiceDashboard() {
       {/* ═══════════════════ SIDEBAR ═══════════════════ */}
       <aside className={cn(
         "flex flex-col transition-all duration-300 ease-in-out shrink-0 overflow-hidden relative",
-        "bg-gradient-to-b from-emerald-950 via-green-900 to-teal-950 shadow-2xl",
+        "bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900 shadow-2xl",
         !isMobile && (sidebarOpen ? "w-64" : "w-0"),
         isMobile ? cn("fixed inset-y-0 left-0 z-40 w-64", !sidebarOpen && "-translate-x-full") : ""
       )}>
         {/* Decorative blobs */}
-        <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-20 left-0 w-28 h-28 bg-teal-400/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-primary-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 left-0 w-28 h-28 bg-primary-400/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col h-full min-w-[256px]">
           <SidebarBrand title="Field Engineer" onClose={() => setSidebarOpen(false)} />
@@ -403,7 +403,7 @@ export default function ServiceDashboard() {
           {/* User footer */}
           <div className="px-3 py-4 border-t border-white/10 space-y-2 shrink-0">
             <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/8">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                 {user.firstName[0]?.toUpperCase()}
               </div>
               <div className="min-w-0">

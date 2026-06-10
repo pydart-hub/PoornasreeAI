@@ -228,9 +228,9 @@ export default function CustomerServiceDashboard() {
       {/* ── SIDEBAR ───────────────────────────────────────── */}
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={240} className="overflow-hidden">
         {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-sky-950 via-blue-900 to-indigo-950" />
-        <div className="absolute top-0 right-0 w-40 h-40 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-20 left-0 w-28 h-28 bg-blue-400/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-primary-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 left-0 w-28 h-28 bg-primary-400/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col h-full">
           <SidebarBrand title="Customer Service" onClose={() => setSidebarOpen(false)} />
@@ -287,7 +287,7 @@ export default function CustomerServiceDashboard() {
           {/* User footer */}
           <div className="px-3 py-4 border-t border-white/10 space-y-2 shrink-0">
             <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/8">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                 {user.firstName[0]?.toUpperCase()}
               </div>
               <div className="min-w-0">
