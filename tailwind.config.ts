@@ -93,7 +93,7 @@ const config: Config = {
         info: "#3B82F6",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        sans: ["Segoe UI", "Helvetica Neue", "Helvetica", "Arial", "sans-serif"],
         mono: ["var(--font-geist-mono)", "monospace"],
       },
       animation: {
