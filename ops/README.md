@@ -1,17 +1,12 @@
 # Operations scripts
 
-All operational scripts live here. Root-level and `scripts/` wrappers forward here for backward compatibility.
-
 ## deploy/
 
 | Script | Purpose |
 |--------|---------|
-| `deploy-pull.ps1` | Pull pre-built GHCR images (fast, ~1–3 min) |
-| `deploy-quick.ps1` | VPS build web or API (legacy fast path) |
-| `deploy-api.ps1` | API-only deploy |
-| `prewarm-server.ps1` | Warm Docker/Ollama cache on fresh VPS |
+| `deploy-quick.ps1` | VPS build web or API — see [docs/DEPLOY-RUNBOOK.md](../docs/DEPLOY-RUNBOOK.md) |
 
-**Canonical VPS script stays at repo root:** `deploy.sh` (used by GitHub Actions).
+**VPS script:** `deploy.sh` at repo root (`quick` / `quick-api`).
 
 ## server/
 
@@ -21,8 +16,8 @@ All operational scripts live here. Root-level and `scripts/` wrappers forward he
 | `ssl-setup.sh` | Let's Encrypt HTTPS |
 | `server-setup.sh` | Fresh VPS bootstrap |
 | `install-docker.sh` | Install Docker CE |
-| `prewarm-server.sh` | Server-side cache warm-up |
 | `migrate-v4-remote.sh` | v4 server migration |
+| `retarget-github-remote.sh` | Point VPS git remote at stibe-labs |
 | `patch-vps-wa-env.sh` | Append WhatsApp template env vars |
 | `check-users.sh` | List DB users via Prisma |
 | `test-login.sh` | Login smoke test |
@@ -38,14 +33,11 @@ All operational scripts live here. Root-level and `scripts/` wrappers forward he
 
 ## archive/
 
-Old debug scripts kept for reference (`do-seed2`–`6`, `run-seed.sh`, legacy imports, one-time fixes). Not used in normal workflow.
+Old one-off scripts kept for reference. Not used in normal workflow.
 
-## Usage examples
+## Usage
 
 ```powershell
-.\ops\deploy\deploy-pull.ps1
+.\scripts\deploy-quick.ps1
 .\ops\data\clear-customer-data.ps1 -Vps
-.\ops\data\import-dealers-v2.ps1
 ```
-
-Or use root wrappers: `.\scripts\deploy-pull.ps1`, `.\clear-customer-data.ps1`, etc.

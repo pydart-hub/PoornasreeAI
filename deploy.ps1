@@ -1,34 +1,10 @@
-﻿# ============================================================
-# deploy.ps1 - Trigger GitHub pull deployment on VPS
-# ============================================================
-# Workflow (fast — recommended):
-#   1. git push origin AIpoorna  →  CI builds images  →  auto deploy-production (pull on VPS)
-#   2. Or manually: .\ops\deploy\deploy-pull.ps1  (~1-3 min on VPS)
-#
-# Usage:
-#   git push only                 # DEFAULT — GitHub Actions build + pull deploy
-#   .\scripts\deploy-pull.ps1     # manual pull deploy (same as CI deploy step)
-#   .\ops\deploy\deploy-quick.ps1 # legacy VPS build web (~8-15 min)
-#   .\deploy.ps1                  # legacy full VPS build (~15-26 min)
-#   .\deploy.ps1 -Quick             # same as deploy-quick.ps1 (UI)
-#   .\deploy.ps1 -Quick -QuickApi   # old-style API quick (~3-6 min)
-#   .\deploy.ps1 -ApiOnly           # API + extra checks (~3-8 min)
-#   .\deploy.ps1 -WebOnly           # web + extra checks (~8-15 min)
-#   .\deploy.ps1 -Background        # run on VPS in background (SSH won't drop build)
-#   .\deploy.ps1 -Seed              # also run prisma db seed (off by default)
-#   .\deploy.ps1 -PullOnly          # pull GHCR images (~1-3 min; needs CI workflow)
-#   .\scripts\deploy-pull.ps1       # same as -PullOnly
-# ============================================================
+﻿# Windows SSH wrapper for VPS quick deploy.
+# See docs/DEPLOY-RUNBOOK.md
 
 param(
     [switch]$Quick,
     [switch]$QuickApi,
-    [switch]$ApiOnly,
-    [switch]$WebOnly,
-    [switch]$PullOnly,
     [switch]$Background,
-    [switch]$Seed,
-    [string]$ImageTag = "AIpoorna",
     [string]$Server,
     [string]$User,
     [int]   $SshPort,
@@ -44,6 +20,15 @@ if (-not $RemoteDir) { $RemoteDir = $DeployRemoteDir }
 if (-not $KeyFile)   { $KeyFile   = $DeployKeyFile }
 
 $ErrorActionPreference = "Stop"
+
+if (-not $Quick -and -not $QuickApi) {
+    throw "Use -Quick (web) or -QuickApi (API). See docs/DEPLOY-RUNBOOK.md"
+}
+if ($Quick -and $QuickApi) {
+    throw "Use only one of -Quick or -QuickApi"
+}
+
+$mode = if ($QuickApi) { "quick-api" } else { "quick" }
 
 function Get-SshArgs {
     $base = @(
@@ -70,108 +55,23 @@ function Invoke-SshCapture([string]$cmd) {
     return ($out | Out-String).Trim()
 }
 
-$flags = @($PullOnly, $Quick, $QuickApi, $ApiOnly, $WebOnly) | Where-Object { $_.IsPresent }
-if ($flags.Count -gt 1) {
-    throw "Use only one deploy mode: -Quick, -QuickApi, -ApiOnly, -WebOnly, or -PullOnly"
-}
-
-$mode = if ($PullOnly) {
-    "pull"
-} elseif ($QuickApi) {
-    "quick-api"
-} elseif ($Quick -or $WebOnly) {
-    "quick"
-} elseif ($ApiOnly) {
-    "api"
-} else {
-    "full"
-}
-$modeLabel = switch ($mode) {
-    "pull"      { "Pull GHCR images (~1-3 min)" }
-    "quick"     { "Quick UI — old server style (~8-15 min)" }
-    "quick-api" { "Quick API — old server style (~3-6 min)" }
-    "api"       { "API only + checks (~3-8 min)" }
-    "web"       { "Web only + checks (~8-15 min)" }
-    default     { "Full api + web (~15-26 min)" }
-}
-
-$useSeed = $Seed.IsPresent
+$deployCmd = "cd '$RemoteDir' && git remote set-url origin https://github.com/stibe-labs/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $mode"
 
 Write-Host ""
-Write-Host "============================================" -ForegroundColor Cyan
-Write-Host " PoornasreeAI - GitHub Pull Deployment"     -ForegroundColor Cyan
-Write-Host "============================================" -ForegroundColor Cyan
-Write-Host " Server   : ${User}@${Server}:$SshPort"
-Write-Host " RemoteDir: $RemoteDir"
-Write-Host " Mode     : $modeLabel"
-if ($Background) { Write-Host " Run      : background (log: /tmp/deploy.log on VPS)" }
-if ($Seed) { Write-Host " Seed     : enabled" } else { Write-Host " Seed     : skipped (use -Seed if needed)" }
-if ($KeyFile) { Write-Host " Key file : $KeyFile" }
+Write-Host " PoornasreeAI deploy — $mode" -ForegroundColor Cyan
+Write-Host " Server: ${User}@${Server}" -ForegroundColor Cyan
 Write-Host ""
 
 if ($Background) {
-    Write-Host "[1/2] Starting deployment on VPS (background)..." -ForegroundColor Yellow
-    $envPrefix = "IMAGE_TAG=$ImageTag"
-    if ($useSeed) { $envPrefix += " SEED_ON_DEPLOY=1" }
-    $nohupLine = "nohup env $envPrefix bash deploy.sh $mode >> /tmp/deploy.log 2>&1 &"
-    $startCmd = "cd '$RemoteDir' && : > /tmp/deploy.log && $nohupLine echo `$! > /tmp/deploy.pid && echo started"
+    $startCmd = "cd '$RemoteDir' && : > /tmp/deploy.log && nohup bash -c `"$deployCmd`" >> /tmp/deploy.log 2>&1 & echo started"
     Invoke-Ssh $startCmd | Out-Null
-
-    $pollSec = 20
-    $maxMin = switch ($mode) {
-        "pull"      { 10 }
-        "quick-api" { 20 }
-        "quick"     { 30 }
-        "api"       { 25 }
-        "web"       { 35 }
-        default     { 45 }
-    }
-    $deadline = (Get-Date).AddMinutes($maxMin)
-    Write-Host "       Polling every ${pollSec}s (max ~${maxMin} min). Log: ssh ... 'tail -f /tmp/deploy.log'" -ForegroundColor DarkGray
-
-    $pollCmd = 'grep -q "Deployment complete" /tmp/deploy.log 2>/dev/null && echo done || (test -f /tmp/deploy.pid && kill -0 $(cat /tmp/deploy.pid) 2>/dev/null && echo running || echo stopped)'
-
-    while ((Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds $pollSec
-        $state = Invoke-SshCapture $pollCmd
-        if ($state -eq "done") {
-            Write-Host ""
-            Invoke-Ssh "tail -30 /tmp/deploy.log"
-            break
-        }
-        if ($state -eq "stopped") {
-            Write-Host ""
-            Invoke-Ssh "tail -40 /tmp/deploy.log"
-            throw "Deploy process exited before completion — check /tmp/deploy.log on VPS"
-        }
-        $snippet = Invoke-SshCapture "tail -3 /tmp/deploy.log 2>/dev/null | tr '\n' ' '"
-        Write-Host "  ... still building: $snippet" -ForegroundColor DarkGray
-    }
-
-    if ((Get-Date) -ge $deadline) {
-        Write-Host "Timed out waiting for deploy. Check: ssh ... 'tail -f /tmp/deploy.log'" -ForegroundColor Red
-        throw "Deploy poll timed out"
-    }
+    Write-Host "Running in background. Watch: ssh ${User}@${Server} 'tail -f /tmp/deploy.log'" -ForegroundColor Yellow
 } else {
-    Write-Host "[1/2] Triggering deployment on VPS..." -ForegroundColor Yellow
-    Write-Host "       (git pull -> rebuild $modeLabel -> prisma -> nginx)" -ForegroundColor DarkGray
-    Write-Host ""
-    $envParts = @("IMAGE_TAG=$ImageTag")
-    if ($useSeed) { $envParts += "SEED_ON_DEPLOY=1" }
-    $envStr = $envParts -join " "
-    $deployCmd = "cd '$RemoteDir' && env $envStr bash deploy.sh $mode"
     Invoke-Ssh $deployCmd
 }
 
-Write-Host ""
-Write-Host "[2/2] Verifying containers..." -ForegroundColor Yellow
-
-Invoke-Ssh "cd '$RemoteDir' && docker compose ps"
-Invoke-Ssh "curl -sf http://localhost:$($DeployApiHealthPort)/health && echo ' API healthy' || echo ' API not responding — check /tmp/deploy.log on VPS'"
+Invoke-Ssh "curl -sf http://localhost:$($DeployApiHealthPort)/health && echo ' API OK' || echo ' API check failed'"
+Invoke-Ssh "curl -sf -o /dev/null -w 'web:%{http_code}\n' http://127.0.0.1:3002/"
 
 Write-Host ""
-Write-Host "============================================" -ForegroundColor Green
-Write-Host " Deployment complete!" -ForegroundColor Green
-Write-Host " App: $DeployAppUrl" -ForegroundColor Green
-Write-Host "============================================" -ForegroundColor Green
-Write-Host ""
+Write-Host " Done — $DeployAppUrl" -ForegroundColor Green

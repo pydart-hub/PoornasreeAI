@@ -10,7 +10,7 @@ WhatsApp-driven service management platform for Poornasree Equipments — custom
 | Backend | Express + Prisma (`api/`) |
 | Database | MySQL 8 |
 | WhatsApp | Meta Cloud API |
-| Deploy | Docker Compose + GHCR images |
+| Deploy | Docker Compose on VPS |
 
 ## Project layout
 
@@ -24,8 +24,8 @@ PoornasreeAI/
 ├── ops/              Deploy, server setup, data import scripts
 ├── infra/nginx/      Nginx configs for production domains
 ├── tests/            E2E and simulation test scripts
-├── scripts/          Thin wrappers → ops/deploy/ (backward compatible)
-├── deploy.sh         Main VPS deploy script (used by CI)
+├── scripts/          Deploy helpers (deploy-quick.sh)
+├── deploy.sh         VPS deploy script (quick / quick-api)
 └── deploy.ps1        Windows SSH deploy wrapper
 ```
 
@@ -41,18 +41,21 @@ cd api && npm install && npm run dev
 
 ## Deploy
 
-See **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+See **[docs/DEPLOY-RUNBOOK.md](docs/DEPLOY-RUNBOOK.md)**.
+
+```bash
+./scripts/deploy-quick.sh --full    # Mac/Linux
+```
 
 ```powershell
-git push origin AIpoorna          # CI builds + auto deploys
-.\scripts\deploy-pull.ps1           # Manual fast pull (~1–3 min)
+.\scripts\deploy-quick.ps1 -Api; .\scripts\deploy-quick.ps1   # Windows
 ```
 
 ## Key docs
 
 | Doc | Purpose |
 |-----|---------|
-| [docs/DEPLOY.md](docs/DEPLOY.md) | VPS deployment guide |
+| [docs/DEPLOY-RUNBOOK.md](docs/DEPLOY-RUNBOOK.md) | Deployment runbook (only guide) |
 | [docs/plan.md](docs/plan.md) | Architecture & WhatsApp flow |
 | [docs/TICKET_INTEGRATION.md](docs/TICKET_INTEGRATION.md) | Public ticket API |
 | [docs/API.md](docs/API.md) | API reference |

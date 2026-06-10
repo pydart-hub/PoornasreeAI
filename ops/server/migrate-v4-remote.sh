@@ -87,10 +87,10 @@ restore_vol "poornasree-ai_api_uploads" "$MIGRATE_DIR/uploads.tgz"
 restore_vol "poornasree-ai_qdrant_data" "$MIGRATE_DIR/qdrant.tgz"
 restore_vol "poornasree-ai_n8n_data" "$MIGRATE_DIR/n8n.tgz"
 
-# ── 7. Pull images and start app ───────────────────────────────────────────
-export IMAGE_TAG=AIpoorna
+# ── 7. Build and start app ─────────────────────────────────────────────────
 export SKIP_OLLAMA=1
-bash deploy.sh pull
+bash deploy.sh quick-api
+bash deploy.sh quick
 
 # ── 8. Ollama models ───────────────────────────────────────────────────────
 OLLAMA=$(docker compose ps -q ollama)

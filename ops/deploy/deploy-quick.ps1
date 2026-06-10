@@ -1,13 +1,7 @@
-# ============================================================
-# deploy-quick.ps1 — Same fast habit as the OLD server
-# ============================================================
-# Old server: git pull → docker compose build web → restart
-# No long health wait, seed, Ollama, or nginx steps.
-#
-#   UI changes (default):  .\scripts\deploy-quick.ps1
-#   API changes:           .\scripts\deploy-quick.ps1 -Api
-#   SSH drops:             add -Background
-# ============================================================
+# VPS quick deploy — see docs/DEPLOY-RUNBOOK.md
+#   UI:  .\scripts\deploy-quick.ps1
+#   API: .\scripts\deploy-quick.ps1 -Api
+#   SSH drops: -Background
 
 param(
     [switch]$Api,
