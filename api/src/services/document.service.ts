@@ -415,9 +415,7 @@ export async function processDocument(
             const title = intent.complaint || (intent.tag as string)
               .replace(/_/g, " ")
               .replace(/\b\w/g, (c: string) => c.toUpperCase());
-            const description = Array.isArray(intent.patterns)
-              ? intent.patterns.join(" | ")
-              : intent.tag;
+            const description = intent.complaint || intent.tag;
             try {
               const existing = await prisma.documentIssue.findUnique({
                 where: { problemType: intent.tag },
@@ -504,7 +502,7 @@ export async function processDocument(
           if (stepLines.length === 0) continue;
 
           const title = intent.complaint || intent.tag;
-          const description = Array.isArray(intent.patterns) ? intent.patterns.join(" | ") : intent.tag;
+          const description = intent.complaint || intent.tag;
           
           try {
             const existing = await prisma.documentIssue.findUnique({
