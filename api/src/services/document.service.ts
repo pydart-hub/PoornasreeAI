@@ -324,6 +324,7 @@ export async function processDocument(
       const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
       const seenTags = new Set<string>();
       let lastProduct = "";
+      const structuredEntries: StructuredEntry[] = [];
 
       userChatSheet.eachRow((row, rowIdx) => {
         if (rowIdx === 1) return; // skip header
@@ -399,66 +400,64 @@ export async function processDocument(
         });
       });
 
-      if (intents.length > 0) {
-        // Upsert into DocumentIssue DB for WhatsApp bot
-        for (const intent of intents) {
-          if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
-          const response = intent.responses[0] as string;
-          const stepLines = response.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
-          const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
-          if (steps.length === 0) continue;
-          const title = intent.complaint || (intent.tag as string)
-            .replace(/_/g, " ")
-            .replace(/\b\w/g, (c: string) => c.toUpperCase());
-          const description = Array.isArray(intent.patterns)
-            ? intent.patterns.join(" | ")
-            : intent.tag;
-          try {
-            const existing = await prisma.documentIssue.findUnique({
-              where: { problemType: intent.tag },
-            });
-            const audience = "both"; // Force both so customers always see it
-            if (existing) {
-              await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
-              await prisma.documentIssue.update({
-                where: { id: existing.id },
-                data: {
-                  title,
-                  description,
-                  audience,
-                  steps: {
-                    create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
-                  },
-                },
+        if (intents.length > 0) {
+          // Upsert into DocumentIssue DB for WhatsApp bot
+          for (const intent of intents) {
+            if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
+            const response = intent.responses[0] as string;
+            const stepLines = response.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
+            const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
+            if (steps.length === 0) continue;
+            const title = intent.complaint || (intent.tag as string)
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (c: string) => c.toUpperCase());
+            const description = Array.isArray(intent.patterns)
+              ? intent.patterns.join(" | ")
+              : intent.tag;
+            try {
+              const existing = await prisma.documentIssue.findUnique({
+                where: { problemType: intent.tag },
               });
-            } else {
-              await prisma.documentIssue.create({
-                data: {
-                  problemType: intent.tag,
-                  title,
-                  description,
-                  audience,
-                  steps: {
-                    create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+              const audience = "both"; // Force both so customers always see it
+              if (existing) {
+                await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+                await prisma.documentIssue.update({
+                  where: { id: existing.id },
+                  data: {
+                    title,
+                    description,
+                    audience,
+                    steps: {
+                      create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                    },
                   },
-                },
-              });
+                });
+              } else {
+                await prisma.documentIssue.create({
+                  data: {
+                    problemType: intent.tag,
+                    title,
+                    description,
+                    audience,
+                    steps: {
+                      create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                    },
+                  },
+                });
+              }
+            } catch {
+              // non-blocking
             }
-          } catch {
-            // non-blocking
           }
-        }
 
-        return embedStructuredEntries(
-          documentId,
-          documentType,
-          intents.map((intent) => ({
-            searchText: intent.patterns.join(" | "),
-            answerText: intent.responses[0],
-            tag:        intent.tag,
-          }))
-        );
-      }
+          structuredEntries.push(
+            ...intents.map((intent) => ({
+              searchText: intent.patterns.join(" | "),
+              answerText: intent.responses[0],
+              tag:        intent.tag,
+            }))
+          );
+        }
     }
 
     const trainingDataSheet = wb.getWorksheet("Training Data");
@@ -538,16 +537,20 @@ export async function processDocument(
           }
         }
 
-        return embedStructuredEntries(
-          documentId,
-          documentType,
-          intents.map((intent) => ({
-            searchText: intent.patterns.join(" | "),
-            answerText: intent.responses[0],
-            tag:        intent.tag,
-          }))
-        );
+        if (intents.length > 0) {
+          structuredEntries.push(
+            ...intents.map((intent) => ({
+              searchText: intent.patterns.join(" | "),
+              answerText: intent.responses[0],
+              tag:        intent.tag,
+            }))
+          );
+        }
       }
+    }
+
+    if (structuredEntries.length > 0) {
+      return embedStructuredEntries(documentId, documentType, structuredEntries);
     }
 
     // Generic xlsx — convert all sheets to text and chunk
