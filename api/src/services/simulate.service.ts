@@ -150,16 +150,20 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n😔 इस समस्या के लिए कोई समाधान चरण नहीं मिले।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा।",
   },
   STEPS_FOUND: {
-    en: "📝 *Complaint noted:* {complaint}\n\n🔧 *Troubleshooting Steps:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{steps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nWere you able to resolve the issue?",
-    hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n🔧 *समस्या निवारण चरण:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{steps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nक्या आप समस्या हल करने में सफल रहे?",
+    en: "🔧 *Troubleshooting Steps:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{steps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nWere you able to resolve the issue?",
+    hi: "🔧 *समस्या निवारण चरण:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{steps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nक्या आप समस्या हल करने में सफल रहे?",
   },
   ISSUE_RESOLVED: {
     en: "🎉 *Issue Resolved!*\n\nWe're glad the troubleshooting helped! 😊\n\nThank you for choosing Poornasree Support. 🙏",
     hi: "🎉 *समस्या हल हो गई!*\n\nहमें खुशी है कि समाधान चरणों से मदद मिली! 😊\n\nपूर्णश्री सपोर्ट चुनने के लिए धन्यवाद। 🙏",
   },
   ALL_STEPS_DONE: {
-    en: "✅ All {count} troubleshooting steps have been completed.\n\nWould you like to book a service visit? Our technician will assist you on-site. 🔧",
-    hi: "✅ सभी {count} समस्या निवारण चरण पूरे हो गए।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपकी सहायता करेगा। 🔧",
+    en: "✅ All troubleshooting steps have been completed but the issue is not resolved.\n\nWould you like to book a service visit? Our technician will assist you on-site. 🔧",
+    hi: "✅ सभी समस्या निवारण चरण पूरे हो गए लेकिन समस्या हल नहीं हुई।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपकी सहायता करेगा। 🔧",
+  },
+  ASK_BOOK_SERVICE: {
+    en: "😔 Sorry the troubleshooting didn't help.\n\nWould you like to book a service visit? Our technician will come to your location. 🔧",
+    hi: "😔 माफ़ कीजिए समस्या निवारण से मदद नहीं मिली।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा। 🔧",
   },
   STEP_DISPLAY: {
     en: "🔍 *Step {current} of {total}:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{step}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nWere you able to resolve the issue?",
@@ -415,6 +419,9 @@ async function routeState(
     case "TROUBLESHOOT_DONE_OPTIONS":
       return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
 
+    case "ASK_BOOK_SERVICE":
+      return handleAskBookService(session.id, phoneNumber, meta, text);
+
     case "COMPLAINT_MANUAL_NAME":
       return handleComplaintManualName(session.id, meta, text);
 
@@ -497,7 +504,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   }
   if (choice === "2") {
     await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", meta);
-    return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang)]);
+    return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
   if (choice === "3") {
     return showTicketStatus(sessionId, phoneNumber, meta);
@@ -612,7 +619,7 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 
   const serial = text.replace(/\s+/g, "").toUpperCase();
   if (serial.length < 3) {
-    return makeReply(t("SERIAL_INVALID", lang), [getSkipButton(lang)]);
+    return makeReply(t("SERIAL_INVALID", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
 
   let machineData: PasstestMachine | null = null;
@@ -636,7 +643,7 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
     );
   }
 
-  return makeReply(t("SERIAL_NOT_FOUND", lang, { serial }), [getSkipButton(lang)]);
+  return makeReply(t("SERIAL_NOT_FOUND", lang, { serial }), [getSkipButton(lang), getMenuButton(lang)]);
 }
 
 // ── Complaint types list helper ───────────────────────────────────────────
@@ -746,7 +753,7 @@ async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: 
     const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
     return showProductSelection(sessionId, clearedMeta);
   }
-  return makeReply(t("SELECT_VALID", lang), getYesNoButtons(lang));
+  return makeReply(t("SELECT_VALID", lang), [...getYesNoButtons(lang), getMenuButton(lang)]);
 }
 
 // ── Product catalogue helpers ─────────────────────────────────────────────
@@ -989,8 +996,12 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     : undefined;
 
   return makeReply(
-    t("STEPS_FOUND", lang, { complaint: complaintText, steps: stepsText }),
-    [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }],
+    t("STEPS_FOUND", lang, { steps: stepsText }),
+    [
+      { id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" },
+      { id: "NOT_RESOLVED", title: lang === "hi" ? "नहीं, हल नहीं हुआ ❌" : "Not Resolved ❌" },
+      getMenuButton(lang),
+    ],
     undefined,
     undefined,
     followUpMessage,
@@ -1064,7 +1075,20 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
     return makeReply(t("ISSUE_RESOLVED", lang), [getMenuButton(lang)]);
   }
 
-  if (upper === "BOOK_SERVICE" || upper === "2" || upper === "NO") {
+  // "Not Resolved" → show Book Service or Main Menu
+  if (upper === "NOT_RESOLVED" || upper === "NO" || upper === "2") {
+    await updateSession(sessionId, "ASK_BOOK_SERVICE", meta);
+    return makeReply(
+      t("ASK_BOOK_SERVICE", lang),
+      [
+        { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" },
+        getMenuButton(lang),
+      ],
+    );
+  }
+
+  // Direct Book Service (from NO_STEPS flow where there are no troubleshoot steps)
+  if (upper === "BOOK_SERVICE") {
     if (meta.tsSerialPath && meta.machineData) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
@@ -1073,8 +1097,38 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   }
 
   return makeReply(
-    t("ISSUE_RESOLVED", lang),
-    [{ id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" }, { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }]
+    t("SELECT_VALID", lang),
+    [
+      { id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" },
+      { id: "NOT_RESOLVED", title: lang === "hi" ? "नहीं, हल नहीं हुआ ❌" : "Not Resolved ❌" },
+      getMenuButton(lang),
+    ],
+  );
+}
+
+// ── ASK_BOOK_SERVICE (intermediate: after "Not Resolved") ─────────────────
+async function handleAskBookService(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "BOOK_SERVICE" || upper === "1") {
+    if (meta.tsSerialPath && meta.machineData) {
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+    }
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply(t("ENTER_NAME", lang));
+  }
+
+  if (upper === "MENU") {
+    return startGreeting(phoneNumber);
+  }
+
+  return makeReply(
+    t("SELECT_VALID", lang),
+    [
+      { id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" },
+      getMenuButton(lang),
+    ],
   );
 }
 
