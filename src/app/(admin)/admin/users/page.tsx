@@ -44,7 +44,7 @@ import {
 
 // ── Constants ────────────────────────────────────────────────────────────
 const ROLES = [
-  { value: "service",                   label: "Service Engineer" },
+  { value: "service_engineer",          label: "Service Engineer" },
   { value: "service_manager",           label: "Service Manager" },
   { value: "assistant_service_manager", label: "Asst. Service Manager" },
   { value: "marketing",                 label: "Marketing" },
@@ -116,7 +116,7 @@ const EMPTY_FORM = (): CreateUserPayload => ({
   password: "",
   firstName: "",
   lastName: "",
-  role: "service",
+  role: "service_engineer",
   whatsappNumber: "",
   pincodeIds: [],
 });
@@ -172,7 +172,7 @@ export default function UsersManagementPage() {
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", role: "service", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", role: "service_engineer", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string | undefined>>({});
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editSubmitError, setEditSubmitError] = useState<string | null>(null);
