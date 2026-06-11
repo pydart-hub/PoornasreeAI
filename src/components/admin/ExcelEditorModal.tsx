@@ -57,21 +57,7 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     fetchExcel();
   }, [fetchExcel]);
 
-  // Autogrow textareas on load and row changes
-  useEffect(() => {
-    if (!loading && rows.length > 0) {
-      setTimeout(() => {
-        const textareas = document.querySelectorAll('.excel-cell-textarea');
-        textareas.forEach((ta) => {
-          const el = ta as HTMLTextAreaElement;
-          el.style.height = "auto";
-          if (el.scrollHeight > 40) {
-            el.style.height = `${el.scrollHeight}px`;
-          }
-        });
-      }, 50);
-    }
-  }, [loading, rows]);
+  // Removed JS layout thrashing. We now use pure CSS Grid for auto-resizing textareas!
 
   const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
     const newRows = [...rows];
@@ -118,11 +104,7 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     }
   };
 
-  // Helper to autogrow textarea
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    e.target.style.height = "auto";
-    e.target.style.height = `${e.target.scrollHeight}px`;
-  };
+  // Removed handleInput as we now use CSS grid auto-resizing
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -197,18 +179,23 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
                         {headers.map((_, colIndex) => (
                           <td
                             key={colIndex}
-                            className="p-0 border border-[#d1d5db] dark:border-[#334155] relative align-top bg-white dark:bg-[#1e293b]"
+                            className="p-0 border border-[#d1d5db] dark:border-[#334155] align-top bg-white dark:bg-[#1e293b]"
                           >
-                            <textarea
-                              id={`cell-${rowIndex}-${colIndex}`}
-                              value={row[colIndex] || ""}
-                              onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
-                              onInput={handleInput}
-                              className="excel-cell-textarea w-full h-full min-h-[40px] px-3 py-2 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-emerald-50 dark:focus:bg-emerald-900/20 focus:z-10 relative transition-none resize-none overflow-hidden"
-                              spellCheck="false"
-                              rows={1}
-                            />
+                            <div className="grid w-full h-full">
+                              {/* Hidden div stretches the cell height automatically via CSS Grid */}
+                              <div className="col-start-1 row-start-1 w-full px-3 py-2 whitespace-pre-wrap invisible pointer-events-none min-h-[40px] break-words text-sm font-inherit">
+                                {(row[colIndex] || "") + " "}
+                              </div>
+                              <textarea
+                                id={`cell-${rowIndex}-${colIndex}`}
+                                value={row[colIndex] || ""}
+                                onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
+                                className="col-start-1 row-start-1 w-full h-full min-h-[40px] px-3 py-2 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-emerald-50 dark:focus:bg-emerald-900/20 focus:z-10 relative transition-none resize-none overflow-hidden text-sm"
+                                spellCheck="false"
+                                rows={1}
+                              />
+                            </div>
                           </td>
                         ))}
                       </tr>
