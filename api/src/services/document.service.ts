@@ -367,7 +367,7 @@ export async function processDocument(
         seenTags.add(tag);
 
         // Build patterns
-        const p = toTitleCase(lastProduct);
+        const p = lastProduct;
         const c = complaint.trim();
         const cLow = c.toLowerCase();
         const patterns: string[] = [c, `${p} - ${c}`, `${p} ${cLow}`];
@@ -380,7 +380,7 @@ export async function processDocument(
         }
 
         // Build response text
-        const respLines = [`Here's how to troubleshoot your ${p} — ${toTitleCase(complaint)}:`];
+        const respLines = [`Here's how to troubleshoot your ${p} — ${complaint}:`];
         let stepNum = 1;
         for (const { check, action } of pairs) {
           if (check === "CONTACT_CARE") {
@@ -388,9 +388,9 @@ export async function processDocument(
             break;
           }
           if (check && action) {
-            respLines.push(`${stepNum}. Check: ${toTitleCase(check)} → ${toTitleCase(action)}`);
+            respLines.push(`${stepNum}. Check: ${check} → ${action}`);
           } else if (check) {
-            respLines.push(`${stepNum}. ${toTitleCase(check)}`);
+            respLines.push(`${stepNum}. ${check}`);
           }
           stepNum++;
         }
@@ -400,7 +400,7 @@ export async function processDocument(
           patterns: [...new Set(patterns)],
           responses: [respLines.join("\n")],
           role: documentType,
-          complaint: toTitleCase(complaint),
+          complaint: complaint,
         });
       });
 
@@ -485,7 +485,7 @@ export async function processDocument(
           patterns: [title],
           responses: [stepsStr],
           role: documentType,
-          complaint: toTitleCase(title.split("|")[0].trim()),
+          complaint: title.split("|")[0].trim(),
         });
       });
 
