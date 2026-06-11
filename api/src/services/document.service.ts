@@ -486,7 +486,7 @@ export async function processDocument(
           patterns: [title],
           responses: [stepsStr],
           role: documentType,
-          complaint: title,
+          complaint: toTitleCase(title.split("|")[0].trim()),
         });
       });
 
