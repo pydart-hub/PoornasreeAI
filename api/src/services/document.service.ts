@@ -318,13 +318,14 @@ export async function processDocument(
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(filePath);
 
+    const structuredEntries: StructuredEntry[] = [];
+
     const userChatSheet = wb.getWorksheet("USER CHAT");
     if (userChatSheet) {
       // ── Detect CHATBOT_DATAS format and convert to intents ──────────
       const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
       const seenTags = new Set<string>();
       let lastProduct = "";
-      const structuredEntries: StructuredEntry[] = [];
 
       userChatSheet.eachRow((row, rowIdx) => {
         if (rowIdx === 1) return; // skip header
