@@ -12,6 +12,7 @@ import { processDocument } from "../services/document.service";
 import { deleteVectorsByDocumentId } from "../services/vector.service";
 import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
 import { clearCustomerByPhone } from "../services/customer-clear.service";
+import * as WhatsAppService from "../services/whatsapp.service";
 
 const SALT_ROUNDS = 12;
 
@@ -88,7 +89,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         role,
         ...setupData,
         ...((role === "dealer" || role === "service_engineer") && whatsappNumber
-          ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") }
+          ? { whatsappNumber: WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "") }
           : {}),
         ...(role === "dealer" && pincodeId ? { pincodeId } : {}),
         ...(role === "service_engineer" && Array.isArray(pincodeIds) && pincodeIds.length > 0
@@ -280,14 +281,14 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     const effectiveRole = (role as string) || target.role;
     if (effectiveRole === "service_engineer") {
       if (whatsappNumber !== undefined) {
-        data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+        data.whatsappNumber = whatsappNumber ? (WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "")) : null;
       }
       if (pincodeIds !== undefined && Array.isArray(pincodeIds)) {
         data.engineerPincodes = { set: pincodeIds.map((id: string) => ({ id })) };
       }
     } else if (effectiveRole === "dealer") {
       if (whatsappNumber !== undefined) {
-        data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+        data.whatsappNumber = whatsappNumber ? (WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "")) : null;
       }
       if (pincode !== undefined) {
         if (pincode && pincode.trim()) {
