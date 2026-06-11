@@ -94,7 +94,7 @@ export default function ManualComplaintsTab() {
     const docType = activeTab === "customer" ? "customer" : "service";
     const targetDocs = documents.filter(d => 
       d.documentType === docType && 
-      (d.title.endsWith(".xlsx") || d.title.endsWith(".xls"))
+      d.filePath && (d.filePath.endsWith(".xlsx") || d.filePath.endsWith(".xls"))
     );
 
     if (targetDocs.length === 0) {

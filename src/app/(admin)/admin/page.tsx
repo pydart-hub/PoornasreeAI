@@ -79,6 +79,7 @@ interface ApiUser {
 interface ApiDocument {
   id: string;
   title: string;
+  filePath: string;
   createdAt: string;
   uploadedBy: string;
   chunkCount: number;
@@ -756,7 +757,7 @@ export default function AdminPage() {
                           >
                             {doc.status === "trained" ? "Trained" : "Pending"}
                           </Badge>
-                          {(doc.title.endsWith(".xlsx") || doc.title.endsWith(".xls")) && (
+                          {(doc.filePath && (doc.filePath.endsWith(".xlsx") || doc.filePath.endsWith(".xls"))) && (
                             <button
                               onClick={() => setEditingDocId(doc.id)}
                               className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 dark:hover:bg-primary-900/30 transition-colors"
