@@ -6,7 +6,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import { protect } from "../middleware/auth";
-import { uploadDocument } from "../controllers/document.controller";
+import { uploadDocument, extractTemplates, getRawExcel, updateRawExcel } from "../controllers/document.controller";
 import {
   createUser,
   listUsers,
@@ -122,6 +122,13 @@ router.delete("/documents/:id", deleteDocumentRecord);
 
 // POST /api/admin/documents/reindex  —  re-process all documents with improved chunking
 router.post("/documents/reindex", reindexDocuments);
+
+// POST /api/admin/documents/:id/extract-templates  — extract templates
+router.post("/documents/:id/extract-templates", extractTemplates);
+
+// GET/PUT /api/admin/documents/:id/excel — get/update raw excel
+router.get("/documents/:id/excel", getRawExcel);
+router.put("/documents/:id/excel", updateRawExcel);
 
 // POST /api/admin/users  —  create a user with a specific role
 router.post("/users", createUser);
