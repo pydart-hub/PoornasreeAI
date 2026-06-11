@@ -32,7 +32,8 @@ const app = express();
 // The browser never calls this port directly, so origin: true (reflect
 // whatever origin is present, including none) is the correct setting.
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
 // Serve uploaded files (logos, R&D videos, etc.)
