@@ -369,6 +369,16 @@ async function startGreeting(phoneNumber: string) {
     );
   }
 
+  if (existingMeta.customerPhone) {
+    await updateSession(session.id, "MAIN_MENU", existingMeta);
+    return makeReply(
+      t("GREETING_HEADER", lang) +
+      t("MAIN_MENU_MSG", lang),
+      undefined,
+      getMainMenuList(lang)
+    );
+  }
+
   // Not registered — show branded greeting then ask for registered phone
   await updateSession(session.id, "ASK_PHONE", { language: existingMeta.language });
   return makeReply(t("GREETING_HEADER", lang) + t("NOT_REGISTERED", lang), [getSkipButton(lang)]);
@@ -721,10 +731,16 @@ async function fetchComplaintListRows(lang: Lang, productName?: string) {
       counter++;
     }
     seenTitles.add(title.toLowerCase());
+    
+    let description = t.description?.slice(0, 72);
+    if (description && (description.toLowerCase() === t.title.toLowerCase() || description.toLowerCase() === title.toLowerCase())) {
+      description = undefined;
+    }
+
     return {
       id: `COMPLAINT_${t.id}`,
       title,
-      description: t.description?.slice(0, 72),
+      description,
     };
   });
 
