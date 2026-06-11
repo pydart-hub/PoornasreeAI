@@ -88,17 +88,21 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // ── Check if sender is a service engineer first ──
   // Meta sends numbers without leading +, but DB may have been saved with spaces, +, or without country code.
-  const normalizedFrom = from.replace(/\D/g, "");
+  const normalizeForMatch = (num: string) => {
+    const d = num.replace(/\D/g, "");
+    return (d.length === 12 && d.startsWith("91")) ? d.slice(2) : d;
+  };
+  
+  const matchFrom = normalizeForMatch(from);
+  
   const allEngineers = await prisma.user.findMany({
     where: { role: "service_engineer" },
     select: { id: true, firstName: true, whatsappNumber: true },
   });
+  
   const engineer = allEngineers.find(e => {
     if (!e.whatsappNumber) return false;
-    const cleanDb = e.whatsappNumber.replace(/\D/g, "");
-    return cleanDb === normalizedFrom || 
-           cleanDb === normalizedFrom.replace(/^91/, "") || 
-           `91${cleanDb}` === normalizedFrom;
+    return normalizeForMatch(e.whatsappNumber) === matchFrom;
   });
 
   // Engineers can send images for work report photos
