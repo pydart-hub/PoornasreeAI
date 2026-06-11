@@ -732,9 +732,17 @@ async function fetchComplaintListRows(lang: Lang, productName?: string) {
     }
     seenTitles.add(title.toLowerCase());
     
-    let description = t.description?.slice(0, 72);
-    if (description && (description.toLowerCase() === t.title.toLowerCase() || description.toLowerCase() === title.toLowerCase())) {
-      description = undefined;
+    let description = t.description?.trim();
+    if (description) {
+      const dLow = description.toLowerCase().replace(/\s+/g, "");
+      const tLow = t.title.toLowerCase().replace(/\s+/g, "");
+      const truncLow = title.toLowerCase().replace(/\s+/g, "");
+      
+      if (dLow === tLow || dLow === truncLow) {
+        description = undefined;
+      } else {
+        description = t.description!.trim().slice(0, 72);
+      }
     }
 
     return {
