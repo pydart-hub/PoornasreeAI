@@ -64,12 +64,12 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     setRows(newRows);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, colIndex: number) => {
-    // Arrow key navigation
-    if (e.key === "ArrowDown") {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, rowIndex: number, colIndex: number) => {
+    // Arrow key navigation for textarea (only if not holding Shift/Ctrl, simple nav)
+    if (e.key === "ArrowDown" && !e.shiftKey) {
       e.preventDefault();
       document.getElementById(`cell-${rowIndex + 1}-${colIndex}`)?.focus();
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp" && !e.shiftKey) {
       e.preventDefault();
       document.getElementById(`cell-${rowIndex - 1}-${colIndex}`)?.focus();
     }
@@ -100,6 +100,12 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     } finally {
       setSaving(false);
     }
+  };
+
+  // Helper to autogrow textarea
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    e.target.style.height = "auto";
+    e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
   return (
@@ -135,9 +141,9 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900/50 p-4 relative">
+        <div className="flex-1 overflow-auto bg-white dark:bg-slate-900 relative">
           {error && (
-            <div className="mb-4 shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
+            <div className="m-4 shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200 sticky left-4">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </div>
@@ -148,18 +154,18 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="inline-block min-w-full align-middle pb-20">
-              <div className="border border-[#d1d5db] dark:border-[#334155] rounded-sm overflow-hidden bg-white dark:bg-[#1e293b] shadow-sm">
-                <table className="w-full border-collapse table-fixed text-sm">
+            <div className="inline-block min-w-max align-middle pb-20 p-4">
+              <div className="border-2 border-[#d1d5db] dark:border-[#334155] rounded-none overflow-hidden shadow-sm bg-white dark:bg-[#1e293b]">
+                <table className="border-collapse text-sm bg-white dark:bg-[#1e293b]">
                   <thead>
                     <tr>
-                      <th className="w-12 bg-[#f8fafc] dark:bg-[#0f172a] border-r border-b border-[#d1d5db] dark:border-[#334155] text-center text-[#64748b] dark:text-[#94a3b8] font-semibold py-1.5 select-none sticky top-0 z-20">
+                      <th className="w-12 bg-blue-600 text-white border border-blue-700 text-center font-bold py-2 select-none sticky top-0 z-20 shadow-sm">
                         #
                       </th>
                       {headers.map((h, i) => (
                         <th
                           key={i}
-                          className="bg-[#f8fafc] dark:bg-[#0f172a] border-r border-b border-[#d1d5db] dark:border-[#334155] text-left px-3 py-1.5 text-[#334155] dark:text-[#cbd5e1] font-semibold select-none sticky top-0 z-20"
+                          className="min-w-[200px] bg-blue-600 text-white border border-blue-700 text-center px-4 py-2 font-bold select-none sticky top-0 z-20 shadow-sm"
                         >
                           {h}
                         </th>
@@ -168,23 +174,24 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
                   </thead>
                   <tbody>
                     {rows.map((row, rowIndex) => (
-                      <tr key={rowIndex} className="group">
-                        <td className="bg-[#f8fafc] dark:bg-[#0f172a] border-r border-b border-[#d1d5db] dark:border-[#334155] text-center text-[#94a3b8] dark:text-[#64748b] select-none">
+                      <tr key={rowIndex} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="bg-slate-100 dark:bg-[#0f172a] border border-[#d1d5db] dark:border-[#334155] text-center text-[#64748b] dark:text-[#94a3b8] font-medium select-none sticky left-0 z-10">
                           {rowIndex + 1}
                         </td>
                         {headers.map((_, colIndex) => (
                           <td
                             key={colIndex}
-                            className="p-0 border-r border-b border-[#d1d5db] dark:border-[#334155] relative bg-white dark:bg-[#1e293b]"
+                            className="p-0 border border-[#d1d5db] dark:border-[#334155] relative align-top bg-white dark:bg-[#1e293b]"
                           >
-                            <input
+                            <textarea
                               id={`cell-${rowIndex}-${colIndex}`}
-                              type="text"
                               value={row[colIndex] || ""}
                               onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
-                              className="w-full h-full min-h-[32px] px-2 py-1 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-white dark:focus:bg-[#0f172a] focus:z-10 relative transition-none"
-                              autoComplete="off"
+                              onInput={handleInput}
+                              className="w-full h-full min-h-[40px] px-3 py-2 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-emerald-50 dark:focus:bg-emerald-900/20 focus:z-10 relative transition-none resize-none overflow-hidden"
+                              spellCheck="false"
+                              rows={1}
                             />
                           </td>
                         ))}
@@ -196,9 +203,9 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
 
               <button
                 onClick={handleAddRow}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-surface-dark border border-line dark:border-line-dark text-content-secondary hover:text-content hover:shadow-sm transition-all text-sm font-semibold"
+                className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold sticky left-4"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 Add Row
               </button>
             </div>
