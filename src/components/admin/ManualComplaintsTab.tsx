@@ -11,6 +11,7 @@ import {
   X,
   Download,
   Search,
+  BookPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -159,6 +160,42 @@ export default function ManualComplaintsTab() {
           prev.map((c) => (c.id === id ? { ...c, isReviewed: true } : c))
         );
       }
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleConvertToTemplate = async (c: ApiManualComplaint) => {
+    if (!confirm("Create a new Troubleshooting Template from this complaint?")) return;
+    
+    setActionId(c.id);
+    try {
+      const problemType = c.complaint
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .substring(0, 40) || `issue_${Date.now()}`;
+        
+      const res = await fetch("/api/admin/templates", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problemType,
+          title: c.complaint.substring(0, 100),
+          audience: activeTab === "engineer" ? "engineer" : "customer",
+          steps: ["Enter troubleshooting steps here..."],
+        }),
+      });
+
+      if (res.ok) {
+        await handleReview(c.id);
+        alert("Template created! Switch to the Templates view to add steps.");
+      } else {
+        throw new Error("Failed to create template.");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to convert to template.");
     } finally {
       setActionId(null);
     }
@@ -669,7 +706,17 @@ export default function ManualComplaintsTab() {
 
                       {/* Actions */}
                       <td className="px-2 py-2.5 border-b border-line dark:border-line-dark">
-                        <div className="flex items-center justify-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {!c.isReviewed && (
+                            <button
+                              onClick={() => handleConvertToTemplate(c)}
+                              disabled={actionId === c.id}
+                              className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                              title="Convert to Template"
+                            >
+                              <BookPlus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDelete(c.id)}
                             disabled={actionId === c.id}
