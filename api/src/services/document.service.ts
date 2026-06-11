@@ -405,6 +405,8 @@ export async function processDocument(
       });
 
         if (intents.length > 0) {
+          // Clear all old DocumentIssues so they don't linger
+          await prisma.documentIssue.deleteMany({});
           // Upsert into DocumentIssue DB for WhatsApp bot
           for (const intent of intents) {
             if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
@@ -490,55 +492,6 @@ export async function processDocument(
       });
 
       if (intents.length > 0) {
-        for (const intent of intents) {
-          if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
-          const response = intent.responses[0] as string;
-          
-          let stepLines = response.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-          const numberedLines = stepLines.filter(l => /^\d+\.\s*/.test(l));
-          if (numberedLines.length > 0) {
-            stepLines = numberedLines.map(l => l.replace(/^\d+\.\s*/, "").trim());
-          }
-          if (stepLines.length === 0) continue;
-
-          const title = intent.complaint || intent.tag;
-          const description = intent.complaint || intent.tag;
-          
-          try {
-            const existing = await prisma.documentIssue.findUnique({
-              where: { problemType: intent.tag },
-            });
-            const audience = "both";
-            if (existing) {
-              await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
-              await prisma.documentIssue.update({
-                where: { id: existing.id },
-                data: {
-                  title,
-                  description,
-                  audience,
-                  steps: {
-                    create: stepLines.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
-                  },
-                },
-              });
-            } else {
-              await prisma.documentIssue.create({
-                data: {
-                  problemType: intent.tag,
-                  title,
-                  description,
-                  audience,
-                  steps: {
-                    create: stepLines.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
-                  },
-                },
-              });
-            }
-          } catch {
-            // non-blocking
-          }
-        }
 
         if (intents.length > 0) {
           structuredEntries.push(
