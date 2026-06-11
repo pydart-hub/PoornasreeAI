@@ -227,32 +227,8 @@ async function handleEngineerTroubleshootStep(
 
   // ── Phase 1: Engineer just described the issue — find template ─────────
   if (session.problemType === "__PENDING__") {
-    // Find a matching engineer-audience template
-    const template = await prisma.documentIssue.findFirst({
-      where: {
-        isActive: true,
-        audience: { in: ["engineer", "both"] },
-        description: { contains: text, mode: "insensitive" },
-      },
-      include: { steps: { orderBy: { stepNumber: "asc" } } },
-    });
-
-    // Try individual words if no phrase match
-    let matched = template;
-    if (!matched || matched.steps.length === 0) {
-      const words = text.split(/\s+/).filter((w) => w.length >= 5);
-      for (const word of words) {
-        const m = await prisma.documentIssue.findFirst({
-          where: {
-            isActive: true,
-            audience: { in: ["engineer", "both"] },
-            description: { contains: word, mode: "insensitive" },
-          },
-          include: { steps: { orderBy: { stepNumber: "asc" } } },
-        });
-        if (m && m.steps.length > 0) { matched = m; break; }
-      }
-    }
+    // Find a matching engineer-audience template using semantic search
+    const matched = await SimulateService.findDocumentIssue(text, "", ["engineer", "both"]);
 
     if (!matched || matched.steps.length === 0) {
       await prisma.troubleshootingSession.update({

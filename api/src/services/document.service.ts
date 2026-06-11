@@ -613,6 +613,7 @@ ${text.substring(0, 10000)}`;
     
     if (Array.isArray(parsed)) {
       const audience = documentType === "service" ? "engineer" : "customer";
+      const structuredEntries: StructuredEntry[] = [];
       for (const item of parsed) {
          if (item.problemType && item.title && Array.isArray(item.steps) && item.steps.length > 0) {
             const problemTypeSlug = item.problemType.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 50);
@@ -649,7 +650,17 @@ ${text.substring(0, 10000)}`;
                  }
                });
             }
+            
+            structuredEntries.push({
+              searchText: `${item.title} ${item.description || ''}`,
+              answerText: item.steps.map((s: string, i: number) => `Step ${i + 1} -- ${s}`).join("\n"),
+              tag: problemTypeSlug
+            });
          }
+      }
+      
+      if (structuredEntries.length > 0) {
+        await embedStructuredEntries(documentId, documentType, structuredEntries);
       }
     }
   } catch (e) {

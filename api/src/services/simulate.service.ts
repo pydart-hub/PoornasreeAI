@@ -23,6 +23,7 @@ import prisma from "../lib/prisma";
 import { fetchPlaceFromPincode } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
+import { embedText, searchVectors } from "./vector.service";
 
 import { io } from "../lib/socket";
 import { env } from "../config/env";
@@ -1351,12 +1352,35 @@ function isActionableStep(content: string): boolean {
   return !FALLBACK_STEP_RE.test(content);
 }
 
-async function findDocumentIssue(
+export async function findDocumentIssue(
   complaintText: string,
   productName: string,
   audienceFilter: string[] = ["customer", "both"],
 ) {
   const include = { steps: { orderBy: { stepNumber: "asc" as const } } };
+
+  // 1. Try vector semantic search first
+  const query = productName ? `${productName} ${complaintText}` : complaintText;
+  if (query.trim()) {
+    try {
+      const embedding = await embedText(query);
+      const results = await searchVectors(embedding, 5);
+      
+      const bestWithTag = results.find(r => r.score >= 0.5 && r.payload?.tag);
+      if (bestWithTag) {
+        const tag = bestWithTag.payload.tag as string;
+        const match = await prisma.documentIssue.findUnique({
+          where: { problemType: tag },
+          include,
+        });
+        if (match && audienceFilter.includes(match.audience) && match.steps.length > 0) {
+          return match;
+        }
+      }
+    } catch (e) {
+      console.error("[simulate] vector search failed:", e);
+    }
+  }
 
   // Search by description, hard-filtered by audience.
   async function findByDescription(text: string) {
@@ -1372,12 +1396,12 @@ async function findDocumentIssue(
     return match && match.steps.length > 0 ? match : null;
   }
 
-  // 1. Match full complaint phrase
+  // 2. Match full complaint phrase
   if (complaintText.trim()) {
     const phraseMatch = await findByDescription(complaintText.trim());
     if (phraseMatch) return phraseMatch;
 
-    // 2. Try individual significant words (≥5 chars)
+    // 3. Try individual significant words (≥5 chars)
     const words = complaintText.split(/\s+/).filter((w: string) => w.length >= 5);
     for (const word of words) {
       const wordMatch = await findByDescription(word);
@@ -1385,7 +1409,7 @@ async function findDocumentIssue(
     }
   }
 
-  // 3. Match by product name (title or problemType)
+  // 4. Match by product name (title or problemType)
   if (productName.trim()) {
     const productMatch = await prisma.documentIssue.findFirst({
       where: {
