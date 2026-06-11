@@ -335,6 +335,9 @@ export async function processDocument(
 
         if (productCell) lastProduct = productCell;
         if (!complaint || !lastProduct) return;
+        
+        // Ensure we don't accidentally process header rows if they shifted
+        if (complaint.toLowerCase() === "complaint" || complaint.toLowerCase() === "comp" || lastProduct.toLowerCase() === "product/parts" || lastProduct.toLowerCase() === "prod") return;
 
         // Build CHECK/ACTION pairs from col 4 onwards
         const pairs: Array<{ check: string; action: string }> = [];
@@ -473,6 +476,7 @@ export async function processDocument(
 
         if (!tag || !title || !stepsStr) return;
         if (tag.toLowerCase() === "tag" || tag.toLowerCase() === "problem type") return;
+        if (title.toLowerCase() === "patterns" || stepsStr.toLowerCase().includes("troubleshooting steps")) return;
 
         if (seenTags.has(tag)) return;
         seenTags.add(tag);
