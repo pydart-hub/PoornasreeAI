@@ -461,6 +461,95 @@ export async function processDocument(
       }
     }
 
+    const trainingDataSheet = wb.getWorksheet("Training Data");
+    if (trainingDataSheet) {
+      const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
+      const seenTags = new Set<string>();
+
+      trainingDataSheet.eachRow((row, rowIdx) => {
+        const cells = row.values as (string | null | undefined)[];
+        const tag = cells[1] ? String(cells[1]).trim() : "";
+        const title = cells[2] ? String(cells[2]).trim() : "";
+        const stepsStr = cells[3] ? String(cells[3]).trim() : "";
+
+        if (!tag || !title || !stepsStr) return;
+        if (tag.toLowerCase() === "tag" || tag.toLowerCase() === "problem type") return;
+
+        if (seenTags.has(tag)) return;
+        seenTags.add(tag);
+
+        intents.push({
+          tag,
+          patterns: [title],
+          responses: [stepsStr],
+          role: documentType,
+          complaint: title,
+        });
+      });
+
+      if (intents.length > 0) {
+        for (const intent of intents) {
+          if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
+          const response = intent.responses[0] as string;
+          
+          let stepLines = response.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+          const numberedLines = stepLines.filter(l => /^\d+\.\s*/.test(l));
+          if (numberedLines.length > 0) {
+            stepLines = numberedLines.map(l => l.replace(/^\d+\.\s*/, "").trim());
+          }
+          if (stepLines.length === 0) continue;
+
+          const title = intent.complaint || intent.tag;
+          const description = Array.isArray(intent.patterns) ? intent.patterns.join(" | ") : intent.tag;
+          
+          try {
+            const existing = await prisma.documentIssue.findUnique({
+              where: { problemType: intent.tag },
+            });
+            const audience = "both";
+            if (existing) {
+              await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+              await prisma.documentIssue.update({
+                where: { id: existing.id },
+                data: {
+                  title,
+                  description,
+                  audience,
+                  steps: {
+                    create: stepLines.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                  },
+                },
+              });
+            } else {
+              await prisma.documentIssue.create({
+                data: {
+                  problemType: intent.tag,
+                  title,
+                  description,
+                  audience,
+                  steps: {
+                    create: stepLines.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                  },
+                },
+              });
+            }
+          } catch {
+            // non-blocking
+          }
+        }
+
+        return embedStructuredEntries(
+          documentId,
+          documentType,
+          intents.map((intent) => ({
+            searchText: intent.patterns.join(" | "),
+            answerText: intent.responses[0],
+            tag:        intent.tag,
+          }))
+        );
+      }
+    }
+
     // Generic xlsx — convert all sheets to text and chunk
     const lines: string[] = [];
     wb.eachSheet((sheet) => {
