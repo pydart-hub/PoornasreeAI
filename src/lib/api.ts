@@ -24,6 +24,7 @@ export interface CreateUserPayload {
   role: string;
   whatsappNumber?: string;
   pincode?: string;
+  pincodeIds?: string[];
   city?: string;
   state?: string;
 }

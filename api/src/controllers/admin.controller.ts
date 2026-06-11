@@ -4,6 +4,9 @@
 import { Request, Response } from "express";
 import fs from "fs";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+import { sendEngineerSetupNotification } from "../services/engineer-onboarding.service";
+import { env } from "../config/env";
 import prisma from "../lib/prisma";
 import { processDocument } from "../services/document.service";
 import { deleteVectorsByDocumentId } from "../services/vector.service";
@@ -11,6 +14,20 @@ import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../serv
 import { clearCustomerByPhone } from "../services/customer-clear.service";
 
 const SALT_ROUNDS = 12;
+
+const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function generateSetupToken(): { rawToken: string; tokenHash: string; tokenExpiry: Date } {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const tokenExpiry = new Date(Date.now() + SETUP_TOKEN_TTL_MS);
+  return { rawToken, tokenHash, tokenExpiry };
+}
+
+function buildSetPasswordUrl(rawToken: string): string {
+  return `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+}
+
 const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "marketing"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
@@ -21,9 +38,9 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { email, password, firstName, lastName, role, whatsappNumber, pincode, city, state } = req.body;
+    const { email, password, firstName, lastName, role, whatsappNumber, pincode, pincodeIds, city, state } = req.body;
 
-    if (!email || !password || !firstName || !role) {
+    if (!email || (!password && role !== "service_engineer") || !firstName || !role) {
       res.status(400).json({ error: "Missing required fields: email, password, firstName, role" });
       return;
     }
@@ -33,7 +50,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (password.length < 8) {
+    if (password && password.length < 8) {
       res.status(400).json({ error: "Password must be at least 8 characters" });
       return;
     }
@@ -50,7 +67,18 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       pincodeId = await upsertPincode(pincode.trim(), city?.trim() || null, state?.trim() || null);
     }
 
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(password || crypto.randomBytes(32).toString("hex"), SALT_ROUNDS);
+    
+    let setupData = {};
+    let rawTokenStr = "";
+    if (role === "service_engineer") {
+      const { rawToken, tokenHash, tokenExpiry } = generateSetupToken();
+      rawTokenStr = rawToken;
+      setupData = {
+        setPasswordToken: tokenHash,
+        setPasswordTokenExpiry: tokenExpiry,
+      };
+    }
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,
@@ -58,10 +86,14 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         firstName: firstName.trim(),
         lastName: lastName?.trim() ?? null,
         role,
-        ...(role === "dealer" && whatsappNumber
+        ...setupData,
+        ...((role === "dealer" || role === "service_engineer") && whatsappNumber
           ? { whatsappNumber: whatsappNumber.trim().replace(/^\+/, "") }
           : {}),
-        ...(role === "dealer" ? { pincodeId } : {}),
+        ...(role === "dealer" && pincodeId ? { pincodeId } : {}),
+        ...(role === "service_engineer" && Array.isArray(pincodeIds) && pincodeIds.length > 0
+          ? { engineerPincodes: { connect: pincodeIds.map((id: string) => ({ id })) } }
+          : {}),
       },
       select: {
         id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true,
@@ -70,7 +102,19 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       },
     });
 
-    res.status(201).json({ user });
+    let setPasswordUrl;
+    if (role === "service_engineer" && rawTokenStr) {
+      setPasswordUrl = buildSetPasswordUrl(rawTokenStr);
+      if (user.whatsappNumber) {
+        await sendEngineerSetupNotification(
+          { firstName: user.firstName, email: user.email, whatsappNumber: user.whatsappNumber },
+          rawTokenStr,
+          "Admin"
+        );
+      }
+    }
+    
+    res.status(201).json({ user, setPasswordUrl });
   } catch (err) {
     console.error("createUser error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -188,7 +232,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const id = req.params.id as string;
-    const { firstName, lastName, email, newPassword, role, whatsappNumber, pincode, city, state } = req.body;
+    const { firstName, lastName, email, newPassword, role, whatsappNumber, pincode, pincodeIds, city, state } = req.body;
 
     if (!firstName && !lastName && !email && !newPassword && !role
         && whatsappNumber === undefined && pincode === undefined
@@ -234,7 +278,14 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const effectiveRole = (role as string) || target.role;
-    if (effectiveRole === "dealer") {
+    if (effectiveRole === "service_engineer") {
+      if (whatsappNumber !== undefined) {
+        data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
+      }
+      if (pincodeIds !== undefined && Array.isArray(pincodeIds)) {
+        data.engineerPincodes = { set: pincodeIds.map((id: string) => ({ id })) };
+      }
+    } else if (effectiveRole === "dealer") {
       if (whatsappNumber !== undefined) {
         data.whatsappNumber = whatsappNumber?.trim().replace(/^\+/, "") || null;
       }

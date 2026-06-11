@@ -117,6 +117,8 @@ const EMPTY_FORM = (): CreateUserPayload => ({
   firstName: "",
   lastName: "",
   role: "service",
+  whatsappNumber: "",
+  pincodeIds: [],
 });
 
 // ── Validation ───────────────────────────────────────────────────────────
@@ -127,10 +129,12 @@ function validate(form: CreateUserPayload): Partial<Record<keyof CreateUserPaylo
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
     errors.email = "Enter a valid email address";
   }
-  if (!form.password) {
-    errors.password = "Password is required";
-  } else if (form.password.length < 8) {
-    errors.password = "Must be at least 8 characters";
+  if (form.role !== "service_engineer") {
+    if (!form.password) {
+      errors.password = "Password is required";
+    } else if (form.password.length < 8) {
+      errors.password = "Must be at least 8 characters";
+    }
   }
   if (!form.firstName.trim()) {
     errors.firstName = "First name is required";
@@ -148,6 +152,7 @@ export default function UsersManagementPage() {
 
   const [users, setUsers]             = useState<ApiUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [myPincodes, setMyPincodes]   = useState<any[]>([]);
   const [search, setSearch]           = useState("");
   const [roleFilter, setRoleFilter]   = useState<string>("all");
 
@@ -167,7 +172,7 @@ export default function UsersManagementPage() {
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
-  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", role: "service", newPassword: "" });
+  const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", role: "service", newPassword: "", whatsappNumber: "", pincodeIds: [] as string[] });
   const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string | undefined>>({});
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editSubmitError, setEditSubmitError] = useState<string | null>(null);
@@ -211,9 +216,25 @@ export default function UsersManagementPage() {
     }
   }, []);
 
+  const fetchPincodes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/pincodes", {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include"
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMyPincodes(data.pincodes || []);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
-    if (user?.role === "admin") fetchUsers();
-  }, [user, fetchUsers]);
+    if (user?.role === "admin") {
+      fetchUsers();
+      fetchPincodes();
+    }
+  }, [user, fetchUsers, fetchPincodes]);
 
   // ── Modal helpers ────────────────────────────────────────────────────
   const openModal = () => {
@@ -249,6 +270,8 @@ export default function UsersManagementPage() {
         firstName: form.firstName.trim(),
         lastName:  form.lastName?.trim() || undefined,
         role:      form.role,
+        ...(form.role === "service_engineer" && form.whatsappNumber ? { whatsappNumber: form.whatsappNumber } : {}),
+        ...(form.role === "service_engineer" && form.pincodeIds ? { pincodeIds: form.pincodeIds } : {}),
       };
       const created = await createUser(payload);
       setUsers((prev) => [
@@ -292,6 +315,8 @@ export default function UsersManagementPage() {
       email: u.email,
       role: u.role,
       newPassword: "",
+      whatsappNumber: u.whatsappNumber || "",
+      pincodeIds: u.engineerPincodes?.map((p: any) => p.id) || [],
     });
     setEditFieldErrors({});
     setEditSubmitError(null);
@@ -958,6 +983,7 @@ export default function UsersManagementPage() {
               </div>
 
               {/* Password */}
+              {form.role !== "service_engineer" && (
               <div>
                 <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
                   Password <span className="text-red-500">*</span>
@@ -988,6 +1014,8 @@ export default function UsersManagementPage() {
                 )}
               </div>
 
+              )}
+
               {/* Role */}
               <div>
                 <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
@@ -1013,6 +1041,56 @@ export default function UsersManagementPage() {
                   <p className="mt-1 text-xs text-red-500">{fieldErrors.role}</p>
                 )}
               </div>
+
+              {/* Additional Fields for Service Engineer */}
+              {form.role === "service_engineer" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                      WhatsApp Number <span className="text-content-tertiary">(Optional)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.whatsappNumber || ""}
+                      onChange={(e) => setField("whatsappNumber", e.target.value)}
+                      placeholder="e.g. 919876543210"
+                      className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                      Assign Pincodes
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-lg custom-scrollbar">
+                      {myPincodes.length === 0 ? (
+                        <p className="text-xs text-content-tertiary col-span-2 text-center py-2">No pincodes available</p>
+                      ) : (
+                        myPincodes.map((p: any) => (
+                          <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-surface-hover dark:hover:bg-surface-dark-hover p-1 rounded transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={(form.pincodeIds || []).includes(p.id)}
+                              onChange={(e) => {
+                                const current = form.pincodeIds || [];
+                                setField(
+                                  "pincodeIds",
+                                  e.target.checked
+                                    ? [...current, p.id]
+                                    : current.filter((id: string) => id !== p.id)
+                                );
+                              }}
+                              className="rounded border-line"
+                            />
+                            <span className="truncate" title={`${p.code} - ${p.place}`}>
+                              {p.code} <span className="text-content-tertiary">({p.place})</span>
+                            </span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Actions */}
               <div className="flex items-center gap-3 pt-2">
@@ -1101,6 +1179,56 @@ export default function UsersManagementPage() {
                 </select>
                 {editFieldErrors.role && <p className="mt-1 text-xs text-red-500">{editFieldErrors.role}</p>}
               </div>
+              {/* Additional Fields for Service Engineer */}
+              {editForm.role === "service_engineer" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                      WhatsApp Number <span className="text-content-tertiary">(Optional)</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={editForm.whatsappNumber || ""}
+                      onChange={(e) => setEditField("whatsappNumber", e.target.value)}
+                      placeholder="e.g. 919876543210"
+                      className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                      Assign Pincodes
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-lg custom-scrollbar">
+                      {myPincodes.length === 0 ? (
+                        <p className="text-xs text-content-tertiary col-span-2 text-center py-2">No pincodes available</p>
+                      ) : (
+                        myPincodes.map((p: any) => (
+                          <label key={p.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-surface-hover dark:hover:bg-surface-dark-hover p-1 rounded transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={(editForm.pincodeIds || []).includes(p.id)}
+                              onChange={(e) => {
+                                const current = editForm.pincodeIds || [];
+                                setEditField(
+                                  "pincodeIds",
+                                  e.target.checked
+                                    ? [...current, p.id]
+                                    : current.filter((id: string) => id !== p.id)
+                                );
+                              }}
+                              className="rounded border-line"
+                            />
+                            <span className="truncate" title={`${p.code} - ${p.place}`}>
+                              {p.code} <span className="text-content-tertiary">({p.place})</span>
+                            </span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div className="flex items-center gap-3 pt-2">
                 <button type="button" onClick={closeEditModal} disabled={editSubmitting} className="flex-1 h-9 rounded-xl border border-line dark:border-line-dark text-sm font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors disabled:opacity-40">Cancel</button>
                 <button type="submit" disabled={editSubmitting} className="flex-1 h-9 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">

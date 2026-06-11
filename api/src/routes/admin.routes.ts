@@ -135,6 +135,10 @@ router.patch("/users/:id", updateUser);
 // DELETE /api/admin/users/:id  —  delete a user
 router.delete("/users/:id", deleteUser);
 
+// GET  /api/admin/pincodes  —  list all pincodes
+import { listMyPincodes } from "../controllers/manager.controller";
+router.get("/pincodes", listMyPincodes);
+
 // DELETE /api/admin/dealers/all  —  remove all dealer accounts
 router.delete("/dealers/all", deleteAllDealersAdmin);
 
