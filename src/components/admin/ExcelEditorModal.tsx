@@ -57,6 +57,22 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     fetchExcel();
   }, [fetchExcel]);
 
+  // Autogrow textareas on load and row changes
+  useEffect(() => {
+    if (!loading && rows.length > 0) {
+      setTimeout(() => {
+        const textareas = document.querySelectorAll('.excel-cell-textarea');
+        textareas.forEach((ta) => {
+          const el = ta as HTMLTextAreaElement;
+          el.style.height = "auto";
+          if (el.scrollHeight > 40) {
+            el.style.height = `${el.scrollHeight}px`;
+          }
+        });
+      }, 50);
+    }
+  }, [loading, rows]);
+
   const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
     const newRows = [...rows];
     if (!newRows[rowIndex]) newRows[rowIndex] = Array(headers.length).fill("");
@@ -189,7 +205,7 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
                               onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
                               onInput={handleInput}
-                              className="w-full h-full min-h-[40px] px-3 py-2 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-emerald-50 dark:focus:bg-emerald-900/20 focus:z-10 relative transition-none resize-none overflow-hidden"
+                              className="excel-cell-textarea w-full h-full min-h-[40px] px-3 py-2 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-emerald-50 dark:focus:bg-emerald-900/20 focus:z-10 relative transition-none resize-none overflow-hidden"
                               spellCheck="false"
                               rows={1}
                             />
