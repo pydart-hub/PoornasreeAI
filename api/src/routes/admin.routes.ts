@@ -28,7 +28,7 @@ import { listProducts, createProduct, updateProduct, deleteProduct } from "../co
 import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbotSettings.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
-import { listManualComplaints, reviewManualComplaint, deleteManualComplaint, scanManualComplaints } from "../controllers/manualComplaint.controller";
+import { listManualComplaints, createManualComplaint, updateManualComplaint, reviewManualComplaint, deleteManualComplaint, scanManualComplaints } from "../controllers/manualComplaint.controller";
 
 const router = Router();
 
@@ -208,7 +208,9 @@ router.delete("/test/customer", clearTestCustomer);
 
 // Manual Complaints (from customer chat)
 router.get("/manual-complaints", listManualComplaints);
+router.post("/manual-complaints", createManualComplaint);
 router.post("/manual-complaints/scan", scanManualComplaints);
+router.patch("/manual-complaints/:id", updateManualComplaint);
 router.patch("/manual-complaints/:id/review", reviewManualComplaint);
 router.delete("/manual-complaints/:id", deleteManualComplaint);
 

@@ -44,6 +44,48 @@ export const reviewManualComplaint = async (req: Request, res: Response): Promis
   }
 };
 
+// POST /api/admin/manual-complaints
+export const createManualComplaint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phoneNumber, machineName, complaint } = req.body;
+    if (!phoneNumber || !complaint) {
+      res.status(400).json({ error: "phoneNumber and complaint are required" });
+      return;
+    }
+    const created = await prisma.manualComplaint.create({
+      data: {
+        phoneNumber: phoneNumber.trim(),
+        machineName: machineName?.trim() || null,
+        complaint: complaint.trim(),
+      },
+    });
+    res.json({ complaint: created });
+  } catch (error) {
+    console.error("[createManualComplaint] error:", error);
+    res.status(500).json({ error: "Failed to create manual complaint" });
+  }
+};
+
+// PATCH /api/admin/manual-complaints/:id
+export const updateManualComplaint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const { phoneNumber, machineName, complaint } = req.body;
+    const data: Record<string, unknown> = {};
+    if (phoneNumber !== undefined) data.phoneNumber = phoneNumber.trim();
+    if (machineName !== undefined) data.machineName = machineName?.trim() || null;
+    if (complaint !== undefined) data.complaint = complaint.trim();
+    const updated = await prisma.manualComplaint.update({
+      where: { id },
+      data,
+    });
+    res.json({ complaint: updated });
+  } catch (error) {
+    console.error("[updateManualComplaint] error:", error);
+    res.status(500).json({ error: "Failed to update manual complaint" });
+  }
+};
+
 // DELETE /api/admin/manual-complaints/:id
 export const deleteManualComplaint = async (req: Request, res: Response): Promise<void> => {
   try {
