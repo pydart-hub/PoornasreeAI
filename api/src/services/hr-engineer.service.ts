@@ -259,16 +259,22 @@ export function engineerManagerWhere(
   parentManagerId?: string | null,
 ): Record<string, unknown> {
   if (role === "service_manager") {
-    return { role: "service_engineer", managerId: userId };
+    return {
+      role: "service_engineer",
+      OR: [{ managerId: userId }, { managerId: null }],
+    };
   }
   if (role === "assistant_service_manager" && parentManagerId) {
     return {
       role: "service_engineer",
-      OR: [{ managerId: userId }, { managerId: parentManagerId }],
+      OR: [{ managerId: userId }, { managerId: parentManagerId }, { managerId: null }],
     };
   }
   if (role === "assistant_service_manager") {
-    return { role: "service_engineer", managerId: userId };
+    return {
+      role: "service_engineer",
+      OR: [{ managerId: userId }, { managerId: null }],
+    };
   }
   return { role: "service_engineer" };
 }
@@ -280,6 +286,7 @@ export async function canManagerAccessEngineer(
   parentManagerId?: string | null,
 ): Promise<boolean> {
   if (engineer.managerId === callerId) return true;
+  if (engineer.managerId === null && (callerRole === "service_manager" || callerRole === "assistant_service_manager")) return true;
   if (
     callerRole === "assistant_service_manager" &&
     parentManagerId &&
