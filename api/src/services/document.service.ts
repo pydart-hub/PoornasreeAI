@@ -422,7 +422,7 @@ export async function processDocument(
               const existing = await prisma.documentIssue.findUnique({
                 where: { problemType: intent.tag },
               });
-              const audience = "both"; // Force both so customers always see it
+              const audience = documentType === "service" ? "engineer" : "customer";
               if (existing) {
                 await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
                 await prisma.documentIssue.update({

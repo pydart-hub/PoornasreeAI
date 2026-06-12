@@ -657,108 +657,58 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 }
 
 // ── Complaint types list helper ───────────────────────────────────────────
-async function fetchComplaintListRows(lang: Lang, productName?: string) {
-  const templates = await prisma.documentIssue.findMany({
-    where: {
-      isActive: true,
-      audience: { in: ["customer", "both"] },
+async function fetchComplaintListRows(lang: Lang, _productName?: string) {
+  // Grouped all 22 unique complaints from the document into user-friendly categories
+  // to fit within WhatsApp's 10-row limit for interactive lists.
+  const categories = [
+    {
+      id: "COMP_TEXT_Power & Battery Issue",
+      title: lang === "hi" ? "पावर / बैटरी समस्या" : "Power & Battery Issue",
+      description: "Not turning on, adapter, or battery errors"
     },
-    select: { id: true, title: true, description: true, problemType: true },
-    orderBy: { title: "asc" },
-  });
-
-  let filteredTemplates = templates;
-
-  if (productName) {
-    const normProduct = productName.toLowerCase();
-
-    if (normProduct.includes("vibro")) {
-      // Vibro Stirrer: match templates with "vibro" or "vibration" in title or problemType
-      filteredTemplates = templates.filter(t =>
-        t.problemType.toLowerCase().includes("vibro") ||
-        t.problemType.toLowerCase().includes("vibration") ||
-        t.title.toLowerCase().includes("vibro") ||
-        t.title.toLowerCase().includes("vibration")
-      );
-    } else if (normProduct.includes("dps") || normProduct.includes("dpst") || normProduct.includes("data processing")) {
-      // DPS-T / Data Processing System: match templates with "dpst" or "dps"
-      filteredTemplates = templates.filter(t =>
-        t.problemType.toLowerCase().includes("dpst") ||
-        t.problemType.toLowerCase().includes("dps") ||
-        t.title.toLowerCase().includes("dpst") ||
-        t.title.toLowerCase().includes("dps")
-      );
-    } else if (normProduct.includes("solar") || normProduct.includes("charger")) {
-      // Solar Charger: match templates with "solar" or "charger"
-      filteredTemplates = templates.filter(t =>
-        t.problemType.toLowerCase().includes("solar") ||
-        t.title.toLowerCase().includes("solar")
-      );
-    } else if (
-      normProduct.includes("analyzer") ||
-      normProduct.includes("lactosure") ||
-      normProduct.includes("lactogrand")
-    ) {
-      // Milk Analyzer models (Lactosure / Lactogrand):
-      // They use mainboard, pump, ecod, compact adapter, charger adapter.
-      // They should NOT see vibro or solar charger issues.
-      filteredTemplates = templates.filter(t =>
-        !t.problemType.toLowerCase().includes("vibro") &&
-        !t.problemType.toLowerCase().includes("solar_charger") &&
-        !t.title.toLowerCase().includes("vibro") &&
-        !t.title.toLowerCase().includes("solar charger")
-      );
-    } else {
-      // If we don't recognize the product, check keyword overlaps
-      filteredTemplates = templates.filter(t => {
-        const words = normProduct.split(/\s+/).filter(w => w.length >= 3);
-        return words.some(w => t.problemType.toLowerCase().includes(w) || t.title.toLowerCase().includes(w));
-      });
-      // If nothing matches, fallback to all templates
-      if (filteredTemplates.length === 0) {
-        filteredTemplates = templates;
-      }
+    {
+      id: "COMP_TEXT_Sensor & Temperature",
+      title: lang === "hi" ? "सेंसर / तापमान त्रुटि" : "Sensor & Temperature",
+      description: "Water in sensor, temp error, air in milk"
+    },
+    {
+      id: "COMP_TEXT_Display & Output",
+      title: lang === "hi" ? "डिस्प्ले / आउटपुट समस्या" : "Display & Output",
+      description: "External display, PC output not present"
+    },
+    {
+      id: "COMP_TEXT_Network & Cloud Sync",
+      title: lang === "hi" ? "नेटवर्क / क्लाउड समस्या" : "Network & Cloud Sync",
+      description: "WiFi, GSM, SMS, or cloud update errors"
+    },
+    {
+      id: "COMP_TEXT_Reading & Rate Chart",
+      title: lang === "hi" ? "रीडिंग / रेट चार्ट" : "Reading & Rate Chart",
+      description: "Reading variation or rate chart not taken"
+    },
+    {
+      id: "COMP_TEXT_Vibration Problem",
+      title: lang === "hi" ? "वाइब्रेशन की समस्या" : "Vibration Problem",
+      description: "Continuous or low vibration"
+    },
+    {
+      id: "COMP_TEXT_Printer & USB",
+      title: lang === "hi" ? "प्रिंटर / USB" : "Printer & USB",
+      description: "Printer not printing, pendrive/keyboard issue"
+    },
+    {
+      id: "COMP_TEXT_Scale & Software",
+      title: lang === "hi" ? "वजन मशीन / सॉफ्टवेयर" : "Scale & Software",
+      description: "Weighing scale issue, farmer details, date/time"
+    },
+    {
+      id: "COMPLAINT_OTHER",
+      title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
+      description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue"
     }
-  }
+  ];
 
-  const seenTitles = new Set<string>();
-  const rows = filteredTemplates.slice(0, 9).map((t) => {
-    let title = t.title.slice(0, 24).trim();
-    let counter = 1;
-    while (seenTitles.has(title.toLowerCase())) {
-      const suffix = ` ${counter}`;
-      title = t.title.slice(0, 24 - suffix.length).trim() + suffix;
-      counter++;
-    }
-    seenTitles.add(title.toLowerCase());
-    
-    let description = t.description?.trim();
-    if (description) {
-      const dLow = description.toLowerCase().replace(/\s+/g, "");
-      const tLow = t.title.toLowerCase().replace(/\s+/g, "");
-      const truncLow = title.toLowerCase().replace(/\s+/g, "");
-      
-      if (dLow === tLow || dLow === truncLow) {
-        description = undefined;
-      } else {
-        description = t.description!.trim().slice(0, 72);
-      }
-    }
-
-    return {
-      id: `COMPLAINT_${t.id}`,
-      title,
-      description,
-    };
-  });
-
-  rows.push({
-    id: "COMPLAINT_OTHER",
-    title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
-    description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue",
-  });
-
-  return rows;
+  return categories;
 }
 
 // ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
@@ -957,6 +907,10 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     } else {
       complaintText = ""; // Not found, will prompt to describe
     }
+  } else if (complaintText.startsWith("COMP_TEXT_")) {
+    // A grouped category was selected. Use the text directly for semantic search.
+    complaintText = complaintText.replace("COMP_TEXT_", "");
+    selectedTemplate = null; // Forces fallback to findDocumentIssue semantic search
   }
 
   if (complaintText.length < 3) {
