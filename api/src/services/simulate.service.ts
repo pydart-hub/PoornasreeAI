@@ -56,6 +56,7 @@ type SessionMeta = {
   complaint?:       string;
   pincodeDisplay?:  string;
   selectedProduct?: string;
+  complaintSubcategory?: string;
   productCategory?: ProductCategory;
   feedbackTicketId?: string;
   tsSessionId?:     string;
@@ -420,6 +421,9 @@ async function routeState(
     case "COMPLAINT_PRODUCT":
       return handleComplaintProduct(session.id, phoneNumber, meta, text);
 
+    case "COMPLAINT_SUBCATEGORY":
+      return handleComplaintSubcategory(session.id, phoneNumber, meta, text);
+
     case "COMPLAINT_DESCRIBE":
       return handleComplaintDescribe(session.id, phoneNumber, meta, text);
 
@@ -657,70 +661,122 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 }
 
 // ── Complaint types list helper ───────────────────────────────────────────
-async function fetchComplaintListRows(lang: Lang, _productName?: string) {
-  // Grouped all 22 unique complaints from the document into user-friendly categories
-  // to fit within WhatsApp's 10-row limit for interactive lists.
-  const categories = [
-    {
-      id: "COMP_TEXT_Power & Battery Issue",
-      title: lang === "hi" ? "पावर / बैटरी समस्या" : "Power & Battery Issue",
-      description: "Not turning on, adapter, or battery errors"
+async function fetchComplaintListRows(lang: Lang, productName?: string, subCategory?: string) {
+  const templates = await prisma.documentIssue.findMany({
+    where: {
+      isActive: true,
+      audience: { in: ["customer", "both"] },
     },
-    {
-      id: "COMP_TEXT_Sensor & Temperature",
-      title: lang === "hi" ? "सेंसर / तापमान त्रुटि" : "Sensor & Temperature",
-      description: "Water in sensor, temp error, air in milk"
-    },
-    {
-      id: "COMP_TEXT_Display & Output",
-      title: lang === "hi" ? "डिस्प्ले / आउटपुट समस्या" : "Display & Output",
-      description: "External display, PC output not present"
-    },
-    {
-      id: "COMP_TEXT_Network & Cloud Sync",
-      title: lang === "hi" ? "नेटवर्क / क्लाउड समस्या" : "Network & Cloud Sync",
-      description: "WiFi, GSM, SMS, or cloud update errors"
-    },
-    {
-      id: "COMP_TEXT_Reading & Rate Chart",
-      title: lang === "hi" ? "रीडिंग / रेट चार्ट" : "Reading & Rate Chart",
-      description: "Reading variation or rate chart not taken"
-    },
-    {
-      id: "COMP_TEXT_Vibration Problem",
-      title: lang === "hi" ? "वाइब्रेशन की समस्या" : "Vibration Problem",
-      description: "Continuous or low vibration"
-    },
-    {
-      id: "COMP_TEXT_Printer & USB",
-      title: lang === "hi" ? "प्रिंटर / USB" : "Printer & USB",
-      description: "Printer not printing, pendrive/keyboard issue"
-    },
-    {
-      id: "COMP_TEXT_Scale & Software",
-      title: lang === "hi" ? "वजन मशीन / सॉफ्टवेयर" : "Scale & Software",
-      description: "Weighing scale issue, farmer details, date/time"
-    },
-    {
-      id: "COMPLAINT_OTHER",
-      title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
-      description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue"
-    }
-  ];
+    select: { id: true, title: true, description: true, problemType: true },
+    orderBy: { title: "asc" },
+  });
 
-  return categories;
+  let filteredTemplates = templates;
+
+  if (productName) {
+    const normProduct = productName.toLowerCase();
+
+    if (normProduct.includes("vibro")) {
+      filteredTemplates = templates.filter(t => t.problemType.toLowerCase().includes("vibro"));
+    } else if (normProduct.includes("compact adapter")) {
+      filteredTemplates = templates.filter(t => t.problemType.toLowerCase().includes("compact"));
+    } else if (normProduct.includes("charger adapter") || normProduct.includes("solar charger")) {
+      filteredTemplates = templates.filter(t => t.problemType.toLowerCase().includes("charger"));
+    } else if (
+      normProduct.includes("analyzer") ||
+      normProduct.includes("lactosure") ||
+      normProduct.includes("lactogrand")
+    ) {
+      const analyzerComplaints = templates.filter(t => t.problemType.toLowerCase().includes("analyzer"));
+      
+      if (!subCategory) {
+        // Return 3 sub-categories instead of actual complaints
+        return [
+          { id: "SUBCAT_POWER", title: "Power, Sensor & Display", description: "Not turning on, Temp error, Display" },
+          { id: "SUBCAT_DATA", title: "Data, Network & Print", description: "WiFi, Printer, SMS, Cloud" },
+          { id: "SUBCAT_SCALE", title: "Scale & Reading", description: "Reading variation, Weighing scale" },
+          { id: "COMPLAINT_OTHER", title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)", description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue" }
+        ];
+      } else {
+        // Filter analyzer complaints based on selected subCategory
+        if (subCategory === "SUBCAT_POWER") {
+          filteredTemplates = analyzerComplaints.filter(t => 
+            /not on|battery|t2|plunge|hot sample|output not present|external display|fat shown/i.test(t.title)
+          );
+        } else if (subCategory === "SUBCAT_DATA") {
+          filteredTemplates = analyzerComplaints.filter(t => 
+            /pen-drive|wifi|date|sms|farmer|printer|cloud/i.test(t.title)
+          );
+        } else if (subCategory === "SUBCAT_SCALE") {
+          filteredTemplates = analyzerComplaints.filter(t => 
+            /reading variation|weighing scale|rate not taken/i.test(t.title)
+          );
+        } else {
+          filteredTemplates = analyzerComplaints;
+        }
+      }
+    } else {
+      // Fallback
+      filteredTemplates = templates.filter(t => {
+        const words = normProduct.split(/\s+/).filter(w => w.length >= 3);
+        return words.some(w => t.problemType.toLowerCase().includes(w) || t.title.toLowerCase().includes(w));
+      });
+      if (filteredTemplates.length === 0) filteredTemplates = templates;
+    }
+  }
+
+  // Format the rows to ensure unique titles and lengths
+  const seenTitles = new Set<string>();
+  const rows = filteredTemplates.slice(0, 9).map((t) => {
+    let title = t.title.slice(0, 24).trim();
+    let counter = 1;
+    while (seenTitles.has(title.toLowerCase())) {
+      const suffix = ` ${counter}`;
+      title = t.title.slice(0, 24 - suffix.length).trim() + suffix;
+      counter++;
+    }
+    seenTitles.add(title.toLowerCase());
+    
+    let description = t.description?.trim();
+    if (description) {
+      const dLow = description.toLowerCase().replace(/\s+/g, "");
+      const tLow = t.title.toLowerCase().replace(/\s+/g, "");
+      const truncLow = title.toLowerCase().replace(/\s+/g, "");
+      if (dLow === tLow || dLow === truncLow) {
+        description = undefined;
+      } else {
+        description = t.description!.trim().slice(0, 72);
+      }
+    }
+
+    return {
+      id: `COMPLAINT_${t.id}`,
+      title,
+      description,
+    };
+  });
+
+  rows.push({
+    id: "COMPLAINT_OTHER",
+    title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
+    description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue",
+  });
+
+  return rows;
 }
 
 // ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
 async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   if (text === "1" || /^yes/i.test(text)) {
-    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
     const listRows = await fetchComplaintListRows(lang, meta.machineData?.m_model);
+    const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+    const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
+    await updateSession(sessionId, nextState, meta);
     return makeReply(
       t("DESCRIBE_COMPLAINT", lang),
       undefined,
-      listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
+      listRows.length > 1 ? { buttonText: hasSubCategories ? (lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝") : (lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝"), rows: listRows } : undefined
     );
   }
   if (text === "2" || /^no/i.test(text)) {
@@ -859,27 +915,45 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
   const productNames = products.map(p => p.name);
 
   const index = parseInt(text, 10) - 1;
-  if (isNaN(index) || index < 0 || index >= productNames.length) {
-    const directMatch = productNames.find(p => p.toLowerCase().includes(text.toLowerCase()));
-    if (!directMatch) {
-      return showProductList(sessionId, meta, products);
-    }
-    const updatedMeta = { ...meta, selectedProduct: directMatch };
-    await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-    const listRows = await fetchComplaintListRows(lang, directMatch);
-    return makeReply(
-      t("PRODUCT_SELECTED", lang, { product: directMatch }),
-      undefined,
-      listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
-    );
+  const directMatch = productNames.find(p => p.toLowerCase().includes(text.toLowerCase()));
+  const selectedProduct = (!isNaN(index) && index >= 0 && index < productNames.length) ? productNames[index] : directMatch;
+
+  if (!selectedProduct) {
+    return showProductList(sessionId, meta, products);
   }
 
-  const selectedProduct = productNames[index];
-  const updatedMeta = { ...meta, selectedProduct };
-  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
   const listRows = await fetchComplaintListRows(lang, selectedProduct);
+  const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+  const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
+  
+  const updatedMeta = { ...meta, selectedProduct };
+  await updateSession(sessionId, nextState, updatedMeta);
+  
   return makeReply(
     t("PRODUCT_SELECTED", lang, { product: selectedProduct }),
+    undefined,
+    listRows.length > 1 ? { buttonText: hasSubCategories ? (lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝") : (lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝"), rows: listRows } : undefined
+  );
+}
+
+// ── COMPLAINT_SUBCATEGORY ─────────────────────────────────────────────────
+async function handleComplaintSubcategory(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  let subCategory = text.trim();
+  
+  if (subCategory === "COMPLAINT_OTHER") {
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+    return makeReply(t("DESCRIBE_SHORT", lang));
+  }
+
+  const updatedMeta = { ...meta, complaintSubcategory: subCategory };
+  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
+  
+  const productName = meta.selectedProduct || meta.machineData?.m_model;
+  const listRows = await fetchComplaintListRows(lang, productName, subCategory);
+  
+  return makeReply(
+    lang === "hi" ? "कृपया अपनी विशिष्ट शिकायत चुनें:" : "Please select your specific complaint:",
     undefined,
     listRows.length > 1 ? { buttonText: lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝", rows: listRows } : undefined
   );
@@ -907,10 +981,6 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     } else {
       complaintText = ""; // Not found, will prompt to describe
     }
-  } else if (complaintText.startsWith("COMP_TEXT_")) {
-    // A grouped category was selected. Use the text directly for semantic search.
-    complaintText = complaintText.replace("COMP_TEXT_", "");
-    selectedTemplate = null; // Forces fallback to findDocumentIssue semantic search
   }
 
   if (complaintText.length < 3) {
