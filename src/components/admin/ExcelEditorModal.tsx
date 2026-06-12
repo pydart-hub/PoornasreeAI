@@ -126,20 +126,20 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-slate-900 relative">
+        <div className="flex-1 bg-white dark:bg-slate-900 relative">
           {error && (
-            <div className="m-4 shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200">
+            <div className="absolute top-4 left-4 right-4 z-10 shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200 shadow-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </div>
           )}
 
           {loading ? (
-            <div className="flex items-center justify-center flex-1">
+            <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="flex-1 min-h-0 min-w-0 p-4 [&_.dsg-container]:!h-full [&_.dsg-container]:!w-full [&_.dsg-container]:!rounded-xl [&_.dsg-container]:!border-2 [&_.dsg-container]:!border-line [&_.dsg-container]:dark:!border-line-dark">
+            <div className="absolute inset-4 rounded-xl border border-line dark:border-line-dark overflow-hidden [&_.dsg-container]:!h-full [&_.dsg-container]:!w-full [&_.dsg-container]:!border-0">
               <DataSheetGrid
                 value={gridData}
                 onChange={setGridData}
@@ -148,7 +148,7 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
                 addRowsComponent={({ addRows }) => (
                   <button
                     onClick={() => addRows(1)}
-                    className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold"
+                    className="m-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold"
                   >
                     <Plus className="w-4 h-4" />
                     Add Row
