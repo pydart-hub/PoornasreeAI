@@ -84,6 +84,91 @@ function extractProductFromTag(tag: string): { prefix: string; name: string } {
   return { prefix, name };
 }
 
+function getPageInfo(total: number, page: number) {
+  const hasPrev = page > 0;
+  const startIndex = page === 0 ? 0 : 9 + (page - 1) * 8;
+  const remaining = total - startIndex;
+
+  let pageSize = 0;
+  let hasNext = false;
+
+  if (page === 0) {
+    if (total <= 10) {
+      pageSize = total;
+      hasNext = false;
+    } else {
+      pageSize = 9;
+      hasNext = true;
+    }
+  } else {
+    if (remaining <= 9) {
+      pageSize = remaining;
+      hasNext = false;
+    } else {
+      pageSize = 8;
+      hasNext = true;
+    }
+  }
+
+  return { startIndex, pageSize, hasPrev, hasNext };
+}
+
+async function sendIssuesList(to: string, prefix: string, page: number, categoryName: string): Promise<void> {
+  const issues = await prisma.documentIssue.findMany({
+    where: {
+      isActive: true,
+      audience: { in: ["engineer", "customer", "both"] },
+      problemType: { startsWith: prefix },
+    },
+    orderBy: { title: "asc" },
+  });
+
+  if (issues.length === 0) {
+    await WhatsAppService.sendMessage(to, `⚠️ No troubleshooting guides found for ${categoryName}.`);
+    return;
+  }
+
+  const { startIndex, pageSize, hasPrev, hasNext } = getPageInfo(issues.length, page);
+  const pageIssues = issues.slice(startIndex, startIndex + pageSize);
+
+  const rows: WhatsAppService.WaListRow[] = [];
+
+  if (hasPrev) {
+    rows.push({
+      id: `ENG_TS_PAGE:${prefix}:${page - 1}`,
+      title: "⬅️ Previous Page",
+      description: "Go to previous issues",
+    });
+  }
+
+  pageIssues.forEach((iss) => {
+    rows.push({
+      id: `ENG_TS_ISSUE:${iss.id}`,
+      title: iss.title.slice(0, 24),
+      ...(iss.title.length > 24 ? { description: iss.title.slice(0, 72) } : {}),
+    });
+  });
+
+  if (hasNext) {
+    rows.push({
+      id: `ENG_TS_PAGE:${prefix}:${page + 1}`,
+      title: "Next Page ➡️",
+      description: "Go to next issues",
+    });
+  }
+
+  const startNum = startIndex + 1;
+  const endNum = startIndex + pageIssues.length;
+  const totalNum = issues.length;
+
+  await WhatsAppService.sendInteractiveList(
+    to,
+    `🔍 *Troubleshoot - ${categoryName}*\n\nPlease select the issue (showing ${startNum}-${endNum} of ${totalNum}):`,
+    "Select Issue",
+    rows,
+  );
+}
+
 // ── GET /api/whatsapp/webhook — Meta verification challenge ──────────────
 export function verifyWebhook(req: Request, res: Response): void {
   const mode      = req.query["hub.mode"];
@@ -249,7 +334,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
         const categoryList = Array.from(activeCategories.entries()).map(([prefix, name]) => ({
           id: `ENG_TS_PROD:${prefix}`,
           title: name.slice(0, 24),
-          description: "Select to see issues"
         }));
 
         await WhatsAppService.sendInteractiveList(
@@ -265,20 +349,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
         const prefix = t.replace("ENG_TS_PROD:", "").trim();
         const { name: categoryName } = extractProductFromTag(prefix);
 
-        const issues = await prisma.documentIssue.findMany({
-          where: { 
-            isActive: true, 
-            audience: { in: ["engineer", "customer", "both"] },
-            problemType: { startsWith: prefix }
-          },
-          orderBy: { title: "asc" }
-        });
-
-        if (issues.length === 0) {
-          await WhatsAppService.sendMessage(f, `⚠️ No troubleshooting guides found for ${categoryName}.`);
-          return;
-        }
-        
         await prisma.troubleshootingSession.deleteMany({
           where: { phoneNumber: f, status: "ACTIVE" },
         });
@@ -292,11 +362,68 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
             status: "ACTIVE",
           },
         });
-        
-        const issueLines = issues.map((iss, index) => `${index + 1}. ${iss.title}`);
-        const message = `🔍 *Troubleshoot - ${categoryName}*\n\nPlease reply with the *number* of the issue:\n\n${issueLines.join("\n")}`;
-        
-        await WhatsAppService.sendMessage(f, message);
+
+        await sendIssuesList(f, prefix, 0, categoryName);
+        return;
+      }
+
+      if (t.startsWith("ENG_TS_PAGE:")) {
+        const parts = t.split(":");
+        const prefix = parts[1];
+        const page = parseInt(parts[2] ?? "0", 10) || 0;
+        const { name: categoryName } = extractProductFromTag(prefix);
+        await sendIssuesList(f, prefix, page, categoryName);
+        return;
+      }
+
+      if (t.startsWith("ENG_TS_ISSUE:")) {
+        const issueId = t.replace("ENG_TS_ISSUE:", "").trim();
+        const template = await prisma.documentIssue.findUnique({
+          where: { id: issueId },
+          include: { steps: { orderBy: { stepNumber: "asc" } } },
+        });
+
+        if (!template || template.steps.length === 0) {
+          await WhatsAppService.sendMessage(f, `⚠️ No steps found for this issue.`);
+          return;
+        }
+
+        let activeSession = await prisma.troubleshootingSession.findFirst({
+          where: { phoneNumber: f, status: "ACTIVE" },
+        });
+
+        if (!activeSession) {
+          activeSession = await prisma.troubleshootingSession.create({
+            data: {
+              phoneNumber: f,
+              serialNumber: "ENGINEER",
+              problemType: template.problemType,
+              currentStep: 1,
+              status: "ACTIVE",
+            },
+          });
+        } else {
+          await prisma.troubleshootingSession.update({
+            where: { id: activeSession.id },
+            data: { problemType: template.problemType, currentStep: 1 },
+          });
+        }
+
+        const steps = template.steps;
+        await WhatsAppService.sendInteractiveButtons(
+          f,
+          `🔍 *${template.title}*\n\n` +
+          `🔧 *Step 1 of ${steps.length}:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          steps[0].stepContent + "\n" +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `Did this resolve the issue?`,
+          [
+            { id: "ENG_YES",  title: "✅ Resolved" },
+            ...(steps.length > 1 ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
+            { id: "CANCEL",   title: "❌ Cancel" },
+          ],
+        );
         return;
       }
 
