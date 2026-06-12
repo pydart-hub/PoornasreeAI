@@ -134,26 +134,108 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   }
 
   if (engineer) {
+    if (text.startsWith("ENG_PHOTO:")) {
+      const parts = text.split(":");
+      const ticketNumber = parts[1];
+      const filename = parts[2];
+
+      const ticket = await prisma.ticket.findFirst({
+        where: { ticketNumber, assignedEngineerId: engineer.id },
+      });
+      if (!ticket) {
+        await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+        return;
+      }
+
+      let report = await prisma.workReport.findUnique({ where: { ticketId: ticket.id } });
+      if (!report) {
+        report = await prisma.workReport.create({
+          data: { ticketId: ticket.id, dealerId: engineer.id },
+        });
+      }
+      await prisma.workReportImage.create({
+        data: {
+          workReportId: report.id,
+          url:          `/uploads/work-reports/${filename}`,
+          fileName:     filename,
+        },
+      });
+      await WhatsAppService.sendMessage(from, `✅ Photo attached to ticket *${ticketNumber}* successfully.`);
+      return;
+    }
+
     await handleEngineerWhatsAppMessage(from, text, engineer, async (f, t, eng) => {
       if (t.toUpperCase().trim() === "TROUBLESHOOT") {
         await prisma.troubleshootingSession.deleteMany({
           where: { phoneNumber: f, status: "ACTIVE" },
         });
+
+        const issues = await prisma.documentIssue.findMany({
+          where: { isActive: true, audience: { in: ["engineer", "both"] } },
+          take: 10,
+        });
+
+        if (issues.length === 0) {
+          await WhatsAppService.sendMessage(f, `⚠️ No troubleshooting guides available right now.`);
+          return;
+        }
+
+        await WhatsAppService.sendInteractiveList(
+          f,
+          `🔍 *Troubleshoot Mode*\n\nPlease select the issue you are facing:`,
+          "Select Issue",
+          issues.map(iss => ({
+            id: `ENG_TS_ISSUE:${iss.problemType}`,
+            title: iss.title.slice(0, 24),
+            description: iss.description?.slice(0, 72)
+          }))
+        );
+        return;
+      }
+
+      if (t.startsWith("ENG_TS_ISSUE:")) {
+        const problemType = t.replace("ENG_TS_ISSUE:", "").trim();
+        const template = await prisma.documentIssue.findUnique({
+          where: { problemType },
+          include: { steps: { orderBy: { stepNumber: "asc" } } },
+        });
+
+        if (!template || template.steps.length === 0) {
+          await WhatsAppService.sendMessage(f, `⚠️ No steps found for this issue.`);
+          return;
+        }
+
+        await prisma.troubleshootingSession.deleteMany({
+          where: { phoneNumber: f, status: "ACTIVE" },
+        });
+
         await prisma.troubleshootingSession.create({
           data: {
             phoneNumber: f,
             serialNumber: "ENGINEER",
-            problemType: "__PENDING__",
-            currentStep: 0,
+            problemType: template.problemType,
+            currentStep: 1,
             status: "ACTIVE",
           },
         });
-        await WhatsAppService.sendMessage(
+
+        await WhatsAppService.sendInteractiveButtons(
           f,
-          `🔍 *Troubleshoot Mode*\n\nDescribe the issue you are facing (e.g. "no vibration", "machine not turning on"):`,
+          `🔍 *${template.title}*\n\n` +
+          `🔧 *Step 1 of ${template.steps.length}:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          template.steps[0].stepContent + "\n" +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `Did this resolve the issue?`,
+          [
+            { id: "ENG_YES",  title: "✅ Resolved" },
+            ...(template.steps.length > 1 ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
+            { id: "CANCEL",   title: "❌ Cancel" },
+          ],
         );
         return;
       }
+
       const activeSession = await prisma.troubleshootingSession.findFirst({
         where: { phoneNumber: f, status: "ACTIVE" },
       });
@@ -373,19 +455,6 @@ async function handleEngineerImage(
     return;
   }
 
-  if (!caption) {
-    await WhatsAppService.sendMessage(from, "⚠️ Please add the ticket number as the image caption.\nExample caption: TKT-20260515-001");
-    return;
-  }
-
-  const ticket = await prisma.ticket.findFirst({
-    where: { ticketNumber: caption, assignedEngineerId: engineer.id },
-  });
-  if (!ticket) {
-    await WhatsAppService.sendMessage(from, `❌ Ticket *${caption}* not found or not assigned to you.`);
-    return;
-  }
-
   if (!WhatsAppService.isConfigured()) {
     await WhatsAppService.sendMessage(from, "⚠️ WhatsApp media download is not configured on this server.");
     return;
@@ -417,7 +486,45 @@ async function handleEngineerImage(
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, filename), buffer);
 
-    // Step 4: Attach to work report (auto-create if needed)
+    if (!caption) {
+      // Step 4a: Ask for ticket if no caption
+      const tickets = await prisma.ticket.findMany({
+        where: {
+          assignedEngineerId: engineer.id,
+          status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
+        },
+        select: { ticketNumber: true, status: true, customer: { select: { firstName: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      });
+
+      if (tickets.length === 0) {
+        await WhatsAppService.sendMessage(from, "⚠️ Photo saved, but you have no active tickets to attach it to.");
+        return;
+      }
+
+      await WhatsAppService.sendInteractiveList(
+        from,
+        "Photo received! Which ticket does this belong to?",
+        "Select Ticket",
+        tickets.map((t) => ({
+          id: `ENG_PHOTO:${t.ticketNumber}:${filename}`,
+          title: t.ticketNumber.replace(/^TKT-\d{8}-/i, "").slice(0, 24) || t.ticketNumber.slice(0, 24),
+          description: `Attach to ${t.customer?.firstName ?? "Customer"} (${t.status})`,
+        })),
+      );
+      return;
+    }
+
+    // Step 4b: Attach immediately if caption has ticket
+    const ticket = await prisma.ticket.findFirst({
+      where: { ticketNumber: caption, assignedEngineerId: engineer.id },
+    });
+    if (!ticket) {
+      await WhatsAppService.sendMessage(from, `❌ Ticket *${caption}* not found. The photo was saved, but not attached.`);
+      return;
+    }
+
     let report = await prisma.workReport.findUnique({ where: { ticketId: ticket.id } });
     if (!report) {
       report = await prisma.workReport.create({

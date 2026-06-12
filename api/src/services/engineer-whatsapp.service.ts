@@ -113,7 +113,8 @@ async function upsertReportField(
   }
 }
 
-async function showTicketList(from: string, engineer: EngineerCtx): Promise<void> {
+async function showTicketList(from: string, engineer: EngineerCtx, page: number = 0): Promise<void> {
+  const PAGE_SIZE = 8;
   const tickets = await prisma.ticket.findMany({
     where: {
       assignedEngineerId: engineer.id,
@@ -121,38 +122,64 @@ async function showTicketList(from: string, engineer: EngineerCtx): Promise<void
     },
     select: ENGINEER_ACTIVE_TICKET_SELECT,
     orderBy: { createdAt: "desc" },
-    take: 10,
+    skip: page * PAGE_SIZE,
+    take: PAGE_SIZE + 1,
   });
 
-  if (tickets.length === 0) {
+  if (tickets.length === 0 && page === 0) {
     await WhatsAppService.sendMessage(from, "✅ You have no active tickets right now. Great job!");
     return;
   }
+  if (tickets.length === 0 && page > 0) {
+    await WhatsAppService.sendMessage(from, "No more tickets found on this page.");
+    return;
+  }
 
-  const summary = tickets
+  const hasNext = tickets.length > PAGE_SIZE;
+  const displayTickets = tickets.slice(0, PAGE_SIZE);
+
+  const summary = displayTickets
     .map((t, i) => {
       const name = formatTicketDetailMessage(t).split("\n")[1] ?? "";
-      return `${i + 1}. *${t.ticketNumber}* (${t.status})\n   ${name}`;
+      return `${page * PAGE_SIZE + i + 1}. *${t.ticketNumber}* (${t.status})\n   ${name}`;
     })
     .join("\n\n");
 
   await WhatsAppService.sendMessage(
     from,
-    `📋 *Your Active Tickets (${tickets.length}):*\n\n${summary}`,
+    `📋 *Your Active Tickets (Page ${page + 1}):*\n\n${summary}`,
   );
+
+  const rows = displayTickets.map((t) => {
+    const customer = formatTicketDetailMessage(t).split("\n")[1]?.replace("👤 Name: ", "") ?? "Customer";
+    return {
+      id: `${ENG_PREFIX.SEL}${t.ticketNumber}`,
+      title: t.ticketNumber.replace(/^TKT-\d{8}-/i, "").slice(0, 24) || t.ticketNumber.slice(0, 24),
+      description: `${customer.slice(0, 40)} · ${t.status}`,
+    };
+  });
+
+  if (page > 0) {
+    rows.push({
+      id: `${ENG_PREFIX.LIST}:${page - 1}`,
+      title: "⬅️ Previous Page",
+      description: `View tickets ${Math.max(1, (page - 1) * PAGE_SIZE + 1)} to ${page * PAGE_SIZE}`,
+    });
+  }
+
+  if (hasNext) {
+    rows.push({
+      id: `${ENG_PREFIX.LIST}:${page + 1}`,
+      title: "➡️ Next Page",
+      description: "View more tickets",
+    });
+  }
 
   await WhatsAppService.sendInteractiveList(
     from,
-    "Tap a ticket to open actions:",
+    `Tap a ticket to open actions (Page ${page + 1}):`,
     "Select ticket",
-    tickets.map((t) => {
-      const customer = formatTicketDetailMessage(t).split("\n")[1]?.replace("👤 Name: ", "") ?? "Customer";
-      return {
-        id: `${ENG_PREFIX.SEL}${t.ticketNumber}`,
-        title: t.ticketNumber.replace(/^TKT-\d{8}-/i, "").slice(0, 24) || t.ticketNumber.slice(0, 24),
-        description: `${customer.slice(0, 40)} · ${t.status}`,
-      };
-    }),
+    rows,
   );
 }
 
@@ -258,8 +285,10 @@ async function handleInteractive(
   engineer: EngineerCtx,
   text: string,
 ): Promise<boolean> {
-  if (text === ENG_PREFIX.LIST || text === "TICKETS") {
-    await showTicketList(from, engineer);
+  if (text.startsWith(ENG_PREFIX.LIST) || text === "TICKETS") {
+    const parts = text.split(":");
+    const page = parseInt(parts[1] ?? "0", 10) || 0;
+    await showTicketList(from, engineer, page);
     return true;
   }
   if (text === ENG_PREFIX.MENU) {
@@ -434,21 +463,11 @@ async function sendEngineerMenu(from: string, engineer: EngineerCtx): Promise<vo
 function helpText(): string {
   return (
     `🔧 *Engineer WhatsApp Help*\n\n` +
-    `📋 *TICKETS* — List & pick a ticket (buttons)\n` +
-    `📊 *STATUS* — Ticket count summary\n` +
-    `🔍 *TROUBLESHOOT* — Step-by-step guide\n\n` +
-    `*Per ticket (text or buttons):*\n` +
-    `*START <ticket>* — In progress\n` +
-    `*OTP <ticket>* — Request closure OTP\n` +
-    `*RESEND <ticket>* — Resend OTP\n` +
-    `*VERIFY <ticket> <code>* — Close ticket\n\n` +
-    `*Service report:*\n` +
-    `*DIAGNOSE <ticket> <text>*\n` +
-    `*NOTE <ticket> <text>* — Work done\n` +
-    `*PART <ticket> name | part# | qty*\n` +
-    `*WARRANTY <ticket> YES* or *NO*\n` +
-    `📸 Photo with caption *<ticket>* — Attach image\n\n` +
-    `Example: TKT-20260604-ABC123`
+    `Welcome to the Poornasree Engineer Portal!\n` +
+    `You don't need to type any manual commands. Simply use the menu to navigate:\n\n` +
+    `📋 *My Tickets* — View your active tasks, update their status, close them, and submit your service reports.\n\n` +
+    `🔍 *Troubleshoot* — Get guided step-by-step help for machine issues.\n\n` +
+    `📸 *Photo Upload* — To add a photo to a report, just send the photo and the bot will ask you which ticket it belongs to!`
   );
 }
 
@@ -471,7 +490,7 @@ export async function handleEngineerWhatsAppMessage(
     !upperText.startsWith("NOTE ") &&
     !upperText.startsWith("WARRANTY ") &&
     !trimmed.startsWith(ENG_PREFIX.SEL) &&
-    trimmed !== ENG_PREFIX.LIST &&
+    !trimmed.startsWith(ENG_PREFIX.LIST) &&
     trimmed !== "MENU"
   ) {
     if (await handlePendingText(from, engineer, trimmed, pending)) return;
@@ -520,7 +539,7 @@ export async function handleEngineerWhatsAppMessage(
     return;
   }
 
-  if (upperText === "TROUBLESHOOT") {
+  if (upperText === "TROUBLESHOOT" || upperText.startsWith("ENG_TS_ISSUE:")) {
     await onTroubleshoot(from, text, engineer);
     return;
   }
