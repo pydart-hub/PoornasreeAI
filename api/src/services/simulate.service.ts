@@ -66,6 +66,7 @@ type SessionMeta = {
   language?:        "en" | "hi";
   /** Set when name/pincode were loaded from a prior ticket — skip confirm on Book Service */
   skipEndCustomerConfirm?: boolean;
+  customComplaintPath?: boolean;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -961,8 +962,16 @@ async function handleComplaintSubcategory(sessionId: string, phoneNumber: string
   const lang: Lang = (meta.language ?? "en") as Lang;
   let subCategory = text.trim();
   
-  if (subCategory === "COMPLAINT_OTHER") {
-    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+  const isOther =
+    subCategory === "COMPLAINT_OTHER" ||
+    subCategory === "Other (type manually)" ||
+    subCategory === "Describe your issue" ||
+    subCategory === "अन्य (टाइप करें)" ||
+    subCategory === "अपनी समस्या लिखकर बताएं";
+
+  if (isOther) {
+    const updatedMeta = { ...meta, customComplaintPath: true };
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
     return makeReply(t("DESCRIBE_SHORT", lang));
   }
 
@@ -985,10 +994,19 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   let complaintText = text.trim();
   let selectedTemplate: any = null;
 
+  const isOtherOption = 
+    complaintText === "COMPLAINT_OTHER" ||
+    complaintText === "Other (type manually)" ||
+    complaintText === "Describe your issue" ||
+    complaintText === "अन्य (टाइप करें)" ||
+    complaintText === "अपनी समस्या लिखकर बताएं";
+
   // If they selected a complaint from the list
-  if (complaintText.startsWith("COMPLAINT_")) {
-    if (complaintText === "COMPLAINT_OTHER") {
+  if (complaintText.startsWith("COMPLAINT_") || isOtherOption) {
+    if (isOtherOption) {
       // Prompt them to type manually while staying in COMPLAINT_DESCRIBE state
+      const updatedMeta = { ...meta, customComplaintPath: true };
+      await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
       return makeReply(t("DESCRIBE_SHORT", lang));
     }
     const templateId = complaintText.replace("COMPLAINT_", "");
@@ -1011,7 +1029,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   const productName = meta.selectedProduct || meta.machineData?.m_model || "";
 
   // If this was typed manually (not selected from list), log it
-  if (!text.trim().startsWith("COMPLAINT_")) {
+  if (!text.trim().startsWith("COMPLAINT_") && !isOtherOption) {
     await prisma.manualComplaint.create({
       data: {
         phoneNumber,
@@ -1021,7 +1039,8 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     }).catch(e => console.error("[simulate] failed to log manual complaint:", e));
   }
 
-  const template = selectedTemplate || await findDocumentIssue(complaintText, productName);
+  const isCustomPath = !!meta.customComplaintPath || isOtherOption;
+  const template = isCustomPath ? null : (selectedTemplate || await findDocumentIssue(complaintText, productName));
 
   // ── Video recommendations: search by complaint + product name ──────────
   const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;

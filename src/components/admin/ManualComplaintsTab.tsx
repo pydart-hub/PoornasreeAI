@@ -7,7 +7,8 @@ import ExcelEditorModal from "./ExcelEditorModal";
 
 interface ApiManualComplaint {
   id: string;
-  role: string;
+  role?: string;
+  isEngineer?: boolean;
   machineName: string | null;
   complaint: string;
   isReviewed: boolean;
@@ -128,8 +129,8 @@ export default function ManualComplaintsTab() {
 
   const filteredComplaints = complaints.filter(
     (c) => activeTab === "customer" 
-      ? (c.role === "customer" || c.role === "guest")
-      : c.role === "service_engineer"
+      ? !c.isEngineer
+      : !!c.isEngineer
   );
 
   return (
