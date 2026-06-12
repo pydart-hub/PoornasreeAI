@@ -492,16 +492,59 @@ export async function processDocument(
       });
 
       if (intents.length > 0) {
-
-        if (intents.length > 0) {
-          structuredEntries.push(
-            ...intents.map((intent) => ({
-              searchText: intent.patterns.join(" | "),
-              answerText: intent.responses[0],
-              tag:        intent.tag,
-            }))
-          );
+        // Upsert into DocumentIssue DB for WhatsApp bot
+        for (const intent of intents) {
+          if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
+          const response = intent.responses[0] as string;
+          const stepLines = response.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
+          const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
+          if (steps.length === 0) continue;
+          
+          const title = intent.patterns[0] || intent.tag.replace(/_/g, " ");
+          const description = intent.complaint || intent.tag;
+          try {
+            const existing = await prisma.documentIssue.findUnique({
+              where: { problemType: intent.tag },
+            });
+            const audience = documentType === "service" ? "engineer" : "customer";
+            if (existing) {
+              await prisma.documentIssueStep.deleteMany({ where: { issueId: existing.id } });
+              await prisma.documentIssue.update({
+                where: { id: existing.id },
+                data: {
+                  title,
+                  description,
+                  audience,
+                  steps: {
+                    create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                  },
+                },
+              });
+            } else {
+              await prisma.documentIssue.create({
+                data: {
+                  problemType: intent.tag,
+                  title,
+                  description,
+                  audience,
+                  steps: {
+                    create: steps.map((s: string, i: number) => ({ stepNumber: i + 1, stepContent: s })),
+                  },
+                },
+              });
+            }
+          } catch {
+            // non-blocking
+          }
         }
+
+        structuredEntries.push(
+          ...intents.map((intent) => ({
+            searchText: intent.patterns.join(" | "),
+            answerText: intent.responses[0],
+            tag:        intent.tag,
+          }))
+        );
       }
     }
 
