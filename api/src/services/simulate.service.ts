@@ -433,6 +433,9 @@ async function routeState(
     case "TROUBLESHOOT_DONE_OPTIONS":
       return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
 
+    case "ANOTHER_COMPLAINT_PROMPT":
+      return handleAnotherComplaintPrompt(session.id, phoneNumber, meta, text);
+
     case "ASK_BOOK_SERVICE":
       return handleAskBookService(session.id, phoneNumber, meta, text);
 
@@ -1066,8 +1069,15 @@ async function handleTroubleshootStep(sessionId: string, phoneNumber: string, me
   const totalSteps = steps.length;
 
   if (upper === "YES" || upper === "1") {
-    await updateSession(sessionId, "COMPLETED", {});
-    return makeReply(t("ISSUE_RESOLVED", lang), [getMenuButton(lang)]);
+    await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
+    return makeReply(
+      t("ISSUE_RESOLVED", lang) + "\n\n" + (lang === "hi" ? "क्या आपको इस मशीन के लिए कोई और शिकायत दर्ज करनी है?" : "Do you have another complaint for this machine?"),
+      [
+        { id: "YES", title: lang === "hi" ? "हाँ, दूसरी शिकायत 📝" : "Yes, Another Issue 📝" },
+        { id: "NO", title: lang === "hi" ? "नहीं ❌" : "No ❌" },
+        getMenuButton(lang)
+      ]
+    );
   }
 
   if (upper === "BOOK_SERVICE" || upper === "3") {
@@ -1119,8 +1129,15 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   const upper = text.toUpperCase().trim();
 
   if (upper === "YES" || upper === "1") {
-    await updateSession(sessionId, "COMPLETED", {});
-    return makeReply(t("ISSUE_RESOLVED", lang), [getMenuButton(lang)]);
+    await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
+    return makeReply(
+      t("ISSUE_RESOLVED", lang) + "\n\n" + (lang === "hi" ? "क्या आपको इस मशीन के लिए कोई और शिकायत दर्ज करनी है?" : "Do you have another complaint for this machine?"),
+      [
+        { id: "YES", title: lang === "hi" ? "हाँ, दूसरी शिकायत 📝" : "Yes, Another Issue 📝" },
+        { id: "NO", title: lang === "hi" ? "नहीं ❌" : "No ❌" },
+        getMenuButton(lang)
+      ]
+    );
   }
 
   // "Not Resolved" → show Book Service or Main Menu
@@ -1151,6 +1168,43 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
       { id: "NOT_RESOLVED", title: lang === "hi" ? "नहीं, हल नहीं हुआ ❌" : "Not Resolved ❌" },
       getMenuButton(lang),
     ],
+  );
+}
+
+// ── ANOTHER_COMPLAINT_PROMPT ───────────────────────────────────────────────
+async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "YES" || upper === "1") {
+    const productName = meta.selectedProduct || meta.machineData?.m_model;
+    const listRows = await fetchComplaintListRows(lang, productName);
+    const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+    const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
+    
+    // Clear the previous complaint data but keep the product and machine data
+    const updatedMeta: SessionMeta = { ...meta, complaint: undefined, complaintSubcategory: undefined, tsSteps: undefined, tsCurrentStep: undefined };
+    await updateSession(sessionId, nextState, updatedMeta);
+    
+    return makeReply(
+      lang === "hi" ? "कृपया अपनी अगली शिकायत चुनें:" : "Please select your next complaint:",
+      undefined,
+      listRows.length > 1 ? { buttonText: hasSubCategories ? (lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝") : (lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝"), rows: listRows } : undefined
+    );
+  }
+
+  if (upper === "NO" || upper === "2") {
+    await updateSession(sessionId, "COMPLETED", {});
+    return makeReply(lang === "hi" ? "धन्यवाद! आपका दिन शुभ हो।" : "Thank you! Have a great day.", [getMenuButton(lang)]);
+  }
+
+  return makeReply(
+    t("SELECT_VALID", lang),
+    [
+      { id: "YES", title: lang === "hi" ? "हाँ, दूसरी शिकायत 📝" : "Yes, Another Issue 📝" },
+      { id: "NO", title: lang === "hi" ? "नहीं ❌" : "No ❌" },
+      getMenuButton(lang)
+    ]
   );
 }
 
