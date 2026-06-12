@@ -25,6 +25,65 @@ function isDuplicate(messageId: string): boolean {
   return false;
 }
 
+function extractProductFromTag(tag: string): { prefix: string; name: string } {
+  // Hardcoded mappings for known categories to ensure backward compatibility and exact casing
+  const categoryMap: Record<string, string> = {
+    "vibro": "Vibro",
+    "solar_charger": "Solar Charger",
+    "compact_adapter": "Compact Adapter",
+    "charger_adapter": "Charger Adapter",
+    "ecod_dpst": "Ecod DPST",
+    "ecod_battery": "Ecod Battery",
+    "analyzer_mainboard": "Analyzer Mainboard",
+    "others_analyzer": "Others Analyzer",
+    "pump": "Pump",
+  };
+
+  // Check if it starts with any of the known category keys (longest match first)
+  const sortedKeys = Object.keys(categoryMap).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    if (tag.startsWith(key)) {
+      return { prefix: key, name: categoryMap[key] };
+    }
+  }
+
+  // Fallback: dynamic extraction
+  const parts = tag.split("_");
+  if (parts.length === 0) {
+    return { prefix: tag, name: tag.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) };
+  }
+
+  // Stop words that indicate the start of the issue/symptom rather than the product name
+  const stopWords = new Set([
+    "not", "no", "error", "issue", "failure", "fail", "broken", "bad", 
+    "low", "high", "working", "power", "led", "display", "vibration", 
+    "temp", "voltage", "current", "charging", "output", "input", "dead",
+    "fault"
+  ]);
+
+  let prefixLength = 1;
+  if (parts.length > 1 && !stopWords.has(parts[1].toLowerCase())) {
+    prefixLength = 2;
+  }
+
+  const prefixParts = parts.slice(0, prefixLength);
+  const prefix = prefixParts.join("_");
+  
+  // Format prefix to Title Case (e.g., "solar_charger" -> "Solar Charger")
+  const name = prefixParts
+    .map(p => {
+      // Special acronyms/capitalizations
+      const upper = p.toUpperCase();
+      if (["USB", "GSM", "LED", "DPST", "ECOD", "AC", "DC"].includes(upper)) {
+        return upper;
+      }
+      return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+    })
+    .join(" ");
+
+  return { prefix, name };
+}
+
 // ── GET /api/whatsapp/webhook — Meta verification challenge ──────────────
 export function verifyWebhook(req: Request, res: Response): void {
   const mode      = req.query["hub.mode"];
@@ -175,28 +234,11 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
           select: { problemType: true }
         });
 
-        // Map tag prefixes to category names
-        const categoryMap: Record<string, string> = {
-          "vibro": "Vibro",
-          "solar_charger": "Solar Charger",
-          "compact_adapter": "Compact Adapter",
-          "charger_adapter": "Charger Adapter",
-          "ecod_dpst": "Ecod DPST",
-          "ecod_battery": "Ecod Battery",
-          "analyzer_mainboard": "Analyzer Mainboard",
-          "others_analyzer": "Others Analyzer",
-          "pump": "Pump",
-        };
-
         const activeCategories = new Map<string, string>(); // prefix -> name
 
         issues.forEach(iss => {
-          for (const [prefix, name] of Object.entries(categoryMap)) {
-            if (iss.problemType.startsWith(prefix)) {
-              activeCategories.set(prefix, name);
-              break;
-            }
-          }
+          const { prefix, name } = extractProductFromTag(iss.problemType);
+          activeCategories.set(prefix, name);
         });
 
         if (activeCategories.size === 0) {
@@ -221,19 +263,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
       if (t.startsWith("ENG_TS_PROD:")) {
         const prefix = t.replace("ENG_TS_PROD:", "").trim();
-        
-        const categoryMap: Record<string, string> = {
-          "vibro": "Vibro",
-          "solar_charger": "Solar Charger",
-          "compact_adapter": "Compact Adapter",
-          "charger_adapter": "Charger Adapter",
-          "ecod_dpst": "Ecod DPST",
-          "ecod_battery": "Ecod Battery",
-          "analyzer_mainboard": "Analyzer Mainboard",
-          "others_analyzer": "Others Analyzer",
-          "pump": "Pump",
-        };
-        const categoryName = categoryMap[prefix] || prefix;
+        const { name: categoryName } = extractProductFromTag(prefix);
 
         const issues = await prisma.documentIssue.findMany({
           where: { 

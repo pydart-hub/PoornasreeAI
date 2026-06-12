@@ -482,12 +482,19 @@ export async function processDocument(
         if (seenTags.has(tag)) return;
         seenTags.add(tag);
 
+        const patternsList = title
+          .split("\n")
+          .flatMap((line) => line.split("|"))
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
+        const primaryTitle = patternsList[0] || tag.replace(/_/g, " ");
+
         intents.push({
           tag,
-          patterns: [title],
+          patterns: patternsList,
           responses: [stepsStr],
           role: documentType,
-          complaint: title.split("|")[0].trim(),
+          complaint: primaryTitle,
         });
       });
 
@@ -500,8 +507,8 @@ export async function processDocument(
           const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
           if (steps.length === 0) continue;
           
-          const title = intent.patterns[0] || intent.tag.replace(/_/g, " ");
-          const description = intent.complaint || intent.tag;
+          const title = intent.complaint || intent.tag.replace(/_/g, " ");
+          const description = intent.patterns.join(" | ");
           try {
             const existing = await prisma.documentIssue.findUnique({
               where: { problemType: intent.tag },
