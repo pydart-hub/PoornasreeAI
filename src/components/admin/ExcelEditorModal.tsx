@@ -156,25 +156,23 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="absolute inset-4 rounded-xl border border-line dark:border-line-dark overflow-auto bg-white dark:bg-slate-900 shadow-sm">
-              <div className="min-w-full w-max h-full [&_.dsg-container]:!border-0">
-                <DataSheetGrid
-                  key={colWidths.join(',')}
-                  value={gridData}
-                  onChange={setGridData}
-                  columns={columns}
-                  rowHeight={45}
-                  addRowsComponent={({ addRows }) => (
-                    <button
-                      onClick={() => addRows(1)}
-                      className="m-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Row
-                    </button>
-                  )}
-                />
-              </div>
+            <div className="absolute inset-4 rounded-xl border border-line dark:border-line-dark overflow-hidden [&_.dsg-container]:!h-full [&_.dsg-container]:!w-full [&_.dsg-container]:!border-0 bg-white dark:bg-slate-900 shadow-sm">
+              <DataSheetGrid
+                key={colWidths.join(',')}
+                value={gridData}
+                onChange={setGridData}
+                columns={columns}
+                rowHeight={45}
+                addRowsComponent={({ addRows }) => (
+                  <button
+                    onClick={() => addRows(1)}
+                    className="m-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Row
+                  </button>
+                )}
+              />
             </div>
           )}
         </div>
