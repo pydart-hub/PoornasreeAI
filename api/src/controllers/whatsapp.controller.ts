@@ -170,41 +170,43 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
           where: { phoneNumber: f, status: "ACTIVE" },
         });
 
-        const issues = await prisma.documentIssue.findMany({
-          where: { isActive: true, audience: { in: ["engineer", "both"] } },
-          take: 10,
+        const products = await prisma.product.findMany({
+          where: { isActive: true },
+          orderBy: { displayOrder: "asc" }
         });
 
-        if (issues.length === 0) {
-          await WhatsAppService.sendMessage(f, `⚠️ No troubleshooting guides available right now.`);
+        if (products.length === 0) {
+          await WhatsAppService.sendMessage(f, `⚠️ No products available right now.`);
           return;
         }
 
         await WhatsAppService.sendInteractiveList(
           f,
-          `🔍 *Troubleshoot Mode*\n\nPlease select the issue you are facing:`,
-          "Select Issue",
-          issues.map(iss => ({
-            id: `ENG_TS_ISSUE:${iss.problemType}`,
-            title: iss.title.slice(0, 24),
-            description: iss.description?.slice(0, 72)
+          `🔍 *Troubleshoot Mode*\n\nPlease select the product:`,
+          "Select Product",
+          products.slice(0, 10).map(p => ({
+            id: `ENG_TS_PROD:${p.id}`,
+            title: p.name.slice(0, 24),
+            description: p.category.slice(0, 72)
           }))
         );
         return;
       }
 
-      if (t.startsWith("ENG_TS_ISSUE:")) {
-        const problemType = t.replace("ENG_TS_ISSUE:", "").trim();
-        const template = await prisma.documentIssue.findUnique({
-          where: { problemType },
-          include: { steps: { orderBy: { stepNumber: "asc" } } },
-        });
-
-        if (!template || template.steps.length === 0) {
-          await WhatsAppService.sendMessage(f, `⚠️ No steps found for this issue.`);
+      if (t.startsWith("ENG_TS_PROD:")) {
+        const productId = t.replace("ENG_TS_PROD:", "").trim();
+        const product = await prisma.product.findUnique({ where: { id: productId } });
+        if (!product) {
+          await WhatsAppService.sendMessage(f, `⚠️ Product not found.`);
           return;
         }
-
+        
+        const issues = await getEngineerIssuesForProduct(product.name);
+        if (issues.length === 0) {
+          await WhatsAppService.sendMessage(f, `⚠️ No troubleshooting guides found for ${product.name}.`);
+          return;
+        }
+        
         await prisma.troubleshootingSession.deleteMany({
           where: { phoneNumber: f, status: "ACTIVE" },
         });
@@ -213,26 +215,16 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
           data: {
             phoneNumber: f,
             serialNumber: "ENGINEER",
-            problemType: template.problemType,
-            currentStep: 1,
+            problemType: `__PENDING_PROD__${product.id}`,
+            currentStep: 0,
             status: "ACTIVE",
           },
         });
-
-        await WhatsAppService.sendInteractiveButtons(
-          f,
-          `🔍 *${template.title}*\n\n` +
-          `🔧 *Step 1 of ${template.steps.length}:*\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          template.steps[0].stepContent + "\n" +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `Did this resolve the issue?`,
-          [
-            { id: "ENG_YES",  title: "✅ Resolved" },
-            ...(template.steps.length > 1 ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
-            { id: "CANCEL",   title: "❌ Cancel" },
-          ],
-        );
+        
+        const issueLines = issues.map((iss, index) => `${index + 1}. ${iss.title}`);
+        const message = `🔍 *Troubleshoot - ${product.name}*\n\nPlease reply with the *number* of the issue:\n\n${issueLines.join("\n")}`;
+        
+        await WhatsAppService.sendMessage(f, message);
         return;
       }
 
@@ -291,6 +283,29 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
   }
 }
 
+async function getEngineerIssuesForProduct(productName: string) {
+  const allIssues = await prisma.documentIssue.findMany({
+    where: { isActive: true, audience: { in: ["engineer", "both"] } },
+    orderBy: { title: "asc" }
+  });
+  if (!productName) return allIssues;
+  const norm = productName.toLowerCase();
+  
+  if (norm.includes("vibro")) return allIssues.filter(i => i.problemType.toLowerCase().includes("vibro"));
+  if (norm.includes("compact")) return allIssues.filter(i => i.problemType.toLowerCase().includes("compact"));
+  if (norm.includes("charger") || norm.includes("solar")) return allIssues.filter(i => i.problemType.toLowerCase().includes("charger"));
+  if (norm.includes("analyzer") || norm.includes("lactosure") || norm.includes("lactogrand") || norm.includes("eco-")) {
+    return allIssues.filter(i => i.problemType.toLowerCase().includes("analyzer"));
+  }
+  
+  const words = norm.split(/\s+/).filter(w => w.length >= 3);
+  const filtered = allIssues.filter(i => 
+    words.some(w => i.problemType.toLowerCase().includes(w) || i.title.toLowerCase().includes(w))
+  );
+  
+  return filtered.length > 0 ? filtered : allIssues;
+}
+
 // ── Engineer troubleshoot step handler ───────────────────────────────────
 // Routes the engineer through private step-by-step templates.
 async function handleEngineerTroubleshootStep(
@@ -319,33 +334,45 @@ async function handleEngineerTroubleshootStep(
     return;
   }
 
-  // ── Phase 1: Engineer just described the issue — find template ─────────
-  if (session.problemType === "__PENDING__") {
-    // Find a matching engineer-audience template using semantic search
-    const matched = await SimulateService.findDocumentIssue(text, "", ["engineer", "both"]);
+  // ── Phase 1: Engineer just picked a product — wait for number ─────────
+  if (session.problemType.startsWith("__PENDING_PROD__")) {
+    const productId = session.problemType.replace("__PENDING_PROD__", "");
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    
+    if (!product) {
+       await WhatsAppService.sendMessage(from, `⚠️ Product session expired. Type TROUBLESHOOT to restart.`);
+       return;
+    }
+    
+    const issues = await getEngineerIssuesForProduct(product.name);
+    const selectedIndex = parseInt(text.trim(), 10) - 1;
+    
+    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= issues.length) {
+      await WhatsAppService.sendMessage(from, `⚠️ Please reply with a valid number from 1 to ${issues.length}.`);
+      return;
+    }
+    
+    const selectedIssue = issues[selectedIndex];
+    
+    const template = await prisma.documentIssue.findUnique({
+      where: { id: selectedIssue.id },
+      include: { steps: { orderBy: { stepNumber: "asc" } } },
+    });
 
-    if (!matched || matched.steps.length === 0) {
-      await prisma.troubleshootingSession.update({
-        where: { id: session.id },
-        data: { status: "COMPLETED" },
-      });
-      await WhatsAppService.sendInteractiveButtons(
-        from,
-        `😔 No troubleshooting guide found for: "${text}".\n\nContact your service manager or type *TROUBLESHOOT* to try again.`,
-        [{ id: "TROUBLESHOOT", title: "🔍 Try Again" }, { id: "TICKETS", title: "📋 My Tickets" }],
-      );
+    if (!template || template.steps.length === 0) {
+      await WhatsAppService.sendMessage(from, `⚠️ No steps found for this issue.`);
       return;
     }
 
-    const steps = matched.steps;
+    const steps = template.steps;
     await prisma.troubleshootingSession.update({
       where: { id: session.id },
-      data: { problemType: matched.problemType, currentStep: 1 },
+      data: { problemType: template.problemType, currentStep: 1 },
     });
 
     await WhatsAppService.sendInteractiveButtons(
       from,
-      `🔍 *${matched.title}*\n\n` +
+      `🔍 *${template.title}*\n\n` +
       `🔧 *Step 1 of ${steps.length}:*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
       steps[0].stepContent + "\n" +

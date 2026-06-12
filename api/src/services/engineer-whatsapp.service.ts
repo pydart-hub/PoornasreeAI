@@ -539,7 +539,7 @@ export async function handleEngineerWhatsAppMessage(
     return;
   }
 
-  if (upperText === "TROUBLESHOOT" || upperText.startsWith("ENG_TS_ISSUE:")) {
+  if (upperText === "TROUBLESHOOT" || upperText.startsWith("ENG_TS_ISSUE:") || upperText.startsWith("ENG_TS_PROD:")) {
     await onTroubleshoot(from, text, engineer);
     return;
   }
