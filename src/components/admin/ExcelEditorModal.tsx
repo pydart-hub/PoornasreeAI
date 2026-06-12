@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { X, Save, Plus, Loader2, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { DataSheetGrid, textColumn, keyColumn } from "react-datasheet-grid";
+import "react-datasheet-grid/dist/style.css";
 
 interface ExcelEditorModalProps {
   documentId: string;
@@ -11,7 +12,7 @@ interface ExcelEditorModalProps {
 }
 
 export default function ExcelEditorModal({ documentId, initialRowData, onClose }: ExcelEditorModalProps) {
-  const [rows, setRows] = useState<string[][]>([]);
+  const [gridData, setGridData] = useState<any[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [sheetName, setSheetName] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -41,10 +42,15 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
           dataRows = [...dataRows, newRow];
         }
         
-        setRows(dataRows);
+        const formattedGrid = dataRows.map(row => {
+          const obj: any = {};
+          allRows[0].forEach((_, i) => obj[`col_${i}`] = row[i] || "");
+          return obj;
+        });
+        setGridData(formattedGrid);
       } else {
         setHeaders(["Column 1", "Column 2", "Column 3"]);
-        setRows([["", "", ""]]);
+        setGridData([{ col_0: "", col_1: "", col_2: "" }]);
       }
     } catch (err: any) {
       setError(err.message);
@@ -57,35 +63,12 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     fetchExcel();
   }, [fetchExcel]);
 
-  // Removed JS layout thrashing. We now use pure CSS Grid for auto-resizing textareas!
-
-  const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
-    const newRows = [...rows];
-    if (!newRows[rowIndex]) newRows[rowIndex] = Array(headers.length).fill("");
-    newRows[rowIndex][colIndex] = value;
-    setRows(newRows);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, rowIndex: number, colIndex: number) => {
-    // Arrow key navigation for textarea (only if not holding Shift/Ctrl, simple nav)
-    if (e.key === "ArrowDown" && !e.shiftKey) {
-      e.preventDefault();
-      document.getElementById(`cell-${rowIndex + 1}-${colIndex}`)?.focus();
-    } else if (e.key === "ArrowUp" && !e.shiftKey) {
-      e.preventDefault();
-      document.getElementById(`cell-${rowIndex - 1}-${colIndex}`)?.focus();
-    }
-  };
-
-  const handleAddRow = () => {
-    setRows([...rows, Array(headers.length).fill("")]);
-  };
-
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      const dataToSave = [headers, ...rows];
+      const rowsToSave = gridData.map(rowObj => headers.map((_, i) => rowObj[`col_${i}`] || ""));
+      const dataToSave = [headers, ...rowsToSave];
       const res = await fetch(`/api/admin/documents/${documentId}/excel`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -104,7 +87,11 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
     }
   };
 
-  // Removed handleInput as we now use CSS grid auto-resizing
+  const columns = headers.map((header, index) => ({
+    ...keyColumn(`col_${index}`, textColumn),
+    title: header,
+    minWidth: 200,
+  }));
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -152,65 +139,22 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="inline-block min-w-max align-middle pb-20 p-4">
-              <div className="border-2 border-[#d1d5db] dark:border-[#334155] rounded-none overflow-hidden shadow-sm bg-white dark:bg-[#1e293b]">
-                <table className="border-collapse text-sm bg-white dark:bg-[#1e293b]">
-                  <thead>
-                    <tr>
-                      <th className="w-12 bg-blue-600 text-white border border-blue-700 text-center font-bold py-2 select-none sticky top-0 z-20 shadow-sm">
-                        #
-                      </th>
-                      {headers.map((h, i) => (
-                        <th
-                          key={i}
-                          className="min-w-[200px] bg-blue-600 text-white border border-blue-700 text-center px-4 py-2 font-bold select-none sticky top-0 z-20 shadow-sm"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, rowIndex) => (
-                      <tr key={rowIndex} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <td className="bg-slate-100 dark:bg-[#0f172a] border border-[#d1d5db] dark:border-[#334155] text-center text-[#64748b] dark:text-[#94a3b8] font-medium select-none sticky left-0 z-10">
-                          {rowIndex + 1}
-                        </td>
-                        {headers.map((_, colIndex) => (
-                          <td
-                            key={colIndex}
-                            className="p-0 border border-[#d1d5db] dark:border-[#334155] align-top bg-white dark:bg-[#1e293b]"
-                          >
-                            <div className="grid w-full h-full">
-                              {/* Hidden div stretches the cell height automatically via CSS Grid */}
-                              <div className="col-start-1 row-start-1 w-full px-3 py-2 whitespace-pre-wrap invisible pointer-events-none min-h-[40px] break-words text-sm font-inherit">
-                                {(row[colIndex] || "") + " "}
-                              </div>
-                              <textarea
-                                id={`cell-${rowIndex}-${colIndex}`}
-                                value={row[colIndex] || ""}
-                                onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
-                                className="col-start-1 row-start-1 w-full h-full min-h-[40px] px-3 py-2 bg-transparent text-content dark:text-content-dark outline-none focus:ring-2 focus:ring-[#10b981] focus:bg-emerald-50 dark:focus:bg-emerald-900/20 focus:z-10 relative transition-none resize-none overflow-hidden text-sm"
-                                spellCheck="false"
-                                rows={1}
-                              />
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <button
-                onClick={handleAddRow}
-                className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold sticky left-4"
-              >
-                <Plus className="w-5 h-5" />
-                Add Row
-              </button>
+            <div className="h-full w-full p-4 [&_.dsg-container]:!h-full [&_.dsg-container]:!rounded-xl [&_.dsg-container]:!border-2 [&_.dsg-container]:!border-line [&_.dsg-container]:dark:!border-line-dark">
+              <DataSheetGrid
+                value={gridData}
+                onChange={setGridData}
+                columns={columns}
+                rowHeight={45}
+                addRowsComponent={({ addRows }) => (
+                  <button
+                    onClick={() => addRows(1)}
+                    className="mt-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all text-sm font-bold"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Row
+                  </button>
+                )}
+              />
             </div>
           )}
         </div>
