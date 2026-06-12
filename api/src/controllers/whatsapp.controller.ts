@@ -113,6 +113,68 @@ function getPageInfo(total: number, page: number) {
   return { startIndex, pageSize, hasPrev, hasNext };
 }
 
+function splitIssueTitle(title: string): { displayTitle: string; displayDesc?: string } {
+  // 1. Check if there is a mixed case transition (e.g. "READING VARIATION Inconsistent readings")
+  const words = title.split(" ");
+  let firstLowercaseIdx = -1;
+  for (let i = 0; i < words.length; i++) {
+    if (/[a-z]/.test(words[i])) {
+      firstLowercaseIdx = i;
+      break;
+    }
+  }
+  if (firstLowercaseIdx > 0) {
+    const displayTitle = words.slice(0, firstLowercaseIdx).join(" ").trim();
+    const displayDesc = words.slice(firstLowercaseIdx).join(" ").trim();
+    return { displayTitle, displayDesc };
+  }
+
+  // 2. Look for explicit keywords/substrings to split by (longest/most specific matches first)
+  const splitKeywords = [
+    "RESTART TIME TIME CHANGED",
+    "MACHINE WILL OFF FUSE BURN",
+    "UPDATION ERROR SHOWN",
+    "WATER IN SENSOR",
+    "BLANK DISPLAY",
+    "NOT VIEW",
+    "AIR IN MILK",
+    "FUSE BURN",
+    "NOT WORKING",
+    "NOT PRESENT",
+    "NOT DETECTED",
+    "NOT SHOWN",
+    "NOT RUNNING",
+    "NOT SAVED",
+    "NOT SEND",
+    "RESULT ZERO",
+    "VERSION",
+    "COMPUTER MODE",
+    "ERROR SHOWN",
+    "ERROR",
+    "TO THE FARMER",
+    "IN WATER",
+  ];
+
+  for (const kw of splitKeywords) {
+    const idx = title.toUpperCase().indexOf(kw);
+    if (idx > 0) {
+      const displayTitle = title.slice(0, idx).trim();
+      const displayDesc = title.slice(idx).trim();
+      return { displayTitle, displayDesc };
+    }
+  }
+
+  // 3. Fallback: if title is longer than 24 chars, split by word count
+  if (title.length > 24) {
+    const half = Math.ceil(words.length / 2);
+    const displayTitle = words.slice(0, half).join(" ").trim();
+    const displayDesc = words.slice(half).join(" ").trim();
+    return { displayTitle, displayDesc };
+  }
+
+  return { displayTitle: title };
+}
+
 async function sendIssuesList(to: string, prefix: string, page: number, categoryName: string): Promise<void> {
   const issues = await prisma.documentIssue.findMany({
     where: {
@@ -142,10 +204,11 @@ async function sendIssuesList(to: string, prefix: string, page: number, category
   }
 
   pageIssues.forEach((iss) => {
+    const { displayTitle, displayDesc } = splitIssueTitle(iss.title);
     rows.push({
       id: `ENG_TS_ISSUE:${iss.id}`,
-      title: iss.title.slice(0, 24),
-      ...(iss.title.length > 24 ? { description: iss.title.slice(0, 72) } : {}),
+      title: displayTitle.slice(0, 24),
+      ...(displayDesc ? { description: displayDesc.slice(0, 72) } : {}),
     });
   });
 
@@ -322,6 +385,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
         const activeCategories = new Map<string, string>(); // prefix -> name
 
         issues.forEach(iss => {
+          if (iss.problemType.toLowerCase().startsWith("chatbot")) return;
           const { prefix, name } = extractProductFromTag(iss.problemType);
           activeCategories.set(prefix, name);
         });
