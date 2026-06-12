@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { X, Save, Plus, Loader2, AlertCircle } from "lucide-react";
 import { DataSheetGrid, textColumn, keyColumn } from "react-datasheet-grid";
 import "react-datasheet-grid/dist/style.css";
@@ -20,6 +20,19 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
   const [error, setError] = useState<string | null>(null);
 
   const [colWidths, setColWidths] = useState<number[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number>(400);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const fetchExcel = useCallback(async () => {
     setLoading(true);
@@ -156,13 +169,17 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="absolute inset-4 rounded-xl border border-line dark:border-line-dark overflow-hidden [&_.dsg-container]:!h-full [&_.dsg-container]:!w-full [&_.dsg-container]:!border-0 bg-white dark:bg-slate-900 shadow-sm">
+            <div
+              ref={containerRef}
+              className="absolute inset-4 rounded-xl border border-line dark:border-line-dark overflow-hidden [&_.dsg-container]:!border-0 bg-white dark:bg-slate-900 shadow-sm"
+            >
               <DataSheetGrid
                 key={colWidths.join(',')}
                 value={gridData}
                 onChange={setGridData}
                 columns={columns}
                 rowHeight={45}
+                height={containerHeight}
                 addRowsComponent={({ addRows }) => (
                   <button
                     onClick={() => addRows(1)}
