@@ -320,7 +320,26 @@ export async function processDocument(
 
     const structuredEntries: StructuredEntry[] = [];
 
-    const userChatSheet = wb.getWorksheet("USER CHAT");
+    let userChatSheet: ExcelJS.Worksheet | undefined = wb.getWorksheet("USER CHAT");
+    if (!userChatSheet) {
+      userChatSheet = wb.worksheets.find(s => s.name.trim().toUpperCase() === "USER CHAT");
+      if (!userChatSheet) {
+        for (const sheet of wb.worksheets) {
+          const firstRow = sheet.getRow(1);
+          const cell2 = String(firstRow.getCell(2).value ?? "").toLowerCase();
+          const cell3 = String(firstRow.getCell(3).value ?? "").toLowerCase();
+          const cell4 = String(firstRow.getCell(4).value ?? "").toLowerCase();
+          if (
+            (cell2.includes("product") || cell2.includes("part")) &&
+            (cell3.includes("complaint") || cell3.includes("comp")) &&
+            cell4.includes("check")
+          ) {
+            userChatSheet = sheet;
+            break;
+          }
+        }
+      }
+    }
     if (userChatSheet) {
       // ── Detect CHATBOT_DATAS format and convert to intents ──────────
       const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
@@ -464,7 +483,26 @@ export async function processDocument(
         }
     }
 
-    const trainingDataSheet = wb.getWorksheet("Training Data");
+    let trainingDataSheet: ExcelJS.Worksheet | undefined = wb.getWorksheet("Training Data");
+    if (!trainingDataSheet) {
+      trainingDataSheet = wb.worksheets.find(s => s.name.trim().toLowerCase() === "training data");
+      if (!trainingDataSheet) {
+        for (const sheet of wb.worksheets) {
+          const firstRow = sheet.getRow(1);
+          const cell1 = String(firstRow.getCell(1).value ?? "").toLowerCase();
+          const cell2 = String(firstRow.getCell(2).value ?? "").toLowerCase();
+          const cell3 = String(firstRow.getCell(3).value ?? "").toLowerCase();
+          if (
+            (cell1 === "tag" || cell1.includes("problem")) &&
+            cell2.includes("pattern") &&
+            (cell3.includes("response") || cell3.includes("troubleshoot") || cell3.includes("step"))
+          ) {
+            trainingDataSheet = sheet;
+            break;
+          }
+        }
+      }
+    }
     if (trainingDataSheet) {
       const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
       const seenTags = new Set<string>();

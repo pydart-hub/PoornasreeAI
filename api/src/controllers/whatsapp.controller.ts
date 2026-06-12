@@ -230,7 +230,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
         });
 
         const issues = await prisma.documentIssue.findMany({
-          where: { isActive: true, audience: { in: ["engineer", "both"] } },
+          where: { isActive: true, audience: { in: ["engineer", "customer", "both"] } },
           select: { problemType: true }
         });
 
@@ -268,7 +268,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
         const issues = await prisma.documentIssue.findMany({
           where: { 
             isActive: true, 
-            audience: { in: ["engineer", "both"] },
+            audience: { in: ["engineer", "customer", "both"] },
             problemType: { startsWith: prefix }
           },
           orderBy: { title: "asc" }
