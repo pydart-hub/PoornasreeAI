@@ -664,7 +664,7 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 }
 
 // ── Complaint types list helper ───────────────────────────────────────────
-async function fetchComplaintListRows(lang: Lang, productName?: string, subCategory?: string) {
+async function fetchComplaintListRows(lang: Lang, productName?: string, subCategory?: string, productCategory?: ProductCategory) {
   const templates = await prisma.documentIssue.findMany({
     where: {
       isActive: true,
@@ -688,7 +688,11 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
     } else if (
       normProduct.includes("analyzer") ||
       normProduct.includes("lactosure") ||
-      normProduct.includes("lactogrand")
+      normProduct.includes("lactogrand") ||
+      normProduct.includes("eco-v") ||
+      normProduct.includes("eco-") ||
+      productCategory === "lactosure" ||
+      productCategory === "lactogrand"
     ) {
       const analyzerComplaints = templates.filter(t => t.problemType.toLowerCase().includes("analyzer"));
       
@@ -731,31 +735,43 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
   // Format the rows to ensure unique titles and lengths
   const seenTitles = new Set<string>();
   const rows = filteredTemplates.slice(0, 9).map((t) => {
-    let title = t.title.slice(0, 24).trim();
-    let counter = 1;
-    while (seenTitles.has(title.toLowerCase())) {
-      const suffix = ` ${counter}`;
-      title = t.title.slice(0, 24 - suffix.length).trim() + suffix;
-      counter++;
-    }
-    seenTitles.add(title.toLowerCase());
-    
+    let title = t.title.trim();
     let description = t.description?.trim();
-    if (description) {
-      const dLow = description.toLowerCase().replace(/\s+/g, "");
-      const tLow = t.title.toLowerCase().replace(/\s+/g, "");
-      const truncLow = title.toLowerCase().replace(/\s+/g, "");
-      if (dLow === tLow || dLow === truncLow) {
-        description = undefined;
+
+    if (title.length > 24) {
+      const spaceIndex = title.lastIndexOf(' ', 24);
+      if (spaceIndex > 0) {
+        description = title.substring(spaceIndex).trim() + (description ? " - " + description : "");
+        title = title.substring(0, spaceIndex);
       } else {
-        description = t.description!.trim().slice(0, 72);
+        description = title.substring(24).trim() + (description ? " - " + description : "");
+        title = title.substring(0, 24);
+      }
+    } else {
+      if (description) {
+        const dLow = description.toLowerCase().replace(/\s+/g, "");
+        const tLow = t.title.toLowerCase().replace(/\s+/g, "");
+        if (dLow === tLow || dLow === title.toLowerCase().replace(/\s+/g, "")) {
+          description = undefined;
+        } else {
+          description = description.slice(0, 72);
+        }
       }
     }
 
+    let counter = 1;
+    let uniqueTitle = title;
+    while (seenTitles.has(uniqueTitle.toLowerCase())) {
+      const suffix = ` ${counter}`;
+      uniqueTitle = title.slice(0, 24 - suffix.length).trim() + suffix;
+      counter++;
+    }
+    seenTitles.add(uniqueTitle.toLowerCase());
+    
     return {
       id: `COMPLAINT_${t.id}`,
-      title,
-      description,
+      title: uniqueTitle,
+      description: description ? description.slice(0, 72) : undefined,
     };
   });
 
@@ -768,11 +784,12 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
   return rows;
 }
 
+
 // ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
 async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   if (text === "1" || /^yes/i.test(text)) {
-    const listRows = await fetchComplaintListRows(lang, meta.machineData?.m_model);
+    const listRows = await fetchComplaintListRows(lang, meta.machineData?.m_model, undefined, meta.productCategory);
     const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
     const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
     await updateSession(sessionId, nextState, meta);
@@ -925,7 +942,7 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
     return showProductList(sessionId, meta, products);
   }
 
-  const listRows = await fetchComplaintListRows(lang, selectedProduct);
+  const listRows = await fetchComplaintListRows(lang, selectedProduct, undefined, meta.productCategory);
   const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
   const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
   
@@ -953,7 +970,7 @@ async function handleComplaintSubcategory(sessionId: string, phoneNumber: string
   await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
   
   const productName = meta.selectedProduct || meta.machineData?.m_model;
-  const listRows = await fetchComplaintListRows(lang, productName, subCategory);
+  const listRows = await fetchComplaintListRows(lang, productName, subCategory, meta.productCategory);
   
   return makeReply(
     lang === "hi" ? "कृपया अपनी विशिष्ट शिकायत चुनें:" : "Please select your specific complaint:",
@@ -1178,7 +1195,7 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
 
   if (upper === "YES" || upper === "1") {
     const productName = meta.selectedProduct || meta.machineData?.m_model;
-    const listRows = await fetchComplaintListRows(lang, productName);
+    const listRows = await fetchComplaintListRows(lang, productName, undefined, meta.productCategory);
     const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
     const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
     
