@@ -100,6 +100,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true,
         whatsappNumber: true,
         pincode: { select: { code: true, place: true, state: true } },
+        engineerPincodes: { select: { code: true } },
       },
     });
 
@@ -108,7 +109,12 @@ export async function createUser(req: Request, res: Response): Promise<void> {
       setPasswordUrl = buildSetPasswordUrl(rawTokenStr);
       if (user.whatsappNumber) {
         await sendEngineerSetupNotification(
-          { firstName: user.firstName, email: user.email, whatsappNumber: user.whatsappNumber },
+          { 
+            firstName: user.firstName, 
+            email: user.email, 
+            whatsappNumber: user.whatsappNumber,
+            pincodes: user.engineerPincodes?.map((p: any) => p.code) || []
+          },
           rawTokenStr,
           "Admin"
         );

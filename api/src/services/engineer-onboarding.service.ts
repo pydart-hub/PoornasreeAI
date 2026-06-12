@@ -9,6 +9,7 @@ export type EngineerSetupRecipient = {
   firstName: string;
   email: string;
   whatsappNumber: string;
+  pincodes?: string[];
 };
 
 /** Strip chars Meta often rejects in template variables. */
@@ -32,6 +33,9 @@ function buildSessionTextMessage(
     `Your login email: ${engineer.email}`,
     "",
     "You'll receive ticket assignments and updates here on WhatsApp.",
+    ...(engineer.pincodes && engineer.pincodes.length > 0 
+        ? ["", `📍 Assigned Service Areas: ${engineer.pincodes.join(", ")}`] 
+        : []),
     "",
     "Thank you! 🙏",
   ].join("\n");
@@ -61,7 +65,16 @@ export async function sendEngineerSetupNotification(
       urlButtonIndex: 0,
       urlButtonParameter: rawToken,
     });
-    if (viaTemplate) return true;
+    if (viaTemplate) {
+      if (engineer.pincodes && engineer.pincodes.length > 0) {
+        // Try to send an interactive text or regular text with the assigned areas right after template
+        await WhatsAppService.sendMessage(
+          engineer.whatsappNumber,
+          `📍 You have been assigned the following service areas: ${engineer.pincodes.join(", ")}\n\nYou can reply to this chat to manage your tasks. Send "menu" to see options.`,
+        );
+      }
+      return true;
+    }
     console.warn(
       `[engineer-onboarding] Template "${templateName}" failed for ${engineer.whatsappNumber} — trying session text`,
     );

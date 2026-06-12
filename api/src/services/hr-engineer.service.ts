@@ -200,7 +200,7 @@ export async function syncHrEngineers(): Promise<SyncResult> {
         });
         if (whatsappNumber) {
           const sent = await sendEngineerSetupNotification(
-            { firstName, email: hrEmail(hr.id), whatsappNumber },
+            { firstName, email: hrEmail(hr.id), whatsappNumber, pincodes: hr.area_pin ? [hr.area_pin] : [] },
             rawToken,
             managerName,
           );

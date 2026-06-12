@@ -113,7 +113,12 @@ export async function createEngineer(req: Request, res: Response): Promise<void>
     let sentViaWhatsapp = false;
     if (engineer.whatsappNumber) {
       sentViaWhatsapp = await sendEngineerSetupNotification(
-        { firstName: engineer.firstName, email: engineer.email, whatsappNumber: engineer.whatsappNumber },
+        { 
+          firstName: engineer.firstName, 
+          email: engineer.email, 
+          whatsappNumber: engineer.whatsappNumber,
+          pincodes: engineer.engineerPincodes.map(p => p.code)
+        },
         rawToken,
         managerName,
       );
@@ -306,6 +311,7 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
         managerId: true,
         hrEngineerId: true,
         whatsappNumber: true,
+        engineerPincodes: { select: { code: true } },
         manager: { select: { firstName: true, lastName: true } },
       },
     });
@@ -353,6 +359,7 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
           firstName: engineerForSend.firstName,
           email: engineerForSend.email,
           whatsappNumber: engineerForSend.whatsappNumber,
+          pincodes: engineer.engineerPincodes.map(p => p.code)
         },
         rawToken,
         managerName,
