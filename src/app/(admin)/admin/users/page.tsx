@@ -370,7 +370,7 @@ export default function UsersManagementPage() {
     }
   };
 
-  const setEditField = (key: string, value: string) => {
+  const setEditField = (key: string, value: any) => {
     setEditForm((prev) => ({ ...prev, [key]: value }));
     if (editFieldErrors[key]) setEditFieldErrors((prev) => ({ ...prev, [key]: undefined }));
   };

@@ -59,7 +59,7 @@ import RdVideosTab from "@/components/admin/RdVideosTab";
 import TicketsTab from "@/components/admin/TicketsTab";
 import ProductsTab from "@/components/admin/ProductsTab";
 import WhatsAppSettingsTab from "@/components/admin/WhatsAppSettingsTab";
-import TemplatesTab from "@/components/admin/TemplatesTab";
+
 import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
 
