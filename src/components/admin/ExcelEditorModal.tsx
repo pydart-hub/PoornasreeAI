@@ -19,6 +19,8 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [colWidths, setColWidths] = useState<number[]>([]);
+
   const fetchExcel = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -32,6 +34,20 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
       
       if (allRows.length > 0) {
         setHeaders(allRows[0]);
+        
+        // Dynamically calculate the minimum width needed for each column based on content length
+        const widths = allRows[0].map((header, i) => {
+          let maxLen = header.length;
+          allRows.forEach(row => {
+            if (row[i] && row[i].length > maxLen) {
+              maxLen = row[i].length;
+            }
+          });
+          // 8px per char + 40px padding. Clamp between 200px and 1200px
+          return Math.min(Math.max(maxLen * 8 + 40, 200), 1200);
+        });
+        setColWidths(widths);
+
         let dataRows = allRows.slice(1);
         
         if (initialRowData) {
@@ -50,6 +66,7 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
         setGridData(formattedGrid);
       } else {
         setHeaders(["Column 1", "Column 2", "Column 3"]);
+        setColWidths([200, 200, 200]);
         setGridData([{ col_0: "", col_1: "", col_2: "" }]);
       }
     } catch (err: any) {
@@ -90,7 +107,7 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
   const columns = headers.map((header, index) => ({
     ...keyColumn(`col_${index}`, textColumn),
     title: header,
-    minWidth: 400,
+    minWidth: colWidths[index] || 200,
   }));
 
   return (
@@ -140,8 +157,9 @@ export default function ExcelEditorModal({ documentId, initialRowData, onClose }
             </div>
           ) : (
             <div className="absolute inset-4 rounded-xl border border-line dark:border-line-dark overflow-auto bg-white dark:bg-slate-900 shadow-sm">
-              <div className="min-w-[1200px] h-full [&_.dsg-container]:!border-0">
+              <div className="min-w-full w-max h-full [&_.dsg-container]:!border-0">
                 <DataSheetGrid
+                  key={colWidths.join(',')}
                   value={gridData}
                   onChange={setGridData}
                   columns={columns}
