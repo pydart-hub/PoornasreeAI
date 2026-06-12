@@ -60,10 +60,9 @@ export async function sendEngineerSetupNotification(
       bodyParameters: [
         templateParam(engineer.firstName, 60),
         templateParam(managerName, 80),
+        templateParam(setPasswordUrl, 250),
         templateParam(engineer.email, 120),
       ],
-      urlButtonIndex: 0,
-      urlButtonParameter: rawToken,
     });
     if (viaTemplate) {
       if (engineer.pincodes && engineer.pincodes.length > 0) {
