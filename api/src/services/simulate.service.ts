@@ -75,8 +75,8 @@ type Lang = "en" | "hi";
 // ── Bilingual translations (English / हिंदी) ──────────────────────────────
 const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   GREETING_HEADER: {
-    en: "🙏 *Welcome to Poornasree Equipments!*\nYour Trusted Service Partner 🔧\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n",
-    hi: "🙏 *पूर्णश्री इक्विपमेंट्स में आपका स्वागत है!*\nआपका विश्वसनीय सेवा साझेदार 🔧\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n",
+    en: "🙏 *Welcome to Poornasree Equipments!*\nYour Trusted Service Partner 🔧\n--------------------\n\n",
+    hi: "🙏 *पूर्णश्री इक्विपमेंट्स में आपका स्वागत है!*\nआपका विश्वसनीय सेवा साझेदार 🔧\n--------------------\n\n",
   },
   MAIN_MENU_MSG: {
     en: "Welcome to *Poornasree HelpDesk* 🤖📲\n\nPlease select an option below 👇",
@@ -152,8 +152,8 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n😔 इस समस्या के लिए कोई समाधान चरण नहीं मिले।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा।",
   },
   STEPS_FOUND: {
-    en: "🔧 *Troubleshooting Steps:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{steps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nWere you able to resolve the issue?",
-    hi: "🔧 *समस्या निवारण चरण:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{steps}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nक्या आप समस्या हल करने में सफल रहे?",
+    en: "🔧 *Troubleshooting Steps:*\n--------------------\n{steps}\n--------------------\n\nWere you able to resolve the issue?",
+    hi: "🔧 *समस्या निवारण चरण:*\n--------------------\n{steps}\n--------------------\n\nक्या आप समस्या हल करने में सफल रहे?",
   },
   ISSUE_RESOLVED: {
     en: "🎉 *Issue Resolved!*\n\nWe're glad the troubleshooting helped! 😊\n\nThank you for choosing Poornasree Support. 🙏",
@@ -168,8 +168,8 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     hi: "😔 माफ़ कीजिए समस्या निवारण से मदद नहीं मिली।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा। 🔧",
   },
   STEP_DISPLAY: {
-    en: "🔍 *Step {current} of {total}:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{step}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nWere you able to resolve the issue?",
-    hi: "🔍 *चरण {current}/{total}:*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{step}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nक्या आप समस्या हल करने में सफल रहे?",
+    en: "🔍 *Step {current} of {total}:*\n--------------------\n{step}\n--------------------\n\nWere you able to resolve the issue?",
+    hi: "🔍 *चरण {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nक्या आप समस्या हल करने में सफल रहे?",
   },
   ENTER_NAME: {
     en: "Please enter your full name.",

@@ -95,16 +95,29 @@ export function DrawerWorkReport({ ticketId, onImageClick }: DrawerWorkReportPro
           <div className="grid grid-cols-3 gap-2">
             {images.map((img: WorkReportImage) => {
               const src = workReportImageSrc(img.url);
+              const isReached = img.fileName?.startsWith("reached_location");
+              const isFinished = img.fileName?.startsWith("finished_work");
               return (
-                <button
-                  key={img.id}
-                  type="button"
-                  onClick={() => onImageClick?.(src)}
-                  className="block aspect-square rounded-lg overflow-hidden border border-line dark:border-line-dark hover:border-primary/50 transition-colors"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={img.fileName || "Report photo"} className="w-full h-full object-cover" />
-                </button>
+                <div key={img.id} className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onImageClick?.(src)}
+                    className="block w-full aspect-square rounded-lg overflow-hidden border border-line dark:border-line-dark hover:border-primary/50 transition-colors"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={img.fileName || "Report photo"} className="w-full h-full object-cover" />
+                  </button>
+                  {isReached && (
+                    <span className="w-full text-center px-1 py-0.5 text-[9px] font-medium rounded bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800/40 truncate">
+                      Reached
+                    </span>
+                  )}
+                  {isFinished && (
+                    <span className="w-full text-center px-1 py-0.5 text-[9px] font-medium rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40 truncate">
+                      Finished
+                    </span>
+                  )}
+                </div>
               );
             })}
           </div>

@@ -12,6 +12,7 @@ import {
   formatTicketDetailMessage,
   sendReportMenuList,
   sendTicketActionButtons,
+  sendEngineerMessage,
   ticketFromEngId,
   type EngineerTicketRow,
 } from "./engineer-ticket-whatsapp.shared";
@@ -49,6 +50,16 @@ function getPending(phone: string): PendingInput | null {
 
 function clearPending(phone: string): void {
   pendingByPhone.delete(phone);
+}
+
+async function checkReachedPhoto(ticketNumber: string, engineerId: string): Promise<boolean> {
+  const t = await findEngineerTicket(ticketNumber, engineerId);
+  if (!t) return false;
+  const report = await prisma.workReport.findUnique({
+    where: { ticketId: t.id },
+    include: { images: true }
+  });
+  return report?.images.some(img => img.fileName.startsWith("reached_location")) ?? false;
 }
 
 async function upsertReportField(
@@ -127,11 +138,11 @@ async function showTicketList(from: string, engineer: EngineerCtx, page: number 
   });
 
   if (tickets.length === 0 && page === 0) {
-    await WhatsAppService.sendMessage(from, "✅ You have no active tickets right now. Great job!");
+    await sendEngineerMessage(from, "✅ You have no active tickets right now. Great job!");
     return;
   }
   if (tickets.length === 0 && page > 0) {
-    await WhatsAppService.sendMessage(from, "No more tickets found on this page.");
+    await sendEngineerMessage(from, "No more tickets found on this page.");
     return;
   }
 
@@ -145,7 +156,7 @@ async function showTicketList(from: string, engineer: EngineerCtx, page: number 
     })
     .join("\n\n");
 
-  await WhatsAppService.sendMessage(
+  await sendEngineerMessage(
     from,
     `📋 *Your Active Tickets (Page ${page + 1}):*\n\n${summary}`,
   );
@@ -175,39 +186,42 @@ async function showTicketList(from: string, engineer: EngineerCtx, page: number 
     });
   }
 
-  await WhatsAppService.sendInteractiveList(
+  await sendEngineerMessage(
     from,
     `Tap a ticket to open actions (Page ${page + 1}):`,
-    "Select ticket",
-    rows,
+    undefined,
+    {
+      buttonText: "Select ticket",
+      rows,
+    }
   );
 }
 
 async function showTicketDetail(from: string, engineer: EngineerCtx, ticketNumber: string): Promise<void> {
   const ticket = await findEngineerTicket(ticketNumber, engineer.id);
   if (!ticket) {
-    await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
+    await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
     return;
   }
-  await WhatsAppService.sendMessage(from, formatTicketDetailMessage(ticket as EngineerTicketRow));
+  await sendEngineerMessage(from, formatTicketDetailMessage(ticket as EngineerTicketRow));
   await sendTicketActionButtons(from, ticket as EngineerTicketRow, engineer.id);
 }
 
 async function handleStart(from: string, engineer: EngineerCtx, ticketNumber: string): Promise<void> {
   const ticket = await findEngineerTicket(ticketNumber, engineer.id);
   if (!ticket) {
-    await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+    await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
     return;
   }
   try {
     await TicketService.startWork(ticket.id, engineer.id);
     const updated = await findEngineerTicket(ticketNumber, engineer.id);
     if (updated) {
-      await WhatsAppService.sendMessage(from, `✅ Ticket *${ticketNumber}* is now *IN PROGRESS*.`);
+      await sendEngineerMessage(from, `✅ Ticket *${ticketNumber}* is now *IN PROGRESS*.\n\n📸 *Arrival photo needed:* Please take a photo of the product on arrival and send it to this chat.`);
       await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id);
     }
   } catch (e: unknown) {
-    await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not start work."}`);
+    await sendEngineerMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not start work."}`);
   }
 }
 
@@ -219,7 +233,7 @@ async function handleOtp(
 ): Promise<void> {
   const ticket = await findEngineerTicket(ticketNumber, engineer.id);
   if (!ticket) {
-    await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+    await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
     return;
   }
   try {
@@ -229,14 +243,14 @@ async function handleOtp(
       minute: "2-digit",
       hour12: true,
     });
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `✅ OTP ${resend ? "resent" : "sent"} to the customer via WhatsApp.\nExpires at ${exp}.\n\nTap *Enter OTP* or type *VERIFY ${ticketNumber} <code>*`,
     );
     const updated = await findEngineerTicket(ticketNumber, engineer.id);
     if (updated) await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id);
   } catch (e: unknown) {
-    await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not send OTP."}`);
+    await sendEngineerMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not send OTP."}`);
   }
 }
 
@@ -248,7 +262,7 @@ async function handleVerify(
 ): Promise<void> {
   const ticket = await findEngineerTicket(ticketNumber, engineer.id);
   if (!ticket) {
-    await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+    await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
     return;
   }
   try {
@@ -271,12 +285,12 @@ async function handleVerify(
         });
       } catch { /* non-fatal */ }
     }
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `🎉 Ticket *${ticketNumber}* has been *CLOSED* successfully!\n\nA feedback request was sent to the customer.`,
     );
   } catch (e: unknown) {
-    await WhatsAppService.sendMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not verify OTP."}`);
+    await sendEngineerMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not verify OTP."}`);
   }
 }
 
@@ -285,6 +299,8 @@ async function handleInteractive(
   engineer: EngineerCtx,
   text: string,
 ): Promise<boolean> {
+  const upperText = text.toUpperCase().trim();
+
   if (text.startsWith(ENG_PREFIX.LIST) || text === "TICKETS") {
     const parts = text.split(":");
     const page = parseInt(parts[1] ?? "0", 10) || 0;
@@ -308,8 +324,54 @@ async function handleInteractive(
     return true;
   }
 
+  // ENG_TEST_CLOSE interactive button reply
+  if (text.startsWith("ENG_TEST_CLOSE:")) {
+    const tn = text.replace("ENG_TEST_CLOSE:", "").trim().toUpperCase();
+    const t = await findEngineerTicket(tn, engineer.id);
+    if (!t) {
+      await sendEngineerMessage(from, `❌ Ticket *${tn}* not found.`);
+      return true;
+    }
+    await upsertReportField(t.id, engineer.id, {
+      problemDiagnosed: "Test/Trial Complaint - Closed without service",
+      workDone: "No service required (Customer test)",
+      warrantyClaimRequested: false,
+    });
+    await handleOtp(from, engineer, tn, false);
+    return true;
+  }
+
   const otpTn = ticketFromEngId(ENG_PREFIX.OTP, text);
   if (otpTn) {
+    const t = await findEngineerTicket(otpTn, engineer.id);
+    if (!t) {
+      await sendEngineerMessage(from, `❌ Ticket *${otpTn}* not found.`);
+      return true;
+    }
+    const report = await prisma.workReport.findUnique({
+      where: { ticketId: t.id },
+      include: { images: true }
+    });
+    const hasReached = report?.images.some(img => img.fileName.startsWith("reached_location")) ?? false;
+    const isReportComplete = !!(report?.problemDiagnosed?.trim() && report?.workDone?.trim());
+    const hasFinished = report?.images.some(img => img.fileName.startsWith("finished_work")) ?? false;
+
+    if (!hasReached) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) before requesting OTP.`);
+      await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
+    if (!isReportComplete) {
+      await sendEngineerMessage(from, `⚠️ Please complete the Service Report (Problem Diagnosed & Work Done) before requesting OTP.`);
+      await sendReportMenuList(from, otpTn);
+      return true;
+    }
+    if (!hasFinished) {
+      await sendEngineerMessage(from, `⚠️ You must upload a photo of the finished work before requesting OTP.`);
+      await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
+
     await handleOtp(from, engineer, otpTn, false);
     return true;
   }
@@ -323,7 +385,7 @@ async function handleInteractive(
   const verifyTn = ticketFromEngId(ENG_PREFIX.VERIFY_PROMPT, text);
   if (verifyTn) {
     setPending(from, "verify_otp", verifyTn);
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `Enter the 4-digit OTP from the customer for *${verifyTn}*.\n\nReply with the code only, or *VERIFY ${verifyTn} <code>*`,
     );
@@ -332,14 +394,26 @@ async function handleInteractive(
 
   const rptTn = ticketFromEngId(ENG_PREFIX.RPT, text);
   if (rptTn) {
+    if (!await checkReachedPhoto(rptTn, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(rptTn, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
     await sendReportMenuList(from, rptTn);
     return true;
   }
 
   const diagTn = ticketFromEngId(ENG_PREFIX.DIAG, text);
   if (diagTn) {
+    if (!await checkReachedPhoto(diagTn, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(diagTn, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
     setPending(from, "diagnose", diagTn);
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `Describe the *problem diagnosed* for *${diagTn}* (one message), or type:\n*DIAGNOSE ${diagTn} <text>*`,
     );
@@ -348,8 +422,14 @@ async function handleInteractive(
 
   const wdoneTn = ticketFromEngId(ENG_PREFIX.WDONE, text);
   if (wdoneTn) {
+    if (!await checkReachedPhoto(wdoneTn, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(wdoneTn, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
     setPending(from, "work_done", wdoneTn);
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `Describe *work done* for *${wdoneTn}*, or type:\n*NOTE ${wdoneTn} <text>*`,
     );
@@ -358,8 +438,14 @@ async function handleInteractive(
 
   const partTn = ticketFromEngId(ENG_PREFIX.PART, text);
   if (partTn) {
+    if (!await checkReachedPhoto(partTn, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(partTn, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
     setPending(from, "part", partTn);
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `Send replaced part for *${partTn}*:\n*PART ${partTn} name | part-number | qty*\nExample: PART ${partTn} Motor | MTR-01 | 1`,
     );
@@ -368,25 +454,39 @@ async function handleInteractive(
 
   const warrYes = ticketFromEngId(ENG_PREFIX.WARR_YES, text);
   if (warrYes) {
+    if (!await checkReachedPhoto(warrYes, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(warrYes, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
     const t = await findEngineerTicket(warrYes, engineer.id);
     if (!t) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${warrYes}* not found.`);
+      await sendEngineerMessage(from, `❌ Ticket *${warrYes}* not found.`);
       return true;
     }
     await upsertReportField(t.id, engineer.id, { warrantyClaimRequested: true });
-    await WhatsAppService.sendMessage(from, `✅ Warranty claim marked *Yes* for *${warrYes}*.`);
+    await sendEngineerMessage(from, `✅ Warranty claim marked *Yes* for *${warrYes}*.`);
+    await sendReportMenuList(from, warrYes);
     return true;
   }
 
   const warrNo = ticketFromEngId(ENG_PREFIX.WARR_NO, text);
   if (warrNo) {
+    if (!await checkReachedPhoto(warrNo, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(warrNo, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return true;
+    }
     const t = await findEngineerTicket(warrNo, engineer.id);
     if (!t) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${warrNo}* not found.`);
+      await sendEngineerMessage(from, `❌ Ticket *${warrNo}* not found.`);
       return true;
     }
     await upsertReportField(t.id, engineer.id, { warrantyClaimRequested: false });
-    await WhatsAppService.sendMessage(from, `✅ Warranty claim marked *No* for *${warrNo}*.`);
+    await sendEngineerMessage(from, `✅ Warranty claim marked *No* for *${warrNo}*.`);
+    await sendReportMenuList(from, warrNo);
     return true;
   }
 
@@ -408,14 +508,14 @@ async function handlePendingText(
   const ticket = await findEngineerTicket(tn, engineer.id);
   if (!ticket) {
     clearPending(from);
-    await WhatsAppService.sendMessage(from, `❌ Ticket *${tn}* not found.`);
+    await sendEngineerMessage(from, `❌ Ticket *${tn}* not found.`);
     return true;
   }
 
   if (pending.kind === "verify_otp") {
     const code = text.replace(/\D/g, "").slice(0, 4);
     if (code.length !== 4) {
-      await WhatsAppService.sendMessage(from, `⚠️ Send a 4-digit code, or *VERIFY ${tn} <code>*`);
+      await sendEngineerMessage(from, `⚠️ Send a 4-digit code, or *VERIFY ${tn} <code>*`);
       return true;
     }
     await handleVerify(from, engineer, tn, code);
@@ -425,20 +525,22 @@ async function handlePendingText(
   if (pending.kind === "diagnose") {
     await upsertReportField(ticket.id, engineer.id, { problemDiagnosed: text });
     clearPending(from);
-    await WhatsAppService.sendMessage(from, `✅ Diagnosis saved for *${tn}*.`);
+    await sendEngineerMessage(from, `✅ Diagnosis saved for *${tn}*.`);
+    await sendReportMenuList(from, tn);
     return true;
   }
 
   if (pending.kind === "work_done" || pending.kind === "note") {
     await upsertReportField(ticket.id, engineer.id, { workDone: text });
     clearPending(from);
-    await WhatsAppService.sendMessage(from, `✅ Work notes saved for *${tn}*.`);
+    await sendEngineerMessage(from, `✅ Work notes saved for *${tn}*.`);
+    await sendReportMenuList(from, tn);
     return true;
   }
 
   if (pending.kind === "part") {
     clearPending(from);
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `Use: *PART ${tn} name | part-number | quantity*`,
     );
@@ -449,7 +551,7 @@ async function handlePendingText(
 }
 
 async function sendEngineerMenu(from: string, engineer: EngineerCtx): Promise<void> {
-  await WhatsAppService.sendInteractiveButtons(
+  await sendEngineerMessage(
     from,
     `👋 Hi ${engineer.firstName}! Poornasree Engineer Portal.\n\nWhat would you like to do?`,
     [
@@ -525,7 +627,7 @@ export async function handleEngineerWhatsAppMessage(
       _count: { _all: true },
     });
     const get = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       [
         `📊 *Ticket Summary for ${engineer.firstName}:*`,
@@ -561,20 +663,59 @@ export async function handleEngineerWhatsAppMessage(
     await handleStart(from, engineer, text.slice(6).trim().toUpperCase());
     return;
   }
-  if (upperText.startsWith("OTP ")) {
-    await handleOtp(from, engineer, text.slice(4).trim().toUpperCase(), false);
+
+  // TESTCLOSE manual command
+  if (upperText.startsWith("TESTCLOSE ")) {
+    const tn = text.slice(10).trim().toUpperCase();
+    const t = await findEngineerTicket(tn, engineer.id);
+    if (!t) {
+      await sendEngineerMessage(from, `❌ Ticket *${tn}* not found.`);
+      return;
+    }
+    await upsertReportField(t.id, engineer.id, {
+      problemDiagnosed: "Test/Trial Complaint - Closed without service",
+      workDone: "No service required (Customer test)",
+      warrantyClaimRequested: false,
+    });
+    await handleOtp(from, engineer, tn, false);
     return;
   }
+
+  if (upperText.startsWith("OTP ")) {
+    const tn = text.slice(4).trim().toUpperCase();
+    const t = await findEngineerTicket(tn, engineer.id);
+    if (!t) {
+      await sendEngineerMessage(from, `❌ Ticket *${tn}* not found.`);
+      return;
+    }
+    const report = await prisma.workReport.findUnique({
+      where: { ticketId: t.id },
+      include: { images: true }
+    });
+    const hasReached = report?.images.some(img => img.fileName.startsWith("reached_location")) ?? false;
+    const isReportComplete = !!(report?.problemDiagnosed?.trim() && report?.workDone?.trim());
+    const hasFinished = report?.images.some(img => img.fileName.startsWith("finished_work")) ?? false;
+
+    if (!hasReached || !isReportComplete || !hasFinished) {
+      await sendEngineerMessage(from, `⚠️ Cannot request OTP. Ensure arrival photo is uploaded, report is complete (diagnose & work done), and finished photo is uploaded.\n\nUse Test Close for trial complaints.`);
+      await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return;
+    }
+    await handleOtp(from, engineer, tn, false);
+    return;
+  }
+
   if (upperText.startsWith("RESEND ")) {
     await handleOtp(from, engineer, text.slice(7).trim().toUpperCase(), true);
     return;
   }
+
   if (upperText.startsWith("VERIFY ")) {
     const parts = text.slice(7).trim().split(/\s+/);
     const ticketNumber = parts[0]?.toUpperCase();
     const code = parts[1];
     if (!ticketNumber || !code) {
-      await WhatsAppService.sendMessage(
+      await sendEngineerMessage(
         from,
         `⚠️ Usage: *VERIFY <ticket> <code>*\nExample: VERIFY TKT-20260515-001 4823`,
       );
@@ -589,18 +730,27 @@ export async function handleEngineerWhatsAppMessage(
     const rest = text.slice(9).trim();
     const spaceIdx = rest.indexOf(" ");
     if (spaceIdx === -1) {
-      await WhatsAppService.sendMessage(from, `⚠️ Usage: *DIAGNOSE <ticket> <text>*`);
+      await sendEngineerMessage(from, `⚠️ Usage: *DIAGNOSE <ticket> <text>*`);
       return;
     }
     const ticketNumber = rest.slice(0, spaceIdx).toUpperCase();
     const body = rest.slice(spaceIdx + 1).trim();
+
+    if (!await checkReachedPhoto(ticketNumber, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(ticketNumber, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return;
+    }
+
     const ticket = await findEngineerTicket(ticketNumber, engineer.id);
     if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+      await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
       return;
     }
     await upsertReportField(ticket.id, engineer.id, { problemDiagnosed: body });
-    await WhatsAppService.sendMessage(from, `✅ Diagnosis saved for *${ticketNumber}*.`);
+    await sendEngineerMessage(from, `✅ Diagnosis saved for *${ticketNumber}*.`);
+    await sendReportMenuList(from, ticketNumber);
     return;
   }
 
@@ -608,18 +758,27 @@ export async function handleEngineerWhatsAppMessage(
     const rest = text.slice(5).trim();
     const spaceIdx = rest.indexOf(" ");
     if (spaceIdx === -1) {
-      await WhatsAppService.sendMessage(from, `⚠️ Usage: *NOTE <ticket> <text>*`);
+      await sendEngineerMessage(from, `⚠️ Usage: *NOTE <ticket> <text>*`);
       return;
     }
     const ticketNumber = rest.slice(0, spaceIdx).toUpperCase();
     const body = rest.slice(spaceIdx + 1).trim();
+
+    if (!await checkReachedPhoto(ticketNumber, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(ticketNumber, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return;
+    }
+
     const ticket = await findEngineerTicket(ticketNumber, engineer.id);
     if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+      await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
       return;
     }
     await upsertReportField(ticket.id, engineer.id, { workDone: body });
-    await WhatsAppService.sendMessage(from, `✅ Work notes saved for *${ticketNumber}*.`);
+    await sendEngineerMessage(from, `✅ Work notes saved for *${ticketNumber}*.`);
+    await sendReportMenuList(from, ticketNumber);
     return;
   }
 
@@ -627,7 +786,7 @@ export async function handleEngineerWhatsAppMessage(
     const rest = text.slice(5).trim();
     const spaceIdx = rest.indexOf(" ");
     if (spaceIdx === -1) {
-      await WhatsAppService.sendMessage(
+      await sendEngineerMessage(
         from,
         `⚠️ Usage: *PART <ticket> name | part-number | qty*`,
       );
@@ -640,18 +799,27 @@ export async function handleEngineerWhatsAppMessage(
     const partNumber = segments[1] || undefined;
     const quantity = Math.max(1, parseInt(segments[2] ?? "1", 10) || 1);
     if (!partName) {
-      await WhatsAppService.sendMessage(from, `⚠️ Part name is required.`);
+      await sendEngineerMessage(from, `⚠️ Part name is required.`);
       return;
     }
+
+    if (!await checkReachedPhoto(ticketNumber, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(ticketNumber, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return;
+    }
+
     const ticket = await findEngineerTicket(ticketNumber, engineer.id);
     if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+      await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
       return;
     }
     await upsertReportField(ticket.id, engineer.id, {
       appendPart: { partName, partNumber, quantity },
     });
-    await WhatsAppService.sendMessage(from, `✅ Part added to *${ticketNumber}* report.`);
+    await sendEngineerMessage(from, `✅ Part added to *${ticketNumber}* report.`);
+    await sendReportMenuList(from, ticketNumber);
     return;
   }
 
@@ -660,34 +828,43 @@ export async function handleEngineerWhatsAppMessage(
     const ticketNumber = rest[0]?.toUpperCase();
     const flag = rest[1]?.toUpperCase();
     if (!ticketNumber || !flag) {
-      await WhatsAppService.sendMessage(from, `⚠️ Usage: *WARRANTY <ticket> YES* or *NO*`);
+      await sendEngineerMessage(from, `⚠️ Usage: *WARRANTY <ticket> YES* or *NO*`);
       return;
     }
+
+    if (!await checkReachedPhoto(ticketNumber, engineer.id)) {
+      await sendEngineerMessage(from, `⚠️ You must upload a product photo on arrival (reached location) first.`);
+      const t = await findEngineerTicket(ticketNumber, engineer.id);
+      if (t) await sendTicketActionButtons(from, t as EngineerTicketRow, engineer.id);
+      return;
+    }
+
     const ticket = await findEngineerTicket(ticketNumber, engineer.id);
     if (!ticket) {
-      await WhatsAppService.sendMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
+      await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
       return;
     }
     const yes = flag === "YES" || flag === "Y" || flag === "TRUE" || flag === "1";
     const no = flag === "NO" || flag === "N" || flag === "FALSE" || flag === "0";
     if (!yes && !no) {
-      await WhatsAppService.sendMessage(from, `⚠️ Use YES or NO after ticket number.`);
+      await sendEngineerMessage(from, `⚠️ Use YES or NO after ticket number.`);
       return;
     }
     await upsertReportField(ticket.id, engineer.id, { warrantyClaimRequested: yes });
-    await WhatsAppService.sendMessage(
+    await sendEngineerMessage(
       from,
       `✅ Warranty *${yes ? "Yes" : "No"}* for *${ticketNumber}*.`,
     );
+    await sendReportMenuList(from, ticketNumber);
     return;
   }
 
   if (upperText === "HELP") {
-    await WhatsAppService.sendMessage(from, helpText());
+    await sendEngineerMessage(from, helpText());
     return;
   }
 
-  await WhatsAppService.sendInteractiveButtons(
+  await sendEngineerMessage(
     from,
     `Hi ${engineer.firstName}, I didn't understand that.\n\nType *HELP* or choose:`,
     [

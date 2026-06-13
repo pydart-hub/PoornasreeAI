@@ -3462,24 +3462,39 @@ export default function ServiceManagerPage() {
                 </p>
                 {selectedReport.images && selectedReport.images.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
-                    {selectedReport.images.map((img: WorkReportImage) => (
-                      <button
-                        key={img.id}
-                        onClick={() => setLightboxImg(workReportImageSrc(img.url))}
-                        className="relative group rounded-xl overflow-hidden border border-line dark:border-line-dark hover:ring-2 hover:ring-primary/40 transition-all"
-                        title={img.fileName}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={workReportImageSrc(img.url)}
-                          alt={img.fileName}
-                          className="w-24 h-24 object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                          <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold">View</span>
+                    {selectedReport.images.map((img: WorkReportImage) => {
+                      const isReached = img.fileName?.startsWith("reached_location");
+                      const isFinished = img.fileName?.startsWith("finished_work");
+                      return (
+                        <div key={img.id} className="flex flex-col items-center gap-1.5">
+                          <button
+                            onClick={() => setLightboxImg(workReportImageSrc(img.url))}
+                            className="relative group rounded-xl overflow-hidden border border-line dark:border-line-dark hover:ring-2 hover:ring-primary/40 transition-all"
+                            title={img.fileName}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={workReportImageSrc(img.url)}
+                              alt={img.fileName}
+                              className="w-24 h-24 object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold">View</span>
+                            </div>
+                          </button>
+                          {isReached && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800/40">
+                              Reached Location
+                            </span>
+                          )}
+                          {isFinished && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-medium rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40">
+                              Finished Work
+                            </span>
+                          )}
                         </div>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm italic text-content-tertiary dark:text-content-dark-tertiary">No images uploaded</p>

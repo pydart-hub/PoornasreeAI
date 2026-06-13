@@ -26,6 +26,28 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
       });
     }
 
+    // Check if the phone number belongs to a service engineer
+    const cleanFrom = phone.replace(/\D/g, "");
+    const allEngineers = await prisma.user.findMany({
+      where: { role: "service_engineer" },
+      select: { id: true, firstName: true, whatsappNumber: true },
+    });
+    const engineer = allEngineers.find(e => {
+      if (!e.whatsappNumber) return false;
+      const cleanDb = e.whatsappNumber.replace(/\D/g, "");
+      if (cleanDb.length >= 10 && cleanFrom.length >= 10) {
+        return cleanDb.slice(-10) === cleanFrom.slice(-10);
+      }
+      return cleanDb === cleanFrom;
+    });
+
+    if (engineer) {
+      const { routeEngineerMessage } = await import("./whatsapp.controller");
+      await routeEngineerMessage(phone, text, engineer);
+      res.json({ ok: true, message: "Engineer message processed in simulator." });
+      return;
+    }
+
     const result = await SimulateService.handleMessage(phone, text);
 
     // Persist bot reply (and any follow-up, e.g. video links)
