@@ -56,40 +56,11 @@ export async function notifyEngineerTicketAssigned(ticketId: string): Promise<vo
   }
 
   const wa = ticket.assignedEngineer.whatsappNumber;
-  const engineerFirst = ticket.assignedEngineer.firstName;
-  const customerName = resolveTicketCustomerName(ticket) || "Customer";
-  const phone = formatCustomerPhoneDisplay(resolveTicketCustomerPhone(ticket));
-  const place = [ticket.pincode?.place, ticket.pincode?.code].filter(Boolean).join(" · ") || "—";
-  const complaint =
-    getTicketComplaintText(ticket.problemDescription, ticket.issueDescription)?.slice(0, 80) ||
-    ticket.problemDescription.slice(0, 80) ||
-    "—";
-
-  const templateName = env.WA_ENGINEER_TICKET_TEMPLATE.trim();
-  if (templateName) {
-    const ok = await WhatsAppService.sendTemplate(wa, {
-      name: templateName,
-      languageCode: env.WA_ENGINEER_TICKET_TEMPLATE_LANG,
-      bodyParameters: [
-        templateParam(engineerFirst, 40),
-        templateParam(ticket.ticketNumber, 40),
-        templateParam(customerName, 60),
-        templateParam(phone, 24),
-        templateParam(place, 80),
-        templateParam(complaint, 120),
-      ],
-    });
-    if (!ok) {
-      console.warn(
-        `[engineer-ticket-wa] Template "${templateName}" failed for ${wa} — sending session text`,
-      );
-    }
-  }
 
   const detail = formatTicketDetailMessage(ticket as EngineerTicketRow, {
     heading: `🆕 *New ticket assigned*`,
   });
-  await WhatsAppService.sendMessage(
+  await sendEngineerMessage(
     wa,
     `${detail}\n\nOpen the ticket menu below or type *TICKETS*.`,
   );
