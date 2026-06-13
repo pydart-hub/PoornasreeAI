@@ -209,10 +209,18 @@ export async function sendTicketActionButtons(
   to: string,
   t: EngineerTicketRow,
   _engineerId: string,
+  opts?: { prefix?: string; includeDetails?: boolean },
 ): Promise<void> {
   const tn = t.ticketNumber;
+  const prefix = opts?.prefix ?? "";
+
+  if (opts?.includeDetails) {
+    const detailMsg = formatTicketDetailMessage(t);
+    await sendEngineerMessage(to, detailMsg);
+  }
+
   if (t.status === "ASSIGNED") {
-    await sendEngineerMessage(to, `*${tn}* — ready to start?`, [
+    await sendEngineerMessage(to, `${prefix}📋 *${tn}* — ready to start?`, [
       { id: `${ENG_PREFIX.START}${tn}`, title: "▶️ Start work" },
       { id: `${ENG_PREFIX.SEL}${tn}`, title: "📋 Details" },
       { id: "TICKETS", title: "📋 All tickets" },
@@ -229,7 +237,7 @@ export async function sendTicketActionButtons(
     const hasFinished = report?.images.some(img => img.fileName.startsWith("finished_work")) ?? false;
 
     if (!hasReached) {
-      await sendEngineerMessage(to, `📍 *${tn}* (In Progress)\n\n⚠️ *Awaiting arrival photo.* Please upload a photo of the product on arrival.\n\nIf this was a test/trial complaint, click *Test Close* below.`, [
+      await sendEngineerMessage(to, `${prefix}📍 *${tn}* (In Progress)\n\n⚠️ *Awaiting arrival photo.* Please upload a photo of the product on arrival.\n\nIf this was a test/trial complaint, click *Test Close* below.`, [
         { id: `ENG_TEST_CLOSE:${tn}`, title: "❌ Test Close" },
         { id: `${ENG_PREFIX.SEL}${tn}`, title: "📋 Details" },
         { id: "TICKETS", title: "📋 All tickets" },
@@ -238,7 +246,7 @@ export async function sendTicketActionButtons(
     }
 
     if (!isReportComplete) {
-      await sendEngineerMessage(to, `📍 *${tn}* (In Progress)\n\nReached photo uploaded. Please fill in the Service Report (Problem diagnosed, Work done).`, [
+      await sendEngineerMessage(to, `${prefix}📍 *${tn}* (In Progress)\n\nReached photo uploaded. Please fill in the Service Report (Problem diagnosed, Work done).`, [
         { id: `${ENG_PREFIX.RPT}${tn}`, title: "📝 Service report" },
         { id: `${ENG_PREFIX.SEL}${tn}`, title: "📋 Details" },
         { id: "TICKETS", title: "📋 All tickets" },
@@ -247,7 +255,7 @@ export async function sendTicketActionButtons(
     }
 
     if (!hasFinished) {
-      await sendEngineerMessage(to, `📍 *${tn}* (In Progress)\n\nService report complete. Please upload a finished work photo before requesting OTP.`, [
+      await sendEngineerMessage(to, `${prefix}📍 *${tn}* (In Progress)\n\nService report complete. Please upload a finished work photo before requesting OTP.`, [
         { id: `${ENG_PREFIX.RPT}${tn}`, title: "📝 Service report" },
         { id: `${ENG_PREFIX.SEL}${tn}`, title: "📋 Details" },
         { id: "TICKETS", title: "📋 All tickets" },
@@ -255,7 +263,7 @@ export async function sendTicketActionButtons(
       return;
     }
 
-    await sendEngineerMessage(to, `📍 *${tn}* (In Progress)\n\nAll tasks complete! Request OTP from customer.`, [
+    await sendEngineerMessage(to, `${prefix}📍 *${tn}* (In Progress)\n\nAll tasks complete! Request OTP from customer.`, [
       { id: `${ENG_PREFIX.OTP}${tn}`, title: "🔐 Request OTP" },
       { id: `${ENG_PREFIX.RPT}${tn}`, title: "📝 Service report" },
       { id: `${ENG_PREFIX.SEL}${tn}`, title: "📋 Details" },
@@ -263,7 +271,7 @@ export async function sendTicketActionButtons(
     return;
   }
   if (t.status === "PENDING_OTP") {
-    await sendEngineerMessage(to, `*${tn}* — waiting for OTP`, [
+    await sendEngineerMessage(to, `${prefix}*${tn}* — waiting for OTP`, [
       { id: `${ENG_PREFIX.VERIFY_PROMPT}${tn}`, title: "✅ Enter OTP" },
       { id: `${ENG_PREFIX.RESEND}${tn}`, title: "🔁 Resend OTP" },
       { id: "TICKETS", title: "📋 All tickets" },
@@ -271,11 +279,16 @@ export async function sendTicketActionButtons(
   }
 }
 
-export async function sendReportMenuList(to: string, ticketNumber: string): Promise<void> {
+export async function sendReportMenuList(
+  to: string,
+  ticketNumber: string,
+  opts?: { prefix?: string },
+): Promise<void> {
   const tn = ticketNumber;
+  const prefix = opts?.prefix ?? "";
   await sendEngineerMessage(
     to,
-    `*${tn}* — Service report\n\nChoose a field to update, or use text commands (type HELP).`,
+    `${prefix}*${tn}* — Service report\n\nChoose a field to update, or use text commands (type HELP).`,
     undefined,
     {
       buttonText: "Report options",

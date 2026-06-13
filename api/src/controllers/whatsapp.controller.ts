@@ -9,7 +9,14 @@ import prisma from "../lib/prisma";
 import { env } from "../config/env";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
-import { handleEngineerWhatsAppMessage } from "../services/engineer-whatsapp.service";
+import {
+  handleEngineerWhatsAppMessage,
+  getActiveTicket,
+  setActiveTicket,
+  handleReachedPhotoAttached,
+  handleFinishedPhotoAttached,
+  handleNormalPhotoAttached,
+} from "../services/engineer-whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
 import {
   sendEngineerMessage,
@@ -392,15 +399,11 @@ export async function routeEngineerMessage(
 
     const { type } = await attachWorkReportPhoto(ticket.id, engineer.id, filename);
     if (type === "reached") {
-      await sendEngineerMessage(from, `✅ Reached location photo received and attached to ticket *${ticketNumber}*.\n\n🔧 *Next Step:* Please fill out the service report details (diagnose problem, work notes, replaced parts, warranty).`);
-      await sendReportMenuList(from, ticketNumber);
+      await handleReachedPhotoAttached(from, engineer, ticketNumber);
     } else if (type === "finished") {
-      await sendEngineerMessage(from, `✅ Finished work photo received and attached to ticket *${ticketNumber}*.\n\n🔐 *Next Step:* Click *Request OTP* below to close the ticket.`);
-      const updated = await findEngineerTicket(ticketNumber, engineer.id);
-      if (updated) await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id);
+      await handleFinishedPhotoAttached(from, engineer, ticketNumber);
     } else {
-      await sendEngineerMessage(from, `✅ Photo attached to ticket *${ticketNumber}* successfully.`);
-      await sendReportMenuList(from, ticketNumber);
+      await handleNormalPhotoAttached(from, engineer, ticketNumber);
     }
     return;
   }
@@ -782,60 +785,81 @@ async function handleEngineerImage(
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, filename), buffer);
 
-    if (!caption) {
-      // Step 4a: Ask for ticket if no caption
-      const tickets = await prisma.ticket.findMany({
-        where: {
-          assignedEngineerId: engineer.id,
-          status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
-        },
-        select: { ticketNumber: true, status: true, customer: { select: { firstName: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 10,
+    // Step 4: Determine target ticket
+    let targetTicket = null;
+
+    if (caption) {
+      targetTicket = await prisma.ticket.findFirst({
+        where: { ticketNumber: caption, assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
       });
+    }
 
-      if (tickets.length === 0) {
-        await sendEngineerMessage(from, "⚠️ Photo saved, but you have no active tickets to attach it to.");
-        return;
+    if (!targetTicket) {
+      const activeTn = getActiveTicket(from);
+      if (activeTn) {
+        targetTicket = await prisma.ticket.findFirst({
+          where: { ticketNumber: activeTn, assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
+        });
       }
+    }
 
-      await sendEngineerMessage(
-        from,
-        "Photo received! Which ticket does this belong to?",
-        undefined,
-        {
-          buttonText: "Select Ticket",
-          rows: tickets.map((t) => ({
-            id: `ENG_PHOTO:${t.ticketNumber}:${filename}`,
-            title: t.ticketNumber.replace(/^TKT-\d{8}-/i, "").slice(0, 24) || t.ticketNumber.slice(0, 24),
-            description: `Attach to ${t.customer?.firstName ?? "Customer"} (${t.status})`,
-          })),
-        }
-      );
+    if (!targetTicket) {
+      const activeTickets = await prisma.ticket.findMany({
+        where: { assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
+        select: { id: true, ticketNumber: true }
+      });
+      if (activeTickets.length === 1) {
+        targetTicket = activeTickets[0];
+      }
+    }
+
+    if (targetTicket) {
+      // Auto-attach
+      const { type, ticketNumber } = await attachWorkReportPhoto(targetTicket.id, engineer.id, filename);
+      if (type === "reached") {
+        await handleReachedPhotoAttached(from, engineer, ticketNumber);
+      } else if (type === "finished") {
+        await handleFinishedPhotoAttached(from, engineer, ticketNumber);
+      } else {
+        await handleNormalPhotoAttached(from, engineer, ticketNumber);
+      }
       return;
     }
 
-    // Step 4b: Attach immediately if caption has ticket
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber: caption, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
+    // Fallback: ask for ticket if no caption and multiple/no active tickets resolved
+    if (caption) {
       await sendEngineerMessage(from, `❌ Ticket *${caption}* not found. The photo was saved, but not attached.`);
       return;
     }
 
-    const { type } = await attachWorkReportPhoto(ticket.id, engineer.id, filename);
-    if (type === "reached") {
-      await sendEngineerMessage(from, `✅ Reached location photo received and attached to ticket *${caption}*.\n\n🔧 *Next Step:* Please fill out the service report details (diagnose problem, work notes, replaced parts, warranty).`);
-      await sendReportMenuList(from, caption);
-    } else if (type === "finished") {
-      await sendEngineerMessage(from, `✅ Finished work photo received and attached to ticket *${caption}*.\n\n🔐 *Next Step:* Click *Request OTP* below to close the ticket.`);
-      const updated = await findEngineerTicket(caption, engineer.id);
-      if (updated) await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id);
-    } else {
-      await sendEngineerMessage(from, `✅ Photo attached to ticket *${caption}* successfully.`);
-      await sendReportMenuList(from, caption);
+    const tickets = await prisma.ticket.findMany({
+      where: {
+        assignedEngineerId: engineer.id,
+        status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
+      },
+      select: { ticketNumber: true, status: true, customer: { select: { firstName: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    if (tickets.length === 0) {
+      await sendEngineerMessage(from, "⚠️ Photo saved, but you have no active tickets to attach it to.");
+      return;
     }
+
+    await sendEngineerMessage(
+      from,
+      "Photo received! Which ticket does this belong to?",
+      undefined,
+      {
+        buttonText: "Select Ticket",
+        rows: tickets.map((t) => ({
+          id: `ENG_PHOTO:${t.ticketNumber}:${filename}`,
+          title: t.ticketNumber.replace(/^TKT-\d{8}-/i, "").slice(0, 24) || t.ticketNumber.slice(0, 24),
+          description: `Attach to ${t.customer?.firstName ?? "Customer"} (${t.status})`,
+        })),
+      }
+    );
   } catch (e: unknown) {
     console.error("[whatsapp] handleEngineerImage error:", e);
   }

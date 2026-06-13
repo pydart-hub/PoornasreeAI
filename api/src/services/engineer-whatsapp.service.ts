@@ -30,6 +30,30 @@ interface PendingInput {
 const pendingByPhone = new Map<string, PendingInput>();
 const PENDING_TTL_MS = 30 * 60 * 1000;
 
+export const activeTicketByPhone = new Map<string, { ticketNumber: string; expiresAt: number }>();
+
+export function setActiveTicket(phone: string, ticketNumber: string): void {
+  activeTicketByPhone.set(phone.replace(/\D/g, ""), {
+    ticketNumber: ticketNumber.toUpperCase(),
+    expiresAt: Date.now() + PENDING_TTL_MS,
+  });
+}
+
+export function getActiveTicket(phone: string): string | null {
+  const cleanPhone = phone.replace(/\D/g, "");
+  const a = activeTicketByPhone.get(cleanPhone);
+  if (!a) return null;
+  if (Date.now() > a.expiresAt) {
+    activeTicketByPhone.delete(cleanPhone);
+    return null;
+  }
+  return a.ticketNumber;
+}
+
+export function clearActiveTicket(phone: string): void {
+  activeTicketByPhone.delete(phone.replace(/\D/g, ""));
+}
+
 function setPending(phone: string, kind: PendingKind, ticketNumber: string): void {
   pendingByPhone.set(phone, {
     kind,
@@ -156,11 +180,6 @@ async function showTicketList(from: string, engineer: EngineerCtx, page: number 
     })
     .join("\n\n");
 
-  await sendEngineerMessage(
-    from,
-    `📋 *Your Active Tickets (Page ${page + 1}):*\n\n${summary}`,
-  );
-
   const rows = displayTickets.map((t) => {
     const customer = formatTicketDetailMessage(t).split("\n")[1]?.replace("👤 Name: ", "") ?? "Customer";
     return {
@@ -188,12 +207,12 @@ async function showTicketList(from: string, engineer: EngineerCtx, page: number 
 
   await sendEngineerMessage(
     from,
-    `Tap a ticket to open actions (Page ${page + 1}):`,
+    `📋 *Your Active Tickets (Page ${page + 1}):*\n\n${summary}\n\nTap below to select a ticket to view and manage:`,
     undefined,
     {
       buttonText: "Select ticket",
       rows,
-    }
+    },
   );
 }
 
@@ -203,8 +222,8 @@ async function showTicketDetail(from: string, engineer: EngineerCtx, ticketNumbe
     await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found or not assigned to you.`);
     return;
   }
-  await sendEngineerMessage(from, formatTicketDetailMessage(ticket as EngineerTicketRow));
-  await sendTicketActionButtons(from, ticket as EngineerTicketRow, engineer.id);
+  setActiveTicket(from, ticketNumber);
+  await sendTicketActionButtons(from, ticket as EngineerTicketRow, engineer.id, { includeDetails: true });
 }
 
 async function handleStart(from: string, engineer: EngineerCtx, ticketNumber: string): Promise<void> {
@@ -215,10 +234,12 @@ async function handleStart(from: string, engineer: EngineerCtx, ticketNumber: st
   }
   try {
     await TicketService.startWork(ticket.id, engineer.id);
+    setActiveTicket(from, ticketNumber);
     const updated = await findEngineerTicket(ticketNumber, engineer.id);
     if (updated) {
-      await sendEngineerMessage(from, `✅ Ticket *${ticketNumber}* is now *IN PROGRESS*.\n\n📸 *Arrival photo needed:* Please take a photo of the product on arrival and send it to this chat.`);
-      await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id);
+      await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id, {
+        prefix: `✅ Ticket *${ticketNumber}* is now *IN_PROGRESS*.\n\n`,
+      });
     }
   } catch (e: unknown) {
     await sendEngineerMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not start work."}`);
@@ -243,12 +264,20 @@ async function handleOtp(
       minute: "2-digit",
       hour12: true,
     });
-    await sendEngineerMessage(
-      from,
-      `✅ OTP ${resend ? "resent" : "sent"} to the customer via WhatsApp.\nExpires at ${exp}.\n\nTap *Enter OTP* or type *VERIFY ${ticketNumber} <code>*`,
-    );
     const updated = await findEngineerTicket(ticketNumber, engineer.id);
-    if (updated) await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id);
+    if (updated) {
+      setActiveTicket(from, ticketNumber);
+      setPending(from, "verify_otp", ticketNumber);
+      await sendEngineerMessage(
+        from,
+        `✅ OTP ${resend ? "resent" : "sent"} to the customer via WhatsApp.\nExpires at ${exp}.\n\n` +
+        `Please ask the customer for the 4-digit code and reply with it here:`,
+        [
+          { id: `${ENG_PREFIX.RESEND}${ticketNumber}`, title: "🔁 Resend OTP" },
+          { id: "TICKETS", title: "📋 All tickets" },
+        ]
+      );
+    }
   } catch (e: unknown) {
     await sendEngineerMessage(from, `⚠️ ${(e as { message?: string }).message ?? "Could not send OTP."}`);
   }
@@ -268,6 +297,7 @@ async function handleVerify(
   try {
     const closed = await TicketService.verifyOTP(ticket.id, engineer.id, code);
     clearPending(from);
+    clearActiveTicket(from);
     io?.to(`user:${closed.customerId}`).emit("ticket:closed", {
       ticketId: closed.id,
       ticketNumber: closed.ticketNumber,
@@ -466,8 +496,17 @@ async function handleInteractive(
       return true;
     }
     await upsertReportField(t.id, engineer.id, { warrantyClaimRequested: true });
-    await sendEngineerMessage(from, `✅ Warranty claim marked *Yes* for *${warrYes}*.`);
-    await sendReportMenuList(from, warrYes);
+    setActiveTicket(from, warrYes);
+    setPending(from, "part", warrYes);
+    await sendEngineerMessage(
+      from,
+      `✅ Warranty claim marked *Yes* for *${warrYes}*.\n\n` +
+      `🔧 *Next Step:* Do you need to add any replaced parts?\n\n` +
+      `- If **Yes**, reply with the part details in this format:\n` +
+      `  *part name | part number | quantity*\n` +
+      `  _(e.g., Sensor | SNS-01 | 1)_\n\n` +
+      `- If **No**, please upload the *finished work photo* now to proceed.`
+    );
     return true;
   }
 
@@ -485,8 +524,17 @@ async function handleInteractive(
       return true;
     }
     await upsertReportField(t.id, engineer.id, { warrantyClaimRequested: false });
-    await sendEngineerMessage(from, `✅ Warranty claim marked *No* for *${warrNo}*.`);
-    await sendReportMenuList(from, warrNo);
+    setActiveTicket(from, warrNo);
+    setPending(from, "part", warrNo);
+    await sendEngineerMessage(
+      from,
+      `✅ Warranty claim marked *No* for *${warrNo}*.\n\n` +
+      `🔧 *Next Step:* Do you need to add any replaced parts?\n\n` +
+      `- If **Yes**, reply with the part details in this format:\n` +
+      `  *part name | part number | quantity*\n` +
+      `  _(e.g., Sensor | SNS-01 | 1)_\n\n` +
+      `- If **No**, please upload the *finished work photo* now to proceed.`
+    );
     return true;
   }
 
@@ -524,25 +572,60 @@ async function handlePendingText(
 
   if (pending.kind === "diagnose") {
     await upsertReportField(ticket.id, engineer.id, { problemDiagnosed: text });
-    clearPending(from);
-    await sendEngineerMessage(from, `✅ Diagnosis saved for *${tn}*.`);
-    await sendReportMenuList(from, tn);
+    setActiveTicket(from, tn);
+    setPending(from, "work_done", tn);
+    await sendEngineerMessage(
+      from,
+      `✅ *Problem diagnosed* saved for *${tn}*.\n\n` +
+      `🔧 *Next Step:* Please describe the *work done* (repair notes) for this ticket.\n\n` +
+      `_(Or reply with NOTE ${tn} <text>)_`
+    );
     return true;
   }
 
   if (pending.kind === "work_done" || pending.kind === "note") {
     await upsertReportField(ticket.id, engineer.id, { workDone: text });
+    setActiveTicket(from, tn);
     clearPending(from);
-    await sendEngineerMessage(from, `✅ Work notes saved for *${tn}*.`);
-    await sendReportMenuList(from, tn);
+    await sendEngineerMessage(
+      from,
+      `✅ *Work notes* saved for *${tn}*.\n\n` +
+      `🔧 *Next Step:* Is this a warranty claim?`,
+      [
+        { id: `${ENG_PREFIX.WARR_YES}${tn}`, title: "Yes, Warranty" },
+        { id: `${ENG_PREFIX.WARR_NO}${tn}`, title: "No Warranty" },
+      ]
+    );
     return true;
   }
 
   if (pending.kind === "part") {
-    clearPending(from);
+    const segments = text.split("|").map(s => s.trim());
+    const partName = segments[0];
+    let partNumber: string | undefined = segments[1];
+    let qtyStr = segments[2];
+
+    if (!partName) {
+      await sendEngineerMessage(from, `⚠️ Replaced part name is required. Please type it in format: *name | part# | quantity* or upload the finished photo.`);
+      return true;
+    }
+
+    let quantity = 1;
+    if (qtyStr) {
+      quantity = Math.max(1, parseInt(qtyStr, 10) || 1);
+    } else if (partNumber && /^\d+$/.test(partNumber)) {
+      quantity = Math.max(1, parseInt(partNumber, 10) || 1);
+      partNumber = undefined;
+    }
+
+    await upsertReportField(ticket.id, engineer.id, {
+      appendPart: { partName, partNumber, quantity },
+    });
+    setActiveTicket(from, tn);
     await sendEngineerMessage(
       from,
-      `Use: *PART ${tn} name | part-number | quantity*`,
+      `✅ Part added: *${partName}* ${partNumber ? `(${partNumber}) ` : ""}x${quantity}.\n\n` +
+      `🔧 Add another part by typing the details in the same format, or upload the *finished work photo* to proceed.`
     );
     return true;
   }
@@ -749,8 +832,14 @@ export async function handleEngineerWhatsAppMessage(
       return;
     }
     await upsertReportField(ticket.id, engineer.id, { problemDiagnosed: body });
-    await sendEngineerMessage(from, `✅ Diagnosis saved for *${ticketNumber}*.`);
-    await sendReportMenuList(from, ticketNumber);
+    setActiveTicket(from, ticketNumber);
+    setPending(from, "work_done", ticketNumber);
+    await sendEngineerMessage(
+      from,
+      `✅ *Problem diagnosed* saved for *${ticketNumber}*.\n\n` +
+      `🔧 *Next Step:* Please describe the *work done* (repair notes) for this ticket.\n\n` +
+      `_(Or reply with NOTE ${ticketNumber} <text>)_`
+    );
     return;
   }
 
@@ -777,8 +866,17 @@ export async function handleEngineerWhatsAppMessage(
       return;
     }
     await upsertReportField(ticket.id, engineer.id, { workDone: body });
-    await sendEngineerMessage(from, `✅ Work notes saved for *${ticketNumber}*.`);
-    await sendReportMenuList(from, ticketNumber);
+    setActiveTicket(from, ticketNumber);
+    clearPending(from);
+    await sendEngineerMessage(
+      from,
+      `✅ *Work notes* saved for *${ticketNumber}*.\n\n` +
+      `🔧 *Next Step:* Is this a warranty claim?`,
+      [
+        { id: `${ENG_PREFIX.WARR_YES}${ticketNumber}`, title: "Yes, Warranty" },
+        { id: `${ENG_PREFIX.WARR_NO}${ticketNumber}`, title: "No Warranty" },
+      ]
+    );
     return;
   }
 
@@ -818,8 +916,13 @@ export async function handleEngineerWhatsAppMessage(
     await upsertReportField(ticket.id, engineer.id, {
       appendPart: { partName, partNumber, quantity },
     });
-    await sendEngineerMessage(from, `✅ Part added to *${ticketNumber}* report.`);
-    await sendReportMenuList(from, ticketNumber);
+    setActiveTicket(from, ticketNumber);
+    setPending(from, "part", ticketNumber);
+    await sendEngineerMessage(
+      from,
+      `✅ Part added: *${partName}* ${partNumber ? `(${partNumber}) ` : ""}x${quantity}.\n\n` +
+      `🔧 Add another part by typing the details in the same format, or upload the *finished work photo* to proceed.`
+    );
     return;
   }
 
@@ -851,11 +954,15 @@ export async function handleEngineerWhatsAppMessage(
       return;
     }
     await upsertReportField(ticket.id, engineer.id, { warrantyClaimRequested: yes });
+    setActiveTicket(from, ticketNumber);
+    setPending(from, "part", ticketNumber);
     await sendEngineerMessage(
       from,
-      `✅ Warranty *${yes ? "Yes" : "No"}* for *${ticketNumber}*.`,
+      `✅ Warranty claim marked *${yes ? "Yes" : "No"}* for *${ticketNumber}*.\n\n` +
+      `🔧 *Next Step:* Do you need to add any replaced parts?\n\n` +
+      `- If **Yes**, reply with the part details: *name | part# | qty*\n` +
+      `- If **No**, please upload the *finished work photo* now.`
     );
-    await sendReportMenuList(from, ticketNumber);
     return;
   }
 
@@ -873,4 +980,45 @@ export async function handleEngineerWhatsAppMessage(
       { id: "HELP", title: "❓ Help" },
     ],
   );
+}
+
+export async function handleReachedPhotoAttached(
+  from: string,
+  engineer: EngineerCtx,
+  ticketNumber: string
+): Promise<void> {
+  setActiveTicket(from, ticketNumber);
+  setPending(from, "diagnose", ticketNumber);
+  await sendEngineerMessage(
+    from,
+    `✅ *Reached location photo received* and attached to ticket *${ticketNumber}*.\n\n` +
+    `🔧 *Next Step:* Please describe the *problem diagnosed* (root cause) for this ticket.\n\n` +
+    `_(Or reply with DIAGNOSE ${ticketNumber} <text>)_`
+  );
+}
+
+export async function handleFinishedPhotoAttached(
+  from: string,
+  engineer: EngineerCtx,
+  ticketNumber: string
+): Promise<void> {
+  setActiveTicket(from, ticketNumber);
+  const updated = await findEngineerTicket(ticketNumber, engineer.id);
+  if (updated) {
+    await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id, {
+      prefix: `✅ *Finished work photo received* and attached to ticket *${ticketNumber}*.\n\n` +
+              `🔐 *Next Step:* Click *Request OTP* below to close the ticket.\n\n`,
+    });
+  }
+}
+
+export async function handleNormalPhotoAttached(
+  from: string,
+  engineer: EngineerCtx,
+  ticketNumber: string
+): Promise<void> {
+  setActiveTicket(from, ticketNumber);
+  await sendReportMenuList(from, ticketNumber, {
+    prefix: `✅ Photo attached to ticket *${ticketNumber}* successfully.\n\n`,
+  });
 }
