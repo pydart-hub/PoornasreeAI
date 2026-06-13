@@ -298,44 +298,55 @@ export async function getTicket(id: string) {
 }
 
 // ── assignEngineer ────────────────────────────────────────────────────────
-// Admin or service_manager assigns an engineer to an OPEN ticket.
-// Single-manager system: requires ownerType=MANAGER, no per-ticket manager assignment.
-// Uses an atomic conditional updateMany to prevent race conditions.
+// Admin or service_manager assigns an engineer to a ticket.
+// Allows assignment or reassignment for tickets in OPEN or ASSIGNED status.
 export async function assignEngineer(ticketId: string, engineerId: string, assignedBy?: string) {
-  // Single atomic write: succeeds only when status=OPEN and no engineer yet
-  const result = await prisma.ticket.updateMany({
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot modify a closed ticket"), { status: 400 });
+  }
+
+  if (ticket.status !== TicketStatus.OPEN && ticket.status !== TicketStatus.ASSIGNED) {
+    throw Object.assign(
+      new Error(`Engineer can only be assigned to tickets in OPEN or ASSIGNED status (current: ${ticket.status})`),
+      { status: 400 }
+    );
+  }
+
+  // If already assigned to the same engineer, just return the ticket
+  if (ticket.assignedEngineerId === engineerId) {
+    return prisma.ticket.findUniqueOrThrow({
+      where: { id: ticketId },
+      include: TICKET_INCLUDE,
+    });
+  }
+
+  // Perform the assignment/reassignment. Reset any pending OTP fields.
+  const updated = await prisma.ticket.update({
     where: {
-      id:                 ticketId,
-      status:             TicketStatus.OPEN,
-      assignedEngineerId: null,
+      id: ticketId,
+      status: { in: [TicketStatus.OPEN, TicketStatus.ASSIGNED] },
     },
     data: {
       assignedEngineerId: engineerId,
       status:             TicketStatus.ASSIGNED,
+      otpCodeHash:        null,
+      otpExpiresAt:       null,
+      otpVerified:        false,
+      otpAttempts:        0,
       ...(assignedBy ? { assignedManagerId: assignedBy } : {}),
     },
+    include: TICKET_INCLUDE,
   });
 
-  if (result.count === 1) {
-    const updated = await prisma.ticket.findUniqueOrThrow({
-      where: { id: ticketId },
-      include: TICKET_INCLUDE,
-    });
-    notifyTicketEvent("ticket.assigned", ticketId);
-    const { notifyEngineerTicketAssigned } = await import("./engineer-ticket-notification.service");
-    notifyEngineerTicketAssigned(ticketId).catch((err) =>
-      console.error("[ticket] Engineer WhatsApp assign notify failed:", (err as Error).message),
-    );
-    return updated;
-  }
-
-  // Update did not apply — fetch once to determine and surface the reason
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
-  if (ticket.assignedEngineerId) {
-    throw Object.assign(new Error("Engineer already assigned. Use reassignment flow."), { status: 409 });
-  }
-  throw Object.assign(new Error("Engineer can only be assigned to tickets in OPEN status"), { status: 400 });
+  notifyTicketEvent("ticket.assigned", ticketId);
+  const { notifyEngineerTicketAssigned } = await import("./engineer-ticket-notification.service");
+  notifyEngineerTicketAssigned(ticketId).catch((err) =>
+    console.error("[ticket] Engineer WhatsApp assign notify failed:", (err as Error).message),
+  );
+  return updated;
 }
 
 // ── unassignEngineer ──────────────────────────────────────────────────────
