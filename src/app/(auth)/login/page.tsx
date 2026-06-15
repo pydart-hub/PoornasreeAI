@@ -9,17 +9,17 @@ import { useAuth } from "@/components/providers/AuthProvider";
 // ── Feature list shown on the left hero panel ─────────────────────────
 const FEATURES = [
   {
-    icon: <Monitor className="w-4 h-4 text-emerald-300" />,
+    icon: <Monitor className="w-4 h-4 text-primary-300" />,
     title: "AI-Powered Support",
     desc: "Instant answers from trained service documents",
   },
   {
-    icon: <Users className="w-4 h-4 text-emerald-300" />,
+    icon: <Users className="w-4 h-4 text-primary-300" />,
     title: "Multi-tier Access",
     desc: "Admin → Manager → Engineer → Dealer",
   },
   {
-    icon: <BarChart3 className="w-4 h-4 text-emerald-300" />,
+    icon: <BarChart3 className="w-4 h-4 text-primary-300" />,
     title: "Real-time Ticket Tracking",
     desc: "End-to-end service lifecycle management",
   },
@@ -82,13 +82,12 @@ export default function LoginPage() {
           Green header → white card slides up from below
       ═══════════════════════════════════════════════ */}
       <div
-        className="md:hidden h-[100dvh] flex flex-col overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #0d2e1b 0%, #0a2416 50%, #071c10 100%)" }}
+        className="md:hidden h-[100dvh] flex flex-col overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900"
       >
         {/* Radial glow */}
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(34,197,94,0.12) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0,82,157,0.12) 0%, transparent 70%)" }}
         />
 
         {/* Green hero — sits above the white card, never overlaps */}
@@ -96,9 +95,9 @@ export default function LoginPage() {
           <div className="bg-white/95 rounded-2xl px-4 py-2.5 shadow-md">
             <Logo variant="brand" size="md" priority />
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-emerald-300 font-medium">AI-Powered Service Platform</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary-600/40 bg-primary-900/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse" />
+            <span className="text-xs text-primary-300 font-medium">AI-Powered Service Platform</span>
           </div>
         </div>
 
@@ -175,8 +174,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60"
-              style={{ background: loading ? "#9ca3af" : "linear-gradient(135deg, #16a34a 0%, #15803d 100%)" }}
+              className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover"].join(" ")}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -201,21 +199,20 @@ export default function LoginPage() {
         {/* LEFT – dark green hero panel */}
         <div
           className="relative flex flex-col justify-between px-8 py-8 md:px-12 md:py-14
-                     md:w-[44%] lg:w-[42%] xl:w-[40%] shrink-0 overflow-hidden"
-          style={{ background: "linear-gradient(160deg, #0d2e1b 0%, #0a2416 50%, #071c10 100%)" }}
+                     md:w-[44%] lg:w-[42%] xl:w-[40%] shrink-0 overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900"
         >
           {/* Subtle radial glow */}
           <div
             className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(34,197,94,0.10) 0%, transparent 70%)" }}
+            style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0,82,157,0.10) 0%, transparent 70%)" }}
           />
 
           {/* Top content */}
           <div className="relative z-10 flex flex-col gap-5">
             {/* Live badge */}
-            <div className="flex items-center gap-2 w-fit px-3 py-1.5 rounded-full border border-emerald-600/40 bg-emerald-900/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-300 font-medium">Live at ai.poornasreecloud.com</span>
+            <div className="flex items-center gap-2 w-fit px-3 py-1.5 rounded-full border border-primary-600/40 bg-primary-900/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse" />
+              <span className="text-xs text-primary-300 font-medium">Live at ai.poornasreecloud.com</span>
             </div>
 
             {/* Headline */}
@@ -223,7 +220,7 @@ export default function LoginPage() {
               <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-white">
                 AI-Powered
               </h1>
-              <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-emerald-400">
+              <h1 className="text-3xl md:text-4xl xl:text-5xl font-black leading-tight tracking-tight text-primary-300">
                 Service Platform
               </h1>
             </div>
@@ -241,7 +238,7 @@ export default function LoginPage() {
                   className="flex items-start gap-3 p-3 rounded-xl"
                   style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}
                 >
-                  <div className="w-7 h-7 rounded-lg bg-emerald-900/60 flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-lg bg-primary-900/60 flex items-center justify-center shrink-0 mt-0.5">
                     {f.icon}
                   </div>
                   <div>
@@ -286,7 +283,7 @@ export default function LoginPage() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Email or Username</label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white">
                   <Mail className="w-4 h-4 text-gray-300 shrink-0" />
                   <input
                     type="text"
@@ -305,7 +302,7 @@ export default function LoginPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Password
                 </label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white">
                   <Lock className="w-4 h-4 text-gray-300 shrink-0" />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -326,7 +323,7 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <div className="flex justify-end mt-1.5">
-                  <button type="button" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors">
+                  <button type="button" className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
                     Forgot password?
                   </button>
                 </div>
@@ -336,8 +333,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60"
-                style={{ background: loading ? "#9ca3af" : "linear-gradient(135deg, #16a34a 0%, #15803d 100%)" }}
+                className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover"].join(" ")}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
