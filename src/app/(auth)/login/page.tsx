@@ -249,11 +249,6 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-
-          {/* Bottom: copyright */}
-          <div className="relative z-10 mt-10">
-            <p className="text-xs text-white/20">© 2026 Pydart Intellicom Pvt. Ltd.</p>
-          </div>
         </div>
 
         {/* RIGHT – white form panel */}
