@@ -674,6 +674,7 @@ export async function handleEngineerWhatsAppMessage(
     !upperText.startsWith("DIAGNOSE ") &&
     !upperText.startsWith("NOTE ") &&
     !upperText.startsWith("WARRANTY ") &&
+    !upperText.startsWith("ENG_") &&
     !trimmed.startsWith(ENG_PREFIX.SEL) &&
     !trimmed.startsWith(ENG_PREFIX.LIST) &&
     trimmed !== "MENU"
@@ -1003,6 +1004,7 @@ export async function handleFinishedPhotoAttached(
   ticketNumber: string
 ): Promise<void> {
   setActiveTicket(from, ticketNumber);
+  clearPending(from);
   const updated = await findEngineerTicket(ticketNumber, engineer.id);
   if (updated) {
     await sendTicketActionButtons(from, updated as EngineerTicketRow, engineer.id, {
@@ -1018,6 +1020,7 @@ export async function handleNormalPhotoAttached(
   ticketNumber: string
 ): Promise<void> {
   setActiveTicket(from, ticketNumber);
+  clearPending(from);
   await sendReportMenuList(from, ticketNumber, {
     prefix: `✅ Photo attached to ticket *${ticketNumber}* successfully.\n\n`,
   });
