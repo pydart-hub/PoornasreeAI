@@ -364,10 +364,30 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   // ── Customer flow — existing FSM ──
 
   // Persist user message
+  let savedMessage = null;
   if (text) {
-    await prisma.simulateMessage.create({
+    savedMessage = await prisma.simulateMessage.create({
       data: { phoneNumber: from, role: "user", content: text },
     });
+    
+    // Broadcast the new user message to the dashboard
+    const { io } = await import("../lib/socket");
+    if (io) {
+      io.to("customer_support").emit("support-chat:message", {
+        phoneNumber: from,
+        message: savedMessage,
+      });
+    }
+  }
+
+  // Check if chatbot is paused
+  const session = await prisma.conversationSession.findFirst({
+    where: { phoneNumber: from },
+  });
+
+  if (session?.isBotPaused) {
+    // Bot is paused, don't run the FSM. Human is watching.
+    return;
   }
 
   // Run through FSM
@@ -544,9 +564,18 @@ export async function routeEngineerMessage(
 async function deliverBotReply(to: string, result: SimulateReply): Promise<void> {
   if (!result.message) return;
 
-  await prisma.simulateMessage.create({
+  const botMessage = await prisma.simulateMessage.create({
     data: { phoneNumber: to, role: "bot", content: result.message },
   });
+
+  // Broadcast bot message
+  const { io } = await import("../lib/socket");
+  if (io) {
+    io.to("customer_support").emit("support-chat:message", {
+      phoneNumber: to,
+      message: botMessage,
+    });
+  }
 
   if (result.images?.length) {
     for (const img of result.images) {
@@ -563,9 +592,17 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
   }
 
   if (result.followUpMessage) {
-    await prisma.simulateMessage.create({
+    const followUp = await prisma.simulateMessage.create({
       data: { phoneNumber: to, role: "bot", content: result.followUpMessage },
     });
+    
+    if (io) {
+      io.to("customer_support").emit("support-chat:message", {
+        phoneNumber: to,
+        message: followUp,
+      });
+    }
+    
     await WhatsAppService.sendMessage(to, result.followUpMessage);
   }
 }

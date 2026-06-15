@@ -18,6 +18,7 @@ import whatsappRoutes from "./routes/whatsapp.routes";
 import workReportRoutes from "./routes/work-report.routes";
 import marketingRoutes from "./routes/marketing.routes";
 import complaintRoutes from "./routes/complaint.routes";
+import supportChatRoutes from "./routes/support-chat";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
 import { protect } from "./middleware/auth";
@@ -67,6 +68,7 @@ app.use("/api/sales",        salesRoutes);
 app.use("/api/work-reports", workReportRoutes);
 app.use("/api/marketing",    marketingRoutes);
 app.use("/api/complaints",   complaintRoutes);
+app.use("/api/support-chat", protect, supportChatRoutes);
 app.use("/api",         chatRoutes);    // broad mount — catch-all for /api/conversations, /api/messages, etc.
 
 // ── TTS proxy ─────────────────────────────────────

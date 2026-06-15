@@ -7,7 +7,8 @@ export type UserRole =
   | "assistant_service_manager"  // works under a service_manager, scoped to assigned pincodes
   | "dealer"                     // raises tickets on behalf of customers
   | "admin"
-  | "sales";
+  | "sales"
+  | "customer_support";
 
 // Roles that can see every conversation (not just their own).
 const ROLES_WITH_FULL_READ: UserRole[] = ["admin", "service"];

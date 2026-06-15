@@ -14,7 +14,7 @@ model User {
   passwordHash     String
   firstName        String
   lastName         String?
-  // Roles: customer | service | service_engineer | service_manager | assistant_service_manager | dealer | admin | sales
+  // Roles: customer | service | service_engineer | service_manager | assistant_service_manager | dealer | admin | sales | customer_support
   role             String             @default("customer")
   createdAt        DateTime           @default(now())
 
@@ -369,6 +369,8 @@ model ConversationSession {
   serialNumber   String?
   machineId      String?
   metadata       Json?    // flow-specific payload (productId, issueDescription, escalation fields, etc.)
+  isBotPaused    Boolean  @default(false)
+  supportAgentId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

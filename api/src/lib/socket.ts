@@ -72,11 +72,15 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
     }
 
     // Service / admin / customer_service join the shared "engineers" room (legacy support chat)
-    if (role === "service" || role === "admin" || role === "customer_service") {
+    if (role === "service" || role === "admin" || role === "customer_service" || role === "customer_support") {
       engineerPresence.set(socket.id, { userId, name, socketId: socket.id });
       socket.join("engineers");
       broadcastEngineerStatus();
       console.log(`[socket] engineer online: ${name} (${userId}), total online: ${engineerPresence.size}`);
+    }
+
+    if (role === "customer_support" || role === "admin") {
+      socket.join("customer_support");
     }
 
     // ── Support request room management ────────────────────────────
