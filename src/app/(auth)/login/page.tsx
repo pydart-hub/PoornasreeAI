@@ -104,7 +104,7 @@ export default function LoginPage() {
         {/* White form card — slides up from below the green area */}
         <div
           className={[
-            "relative z-10 flex-1 bg-white rounded-[2rem] mx-2 mb-2 px-6 pt-6 pb-8 flex flex-col overflow-y-auto font-sans",
+            "relative z-10 flex-1 bg-slate-50 rounded-[2rem] mx-2 mb-2 px-6 pt-6 pb-8 flex flex-col overflow-y-auto font-sans",
             "transition-transform duration-700 ease-out",
             formVisible ? "translate-y-0" : "translate-y-full",
           ].join(" ")}
@@ -143,7 +143,7 @@ export default function LoginPage() {
             {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white shadow-sm hover:border-gray-300">
                 <Lock className="w-4 h-4 text-gray-300 shrink-0" />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -174,7 +174,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover"].join(" ")}
+              className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg shadow-primary/25"].join(" ")}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -257,7 +257,7 @@ export default function LoginPage() {
         </div>
 
         {/* RIGHT – white form panel */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-white px-6 py-10 md:px-14 lg:px-20 font-sans">
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-6 py-10 md:px-14 lg:px-20 font-sans">
           <div className="w-full max-w-md">
 
             {/* Logo + welcome — grouped with consistent spacing */}
@@ -283,7 +283,7 @@ export default function LoginPage() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Email or Username</label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white shadow-sm hover:border-gray-300">
                   <Mail className="w-4 h-4 text-gray-300 shrink-0" />
                   <input
                     type="text"
@@ -302,7 +302,7 @@ export default function LoginPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Password
                 </label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white">
+                <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white shadow-sm hover:border-gray-300">
                   <Lock className="w-4 h-4 text-gray-300 shrink-0" />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -322,7 +322,11 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <div className="flex justify-end mt-1.5">
+                <div className="flex justify-between items-center mt-2 px-1">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary/30 transition-colors" />
+                    <span className="text-xs text-gray-600 group-hover:text-gray-800 transition-colors">Remember me</span>
+                  </label>
                   <button type="button" className="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
                     Forgot password?
                   </button>
@@ -333,7 +337,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover"].join(" ")}
+                className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg shadow-primary/25"].join(" ")}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
