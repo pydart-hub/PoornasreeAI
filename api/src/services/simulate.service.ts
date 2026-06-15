@@ -80,8 +80,8 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     hi: "🙏 *पूर्णश्री इक्विपमेंट्स में आपका स्वागत है!*\nआपका विश्वसनीय सेवा साझेदार 🔧\n--------------------\n\n",
   },
   MAIN_MENU_MSG: {
-    en: "Welcome to *Poornasree HelpDesk* 🤖📲\n\nPlease select an option below 👇",
-    hi: "*पूर्णश्री हेल्पडेस्क* में आपका स्वागत है 🤖📲\n\nकृपया नीचे एक विकल्प चुनें 👇",
+    en: "Please select an option below 👇",
+    hi: "कृपया नीचे एक विकल्प चुनें 👇",
   },
   NOT_REGISTERED: {
     en: "📱 This mobile number is not registered with us.\n\nIf you are a Registered Customer, please provide your registered 10 digit mobile number.\n\nEg. 9633503333\n\nOr press *Skip* to Continue. 👇",
