@@ -21,9 +21,16 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
 
     // Persist user message
     if (text) {
-      await prisma.simulateMessage.create({
+      const savedUserMessage = await prisma.simulateMessage.create({
         data: { phoneNumber: phone, role: "user", content: text },
       });
+      const { io } = await import("../lib/socket");
+      if (io) {
+        io.to("customer_support").emit("support-chat:message", {
+          phoneNumber: phone,
+          message: savedUserMessage,
+        });
+      }
     }
 
     // Check if the phone number belongs to a service engineer
@@ -48,18 +55,43 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Check if chatbot is paused
+    const session = await prisma.conversationSession.findFirst({
+      where: { phoneNumber: phone },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (session?.isBotPaused) {
+      res.json({ ok: true, paused: true, message: "Bot is paused. Under manual control." });
+      return;
+    }
+
     const result = await SimulateService.handleMessage(phone, text);
+
+    const { io } = await import("../lib/socket");
 
     // Persist bot reply (and any follow-up, e.g. video links)
     if (result.message) {
-      await prisma.simulateMessage.create({
+      const savedBotMessage = await prisma.simulateMessage.create({
         data: { phoneNumber: phone, role: "bot", content: result.message },
       });
+      if (io) {
+        io.to("customer_support").emit("support-chat:message", {
+          phoneNumber: phone,
+          message: savedBotMessage,
+        });
+      }
     }
     if (result.followUpMessage) {
-      await prisma.simulateMessage.create({
+      const savedFollowUpMessage = await prisma.simulateMessage.create({
         data: { phoneNumber: phone, role: "bot", content: result.followUpMessage },
       });
+      if (io) {
+        io.to("customer_support").emit("support-chat:message", {
+          phoneNumber: phone,
+          message: savedFollowUpMessage,
+        });
+      }
     }
 
     res.json(result);

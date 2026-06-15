@@ -325,35 +325,35 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const text = message.trim();
   const upper = text.toUpperCase();
 
+  const session = await getOrCreateSession(phoneNumber);
+  if (session.isBotPaused) {
+    return makeReply("");
+  }
+
   // ── Global navigation commands (any state except feedback) ──────────────
   // Note: "HI" is excluded while in CHANGE_LANGUAGE — it collides with the Hindi button id.
   if (isGlobalRestartCommand(upper)) {
-    const s = await getOrCreateSession(phoneNumber);
-    const meta: SessionMeta = (s.metadata as SessionMeta) ?? {};
+    const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
     // If in feedback flow, don't interrupt
-    if (s.state === "FEEDBACK_RATING" || s.state === "FEEDBACK_SATISFIED") {
-      return routeState(s, phoneNumber, text, meta);
+    if (session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED") {
+      return routeState(session, phoneNumber, text, meta);
     }
     // Let language selection handle button taps (LANG_EN / LANG_HI)
-    if (s.state === "CHANGE_LANGUAGE") {
-      return routeState(s, phoneNumber, text, meta);
+    if (session.state === "CHANGE_LANGUAGE") {
+      return routeState(session, phoneNumber, text, meta);
     }
     return startGreeting(phoneNumber);
   }
 
   if (upper === "BYE" || upper === "CLOSE") {
-    const s = await getOrCreateSession(phoneNumber);
-    const sMeta: SessionMeta = (s.metadata as SessionMeta) ?? {};
+    const sMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
     const lang: Lang = (sMeta.language ?? "en") as Lang;
-    await updateSession(s.id, "COMPLETED", {});
+    await updateSession(session.id, "COMPLETED", {});
     return makeReply(t("SESSION_CLOSED", lang));
   }
 
-  const session = await getOrCreateSession(phoneNumber);
   const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (meta.language ?? "en") as Lang;
-
-
 
   return routeState(session, phoneNumber, text, meta);
 }
@@ -2066,8 +2066,20 @@ async function getOrCreateSession(phoneNumber: string) {
     orderBy: { updatedAt: "desc" },
   });
   if (existing) return existing;
+
+  // Find the most recent session to carry over isBotPaused and supportAgentId status
+  const lastSession = await prisma.conversationSession.findFirst({
+    where: { phoneNumber },
+    orderBy: { updatedAt: "desc" },
+  });
+
   return prisma.conversationSession.create({
-    data: { phoneNumber, state: "GREETING" },
+    data: {
+      phoneNumber,
+      state: "GREETING",
+      isBotPaused: lastSession ? lastSession.isBotPaused : false,
+      supportAgentId: lastSession ? lastSession.supportAgentId : null,
+    },
   });
 }
 

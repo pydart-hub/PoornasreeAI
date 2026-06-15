@@ -383,6 +383,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   // Check if chatbot is paused
   const session = await prisma.conversationSession.findFirst({
     where: { phoneNumber: from },
+    orderBy: { updatedAt: "desc" },
   });
 
   if (session?.isBotPaused) {

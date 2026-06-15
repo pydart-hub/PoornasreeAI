@@ -13,8 +13,17 @@ router.get("/sessions", async (req: Request, res: Response) => {
       orderBy: { updatedAt: "desc" },
     });
 
+    // Deduplicate by phoneNumber, keeping the first (latest) occurrence
+    const uniqueSessionsMap = new Map<string, typeof sessions[0]>();
+    for (const session of sessions) {
+      if (!uniqueSessionsMap.has(session.phoneNumber)) {
+        uniqueSessionsMap.set(session.phoneNumber, session);
+      }
+    }
+    const uniqueSessions = Array.from(uniqueSessionsMap.values());
+
     const sessionData = await Promise.all(
-      sessions.map(async (session) => {
+      uniqueSessions.map(async (session) => {
         // Try to find the user's name from MarketingLead
         const lead = await prisma.marketingLead.findFirst({
           where: { phone: session.phoneNumber },
@@ -74,10 +83,18 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
 
     const session = await prisma.conversationSession.findFirst({
       where: { phoneNumber },
+      orderBy: { updatedAt: "desc" },
     });
 
     if (!session) {
-      return res.status(404).json({ error: "Session not found" });
+      const newSession = await prisma.conversationSession.create({
+        data: {
+          phoneNumber,
+          state: "GREETING",
+          isBotPaused: Boolean(isBotPaused),
+        },
+      });
+      return res.json({ session: newSession });
     }
 
     const updated = await prisma.conversationSession.update({
