@@ -67,6 +67,7 @@ type SessionMeta = {
   /** Set when name/pincode were loaded from a prior ticket — skip confirm on Book Service */
   skipEndCustomerConfirm?: boolean;
   customComplaintPath?: boolean;
+  videoSearchQuery?: string;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -151,6 +152,10 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.\n\nWould you like to book a service visit? Our technician will come to your location.",
     hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n😔 इस समस्या के लिए कोई समाधान चरण नहीं मिले।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा।",
   },
+  NO_STEPS_BASE: {
+    en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.",
+    hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n😔 इस समस्या के लिए कोई समाधान चरण नहीं मिले।",
+  },
   STEPS_FOUND: {
     en: "🔧 *Troubleshooting Steps:*\n--------------------\n{steps}\n--------------------\n\nWere you able to resolve the issue?",
     hi: "🔧 *समस्या निवारण चरण:*\n--------------------\n{steps}\n--------------------\n\nक्या आप समस्या हल करने में सफल रहे?",
@@ -161,7 +166,11 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   },
   ALL_STEPS_DONE: {
     en: "✅ All troubleshooting steps have been completed but the issue is not resolved.\n\nWould you like to book a service visit? Our technician will assist you on-site. 🔧",
-    hi: "✅ सभी समस्या निवारण चरण पूरे हो गए लेकिन समस्या हल नहीं हुई।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपकी सहायता करेगा। 🔧",
+    hi: "✅ सभी समस्या निवारण चरण पूरे মহাসमय पूरे हो गए लेकिन समस्या हल नहीं हुई।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपकी सहायता करेगा। 🔧",
+  },
+  ALL_STEPS_DONE_BASE: {
+    en: "✅ All troubleshooting steps have been completed but the issue is not resolved.",
+    hi: "✅ सभी समस्या निवारण चरण पूरे हो गए लेकिन समस्या हल नहीं हुई।",
   },
   ASK_BOOK_SERVICE: {
     en: "😔 Sorry the troubleshooting didn't help.\n\nWould you like to book a service visit? Our technician will come to your location. 🔧",
@@ -238,6 +247,14 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   SERVICE_UNAVAILABLE: {
     en: "Service temporarily unavailable. Please try again later.",
     hi: "सेवा अस्थायी रूप से उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।",
+  },
+  ASK_VIDEO_TUTORIAL: {
+    en: "📺 We have a tutorial video on how to fix this issue.\n\nWould you like to watch it?",
+    hi: "📺 हमारे पास इस समस्या को ठीक करने का एक ट्यूटोरियल वीडियो है।\n\nक्या आप इसे देखना चाहेंगे?",
+  },
+  ASK_VIDEO_HELPED: {
+    en: "Did the video help resolve the issue?",
+    hi: "क्या वीडियो से आपकी समस्या हल हुई?",
   },
 };
 
@@ -433,6 +450,12 @@ async function routeState(
 
     case "TROUBLESHOOT_DONE_OPTIONS":
       return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
+
+    case "ASK_VIDEO_TUTORIAL":
+      return handleAskVideoTutorial(session.id, phoneNumber, meta, text);
+
+    case "VIDEO_HELPED":
+      return handleVideoHelped(session.id, phoneNumber, meta, text);
 
     case "ANOTHER_COMPLAINT_PROMPT":
       return handleAnotherComplaintPrompt(session.id, phoneNumber, meta, text);
@@ -1044,18 +1067,26 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   // ── Video recommendations: search by complaint + product name ──────────
   const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
-  const videos = await findVideosForQuery(videoSearchQuery, 3);
+  const videoMeta: SessionMeta = { ...updatedMeta, videoSearchQuery };
+  const videos = await findVideosForQuery(videoSearchQuery, 1);
 
   if (!template || template.steps.length === 0) {
-    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
-    const noStepsFollowUp = videos.length > 0 ? formatVideoSuggestions(videos, lang).trim() : undefined;
-    return makeReply(
-      t("NO_STEPS", lang, { complaint: complaintText }),
-      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
-      undefined,
-      undefined,
-      noStepsFollowUp,
-    );
+    if (videos.length > 0) {
+      await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", videoMeta);
+      return makeReply(
+        t("NO_STEPS_BASE", lang, { complaint: complaintText }) + "\n\n" + t("ASK_VIDEO_TUTORIAL", lang),
+        [
+          { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
+          { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+        ]
+      );
+    } else {
+      await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", videoMeta);
+      return makeReply(
+        t("NO_STEPS", lang, { complaint: complaintText }),
+        [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
+      );
+    }
   }
 
   const steps = template.steps
@@ -1063,24 +1094,27 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     .filter(isActionableStep);
 
   if (steps.length === 0) {
-    await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
-    const emptyStepsFollowUp = videos.length > 0 ? formatVideoSuggestions(videos, lang).trim() : undefined;
-    return makeReply(
-      t("NO_STEPS", lang, { complaint: complaintText }),
-      [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
-      undefined,
-      undefined,
-      emptyStepsFollowUp,
-    );
+    if (videos.length > 0) {
+      await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", updatedMeta);
+      return makeReply(
+        t("NO_STEPS_BASE", lang, { complaint: complaintText }) + "\n\n" + t("ASK_VIDEO_TUTORIAL", lang),
+        [
+          { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
+          { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+        ]
+      );
+    } else {
+      await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
+      return makeReply(
+        t("NO_STEPS", lang, { complaint: complaintText }),
+        [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
+      );
+    }
   }
 
   const stepsText = steps.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
 
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
-
-  const followUpMessage = videos.length > 0
-    ? formatVideoSuggestions(videos, lang).trim()
-    : undefined;
 
   return makeReply(
     t("STEPS_FOUND", lang, { steps: stepsText }),
@@ -1088,10 +1122,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
       { id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" },
       { id: "NOT_RESOLVED", title: lang === "hi" ? "नहीं, हल नहीं हुआ ❌" : "Not Resolved ❌" },
       getMenuButton(lang),
-    ],
-    undefined,
-    undefined,
-    followUpMessage,
+    ]
   );
 }
 
@@ -1127,6 +1158,17 @@ async function handleTroubleshootStep(sessionId: string, phoneNumber: string, me
   if (upper === "NEXT_STEP" || upper === "NO" || upper === "2") {
     const nextStep = currentStep + 1;
     if (nextStep > totalSteps) {
+      const videos = meta.videoSearchQuery ? await findVideosForQuery(meta.videoSearchQuery, 1) : [];
+      if (videos.length > 0) {
+        await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", meta);
+        return makeReply(
+          t("ALL_STEPS_DONE_BASE", lang) + "\n\n" + t("ASK_VIDEO_TUTORIAL", lang),
+          [
+            { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
+            { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+          ]
+        );
+      }
       // All steps exhausted — fall back to book-service prompt
       await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", meta);
       return makeReply(
@@ -1178,6 +1220,18 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
 
   // "Not Resolved" → show Book Service or Main Menu
   if (upper === "NOT_RESOLVED" || upper === "NO" || upper === "2") {
+    const videos = meta.videoSearchQuery ? await findVideosForQuery(meta.videoSearchQuery, 1) : [];
+    if (videos.length > 0) {
+      await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", meta);
+      return makeReply(
+        t("ASK_VIDEO_TUTORIAL", lang),
+        [
+          { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
+          { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+        ]
+      );
+    }
+
     await updateSession(sessionId, "ASK_BOOK_SERVICE", meta);
     return makeReply(
       t("ASK_BOOK_SERVICE", lang),
@@ -1204,6 +1258,84 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
       { id: "NOT_RESOLVED", title: lang === "hi" ? "नहीं, हल नहीं हुआ ❌" : "Not Resolved ❌" },
       getMenuButton(lang),
     ],
+  );
+}
+
+// ── ASK_VIDEO_TUTORIAL ───────────────────────────────────────────────────
+async function handleAskVideoTutorial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "YES" || upper === "1") {
+    const videos = meta.videoSearchQuery ? await findVideosForQuery(meta.videoSearchQuery, 3) : [];
+    if (videos.length === 0) {
+      await updateSession(sessionId, "ASK_BOOK_SERVICE", meta);
+      return makeReply(
+        t("ASK_BOOK_SERVICE", lang),
+        [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)]
+      );
+    }
+
+    const videoMessage = formatVideoSuggestions(videos, lang).trim();
+    await updateSession(sessionId, "VIDEO_HELPED", meta);
+
+    return makeReply(
+      videoMessage + "\n\n" + t("ASK_VIDEO_HELPED", lang),
+      [
+        { id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" },
+        { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+      ]
+    );
+  }
+
+  if (upper === "NO" || upper === "2" || upper === "BOOK_SERVICE") {
+    if (meta.tsSerialPath && meta.machineData) {
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+    }
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply(t("ENTER_NAME", lang));
+  }
+
+  return makeReply(
+    t("SELECT_VALID", lang),
+    [
+      { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
+      { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+    ]
+  );
+}
+
+// ── VIDEO_HELPED ──────────────────────────────────────────────────────────
+async function handleVideoHelped(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "YES" || upper === "1") {
+    await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
+    return makeReply(
+      t("ISSUE_RESOLVED", lang) + "\n\n" + (lang === "hi" ? "क्या आपको इस मशीन के लिए कोई और शिकायत दर्ज करनी है?" : "Do you have another complaint for this machine?"),
+      [
+        { id: "YES", title: lang === "hi" ? "हाँ, दूसरी शिकायत 📝" : "Yes, Another Issue 📝" },
+        { id: "NO", title: lang === "hi" ? "नहीं ❌" : "No ❌" },
+        getMenuButton(lang)
+      ]
+    );
+  }
+
+  if (upper === "NO" || upper === "2" || upper === "BOOK_SERVICE") {
+    if (meta.tsSerialPath && meta.machineData) {
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+    }
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply(t("ENTER_NAME", lang));
+  }
+
+  return makeReply(
+    t("SELECT_VALID", lang),
+    [
+      { id: "YES", title: lang === "hi" ? "हाँ, हल हुआ ✅" : "Yes, Resolved ✅" },
+      { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
+    ]
   );
 }
 
