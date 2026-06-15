@@ -6,7 +6,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { LoadingScreen } from "@/components/ui/Loading";
-import { ResponsiveSidebar, SidebarBrand } from "@/components/ui";
+import { ResponsiveSidebar, SidebarBrand, Logo } from "@/components/ui";
 import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -103,18 +103,18 @@ interface Toast { id: number; message: string; type: "success" | "info" | "warni
 const getStateConfig = (state: string) => {
   const s = (state || "GREETING").toUpperCase();
   if (s.includes("GREET") || s === "START") {
-    return { bg: "bg-blue-500/25 border-blue-500/40 text-blue-300", label: "Greeting" };
+    return { bg: "bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-500/30", label: "Greeting" };
   }
   if (s.includes("TROUBLE") || s.includes("DIAG")) {
-    return { bg: "bg-amber-500/25 border-amber-500/40 text-amber-300", label: "Diagnostics" };
+    return { bg: "bg-amber-50 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-200 dark:border-amber-500/30", label: "Diagnostics" };
   }
   if (s.includes("TICKET") || s.includes("BOOK")) {
-    return { bg: "bg-rose-500/25 border-rose-500/40 text-rose-300", label: "Ticket Booking" };
+    return { bg: "bg-rose-50 dark:bg-rose-500/20 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-500/30", label: "Ticket Booking" };
   }
   if (s.includes("WARRANTY")) {
-    return { bg: "bg-emerald-500/25 border-emerald-500/40 text-emerald-300", label: "Warranty Check" };
+    return { bg: "bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30", label: "Warranty Check" };
   }
-  return { bg: "bg-white/10 border-white/15 text-white/70", label: state };
+  return { bg: "bg-gray-50 dark:bg-white/10 text-gray-600 dark:text-white/70 border-gray-200 dark:border-white/15", label: state };
 };
 
 const getWarrantyStatus = (invoiceDateStr: string, warrantyMonths: number) => {
@@ -378,21 +378,45 @@ export default function SupportDashboard() {
 
   return (
     <div className="h-[100dvh] flex overflow-hidden bg-surface dark:bg-surface-dark">
-      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={280} className="overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1a2332] via-[#0f172a] to-[#0b0f19]" />
-        <div className="relative flex flex-col h-full">
-          <SidebarBrand title="WhatsApp Support" onClose={() => setSidebarOpen(false)} />
+      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={280} className="overflow-hidden bg-surface-sidebar dark:bg-[#111b21]">
+        <div className="relative flex flex-col h-full bg-surface-sidebar dark:bg-[#111b21] transition-colors duration-200">
+          
+          {/* Theme-Aware Sidebar Brand */}
+          <div className="flex items-center justify-between px-4 py-4.5 border-b border-line dark:border-[#222d34] shrink-0 bg-surface dark:bg-[#202c33] transition-colors duration-200">
+            <div className="flex items-center gap-2.5">
+              <div className="rounded-xl bg-primary/10 dark:bg-white/5 ring-1 ring-primary/20 dark:ring-white/10 flex items-center justify-center flex-shrink-0 p-1 w-8 h-8">
+                <Logo variant="flower" size="sm" className="w-full h-full" priority />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-content dark:text-[#e9edef] leading-tight truncate">WhatsApp Support</p>
+                <p className="text-[10px] text-content-secondary dark:text-[#8696a0] font-medium truncate">Poornasree AI</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-content-secondary dark:text-[#8696a0] hover:bg-surface-hover dark:hover:bg-white/10 transition-colors shrink-0"
+              title="Close sidebar"
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+          </div>
 
           <div className="flex-1 flex flex-col overflow-hidden">
-             <div className="px-3 py-2.5 border-b border-white/10 flex items-center justify-between">
-                <span className="text-sm font-semibold text-white/80">Chats</span>
-                <button onClick={fetchSessions} disabled={sessionsLoading} className="text-white/60 hover:text-white transition-transform active:rotate-180">
+             {/* Section Label */}
+             <div className="px-4 py-3 border-b border-line dark:border-[#222d34] bg-surface dark:bg-[#111b21] flex items-center justify-between transition-colors duration-200">
+                <span className="text-xs font-bold uppercase tracking-wider text-content-secondary dark:text-[#8696a0]">Chats</span>
+                <button 
+                  onClick={fetchSessions} 
+                  disabled={sessionsLoading} 
+                  className="text-content-secondary dark:text-[#8696a0] hover:text-content dark:hover:text-[#e9edef] transition-transform active:rotate-180"
+                  title="Refresh chats"
+                >
                     <RefreshCw className={cn("w-4 h-4", sessionsLoading && "animate-spin")} />
                 </button>
              </div>
              
              {/* Queue Grouping Tabs */}
-             <div className="px-2 py-1.5 border-b border-white/5 bg-white/5 flex gap-1 text-[11px]">
+             <div className="px-2 py-1.5 border-b border-line dark:border-[#222d34] bg-surface-hover/30 dark:bg-[#111b21] flex gap-1 text-[11px] transition-colors duration-200">
                 {(["all", "manual", "bot"] as const).map((tab) => {
                   const label = tab === "all" ? "All" : tab === "manual" ? "Manual" : "Bot Active";
                   const isActive = activeTab === tab;
@@ -401,10 +425,10 @@ export default function SupportDashboard() {
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       className={cn(
-                        "flex-1 py-1 rounded-md transition-all font-medium",
+                        "flex-1 py-1 rounded-md transition-all font-medium border",
                         isActive
-                          ? "bg-white/15 text-white shadow-sm font-semibold border border-white/10"
-                          : "text-white/50 hover:text-white hover:bg-white/5 border border-transparent"
+                          ? "bg-white dark:bg-[#2a3942] text-primary dark:text-white shadow-sm font-semibold border-line dark:border-white/10"
+                          : "text-content-secondary dark:text-white/50 hover:text-content dark:hover:text-white hover:bg-surface-hover dark:hover:bg-white/5 border-transparent"
                       )}
                     >
                       {label}
@@ -413,9 +437,10 @@ export default function SupportDashboard() {
                 })}
              </div>
              
-             <div className="flex-1 overflow-y-auto scrollbar-thin">
+             {/* Chat List Queue */}
+             <div className="flex-1 overflow-y-auto scrollbar-thin bg-surface dark:bg-[#111b21] transition-colors duration-200">
                 {filteredSessions.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-white/40">No sessions match active filters.</div>
+                  <div className="p-6 text-center text-sm text-content-secondary dark:text-white/40">No sessions match active filters.</div>
                 ) : (
                   filteredSessions.map(s => {
                     const isActive = s.phoneNumber === activePhone;
@@ -425,20 +450,22 @@ export default function SupportDashboard() {
                         key={s.phoneNumber}
                         onClick={() => { setActivePhone(s.phoneNumber); if (isMobile) setSidebarOpen(false); }}
                         className={cn(
-                          "w-full text-left px-4 py-3.5 border-b border-white/5 transition-all duration-150 flex flex-col gap-2 relative",
-                          isActive ? "bg-white/10 border-l-4 border-l-primary-400" : "hover:bg-white/5 border-l-4 border-l-transparent"
+                          "w-full text-left px-4 py-3.5 border-b border-line dark:border-white/5 transition-all duration-150 flex flex-col gap-2 relative",
+                          isActive 
+                            ? "bg-[#e9edef] dark:bg-[#2a3942] border-l-4 border-l-primary" 
+                            : "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] border-l-4 border-l-transparent bg-surface dark:bg-[#111b21]"
                         )}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2 min-w-0">
                             <Avatar name={s.name} size="sm" className="shrink-0" />
-                            <span className="text-sm font-semibold text-white truncate max-w-[130px]">{s.name}</span>
+                            <span className="text-sm font-semibold text-content dark:text-white truncate max-w-[130px]">{s.name}</span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {s.isBotPaused ? (
-                              <span className="text-[8px] bg-rose-500/20 border border-rose-500/35 text-rose-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Manual</span>
+                              <span className="text-[8px] bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Manual</span>
                             ) : (
-                              <span className="text-[8px] bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Bot</span>
+                              <span className="text-[8px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Bot</span>
                             )}
                           </div>
                         </div>
@@ -447,25 +474,25 @@ export default function SupportDashboard() {
                           <span className={cn("text-[9px] font-bold border px-1.5 py-0.5 rounded-md", stateConfig.bg)}>
                             {stateConfig.label}
                           </span>
-                          <span className="text-[9px] text-white/40 font-medium">
+                          <span className="text-[9px] text-content-secondary dark:text-white/40 font-medium">
                             {safeFormatRelativeTime(s.updatedAt)}
                           </span>
                         </div>
 
                         {s.lastMessage && (
-                          <div className="text-xs text-white/60 truncate w-full flex gap-1.5 items-center mt-0.5">
+                          <div className="text-xs text-content-secondary dark:text-white/60 truncate w-full flex gap-1.5 items-center mt-0.5">
                             <span className={cn(
                               "font-bold text-[8px] uppercase tracking-wider px-1 py-0.2 rounded shrink-0",
-                              s.lastMessage.role === "user" ? "bg-amber-500/25 text-amber-300 border border-amber-500/20" :
-                              s.lastMessage.role === "support" ? "bg-violet-500/25 text-violet-300 border border-violet-500/20" :
-                              s.lastMessage.role === "system" ? "bg-gray-500/25 text-gray-300 border border-gray-500/20" : 
-                              "bg-emerald-500/25 text-emerald-300 border border-emerald-500/20"
+                              s.lastMessage.role === "user" ? "bg-amber-100 dark:bg-amber-500/25 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20" :
+                              s.lastMessage.role === "support" ? "bg-violet-100 dark:bg-violet-500/25 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-500/20" :
+                              s.lastMessage.role === "system" ? "bg-gray-100 dark:bg-gray-500/25 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-500/20" : 
+                              "bg-emerald-100 dark:bg-emerald-500/25 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20"
                             )}>
                               {s.lastMessage.role === "user" ? "User" :
                                s.lastMessage.role === "support" ? "Agent" :
                                s.lastMessage.role === "system" ? "Sys" : "Bot"}
                             </span>
-                            <span className="truncate flex-1 font-light">{s.lastMessage.content}</span>
+                            <span className="truncate flex-1 font-light text-content-secondary dark:text-[#8696a0]">{s.lastMessage.content}</span>
                           </div>
                         )}
                       </button>
@@ -475,8 +502,9 @@ export default function SupportDashboard() {
              </div>
           </div>
 
-          <div className="px-3 py-4 border-t border-white/10 shrink-0 bg-black/10">
-            <button onClick={async () => { await logout(); router.replace("/login"); }} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+          {/* Theme-Aware Footer */}
+          <div className="px-3 py-4 border-t border-line dark:border-[#222d34] shrink-0 bg-surface dark:bg-[#111b21] transition-colors duration-200">
+            <button onClick={async () => { await logout(); router.replace("/login"); }} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-content-secondary dark:text-white/50 hover:text-content dark:hover:text-white hover:bg-surface-hover dark:hover:bg-white/10 transition-colors">
               <LogOut className="w-4 h-4" /> Sign out
             </button>
           </div>
@@ -484,7 +512,8 @@ export default function SupportDashboard() {
       </ResponsiveSidebar>
 
       <main className="flex-1 flex flex-col overflow-hidden bg-background dark:bg-background-dark">
-        <header className="shrink-0 bg-surface/85 dark:bg-[#202c33]/95 backdrop-blur-md border-b border-line dark:border-[#2f3b43] px-4 py-3 flex items-center justify-between gap-3 z-10 shadow-sm transition-colors duration-200">
+        {/* Main Dashboard Header */}
+        <header className="shrink-0 bg-surface/80 dark:bg-[#202c33]/95 backdrop-blur border-b border-line dark:border-[#2f3b43] px-4 py-3.5 flex items-center justify-between gap-3 z-10 shadow-sm transition-colors duration-200">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
               <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg text-content-secondary dark:text-[#8696a0] hover:bg-surface-hover dark:hover:bg-white/10 shrink-0 transition-colors">
@@ -501,7 +530,7 @@ export default function SupportDashboard() {
 
         <div className="flex-1 flex overflow-hidden">
            {!activeSession ? (
-             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-6">
+             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-6 bg-surface dark:bg-[#0b141a]">
                 <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-white/5 flex items-center justify-center animate-bounce duration-1000">
                   <MessageSquare className="w-8 h-8 text-primary dark:text-[#00a884] opacity-80" />
                 </div>
@@ -515,12 +544,12 @@ export default function SupportDashboard() {
                {/* Chat Pane */}
                <div className="flex-1 flex flex-col h-full relative bg-[#efeae2] dark:bg-[#0b141a] min-w-0">
                  {/* Chat Header */}
-                 <div className="flex items-center justify-between px-4 py-3 bg-surface border-b border-line shrink-0 z-10 dark:bg-[#202c33] dark:border-white/10 shadow-sm">
+                 <div className="flex items-center justify-between px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-white/10 shrink-0 z-10 shadow-sm transition-colors duration-200">
                    <div className="flex items-center gap-3">
                      <Avatar name={activeSession.name} size="md" />
                      <div>
-                       <p className="font-semibold text-content dark:text-[#e9edef] leading-tight">{activeSession.name}</p>
-                       <p className="text-xs text-content-secondary dark:text-[#8696a0]">{activeSession.phoneNumber}</p>
+                       <p className="font-semibold text-gray-800 dark:text-[#e9edef] leading-tight">{activeSession.name}</p>
+                       <p className="text-xs text-gray-500 dark:text-[#8696a0]">{activeSession.phoneNumber}</p>
                      </div>
                    </div>
                    
@@ -537,7 +566,7 @@ export default function SupportDashboard() {
 
                      <button
                        onClick={() => setContextOpen(!contextOpen)}
-                       className="p-2 rounded-lg text-content-secondary dark:text-[#8696a0] hover:bg-surface-hover dark:hover:bg-white/10 transition-colors shrink-0"
+                       className="p-2 rounded-lg text-[#8696a0] hover:bg-surface-hover dark:hover:bg-white/10 transition-colors shrink-0"
                        title={contextOpen ? "Hide Info" : "Show Info"}
                      >
                        {contextOpen ? (
@@ -597,8 +626,8 @@ export default function SupportDashboard() {
                              )}
                              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                              <div className="flex items-center justify-end gap-1 mt-1 opacity-70">
-                               {isSupport && <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">You</span>}
-                               {isBot && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-300">Bot</span>}
+                               {isSupport && <span className="text-[10px] font-bold text-violet-650 dark:text-violet-300">You</span>}
+                               {isBot && <span className="text-[10px] font-bold text-[#00a884]">Bot</span>}
                                <span className="text-[10px] font-light text-content-tertiary dark:text-[#8696a0]">
                                  {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                </span>
@@ -612,7 +641,7 @@ export default function SupportDashboard() {
                  </div>
 
                  {/* Message Composer Area */}
-                 <div className="px-4 py-3 bg-surface border-t border-line shrink-0 dark:bg-[#202c33] dark:border-white/10 shadow-inner">
+                 <div className="px-4 py-3 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-line dark:border-[#222d34] shrink-0 shadow-inner transition-colors duration-200">
                    {activeSession.isBotPaused ? (
                      <div className="flex items-end gap-2 animate-in slide-in-from-bottom-2 duration-150">
                        <textarea
@@ -622,10 +651,10 @@ export default function SupportDashboard() {
                          disabled={sending}
                          placeholder="Type your reply to customer..."
                          rows={2}
-                         className="flex-1 resize-none rounded-xl px-4 py-3 text-sm bg-surface-hover dark:bg-[#2a3942] text-content dark:text-[#e9edef] placeholder:text-content-tertiary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all border border-line/60 dark:border-[#2a3942]"
+                         className="flex-1 resize-none rounded-xl px-4 py-3 text-sm bg-white dark:bg-[#2a3942] text-gray-800 dark:text-[#e9edef] placeholder:text-gray-400 dark:placeholder:text-[#8696a0] focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all border border-gray-200 dark:border-[#2a3942]"
                        />
-                       <Button variant="primary" size="lg" className="px-4 h-[50px] rounded-xl" loading={sending} disabled={!replyText.trim()} onClick={handleSendMessage}>
-                         <Send className="w-5 h-5" />
+                       <Button variant="primary" size="lg" className="px-4 h-[50px] rounded-xl bg-primary hover:bg-primary-hover dark:bg-[#00a884] dark:hover:bg-[#008f72] border-0" loading={sending} disabled={!replyText.trim()} onClick={handleSendMessage}>
+                         <Send className="w-5 h-5 text-white" />
                        </Button>
                      </div>
                    ) : (
@@ -645,8 +674,8 @@ export default function SupportDashboard() {
                {/* Right Drawer (Context Panel) */}
                {contextOpen && (
                  <div className="w-[360px] border-l border-line dark:border-[#2f3b43] bg-surface dark:bg-[#121b22] flex flex-col h-full overflow-hidden shrink-0 animate-in slide-in-from-right duration-200 z-10 shadow-xl">
-                    <div className="px-4 py-3.5 border-b border-line dark:border-[#2f3b43] flex items-center justify-between bg-surface dark:bg-[#202c33] shrink-0">
-                      <span className="font-semibold text-content dark:text-[#e9edef] flex items-center gap-2 text-sm">
+                    <div className="px-4 py-3.5 border-b border-line dark:border-[#2f3b43] flex items-center justify-between bg-[#f0f2f5] dark:bg-[#202c33] shrink-0 transition-colors duration-200">
+                      <span className="font-semibold text-gray-800 dark:text-[#e9edef] flex items-center gap-2 text-sm">
                         <UserIcon className="w-4 h-4 text-primary dark:text-[#00a884]" />
                         Customer Context
                       </span>
