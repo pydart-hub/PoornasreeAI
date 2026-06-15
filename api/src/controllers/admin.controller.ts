@@ -29,7 +29,7 @@ function buildSetPasswordUrl(rawToken: string): string {
   return `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
 }
 
-const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "marketing"];
+const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "customer_support", "marketing"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
 export async function createUser(req: Request, res: Response): Promise<void> {
