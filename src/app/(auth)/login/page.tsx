@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -38,6 +38,7 @@ function roleRoute(role: string): string {
     case "sales":            return "/sales";
     case "marketing":        return "/marketing";
     case "customer_service": return "/customer-service";
+    case "customer_support": return "/support-dashboard";
     default:                 return "/chat";
   }
 }
