@@ -105,6 +105,7 @@ function getRoleBadge(role: string) {
     service:  { label: "Service Engineer", variant: "info" },
     sales:    { label: "Sales",            variant: "success" },
     customer: { label: "Customer",         variant: "accent" },
+    customer_support: { label: "Customer Support", variant: "warning" },
   };
   return map[role] ?? { label: role, variant: "default" as const };
 }

@@ -48,11 +48,12 @@ const ROLES = [
   { value: "service_manager",           label: "Service Manager" },
   { value: "assistant_service_manager", label: "Asst. Service Manager" },
   { value: "marketing",                 label: "Marketing" },
+  { value: "customer_support",          label: "Customer Support" },
   { value: "admin",                     label: "Administrator" },
 ] as const;
 
 // All roles accepted by backend (superset of ROLES — includes dealer, sales, etc.)
-const VALID_IMPORT_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "marketing"];
+const VALID_IMPORT_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "customer_support", "marketing"];
 
 // ── Bulk import parsed row type ───────────────────────────────────────────
 interface ParsedRow {
@@ -104,6 +105,7 @@ const ROLE_BADGE: Record<
   dealer:                   { label: "Dealer",              variant: "success" },
   customer:                 { label: "Customer",            variant: "accent" },
   customer_service:         { label: "Customer Service",    variant: "warning" },
+  customer_support:         { label: "Customer Support",    variant: "warning" },
 };
 
 function getRoleBadge(role: string) {
