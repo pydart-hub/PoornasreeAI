@@ -283,3 +283,47 @@ export async function sendImage(
     console.error(`[whatsapp] Network error sending image to ${to}:`, (err as Error).message);
   }
 }
+
+/** Send a video message via WhatsApp Cloud API. */
+export async function sendVideo(
+  to: string,
+  videoUrl: string,
+  caption?: string,
+): Promise<void> {
+  if (!isConfigured()) {
+    console.warn("[whatsapp] Not configured — skipping sendVideo");
+    return;
+  }
+
+  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "video",
+        video: {
+          link: videoUrl,
+          ...(caption ? { caption: caption.slice(0, 1024) } : {}),
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error(`[whatsapp] Video send failed (${res.status}):`, JSON.stringify(err));
+      console.error(`[whatsapp] Video URL was: ${videoUrl}`);
+    } else {
+      const body = await res.json().catch(() => ({}));
+      console.log(`[whatsapp] Sent video → ${to}: url=${videoUrl} caption=${caption?.slice(0, 40)}`);
+    }
+  } catch (err) {
+    console.error(`[whatsapp] Network error sending video to ${to}:`, (err as Error).message);
+  }
+}

@@ -190,6 +190,39 @@ function splitIssueTitle(title: string): { displayTitle: string; displayDesc?: s
   return { displayTitle: title };
 }
 
+async function sendMatchingRdVideo(to: string, issueTitle: string): Promise<void> {
+  try {
+    const rdVideos = await prisma.rdVideo.findMany();
+    const issueTitleLower = issueTitle.toLowerCase();
+    
+    let bestMatch = null;
+    for (const v of rdVideos) {
+      const vTitle = v.title.toLowerCase();
+      const vDesc = (v.description || "").toLowerCase();
+      
+      // Match if issue title contains video title (or vice versa), or if description contains issue title.
+      // We skip very short video titles to avoid false positives (e.g., "a" matching everything).
+      if (
+        (vTitle.length > 2 && issueTitleLower.includes(vTitle)) ||
+        vTitle.includes(issueTitleLower) ||
+        (vDesc.length > 2 && vDesc.includes(issueTitleLower))
+      ) {
+        bestMatch = v;
+        break;
+      }
+    }
+    
+    if (bestMatch) {
+      const fileName = path.basename(bestMatch.filePath);
+      const videoUrl = `${env.FRONTEND_URL}/uploads/${fileName}`;
+      await WhatsAppService.sendVideo(to, videoUrl, `R&D Reference: ${bestMatch.title}`);
+    }
+  } catch (err) {
+    console.error("[whatsapp] Error fetching/sending R&D video:", err);
+  }
+}
+
+
 async function sendIssuesList(to: string, prefix: string, page: number, categoryName: string): Promise<void> {
   const issues = await prisma.documentIssue.findMany({
     where: {
@@ -553,6 +586,7 @@ export async function routeEngineerMessage(
           { id: "CANCEL",   title: "❌ Cancel" },
         ],
       );
+      await sendMatchingRdVideo(f, template.title);
       return;
     }
 
@@ -697,6 +731,7 @@ async function handleEngineerTroubleshootStep(
         { id: "CANCEL",   title: "❌ Cancel" },
       ],
     );
+    await sendMatchingRdVideo(from, template.title);
     return;
   }
 
