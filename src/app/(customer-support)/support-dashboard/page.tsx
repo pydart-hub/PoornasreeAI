@@ -22,7 +22,23 @@ import {
   MessageSquare,
   ChevronLeft,
   PowerOff,
-  Power
+  Power,
+  User as UserIcon,
+  MapPin,
+  Mail,
+  Shield,
+  Wrench,
+  FileText,
+  Calendar,
+  Check,
+  PanelRightClose,
+  PanelRight,
+  ShieldAlert,
+  Award,
+  Clock,
+  ExternalLink,
+  ChevronRight,
+  AlertTriangle
 } from "lucide-react";
 
 interface SessionData {
@@ -50,7 +66,112 @@ interface ChatMessage {
   createdAt: string;
 }
 
+interface CustomerProfile {
+  name: string;
+  email: string | null;
+  phone: string;
+  role: string;
+  location: string;
+}
+
+interface CustomerTicket {
+  id: string;
+  ticketNumber: string;
+  status: string;
+  problemDescription: string;
+  createdAt: string;
+  engineerName: string | null;
+}
+
+interface CustomerMachine {
+  serialNumber: string;
+  modelName: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  warrantyMonths: number;
+  createdAt: string;
+}
+
+interface CustomerContextData {
+  profile: CustomerProfile;
+  tickets: CustomerTicket[];
+  machines: CustomerMachine[];
+}
+
 interface Toast { id: number; message: string; type: "success" | "info" | "warning"; }
+
+const getStateConfig = (state: string) => {
+  const s = (state || "GREETING").toUpperCase();
+  if (s.includes("GREET") || s === "START") {
+    return { bg: "bg-blue-500/25 border-blue-500/40 text-blue-300", label: "Greeting" };
+  }
+  if (s.includes("TROUBLE") || s.includes("DIAG")) {
+    return { bg: "bg-amber-500/25 border-amber-500/40 text-amber-300", label: "Diagnostics" };
+  }
+  if (s.includes("TICKET") || s.includes("BOOK")) {
+    return { bg: "bg-rose-500/25 border-rose-500/40 text-rose-300", label: "Ticket Booking" };
+  }
+  if (s.includes("WARRANTY")) {
+    return { bg: "bg-emerald-500/25 border-emerald-500/40 text-emerald-300", label: "Warranty Check" };
+  }
+  return { bg: "bg-white/10 border-white/15 text-white/70", label: state };
+};
+
+const getWarrantyStatus = (invoiceDateStr: string, warrantyMonths: number) => {
+  if (!invoiceDateStr || invoiceDateStr === "N/A" || !warrantyMonths) {
+    return { label: "No Warranty Info", active: false, bg: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" };
+  }
+  try {
+    const invoiceDate = new Date(invoiceDateStr);
+    if (isNaN(invoiceDate.getTime())) {
+      return { label: "No Warranty Info", active: false, bg: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" };
+    }
+    const expiryDate = new Date(invoiceDate);
+    expiryDate.setMonth(expiryDate.getMonth() + warrantyMonths);
+    const today = new Date();
+    const isActive = today <= expiryDate;
+    
+    const remainingTime = expiryDate.getTime() - today.getTime();
+    const remainingDays = Math.ceil(remainingTime / (1000 * 60 * 60 * 24));
+    
+    if (isActive) {
+      return {
+        label: `Active (${remainingDays}d left)`,
+        active: true,
+        bg: "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 dark:bg-emerald-500/20 dark:text-[#00a884] dark:border-[#00a884]/35"
+      };
+    } else {
+      return {
+        label: "Expired",
+        active: false,
+        bg: "bg-rose-500/10 text-rose-600 border border-rose-500/20 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/35"
+      };
+    }
+  } catch {
+    return { label: "No Warranty Info", active: false, bg: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" };
+  }
+};
+
+const getTicketStatusBadge = (status: string) => {
+  const s = (status || "").toUpperCase();
+  if (s === "PENDING" || s === "OPEN") {
+    return "bg-amber-500/10 text-amber-600 border border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/35";
+  }
+  if (s === "ASSIGNED" || s === "IN_PROGRESS" || s === "INPROGRESS") {
+    return "bg-blue-500/10 text-blue-600 border border-blue-500/20 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/35";
+  }
+  if (s === "RESOLVED") {
+    return "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/35";
+  }
+  return "bg-gray-500/10 text-gray-600 border border-gray-500/20 dark:bg-gray-500/20 dark:text-gray-300 dark:border-gray-500/35";
+};
+
+const safeFormatRelativeTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "N/A";
+  return formatRelativeTime(d);
+};
 
 export default function SupportDashboard() {
   const router = useRouter();
@@ -69,6 +190,13 @@ export default function SupportDashboard() {
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [toggling, setToggling] = useState(false);
+
+  // New UI/UX states
+  const [activeTab, setActiveTab] = useState<"all" | "manual" | "bot">("all");
+  const [contextOpen, setContextOpen] = useState(true);
+  const [customerContext, setCustomerContext] = useState<CustomerContextData | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -117,6 +245,21 @@ export default function SupportDashboard() {
     }
   }, [addToast]);
 
+  const fetchCustomerContext = useCallback(async (phone: string) => {
+    setContextLoading(true);
+    try {
+      const r = await fetch(`/api/support-chat/customer-context/${phone}`, { credentials: "include" });
+      if (r.ok) {
+        const d = await r.json();
+        setCustomerContext(d);
+      }
+    } catch {
+      addToast("Failed to fetch customer profile", "warning");
+    } finally {
+      setContextLoading(false);
+    }
+  }, [addToast]);
+
   useEffect(() => {
     if (user && (user.role === "customer_support" || user.role === "admin")) {
       fetchSessions();
@@ -124,8 +267,13 @@ export default function SupportDashboard() {
   }, [user, fetchSessions]);
 
   useEffect(() => {
-    if (activePhone) fetchMessages(activePhone);
-  }, [activePhone, fetchMessages]);
+    if (activePhone) {
+      fetchMessages(activePhone);
+      fetchCustomerContext(activePhone);
+    } else {
+      setCustomerContext(null);
+    }
+  }, [activePhone, fetchMessages, fetchCustomerContext]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -147,7 +295,7 @@ export default function SupportDashboard() {
           updated.unshift(item);
           return updated;
         } else {
-          // New session might need to be fetched entirely, just refresh for now
+          // Refresh sessions to get new details
           fetchSessions();
           return prev;
         }
@@ -219,195 +367,467 @@ export default function SupportDashboard() {
     }
   };
 
+  const filteredSessions = sessions.filter((s) => {
+    if (activeTab === "manual") return s.isBotPaused;
+    if (activeTab === "bot") return !s.isBotPaused;
+    return true;
+  });
+
   if (authLoading) return <LoadingScreen message="Loading..." />;
   if (!user) return null;
 
   return (
     <div className="h-[100dvh] flex overflow-hidden bg-surface dark:bg-surface-dark">
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={280} className="overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a2332] via-[#0f172a] to-[#0b0f19]" />
         <div className="relative flex flex-col h-full">
           <SidebarBrand title="WhatsApp Support" onClose={() => setSidebarOpen(false)} />
 
           <div className="flex-1 flex flex-col overflow-hidden">
-             <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+             <div className="px-3 py-2.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-sm font-semibold text-white/80">Chats</span>
-                <button onClick={fetchSessions} disabled={sessionsLoading} className="text-white/60 hover:text-white">
+                <button onClick={fetchSessions} disabled={sessionsLoading} className="text-white/60 hover:text-white transition-transform active:rotate-180">
                     <RefreshCw className={cn("w-4 h-4", sessionsLoading && "animate-spin")} />
                 </button>
              </div>
              
-             <div className="flex-1 overflow-y-auto">
-               {sessions.length === 0 ? (
-                 <div className="p-4 text-center text-sm text-white/50">No chats found.</div>
-               ) : (
-                 sessions.map(s => {
-                   const isActive = s.phoneNumber === activePhone;
-                   return (
-                     <button
-                       key={s.phoneNumber}
-                       onClick={() => { setActivePhone(s.phoneNumber); if (isMobile) setSidebarOpen(false); }}
-                       className={cn(
-                         "w-full text-left px-3 py-3 border-b border-white/5 transition-colors group",
-                         isActive ? "bg-white/15 border-l-2 border-l-primary-300" : "hover:bg-white/5 border-l-2 border-l-transparent"
-                       )}
-                     >
-                       <div className="flex items-center justify-between mb-1">
-                         <div className="flex items-center gap-2">
-                           <Avatar name={s.name} size="sm" />
-                           <span className="text-sm font-semibold text-white truncate max-w-[120px]">{s.name}</span>
-                         </div>
-                         {s.isBotPaused && (
-                           <span className="text-[9px] bg-rose-500/80 text-white px-1.5 py-0.5 rounded-full font-bold">PAUSED</span>
-                         )}
-                       </div>
-                       {s.lastMessage && (
-                         <div className="text-xs text-white/60 truncate ml-9 flex gap-1">
-                           <span className={cn(
-                             "font-medium",
-                             s.lastMessage.role === "user" ? "text-amber-300" :
-                             s.lastMessage.role === "support" ? "text-violet-300" : "text-emerald-300"
-                           )}>
-                             {s.lastMessage.role === "user" ? "Them: " :
-                              s.lastMessage.role === "support" ? "You: " : "Bot: "}
-                           </span>
-                           <span className="truncate">{s.lastMessage.content}</span>
-                         </div>
-                       )}
-                     </button>
-                   );
-                 })
-               )}
+             {/* Queue Grouping Tabs */}
+             <div className="px-2 py-1.5 border-b border-white/5 bg-white/5 flex gap-1 text-[11px]">
+                {(["all", "manual", "bot"] as const).map((tab) => {
+                  const label = tab === "all" ? "All" : tab === "manual" ? "Manual" : "Bot Active";
+                  const isActive = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={cn(
+                        "flex-1 py-1 rounded-md transition-all font-medium",
+                        isActive
+                          ? "bg-white/15 text-white shadow-sm font-semibold border border-white/10"
+                          : "text-white/50 hover:text-white hover:bg-white/5 border border-transparent"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+             </div>
+             
+             <div className="flex-1 overflow-y-auto scrollbar-thin">
+                {filteredSessions.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-white/40">No sessions match active filters.</div>
+                ) : (
+                  filteredSessions.map(s => {
+                    const isActive = s.phoneNumber === activePhone;
+                    const stateConfig = getStateConfig(s.state);
+                    return (
+                      <button
+                        key={s.phoneNumber}
+                        onClick={() => { setActivePhone(s.phoneNumber); if (isMobile) setSidebarOpen(false); }}
+                        className={cn(
+                          "w-full text-left px-4 py-3.5 border-b border-white/5 transition-all duration-150 flex flex-col gap-2 relative",
+                          isActive ? "bg-white/10 border-l-4 border-l-primary-400" : "hover:bg-white/5 border-l-4 border-l-transparent"
+                        )}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Avatar name={s.name} size="sm" className="shrink-0" />
+                            <span className="text-sm font-semibold text-white truncate max-w-[130px]">{s.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {s.isBotPaused ? (
+                              <span className="text-[8px] bg-rose-500/20 border border-rose-500/35 text-rose-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Manual</span>
+                            ) : (
+                              <span className="text-[8px] bg-emerald-500/20 border border-emerald-500/35 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Bot</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center w-full">
+                          <span className={cn("text-[9px] font-bold border px-1.5 py-0.5 rounded-md", stateConfig.bg)}>
+                            {stateConfig.label}
+                          </span>
+                          <span className="text-[9px] text-white/40 font-medium">
+                            {safeFormatRelativeTime(s.updatedAt)}
+                          </span>
+                        </div>
+
+                        {s.lastMessage && (
+                          <div className="text-xs text-white/60 truncate w-full flex gap-1.5 items-center mt-0.5">
+                            <span className={cn(
+                              "font-bold text-[8px] uppercase tracking-wider px-1 py-0.2 rounded shrink-0",
+                              s.lastMessage.role === "user" ? "bg-amber-500/25 text-amber-300 border border-amber-500/20" :
+                              s.lastMessage.role === "support" ? "bg-violet-500/25 text-violet-300 border border-violet-500/20" :
+                              s.lastMessage.role === "system" ? "bg-gray-500/25 text-gray-300 border border-gray-500/20" : 
+                              "bg-emerald-500/25 text-emerald-300 border border-emerald-500/20"
+                            )}>
+                              {s.lastMessage.role === "user" ? "User" :
+                               s.lastMessage.role === "support" ? "Agent" :
+                               s.lastMessage.role === "system" ? "Sys" : "Bot"}
+                            </span>
+                            <span className="truncate flex-1 font-light">{s.lastMessage.content}</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
              </div>
           </div>
 
-          <div className="px-3 py-4 border-t border-white/10 shrink-0">
-            <button onClick={async () => { await logout(); router.replace("/login"); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10">
+          <div className="px-3 py-4 border-t border-white/10 shrink-0 bg-black/10">
+            <button onClick={async () => { await logout(); router.replace("/login"); }} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors">
               <LogOut className="w-4 h-4" /> Sign out
             </button>
           </div>
         </div>
       </ResponsiveSidebar>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="shrink-0 bg-surface/80 dark:bg-surface-dark/80 backdrop-blur border-b border-line dark:border-line-dark px-4 py-3 flex items-center gap-3 z-10">
-          {!sidebarOpen && (
-            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg text-content-secondary hover:bg-surface-hover shrink-0">
-              {isMobile ? <Menu className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-            </button>
-          )}
-          <div className="flex-1 min-w-0 flex items-center gap-3">
-             <h1 className="text-sm font-semibold text-content dark:text-content-dark">Live WhatsApp Monitor</h1>
+      <main className="flex-1 flex flex-col overflow-hidden bg-background dark:bg-background-dark">
+        <header className="shrink-0 bg-surface/85 dark:bg-[#202c33]/95 backdrop-blur-md border-b border-line dark:border-[#2f3b43] px-4 py-3 flex items-center justify-between gap-3 z-10 shadow-sm transition-colors duration-200">
+          <div className="flex items-center gap-3">
+            {!sidebarOpen && (
+              <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg text-content-secondary dark:text-[#8696a0] hover:bg-surface-hover dark:hover:bg-white/10 shrink-0 transition-colors">
+                {isMobile ? <Menu className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+              </button>
+            )}
+            <div className="min-w-0 flex items-center gap-2">
+               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+               <h1 className="text-sm font-bold text-content dark:text-[#e9edef] tracking-tight">Live WhatsApp Support</h1>
+            </div>
           </div>
           <ThemeToggle />
         </header>
 
         <div className="flex-1 flex overflow-hidden">
            {!activeSession ? (
-             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-                <MessageSquare className="w-12 h-12 text-content-tertiary opacity-30" />
-                <p className="text-content-secondary font-medium">Select a chat to view</p>
+             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-6">
+                <div className="w-16 h-16 rounded-full bg-primary/10 dark:bg-white/5 flex items-center justify-center animate-bounce duration-1000">
+                  <MessageSquare className="w-8 h-8 text-primary dark:text-[#00a884] opacity-80" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-content dark:text-[#e9edef]">Support Monitor</h2>
+                  <p className="text-xs text-content-secondary dark:text-[#8696a0] mt-1 max-w-[280px]">Select a customer conversation from the queue to start manual override, check warranty and manage service tickets.</p>
+                </div>
              </div>
            ) : (
-             <div className="flex-1 flex flex-col h-full relative bg-[#efeae2] dark:bg-[#0b141a]">
-               {/* Chat Header */}
-               <div className="flex items-center justify-between px-4 py-3 bg-surface border-b border-line shrink-0 z-10 dark:bg-[#202c33] dark:border-white/10 shadow-sm">
-                 <div className="flex items-center gap-3">
-                   <Avatar name={activeSession.name} size="md" />
-                   <div>
-                     <p className="font-semibold text-content dark:text-[#e9edef] leading-tight">{activeSession.name}</p>
-                     <p className="text-xs text-content-secondary dark:text-[#8696a0]">{activeSession.phoneNumber}</p>
+             <div className="flex-1 flex overflow-hidden">
+               {/* Chat Pane */}
+               <div className="flex-1 flex flex-col h-full relative bg-[#efeae2] dark:bg-[#0b141a] min-w-0">
+                 {/* Chat Header */}
+                 <div className="flex items-center justify-between px-4 py-3 bg-surface border-b border-line shrink-0 z-10 dark:bg-[#202c33] dark:border-white/10 shadow-sm">
+                   <div className="flex items-center gap-3">
+                     <Avatar name={activeSession.name} size="md" />
+                     <div>
+                       <p className="font-semibold text-content dark:text-[#e9edef] leading-tight">{activeSession.name}</p>
+                       <p className="text-xs text-content-secondary dark:text-[#8696a0]">{activeSession.phoneNumber}</p>
+                     </div>
                    </div>
-                 </div>
-                 <div>
-                    <Button 
-                      variant={activeSession.isBotPaused ? "primary" : "destructive"} 
-                      size="sm"
-                      onClick={handleToggleBot}
-                      disabled={toggling}
-                      icon={activeSession.isBotPaused ? <Power className="w-3.5 h-3.5"/> : <PowerOff className="w-3.5 h-3.5" />}
-                    >
-                      {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : activeSession.isBotPaused ? "Turn On Chatbot" : "Turn Off Chatbot"}
-                    </Button>
-                 </div>
-               </div>
+                   
+                   <div className="flex items-center gap-2">
+                     <Button 
+                       variant={activeSession.isBotPaused ? "primary" : "destructive"} 
+                       size="sm"
+                       onClick={handleToggleBot}
+                       disabled={toggling}
+                       icon={activeSession.isBotPaused ? <Power className="w-3.5 h-3.5"/> : <PowerOff className="w-3.5 h-3.5" />}
+                     >
+                       {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : activeSession.isBotPaused ? "Turn On Bot" : "Pause Bot"}
+                     </Button>
 
-               {/* Messages */}
-               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                 {messagesLoading && messages.length === 0 ? (
-                   <div className="flex justify-center p-4">
-                     <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                     <button
+                       onClick={() => setContextOpen(!contextOpen)}
+                       className="p-2 rounded-lg text-content-secondary dark:text-[#8696a0] hover:bg-surface-hover dark:hover:bg-white/10 transition-colors shrink-0"
+                       title={contextOpen ? "Hide Info" : "Show Info"}
+                     >
+                       {contextOpen ? (
+                         <PanelRightClose className="w-4 h-4 text-primary dark:text-[#00a884]" />
+                       ) : (
+                         <PanelRight className="w-4 h-4" />
+                       )}
+                     </button>
                    </div>
-                 ) : (
-                   messages.map((msg) => {
-                     const isUser = msg.role === "user";
-                     const isBot = msg.role === "bot";
-                     const isSupport = msg.role === "support";
-                     
-                     return (
-                       <div key={msg.id} className={cn("flex w-full", !isUser ? "justify-end" : "justify-start")}>
-                         <div className={cn(
-                           "max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm relative",
-                           isUser ? "bg-white text-gray-800 rounded-tl-none dark:bg-[#202c33] dark:text-[#e9edef]" :
-                           isBot ? "bg-[#d9fdd3] text-gray-800 rounded-tr-none dark:bg-[#005c4b] dark:text-[#e9edef]" :
-                           "bg-violet-100 text-violet-900 rounded-tr-none border border-violet-200 dark:bg-[#322359] dark:text-violet-100 dark:border-violet-500/30"
-                         )}>
-                           {msg.mediaUrl && (
-                             <div className="mb-2 rounded-lg overflow-hidden border border-gray-100 dark:border-white/10 max-w-sm">
-                               <img
-                                 src={msg.mediaUrl}
-                                 alt="Complaint Image"
-                                 className="w-full h-auto object-cover max-h-[300px] cursor-pointer hover:opacity-95 transition-opacity"
-                                 onClick={() => window.open(msg.mediaUrl!, '_blank')}
-                               />
+                 </div>
+
+                 {/* Messages Scroll Area */}
+                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3.5 scrollbar-thin">
+                   {messagesLoading && messages.length === 0 ? (
+                     <div className="flex justify-center p-8">
+                       <Loader2 className="w-6 h-6 animate-spin text-primary dark:text-[#00a884]" />
+                     </div>
+                   ) : (
+                     messages.map((msg) => {
+                       const isUser = msg.role === "user";
+                       const isBot = msg.role === "bot";
+                       const isSupport = msg.role === "support";
+                       const isSystem = msg.role === "system";
+
+                       if (isSystem) {
+                         return (
+                           <div key={msg.id} className="flex w-full justify-center my-3 animate-in fade-in duration-300">
+                             <div className="bg-[#e1f3ff] text-[#0275d8] dark:bg-[#182229] dark:text-[#53bdeb] text-[11px] font-semibold px-4 py-1.5 rounded-lg border border-[#b3e5fc]/30 dark:border-[#53bdeb]/10 shadow-sm max-w-[85%] text-center tracking-wide">
+                               {msg.content}
                              </div>
-                           )}
-                           <p className="whitespace-pre-wrap">{msg.content}</p>
-                           <div className="flex items-center justify-end gap-1 mt-1">
-                             {isSupport && <span className="text-[10px] opacity-70 font-bold">You</span>}
-                             {isBot && <span className="text-[10px] opacity-70 font-bold">Bot</span>}
-                             <span className="text-[10px] opacity-60">
-                               {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                             </span>
+                           </div>
+                         );
+                       }
+                       
+                       return (
+                         <div key={msg.id} className={cn("flex w-full animate-in fade-in duration-200", !isUser ? "justify-end" : "justify-start")}>
+                           <div className={cn(
+                             "max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm relative transition-all",
+                             isUser ? "bg-white text-gray-800 rounded-tl-none dark:bg-[#202c33] dark:text-[#e9edef]" :
+                             isBot ? "bg-[#d9fdd3] text-gray-800 rounded-tr-none dark:bg-[#005c4b] dark:text-[#e9edef]" :
+                             "bg-violet-100 text-violet-900 rounded-tr-none border border-violet-200 dark:bg-[#322359] dark:text-violet-100 dark:border-violet-500/30"
+                           )}>
+                             {msg.mediaUrl && (
+                               <div className="mb-2 rounded-xl overflow-hidden border border-gray-200/50 dark:border-white/10 max-w-xs transition-all duration-300 hover:shadow-md hover:scale-[1.02] group relative">
+                                 <img
+                                   src={msg.mediaUrl}
+                                   alt="Complaint Attachment"
+                                   className="w-full h-auto object-cover max-h-[220px] cursor-zoom-in transition-transform duration-300 group-hover:brightness-90"
+                                   onClick={() => setZoomedImage(msg.mediaUrl!)}
+                                 />
+                                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                   <span className="text-white text-xs font-semibold bg-black/60 px-2 py-1 rounded-md flex items-center gap-1.5 shadow">
+                                     <ExternalLink className="w-3.5 h-3.5" /> View Large
+                                   </span>
+                                 </div>
+                               </div>
+                             )}
+                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                             <div className="flex items-center justify-end gap-1 mt-1 opacity-70">
+                               {isSupport && <span className="text-[10px] font-bold text-violet-600 dark:text-violet-300">You</span>}
+                               {isBot && <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-300">Bot</span>}
+                               <span className="text-[10px] font-light text-content-tertiary dark:text-[#8696a0]">
+                                 {new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                               </span>
+                             </div>
                            </div>
                          </div>
-                       </div>
-                     );
-                   })
-                 )}
-                 <div ref={chatEndRef} />
+                       );
+                     })
+                   )}
+                   <div ref={chatEndRef} />
+                 </div>
+
+                 {/* Message Composer Area */}
+                 <div className="px-4 py-3 bg-surface border-t border-line shrink-0 dark:bg-[#202c33] dark:border-white/10 shadow-inner">
+                   {activeSession.isBotPaused ? (
+                     <div className="flex items-end gap-2 animate-in slide-in-from-bottom-2 duration-150">
+                       <textarea
+                         value={replyText}
+                         onChange={(e) => setReplyText(e.target.value)}
+                         onKeyDown={onKeySupport}
+                         disabled={sending}
+                         placeholder="Type your reply to customer..."
+                         rows={2}
+                         className="flex-1 resize-none rounded-xl px-4 py-3 text-sm bg-surface-hover dark:bg-[#2a3942] text-content dark:text-[#e9edef] placeholder:text-content-tertiary focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all border border-line/60 dark:border-[#2a3942]"
+                       />
+                       <Button variant="primary" size="lg" className="px-4 h-[50px] rounded-xl" loading={sending} disabled={!replyText.trim()} onClick={handleSendMessage}>
+                         <Send className="w-5 h-5" />
+                       </Button>
+                     </div>
+                   ) : (
+                     <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200/70 dark:border-amber-700/30 rounded-xl p-3 text-center animate-in fade-in duration-200">
+                       <p className="text-xs text-amber-800 dark:text-amber-200 font-semibold flex items-center justify-center gap-1.5">
+                         <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                         Chatbot Auto-Response is active
+                       </p>
+                       <p className="text-[11px] text-amber-700/80 dark:text-amber-300/60 mt-1">
+                         To reply manually, click <strong className="font-semibold">"Pause Bot"</strong> in the top header.
+                       </p>
+                     </div>
+                   )}
+                 </div>
                </div>
 
-               {/* Composer */}
-               <div className="px-4 py-3 bg-surface border-t border-line shrink-0 dark:bg-[#202c33] dark:border-white/10">
-                 {activeSession.isBotPaused ? (
-                   <div className="flex items-end gap-2">
-                     <textarea
-                       value={replyText}
-                       onChange={(e) => setReplyText(e.target.value)}
-                       onKeyDown={onKeySupport}
-                       disabled={sending}
-                       placeholder="Type a message..."
-                       rows={2}
-                       className="flex-1 resize-none rounded-xl px-4 py-3 text-sm bg-surface-hover dark:bg-[#2a3942] text-content dark:text-[#e9edef] placeholder:text-content-tertiary focus:outline-none focus:ring-1 focus:ring-primary/50"
-                     />
-                     <Button variant="primary" size="lg" className="px-4" loading={sending} disabled={!replyText.trim()} onClick={handleSendMessage}>
-                       <Send className="w-5 h-5" />
-                     </Button>
-                   </div>
-                 ) : (
-                   <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-3 text-center">
-                     <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">Chatbot is currently ON</p>
-                     <p className="text-xs text-amber-700/80 dark:text-amber-300/70 mt-1">
-                       Click "Turn Off Chatbot" at the top to take over and send messages manually.
-                     </p>
-                   </div>
-                 )}
-               </div>
+               {/* Right Drawer (Context Panel) */}
+               {contextOpen && (
+                 <div className="w-[360px] border-l border-line dark:border-[#2f3b43] bg-surface dark:bg-[#121b22] flex flex-col h-full overflow-hidden shrink-0 animate-in slide-in-from-right duration-200 z-10 shadow-xl">
+                    <div className="px-4 py-3.5 border-b border-line dark:border-[#2f3b43] flex items-center justify-between bg-surface dark:bg-[#202c33] shrink-0">
+                      <span className="font-semibold text-content dark:text-[#e9edef] flex items-center gap-2 text-sm">
+                        <UserIcon className="w-4 h-4 text-primary dark:text-[#00a884]" />
+                        Customer Context
+                      </span>
+                      <button
+                        onClick={() => setContextOpen(false)}
+                        className="text-content-secondary dark:text-[#8696a0] hover:text-content dark:hover:text-[#e9edef] transition-colors p-1 rounded-md hover:bg-surface-hover dark:hover:bg-white/5"
+                      >
+                        <PanelRightClose className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">
+                      {contextLoading ? (
+                        <div className="flex flex-col items-center justify-center h-48 gap-2">
+                          <Loader2 className="w-6 h-6 animate-spin text-primary dark:text-[#00a884]" />
+                          <span className="text-xs text-content-secondary dark:text-[#8696a0]">Loading customer info...</span>
+                        </div>
+                      ) : !customerContext ? (
+                        <div className="text-center py-12 text-content-tertiary dark:text-[#8696a0] text-sm">
+                          No profiles matching this number.
+                        </div>
+                      ) : (
+                        <>
+                          {/* Profile details */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar name={customerContext.profile.name} size="lg" className="shadow-sm" />
+                              <div>
+                                <h3 className="font-bold text-base text-content dark:text-[#e9edef] leading-tight">
+                                  {customerContext.profile.name}
+                                </h3>
+                                <Badge variant="secondary" className="mt-1 capitalize bg-primary/10 text-primary border-primary/20 dark:bg-[#00a884]/20 dark:text-[#00a884] dark:border-[#00a884]/30">
+                                  {customerContext.profile.role}
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2.5 text-xs text-content-secondary dark:text-[#8696a0] bg-surface-hover/50 dark:bg-[#202c33]/40 p-3.5 rounded-xl border border-line dark:border-line-dark shadow-sm">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Mail className="w-3.5 h-3.5 text-primary/70 dark:text-[#00a884]/70 shrink-0" />
+                                <span className="truncate flex-1">{customerContext.profile.email || "No email linked"}</span>
+                              </div>
+                              <div className="flex items-center gap-2.5">
+                                <UserIcon className="w-3.5 h-3.5 text-primary/70 dark:text-[#00a884]/70 shrink-0" />
+                                <span>{customerContext.profile.phone}</span>
+                              </div>
+                              <div className="flex items-start gap-2.5 min-w-0">
+                                <MapPin className="w-3.5 h-3.5 text-primary/70 dark:text-[#00a884]/70 shrink-0 mt-0.5" />
+                                <span className="line-clamp-2 leading-relaxed flex-1">{customerContext.profile.location}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Machine Details */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-content-secondary dark:text-[#8696a0] flex items-center gap-1.5 border-b border-line dark:border-[#2f3b43] pb-1">
+                              <Wrench className="w-3.5 h-3.5 text-content-secondary" />
+                              Registered Machines ({customerContext.machines.length})
+                            </h4>
+                            {customerContext.machines.length === 0 ? (
+                              <p className="text-xs text-content-tertiary dark:text-[#8696a0]/70 italic bg-surface-hover/30 dark:bg-[#202c33]/25 p-3.5 rounded-xl border border-line/50 dark:border-line-dark/50 text-center">
+                                No machines registered.
+                              </p>
+                            ) : (
+                              <div className="space-y-3">
+                                {customerContext.machines.map((machine) => {
+                                  const warranty = getWarrantyStatus(machine.invoiceDate, machine.warrantyMonths);
+                                  return (
+                                    <div key={machine.serialNumber} className="bg-surface border border-line dark:border-[#2f3b43] dark:bg-[#202c33]/60 p-3.5 rounded-xl shadow-sm space-y-2 hover:border-line-dark dark:hover:border-white/20 transition-colors">
+                                      <div className="flex justify-between items-start gap-2">
+                                        <div className="min-w-0">
+                                          <p className="font-bold text-xs text-content dark:text-[#e9edef] line-clamp-1">{machine.modelName}</p>
+                                          <p className="text-[10px] text-content-secondary dark:text-[#8696a0] font-mono mt-0.5 tracking-wide">S/N: {machine.serialNumber}</p>
+                                        </div>
+                                        <span className={cn("text-[9px] px-2 py-0.5 rounded-full font-bold shrink-0 tracking-wide", warranty.bg)}>
+                                          {warranty.label}
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-content-secondary dark:text-[#8696a0] pt-2 border-t border-line/40 dark:border-[#2f3b43]/45">
+                                        <div>
+                                          <span className="opacity-70">Invoice:</span> {machine.invoiceNo}
+                                        </div>
+                                        <div>
+                                          <span className="opacity-70">Date:</span> {machine.invoiceDate !== "N/A" ? new Date(machine.invoiceDate).toLocaleDateString() : "N/A"}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Service Tickets */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-content-secondary dark:text-[#8696a0] flex items-center gap-1.5 border-b border-line dark:border-[#2f3b43] pb-1">
+                              <FileText className="w-3.5 h-3.5 text-content-secondary" />
+                              Tickets History ({customerContext.tickets.length})
+                            </h4>
+                            {customerContext.tickets.length === 0 ? (
+                              <p className="text-xs text-content-tertiary dark:text-[#8696a0]/70 italic bg-surface-hover/30 dark:bg-[#202c33]/25 p-3.5 rounded-xl border border-line/50 dark:border-line-dark/50 text-center">
+                                No past support tickets.
+                              </p>
+                            ) : (
+                              <div className="space-y-3">
+                                {customerContext.tickets.map((ticket) => (
+                                  <div key={ticket.id} className="bg-surface border border-line dark:border-[#2f3b43] dark:bg-[#202c33]/60 p-3.5 rounded-xl shadow-sm space-y-2 hover:border-line-dark dark:hover:border-white/20 transition-colors">
+                                    <div className="flex justify-between items-start gap-2">
+                                      <span className="font-mono text-[10px] text-primary dark:text-[#00a884] font-bold">
+                                        #{ticket.ticketNumber}
+                                      </span>
+                                      <span className={cn("text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0", getTicketStatusBadge(ticket.status))}>
+                                        {ticket.status}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-content-secondary dark:text-[#e9edef] line-clamp-2 leading-relaxed">{ticket.problemDescription}</p>
+                                    <div className="flex justify-between items-center text-[10px] text-content-tertiary dark:text-[#8696a0] pt-2 border-t border-line/40 dark:border-[#2f3b43]/45">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar className="w-3.5 h-3.5" />
+                                        {new Date(ticket.createdAt).toLocaleDateString()}
+                                      </span>
+                                      {ticket.engineerName ? (
+                                        <span className="flex items-center gap-1 font-semibold text-content-secondary dark:text-[#e9edef]">
+                                          <Wrench className="w-3 h-3 text-[#00a884]" />
+                                          {ticket.engineerName}
+                                        </span>
+                                      ) : (
+                                        <span className="italic text-[9px] opacity-75">Unassigned</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                 </div>
+               )}
              </div>
            )}
         </div>
       </main>
+
+      {/* Lightbox / Media Viewer */}
+      {zoomedImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setZoomedImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors focus:outline-none"
+            onClick={() => setZoomedImage(null)}
+          >
+            <PanelRightClose className="w-6 h-6 rotate-90" />
+          </button>
+          <div 
+            className="relative max-w-4xl max-h-[85vh] overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={zoomedImage} 
+              alt="Attachment full view" 
+              className="w-full h-full object-contain max-h-[80vh] animate-in zoom-in-95 duration-200"
+            />
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+              <a 
+                href={zoomedImage} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="bg-white/15 hover:bg-white/25 border border-white/10 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-lg backdrop-blur"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Open Original
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toasts */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">

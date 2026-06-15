@@ -86,12 +86,31 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
       orderBy: { updatedAt: "desc" },
     });
 
+    const botState = Boolean(isBotPaused);
+
+    // Save system audit message in database
+    const systemMsg = await prisma.simulateMessage.create({
+      data: {
+        phoneNumber,
+        role: "system",
+        content: botState ? "Chatbot turned OFF by support agent" : "Chatbot turned ON by support agent",
+      },
+    });
+
+    // Broadcast system message to UI
+    if (io) {
+      io.to("customer_support").emit("support-chat:message", {
+        phoneNumber,
+        message: systemMsg,
+      });
+    }
+
     if (!session) {
       const newSession = await prisma.conversationSession.create({
         data: {
           phoneNumber,
           state: "GREETING",
-          isBotPaused: Boolean(isBotPaused),
+          isBotPaused: botState,
         },
       });
       return res.json({ session: newSession });
@@ -99,7 +118,7 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
 
     const updated = await prisma.conversationSession.update({
       where: { id: session.id },
-      data: { isBotPaused: Boolean(isBotPaused) },
+      data: { isBotPaused: botState },
     });
 
     res.json({ session: updated });
@@ -143,6 +162,88 @@ router.post("/send-message/:phoneNumber", async (req: Request, res: Response) =>
   } catch (error) {
     console.error("[support-chat] POST /send-message error:", error);
     res.status(500).json({ error: "Failed to send message" });
+  }
+});
+
+function phoneLookupVariants(phoneNumber: string): string[] {
+  const digits = phoneNumber.replace(/\D/g, "");
+  const variants = new Set<string>([phoneNumber.trim()]);
+  if (digits) {
+    variants.add(digits);
+    variants.add(`91${digits}`);
+    if (digits.startsWith("91") && digits.length > 10) {
+      variants.add(digits.slice(2));
+    }
+  }
+  return [...variants].filter(Boolean);
+}
+
+// GET /api/support-chat/customer-context/:phoneNumber
+// Fetch complete context: User/Lead profile, tickets history, and registered machines.
+router.get("/customer-context/:phoneNumber", async (req: Request, res: Response) => {
+  try {
+    const phoneNumber = String(req.params.phoneNumber);
+    const variants = phoneLookupVariants(phoneNumber);
+
+    // 1. Fetch User or MarketingLead profile details
+    const user = await prisma.user.findFirst({
+      where: { whatsappNumber: { in: variants } },
+    });
+    const lead = await prisma.marketingLead.findFirst({
+      where: { phone: { in: variants } },
+    });
+
+    // 2. Fetch all tickets for this phone number
+    const tickets = await prisma.ticket.findMany({
+      where: { phoneNumber: { in: variants } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        assignedEngineer: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    // 3. Fetch latest session metadata to get machine details
+    const latestSession = await prisma.conversationSession.findFirst({
+      where: { phoneNumber: { in: variants } },
+      orderBy: { updatedAt: "desc" },
+    });
+    const metadata = latestSession?.metadata as any;
+    const machineData = metadata?.machineData || null;
+
+    res.json({
+      profile: {
+        name: user ? `${user.firstName} ${user.lastName || ""}`.trim() : (lead?.name || phoneNumber),
+        email: user?.email || null,
+        phone: phoneNumber,
+        role: user?.role || "lead",
+        location: tickets[0]?.place
+          ? `${tickets[0].place}, ${tickets[0].district || ""}, ${tickets[0].state || ""}`.replace(/,\s*,/g, ",").trim()
+          : (machineData?.Address1 || "N/A"),
+      },
+      tickets: tickets.map(t => ({
+        id: t.id,
+        ticketNumber: t.ticketNumber,
+        status: t.status,
+        problemDescription: t.problemDescription,
+        createdAt: t.createdAt,
+        engineerName: t.assignedEngineer ? `${t.assignedEngineer.firstName} ${t.assignedEngineer.lastName || ""}`.trim() : null,
+      })),
+      machines: tickets
+        .filter(t => t.machineSerialNumber)
+        .map(t => ({
+          serialNumber: t.machineSerialNumber,
+          modelName: t.machineName || "Unknown Model",
+          invoiceNo: t.machineInvoiceNo || "N/A",
+          invoiceDate: t.machineInvoiceDate || "N/A",
+          warrantyMonths: t.machineWarranty || 0,
+          createdAt: t.createdAt,
+        }))
+        // Deduplicate by serialNumber
+        .filter((v, i, a) => a.findIndex(t => t.serialNumber === v.serialNumber) === i),
+    });
+  } catch (error) {
+    console.error("[support-chat] GET /customer-context error:", error);
+    res.status(500).json({ error: "Failed to fetch customer context" });
   }
 });
 
