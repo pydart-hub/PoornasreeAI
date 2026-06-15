@@ -371,17 +371,27 @@ async function startGreeting(phoneNumber: string) {
     select: {
       machineCustomer: true,
       phoneNumber: true,
+      issueDescription: true,
       pincode: { select: { place: true, code: true } },
     },
   });
 
   if (existingTicket) {
-    const name = existingTicket.machineCustomer || "Customer";
-    const meta: SessionMeta = { customerName: name, customerPhone: phoneNumber, language: existingMeta.language };
+    let name = existingTicket.machineCustomer;
+    if (!name && existingTicket.issueDescription) {
+      const nameMatch =
+        existingTicket.issueDescription.match(/End customer:\s*([^,]+)/i) ??
+        existingTicket.issueDescription.match(/Service contact:\s*([^,]+)/i);
+      if (nameMatch && nameMatch[1]) {
+        name = nameMatch[1].trim();
+      }
+    }
+    const displayName = name || "Customer";
+    const meta: SessionMeta = { customerName: displayName, customerPhone: phoneNumber, language: existingMeta.language };
     await updateSession(session.id, "MAIN_MENU", meta);
     return makeReply(
       t("GREETING_HEADER", lang) +
-      t("WELCOME_BACK", lang, { name }) +
+      t("WELCOME_BACK", lang, { name: displayName }) +
       t("MAIN_MENU_MSG", lang),
       undefined,
       getMainMenuList(lang)
@@ -522,14 +532,23 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
   const ticket = await prisma.ticket.findFirst({
     where: { OR: [{ phoneNumber: lookupPhone }, { phoneNumber: digits }] },
     orderBy: { createdAt: "desc" },
-    select: { machineCustomer: true, phoneNumber: true },
+    select: { machineCustomer: true, phoneNumber: true, issueDescription: true },
   });
 
   if (ticket) {
-    const name = ticket.machineCustomer || "Customer";
-    const meta: SessionMeta = { customerName: name, customerPhone: digits, language: prevMeta.language };
+    let name = ticket.machineCustomer;
+    if (!name && ticket.issueDescription) {
+      const nameMatch =
+        ticket.issueDescription.match(/End customer:\s*([^,]+)/i) ??
+        ticket.issueDescription.match(/Service contact:\s*([^,]+)/i);
+      if (nameMatch && nameMatch[1]) {
+        name = nameMatch[1].trim();
+      }
+    }
+    const displayName = name || "Customer";
+    const meta: SessionMeta = { customerName: displayName, customerPhone: digits, language: prevMeta.language };
     await updateSession(sessionId, "MAIN_MENU", meta);
-    return makeReply(t("PHONE_FOUND", lang, { name }) + t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+    return makeReply(t("PHONE_FOUND", lang, { name: displayName }) + "\n\n" + t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
 
   return makeReply(t("PHONE_NOT_FOUND", lang), [getSkipButton(lang)]);
