@@ -46,6 +46,7 @@ interface ChatMessage {
   phoneNumber: string;
   role: string; // "user" | "bot" | "support" | "system"
   content: string;
+  mediaUrl?: string | null;
   createdAt: string;
 }
 
@@ -351,6 +352,16 @@ export default function SupportDashboard() {
                            isBot ? "bg-[#d9fdd3] text-gray-800 rounded-tr-none dark:bg-[#005c4b] dark:text-[#e9edef]" :
                            "bg-violet-100 text-violet-900 rounded-tr-none border border-violet-200 dark:bg-[#322359] dark:text-violet-100 dark:border-violet-500/30"
                          )}>
+                           {msg.mediaUrl && (
+                             <div className="mb-2 rounded-lg overflow-hidden border border-gray-100 dark:border-white/10 max-w-sm">
+                               <img
+                                 src={msg.mediaUrl}
+                                 alt="Complaint Image"
+                                 className="w-full h-auto object-cover max-h-[300px] cursor-pointer hover:opacity-95 transition-opacity"
+                                 onClick={() => window.open(msg.mediaUrl!, '_blank')}
+                               />
+                             </div>
+                           )}
                            <p className="whitespace-pre-wrap">{msg.content}</p>
                            <div className="flex items-center justify-end gap-1 mt-1">
                              {isSupport && <span className="text-[10px] opacity-70 font-bold">You</span>}

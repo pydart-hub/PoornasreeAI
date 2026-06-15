@@ -329,9 +329,13 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return cleanDb === cleanFrom;
   });
 
-  // Engineers can send images for work report photos
-  if (engineer && msg.type === "image") {
-    await handleEngineerImage(from, msg, engineer);
+  // Handle image uploads
+  if (msg.type === "image") {
+    if (engineer) {
+      await handleEngineerImage(from, msg, engineer);
+    } else {
+      await handleCustomerImage(from, msg);
+    }
     return;
   }
 
@@ -900,5 +904,93 @@ async function handleEngineerImage(
     );
   } catch (e: unknown) {
     console.error("[whatsapp] handleEngineerImage error:", e);
+  }
+}
+
+async function handleCustomerImage(
+  from: string,
+  msg: Record<string, unknown>,
+): Promise<void> {
+  const image = msg.image as Record<string, unknown> | undefined;
+  const mediaId = String(image?.id ?? "");
+  const caption = String(image?.caption ?? "").trim();
+
+  if (!mediaId) {
+    await WhatsAppService.sendMessage(from, "⚠️ Could not read the image. Please try again.");
+    return;
+  }
+
+  if (!WhatsAppService.isConfigured()) {
+    await WhatsAppService.sendMessage(from, "⚠️ WhatsApp media download is not configured on this server.");
+    return;
+  }
+
+  try {
+    // Step 1: Resolve media URL from Meta Graph API
+    const metaUrlRes = await fetch(
+      `https://graph.facebook.com/v21.0/${mediaId}`,
+      { headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` } },
+    );
+    if (!metaUrlRes.ok) throw new Error(`Media URL fetch failed: ${metaUrlRes.status}`);
+    const metaUrlJson = (await metaUrlRes.json()) as { url?: string; mime_type?: string };
+    const downloadUrl = metaUrlJson.url;
+    const mimeType    = metaUrlJson.mime_type ?? "image/jpeg";
+    if (!downloadUrl) throw new Error("No download URL in Meta response");
+
+    // Step 2: Download the image binary
+    const imgRes = await fetch(downloadUrl, {
+      headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` },
+    });
+    if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+
+    // Step 3: Save to disk
+    const ext      = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-wa.${ext}`;
+    const dir      = path.resolve(__dirname, "../../uploads/customer-uploads");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), buffer);
+
+    const relativeUrl = `/uploads/customer-uploads/${filename}`;
+
+    // Step 4: Persist message in database
+    const savedMessage = await prisma.simulateMessage.create({
+      data: {
+        phoneNumber: from,
+        role: "user",
+        content: caption || "Sent an image",
+        mediaUrl: relativeUrl,
+      },
+    });
+
+    // Step 5: Broadcast to support dashboard
+    const { io } = await import("../lib/socket");
+    if (io) {
+      io.to("customer_support").emit("support-chat:message", {
+        phoneNumber: from,
+        message: savedMessage,
+      });
+    }
+
+    // Step 6: Check if chatbot is paused
+    const session = await prisma.conversationSession.findFirst({
+      where: { phoneNumber: from },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    if (session?.isBotPaused) {
+      // Bot is paused, support agent will handle manually. Do not respond.
+      return;
+    }
+
+    // If chatbot is active, respond with a helpful notification
+    await WhatsAppService.sendMessage(
+      from,
+      "📸 Thank you for sharing the photo! Our support team has been notified. You can also describe your issue in detail or type *MENU* to see options."
+    );
+
+  } catch (e: unknown) {
+    console.error("[whatsapp] handleCustomerImage error:", e);
+    await WhatsAppService.sendMessage(from, "⚠️ Failed to process the image. Please try again.");
   }
 }

@@ -292,6 +292,7 @@ model SimulateMessage {
   phoneNumber String
   role        String   // "user" | "bot" | "system"
   content     String   @db.Text
+  mediaUrl    String?
   createdAt   DateTime @default(now())
 
   @@index([phoneNumber, createdAt])

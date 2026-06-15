@@ -8,7 +8,7 @@ import * as SimulateService from "../services/simulate.service";
 // ── POST /api/simulate/message ────────────────────────────────────────────
 export async function handleMessage(req: Request, res: Response): Promise<void> {
   try {
-    const { phoneNumber, message } = req.body;
+    const { phoneNumber, message, mediaUrl } = req.body;
 
     if (!phoneNumber?.trim()) {
       res.status(400).json({ error: "phoneNumber is required" });
@@ -20,9 +20,14 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
     const text = typeof message === "string" ? message : "";
 
     // Persist user message
-    if (text) {
+    if (text || mediaUrl) {
       const savedUserMessage = await prisma.simulateMessage.create({
-        data: { phoneNumber: phone, role: "user", content: text },
+        data: {
+          phoneNumber: phone,
+          role: "user",
+          content: text || "Sent an image",
+          mediaUrl: mediaUrl || null,
+        },
       });
       const { io } = await import("../lib/socket");
       if (io) {
