@@ -91,42 +91,42 @@ export default function LoginPage() {
         />
 
         {/* Green hero — sits above the white card, never overlaps */}
-        <div className="relative z-10 shrink-0 flex flex-col items-center justify-center gap-6 pt-16 pb-10 px-6">
-          <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.15)] ring-1 ring-white/20">
+        <div className="relative z-10 shrink-0 flex flex-col items-center justify-center gap-4 pt-10 pb-6 px-4">
+          <div className="scale-[1.15] mb-2">
             <Logo variant="brand" size="md" priority />
           </div>
-          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="text-sm text-primary-100 font-medium tracking-wide">AI-Powered Service Platform</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span className="text-[11px] text-primary-100 font-medium tracking-wide">AI-Powered Service Platform</span>
           </div>
         </div>
 
         {/* White form card — bottom sheet style */}
         <div
           className={[
-            "relative z-10 flex-1 bg-white rounded-t-[2.5rem] px-8 pt-6 pb-12 flex flex-col overflow-y-auto font-sans shadow-[0_-10px_40px_rgba(0,0,0,0.2)]",
+            "relative z-10 flex-1 bg-white rounded-t-[2rem] px-6 pt-5 pb-8 flex flex-col overflow-y-auto font-sans shadow-[0_-10px_40px_rgba(0,0,0,0.2)]",
             "transition-transform duration-700 ease-out",
             formVisible ? "translate-y-0" : "translate-y-full",
           ].join(" ")}
         >
           {/* Drag handle */}
-          <div className="w-12 h-1.5 rounded-full bg-gray-200 self-center mb-8 shrink-0" />
+          <div className="w-10 h-1 rounded-full bg-gray-200 self-center mb-5 shrink-0" />
 
-          <h2 className="text-2xl font-bold font-sans text-gray-900 mb-1.5 shrink-0 tracking-tight">Welcome Back</h2>
-          <p className="text-sm font-sans text-gray-500 mb-8 shrink-0">Sign in to your account to continue</p>
+          <h2 className="text-2xl font-bold font-sans text-gray-900 mb-1 shrink-0 tracking-tight">Welcome Back</h2>
+          <p className="text-sm font-sans text-gray-500 mb-5 shrink-0">Sign in to your account to continue</p>
 
           {error && (
-            <div className="flex items-center gap-3 mb-6 px-4 py-3.5 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm shrink-0 shadow-sm">
+            <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm shrink-0 shadow-sm">
               <span className="shrink-0 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[11px] font-bold shadow-sm">!</span>
               <span className="font-medium">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email or Username</label>
-              <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3.5 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all bg-slate-50 hover:bg-white">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email or Username</label>
+              <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all bg-slate-50 hover:bg-white">
                 <Mail className="w-5 h-5 text-gray-400 shrink-0" />
                 <input
                   type="text"
@@ -142,8 +142,8 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-              <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3.5 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all bg-slate-50 hover:bg-white">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+              <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all bg-slate-50 hover:bg-white">
                 <Lock className="w-5 h-5 text-gray-400 shrink-0" />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -180,7 +180,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className={["w-full py-4 rounded-2xl font-bold text-[15px] text-white transition-all active:scale-[0.98] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-xl shadow-primary/30"].join(" ")}
+                className={["w-full py-3.5 rounded-2xl font-bold text-[15px] text-white transition-all active:scale-[0.98] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-xl shadow-primary/30"].join(" ")}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
