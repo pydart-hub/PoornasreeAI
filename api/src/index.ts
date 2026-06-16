@@ -19,6 +19,7 @@ import workReportRoutes from "./routes/work-report.routes";
 import marketingRoutes from "./routes/marketing.routes";
 import complaintRoutes from "./routes/complaint.routes";
 import supportChatRoutes from "./routes/support-chat";
+import simulateRoutes from "./routes/simulate.routes";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
 import { protect } from "./middleware/auth";
@@ -50,6 +51,7 @@ app.use("/api/whatsapp",        whatsappRoutes);
 app.use("/api/tickets",         ticketRoutes);
 app.use("/api/troubleshooting", troubleshootingRoutes);
 app.use("/api/public",          publicRoutes);  // no-auth data access
+app.use("/api/simulate",        simulateRoutes);
 
 // Public branding endpoint (no auth)
 app.get("/api/branding", getBranding);

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { embedText, searchVectors } from "../services/vector.service";
+import { translateText } from "../services/translate.service";
 import { findVideosForQuery } from "./video.controller";
 import axios from "axios";
 
@@ -126,31 +127,7 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
 
     // Step 2: Translate if non-English (focused second LLM call)
     if (isTranslation) {
-      const langNames: Record<string, string> = {
-        hi: "Hindi", mr: "Marathi", bn: "Bengali", te: "Telugu", ml: "Malayalam",
-      };
-      const langName = langNames[language ?? ""] || language;
-      const translationPrompt = `Translate the following text to ${langName}.\nOutput ONLY the ${langName} translation. Do not include any English.\n\nText:\n${englishAnswer}\n\n${langName}:`;
-      try {
-        const t3 = Date.now();
-        const { data: tData } = await axios.post(
-          `${OLLAMA_URL}/api/chat`,
-          {
-            model: GEN_MODEL,
-            messages: [{ role: "user", content: translationPrompt }],
-            stream: false,
-            keep_alive: "10m",
-            options: { num_ctx: 512, num_predict: 300, temperature: 0 },
-          },
-          { timeout: 120_000 }
-        );
-        console.log(`[RAG] translate ${langName}: ${Date.now() - t3} ms`);
-        const translated = (tData.message?.content as string)?.trim();
-        return translated || englishAnswer;
-      } catch (transErr: any) {
-        console.error("[RAG] translation error, falling back to English:", transErr?.message ?? transErr);
-        return englishAnswer;
-      }
+      return await translateText(englishAnswer, language || "en");
     }
 
     return englishAnswer;

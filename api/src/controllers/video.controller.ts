@@ -67,11 +67,21 @@ export function scoreVideoMatch(query: string, keywords: string): number {
 /** Format matched videos for WhatsApp / plain-text chat replies. */
 export function formatVideoSuggestions(
   videos: Array<{ title: string; youtubeUrl: string }>,
-  lang: "en" | "hi" = "en"
+  lang: string = "en"
 ): string {
   if (videos.length === 0) return "";
 
-  const header = lang === "hi" ? "\n\n📺 *संबंधित वीडियो:*" : "\n\n📺 *Related Videos:*";
+  const headers: Record<string, string> = {
+    en: "📺 *Related Videos:*",
+    hi: "📺 *संबंधित वीडियो:*",
+    ta: "📺 *தொடர்புடைய வீடியோக்கள்:*",
+    kn: "📺 *ಸಂಬಂಧಿತ ವೀಡಿಯೊಗಳು:*",
+    mr: "📺 *संबंधित व्हिडिओ:*",
+    te: "📺 *సంబంధిత వీడియోలు:*",
+    bn: "📺 *সম্পর্কিত ভিডিও:*",
+  };
+
+  const header = "\n\n" + (headers[lang] || headers.en);
   const lines = videos
     .map((v) => `▶️ *${v.title}*\n${v.youtubeUrl}`)
     .join("\n\n");
