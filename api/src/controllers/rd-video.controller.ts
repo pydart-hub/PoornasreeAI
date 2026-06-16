@@ -61,7 +61,36 @@ export async function deleteRdVideo(req: Request, res: Response): Promise<void> 
 
     res.json({ message: "Video deleted" });
   } catch (err) {
-    console.error("deleteRdVideo error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── PATCH /api/admin/rd-videos/:id ───────────────────────────────────────
+export async function updateRdVideo(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const title = (req.body.title as string)?.trim();
+    const description = (req.body.description as string)?.trim() || null;
+    const youtubeUrl = (req.body.youtubeUrl as string)?.trim();
+    const keywords = (req.body.keywords as string)?.trim() || "";
+
+    if (!title || !youtubeUrl) {
+      res.status(400).json({ error: "Title and YouTube URL are required" });
+      return;
+    }
+
+    const video = await prisma.rdVideo.findUnique({ where: { id } });
+    if (!video) { res.status(404).json({ error: "Video not found" }); return; }
+
+    const updatedVideo = await prisma.rdVideo.update({
+      where: { id },
+      data: { title, description, youtubeUrl, keywords },
+      include: { uploadedBy: { select: { id: true, firstName: true, lastName: true } } },
+    });
+
+    res.json({ video: updatedVideo });
+  } catch (err) {
+    console.error("updateRdVideo error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }

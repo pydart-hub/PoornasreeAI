@@ -23,7 +23,7 @@ import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAna
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 
-import { listRdVideos, createRdVideo, deleteRdVideo } from "../controllers/rd-video.controller";
+import { listRdVideos, createRdVideo, deleteRdVideo, updateRdVideo } from "../controllers/rd-video.controller";
 import { listProducts, createProduct, updateProduct, deleteProduct } from "../controllers/product.controller";
 import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbotSettings.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
@@ -198,6 +198,7 @@ router.delete("/machines/:id", deleteMachine);
 // R&D Videos (admin upload + delete, list accessible to engineer/admin)
 router.get("/rd-videos", listRdVideos);
 router.post("/rd-videos", createRdVideo);
+router.patch("/rd-videos/:id", updateRdVideo);
 router.delete("/rd-videos/:id", deleteRdVideo);
 
 // WhatsApp chatbot settings (Speak to Support contact)

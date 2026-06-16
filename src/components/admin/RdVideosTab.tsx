@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Film, Upload, Trash2 } from "lucide-react";
+import { Loader2, Film, Pencil, Plus, Trash2, X, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface RdVideo {
   id: string;
@@ -16,12 +17,12 @@ interface RdVideo {
 export default function RdVideosTab() {
   const [videos, setVideos] = useState<RdVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [keywords, setKeywords] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  
+  const [videoForm, setVideoForm] = useState({ title: "", description: "", youtubeUrl: "", keywords: "" });
+  const [videoFormError, setVideoFormError] = useState("");
+  const [savingVideo, setSavingVideo] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<RdVideo | null>(null);
+  
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchVideos = useCallback(async () => {
@@ -36,35 +37,49 @@ export default function RdVideosTab() {
 
   useEffect(() => { fetchVideos(); }, [fetchVideos]);
 
-  const handleUpload = async () => {
-    if (!youtubeUrl.trim() || !title.trim()) {
-      setError("Title and YouTube URL are required");
+  const handleSaveVideo = useCallback(async () => {
+    setVideoFormError("");
+    const { title, description, youtubeUrl, keywords } = videoForm;
+    if (!title.trim() || !youtubeUrl.trim() || !keywords.trim()) {
+      setVideoFormError("Title, YouTube URL, and keywords are required.");
       return;
     }
-    setSaving(true);
-    setError("");
+    setSavingVideo(true);
     try {
-      const res = await fetch("/api/admin/rd-videos", {
-        method: "POST",
+      const url = editingVideo ? `/api/admin/rd-videos/${editingVideo.id}` : "/api/admin/rd-videos";
+      const method = editingVideo ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, youtubeUrl, keywords }),
       });
       const data = await res.json();
       if (res.ok) {
-        setTitle("");
-        setDescription("");
-        setYoutubeUrl("");
-        setKeywords("");
-        fetchVideos();
+        await fetchVideos();
+        setEditingVideo(null);
+        setVideoForm({ title: "", description: "", youtubeUrl: "", keywords: "" });
       } else {
-        setError(data.error || "Upload failed");
+        setVideoFormError(data.error || "Failed to save video.");
       }
     } catch {
-      setError("Upload failed");
+      setVideoFormError("An unexpected error occurred.");
+    } finally {
+      setSavingVideo(false);
     }
-    setSaving(false);
-  };
+  }, [videoForm, editingVideo, fetchVideos]);
+
+  const startEditVideo = useCallback((v: RdVideo) => {
+    setEditingVideo(v);
+    setVideoForm({ title: v.title, description: v.description ?? "", youtubeUrl: v.youtubeUrl, keywords: v.keywords });
+    setVideoFormError("");
+  }, []);
+
+  const cancelEditVideo = useCallback(() => {
+    setEditingVideo(null);
+    setVideoForm({ title: "", description: "", youtubeUrl: "", keywords: "" });
+    setVideoFormError("");
+  }, []);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -77,85 +92,169 @@ export default function RdVideosTab() {
 
   return (
     <section className="space-y-6">
-      <h2 className="text-lg font-semibold text-content dark:text-content-dark flex items-center gap-2">
-        <Film className="w-5 h-5" /> R&D Videos ({videos.length})
-      </h2>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-bold text-content dark:text-content-dark">
+          R&D Videos ({videos.length})
+        </h2>
+      </div>
 
-      {/* Upload form */}
-      <div className="p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card space-y-3">
-        <h3 className="text-sm font-semibold text-content dark:text-content-dark">Upload R&D Video</h3>
-        <div className="grid grid-cols-1 gap-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <p className="text-sm text-content-secondary dark:text-content-dark-secondary -mt-4">
+        Add YouTube videos here. They will be automatically sent to engineers on WhatsApp when troubleshooting steps match the keywords.
+      </p>
+
+      {/* Add / Edit form */}
+      <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-content dark:text-content-dark">
+          {editingVideo ? "Edit Video" : "Add New Video"}
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Title *</label>
             <input
-              type="text"
-              placeholder="Video title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
-            />
-            <input
-              type="text"
-              placeholder="Description (optional)"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+              value={videoForm.title}
+              onChange={(e) => setVideoForm((f) => ({ ...f, title: e.target.value }))}
+              placeholder="e.g. How to calibrate VIBRO milk analyzer"
+              className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">YouTube URL *</label>
             <input
-              type="text"
-              placeholder="YouTube URL"
-              value={youtubeUrl}
-              onChange={e => setYoutubeUrl(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+              value={videoForm.youtubeUrl}
+              onChange={(e) => setVideoForm((f) => ({ ...f, youtubeUrl: e.target.value }))}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Keywords * <span className="font-normal">(comma-separated)</span></label>
             <input
-              type="text"
-              placeholder="Keywords (comma separated)"
-              value={keywords}
-              onChange={e => setKeywords(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+              value={videoForm.keywords}
+              onChange={(e) => setVideoForm((f) => ({ ...f, keywords: e.target.value }))}
+              placeholder="e.g. vibro,calibration,fat,snf,milk"
+              className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Description <span className="font-normal">(optional)</span></label>
+            <input
+              value={videoForm.description}
+              onChange={(e) => setVideoForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Short description shown under the title"
+              className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
         </div>
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        <button
-          onClick={handleUpload}
-          disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-          Upload
-        </button>
+
+        {videoFormError && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {videoFormError}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveVideo}
+            disabled={savingVideo}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-700 text-white text-sm font-medium transition-colors disabled:opacity-60"
+          >
+            {savingVideo ? <Loader2 className="w-4 h-4 animate-spin" /> : editingVideo ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {editingVideo ? "Save Changes" : "Add Video"}
+          </button>
+          {editingVideo && (
+            <button
+              onClick={cancelEditVideo}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-line dark:border-line-dark text-sm text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Video list */}
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+      {loading && videos.length === 0 ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
+        </div>
       ) : videos.length === 0 ? (
-        <p className="text-center py-12 text-content-secondary text-sm">No R&D videos uploaded</p>
+        <div className="text-center py-12 rounded-2xl border border-dashed border-line dark:border-line-dark">
+          <Film className="w-10 h-10 text-content-secondary dark:text-content-dark-secondary mx-auto mb-3 opacity-40" />
+          <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No R&D videos added yet</p>
+          <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Add YouTube videos above — they will be sent to engineers on WhatsApp</p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {videos.map(v => (
-            <div key={v.id} className="flex items-center justify-between p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-              <div>
-                <p className="text-sm font-medium text-content dark:text-content-dark">{v.title}</p>
-                <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                  {v.description ? `${v.description} — ` : ""}
-                  {v.keywords ? `Keywords: ${v.keywords} — ` : ""}
-                  Uploaded by {v.uploadedBy.firstName}
-                  {" — "}{new Date(v.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                onClick={() => handleDelete(v.id)}
-                disabled={deletingId === v.id}
-                className="p-2 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+        <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
+          {videos.map((v, i) => {
+            const videoId = (() => {
+              try {
+                const u = new URL(v.youtubeUrl);
+                if (u.hostname === "youtu.be") return u.pathname.slice(1);
+                return u.searchParams.get("v") ?? "";
+              } catch { return ""; }
+            })();
+            const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
+            return (
+              <div
+                key={v.id}
+                className={cn(
+                  "flex items-center gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors",
+                  i < videos.length - 1 && "border-b border-line dark:border-line-dark"
+                )}
               >
-                {deletingId === v.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              </button>
-            </div>
-          ))}
+                {thumb ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={thumb} alt={v.title} className="w-20 h-14 object-cover rounded-xl shrink-0 bg-surface-tertiary dark:bg-surface-dark-tertiary" />
+                ) : (
+                  <div className="w-20 h-14 rounded-xl shrink-0 bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
+                    <Film className="w-6 h-6 text-red-400" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-content dark:text-content-dark truncate">{v.title}</p>
+                  {v.description && (
+                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate mt-0.5">{v.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {v.keywords.split(",").filter(Boolean).map((kw) => (
+                      <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium">
+                        {kw.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  <a
+                    href={v.youtubeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                    title="Open on YouTube"
+                  >
+                    <Film className="w-4 h-4" />
+                  </a>
+                  <button
+                    onClick={() => startEditVideo(v)}
+                    className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 dark:hover:bg-primary-400/10 transition-colors"
+                    title="Edit video"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(v.id)}
+                    disabled={deletingId === v.id}
+                    className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                    title="Delete video"
+                  >
+                    {deletingId === v.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
