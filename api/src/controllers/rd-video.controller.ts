@@ -25,6 +25,7 @@ export async function createRdVideo(req: Request, res: Response): Promise<void> 
     const title = (req.body.title as string)?.trim();
     const description = (req.body.description as string)?.trim() || null;
     const youtubeUrl = (req.body.youtubeUrl as string)?.trim();
+    const keywords = (req.body.keywords as string)?.trim() || "";
 
     if (!title || !youtubeUrl) {
       res.status(400).json({ error: "Title and YouTube URL are required" });
@@ -36,6 +37,7 @@ export async function createRdVideo(req: Request, res: Response): Promise<void> 
         title,
         description,
         youtubeUrl,
+        keywords,
         uploadedById: req.user!.userId,
       },
       include: { uploadedBy: { select: { id: true, firstName: true, lastName: true } } },

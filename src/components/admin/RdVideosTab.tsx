@@ -8,6 +8,7 @@ interface RdVideo {
   title: string;
   description?: string | null;
   youtubeUrl: string;
+  keywords: string;
   uploadedBy: { id: string; firstName: string; lastName?: string | null };
   createdAt: string;
 }
@@ -18,6 +19,7 @@ export default function RdVideosTab() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [keywords, setKeywords] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -46,13 +48,14 @@ export default function RdVideosTab() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, youtubeUrl }),
+        body: JSON.stringify({ title, description, youtubeUrl, keywords }),
       });
       const data = await res.json();
       if (res.ok) {
         setTitle("");
         setDescription("");
         setYoutubeUrl("");
+        setKeywords("");
         fetchVideos();
       } else {
         setError(data.error || "Upload failed");
@@ -98,13 +101,22 @@ export default function RdVideosTab() {
               className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
             />
           </div>
-          <input
-            type="text"
-            placeholder="YouTube URL"
-            value={youtubeUrl}
-            onChange={e => setYoutubeUrl(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="text"
+              placeholder="YouTube URL"
+              value={youtubeUrl}
+              onChange={e => setYoutubeUrl(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+            />
+            <input
+              type="text"
+              placeholder="Keywords (comma separated)"
+              value={keywords}
+              onChange={e => setKeywords(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+            />
+          </div>
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <button
@@ -129,7 +141,9 @@ export default function RdVideosTab() {
               <div>
                 <p className="text-sm font-medium text-content dark:text-content-dark">{v.title}</p>
                 <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                  {v.description ? `${v.description} — ` : ""}Uploaded by {v.uploadedBy.firstName}
+                  {v.description ? `${v.description} — ` : ""}
+                  {v.keywords ? `Keywords: ${v.keywords} — ` : ""}
+                  Uploaded by {v.uploadedBy.firstName}
                   {" — "}{new Date(v.createdAt).toLocaleDateString()}
                 </p>
               </div>

@@ -199,10 +199,20 @@ async function sendMatchingRdVideo(to: string, issueTitle: string): Promise<void
     for (const v of rdVideos) {
       const vTitle = v.title.toLowerCase();
       const vDesc = (v.description || "").toLowerCase();
+      const vKeywords = (v.keywords || "").toLowerCase().split(",").map(k => k.trim()).filter(Boolean);
       
-      // Match if issue title contains video title (or vice versa), or if description contains issue title.
+      let matchedByKeyword = false;
+      for (const kw of vKeywords) {
+        if (issueTitleLower.includes(kw)) {
+          matchedByKeyword = true;
+          break;
+        }
+      }
+
+      // Match by keyword, or if issue title contains video title (or vice versa), or if description contains issue title.
       // We skip very short video titles to avoid false positives (e.g., "a" matching everything).
       if (
+        matchedByKeyword ||
         (vTitle.length > 2 && issueTitleLower.includes(vTitle)) ||
         vTitle.includes(issueTitleLower) ||
         (vDesc.length > 2 && vDesc.includes(issueTitleLower))
@@ -213,9 +223,10 @@ async function sendMatchingRdVideo(to: string, issueTitle: string): Promise<void
     }
     
     if (bestMatch) {
-      const fileName = path.basename(bestMatch.filePath);
-      const videoUrl = `${env.FRONTEND_URL}/uploads/${fileName}`;
-      await WhatsAppService.sendVideo(to, videoUrl, `R&D Reference: ${bestMatch.title}`);
+      await WhatsAppService.sendMessage(
+        to,
+        `🎥 *R&D Reference Video*\n${bestMatch.title}\n${bestMatch.youtubeUrl}`
+      );
     }
   } catch (err) {
     console.error("[whatsapp] Error fetching/sending R&D video:", err);
