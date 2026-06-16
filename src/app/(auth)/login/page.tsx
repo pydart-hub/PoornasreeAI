@@ -82,52 +82,52 @@ export default function LoginPage() {
           Green header → white card slides up from below
       ═══════════════════════════════════════════════ */}
       <div
-        className="md:hidden h-[100dvh] flex flex-col overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900"
+        className="md:hidden h-[100dvh] flex flex-col overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-950"
       >
         {/* Radial glow */}
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0,82,157,0.12) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0,82,157,0.15) 0%, transparent 70%)" }}
         />
 
         {/* Green hero — sits above the white card, never overlaps */}
-        <div className="relative z-10 shrink-0 flex flex-col items-center gap-3 pt-12 pb-8 px-6">
-          <div className="bg-white/95 rounded-2xl px-4 py-2.5 shadow-md">
+        <div className="relative z-10 shrink-0 flex flex-col items-center justify-center gap-6 pt-16 pb-10 px-6">
+          <div className="bg-white rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.15)] ring-1 ring-white/20">
             <Logo variant="brand" size="md" priority />
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary-600/40 bg-primary-900/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary-400 animate-pulse" />
-            <span className="text-xs text-primary-300 font-medium">AI-Powered Service Platform</span>
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span className="text-sm text-primary-100 font-medium tracking-wide">AI-Powered Service Platform</span>
           </div>
         </div>
 
-        {/* White form card — slides up from below the green area */}
+        {/* White form card — bottom sheet style */}
         <div
           className={[
-            "relative z-10 flex-1 bg-slate-50 rounded-[2rem] mx-2 mb-2 px-6 pt-6 pb-8 flex flex-col overflow-y-auto font-sans",
+            "relative z-10 flex-1 bg-white rounded-t-[2.5rem] px-8 pt-6 pb-12 flex flex-col overflow-y-auto font-sans shadow-[0_-10px_40px_rgba(0,0,0,0.2)]",
             "transition-transform duration-700 ease-out",
             formVisible ? "translate-y-0" : "translate-y-full",
           ].join(" ")}
         >
           {/* Drag handle */}
-          <div className="w-10 h-1 rounded-full bg-gray-200 self-center mb-6 shrink-0" />
+          <div className="w-12 h-1.5 rounded-full bg-gray-200 self-center mb-8 shrink-0" />
 
-          <h2 className="text-xl font-semibold font-sans text-gray-900 mb-1 shrink-0">Welcome to</h2>
-          <p className="text-sm font-sans text-gray-500 mb-6 shrink-0">Sign in to continue</p>
+          <h2 className="text-2xl font-bold font-sans text-gray-900 mb-1.5 shrink-0 tracking-tight">Welcome Back</h2>
+          <p className="text-sm font-sans text-gray-500 mb-8 shrink-0">Sign in to your account to continue</p>
 
           {error && (
-            <div className="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm shrink-0">
-              <span className="shrink-0 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px] font-bold">!</span>
-              {error}
+            <div className="flex items-center gap-3 mb-6 px-4 py-3.5 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm shrink-0 shadow-sm">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[11px] font-bold shadow-sm">!</span>
+              <span className="font-medium">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email or Username</label>
-              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-100 transition-all bg-white">
-                <Mail className="w-4 h-4 text-gray-300 shrink-0" />
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Email or Username</label>
+              <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3.5 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all bg-slate-50 hover:bg-white">
+                <Mail className="w-5 h-5 text-gray-400 shrink-0" />
                 <input
                   type="text"
                   placeholder="you@example.com or username"
@@ -135,16 +135,16 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   required
-                  className="flex-1 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none bg-transparent"
+                  className="flex-1 text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none bg-transparent"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100 transition-all bg-white shadow-sm hover:border-gray-300">
-                <Lock className="w-4 h-4 text-gray-300 shrink-0" />
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3.5 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all bg-slate-50 hover:bg-white">
+                <Lock className="w-5 h-5 text-gray-400 shrink-0" />
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
@@ -152,40 +152,47 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
-                  className="flex-1 text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none bg-transparent"
+                  className="flex-1 text-[15px] text-gray-900 placeholder:text-gray-400 focus:outline-none bg-transparent"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   tabIndex={-1}
-                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <div className="flex justify-end mt-1.5">
-                <button type="button" className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors">
+              
+              <div className="flex justify-between items-center mt-3 px-1">
+                <label className="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary/30 transition-colors" />
+                  <span className="text-[13px] text-gray-600 group-hover:text-gray-900 transition-colors font-medium">Remember me</span>
+                </label>
+                <button type="button" className="text-[13px] text-primary-600 hover:text-primary-700 font-semibold transition-colors">
                   Forgot password?
                 </button>
               </div>
             </div>
 
             {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={["w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.99] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg shadow-primary/25"].join(" ")}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Signing in…
-                </span>
-              ) : "Sign In"}
-            </button>
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className={["w-full py-4 rounded-2xl font-bold text-[15px] text-white transition-all active:scale-[0.98] disabled:opacity-60", loading ? "bg-gray-400" : "bg-primary hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-xl shadow-primary/30"].join(" ")}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Signing in…
+                  </span>
+                ) : "Sign In"}
+              </button>
+            </div>
           </form>
 
         </div>
