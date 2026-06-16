@@ -197,7 +197,7 @@ router.delete("/machines/:id", deleteMachine);
 
 // R&D Videos (admin upload + delete, list accessible to engineer/admin)
 router.get("/rd-videos", listRdVideos);
-router.post("/rd-videos", upload.single("file"), createRdVideo);
+router.post("/rd-videos", createRdVideo);
 router.delete("/rd-videos/:id", deleteRdVideo);
 
 // WhatsApp chatbot settings (Speak to Support contact)

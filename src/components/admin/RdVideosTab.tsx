@@ -7,7 +7,7 @@ interface RdVideo {
   id: string;
   title: string;
   description?: string | null;
-  filePath: string;
+  youtubeUrl: string;
   uploadedBy: { id: string; firstName: string; lastName?: string | null };
   createdAt: string;
 }
@@ -17,7 +17,7 @@ export default function RdVideosTab() {
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -35,27 +35,24 @@ export default function RdVideosTab() {
   useEffect(() => { fetchVideos(); }, [fetchVideos]);
 
   const handleUpload = async () => {
-    if (!file || !title.trim()) {
-      setError("Title and file are required");
+    if (!youtubeUrl.trim() || !title.trim()) {
+      setError("Title and YouTube URL are required");
       return;
     }
     setSaving(true);
     setError("");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("title", title);
-      formData.append("description", description);
       const res = await fetch("/api/admin/rd-videos", {
         method: "POST",
         credentials: "include",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, youtubeUrl }),
       });
       const data = await res.json();
       if (res.ok) {
         setTitle("");
         setDescription("");
-        setFile(null);
+        setYoutubeUrl("");
         fetchVideos();
       } else {
         setError(data.error || "Upload failed");
@@ -84,27 +81,31 @@ export default function RdVideosTab() {
       {/* Upload form */}
       <div className="p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card space-y-3">
         <h3 className="text-sm font-semibold text-content dark:text-content-dark">Upload R&D Video</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              type="text"
+              placeholder="Video title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+            />
+            <input
+              type="text"
+              placeholder="Description (optional)"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
+            />
+          </div>
           <input
             type="text"
-            placeholder="Video title"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Description (optional)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
+            placeholder="YouTube URL"
+            value={youtubeUrl}
+            onChange={e => setYoutubeUrl(e.target.value)}
             className="px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm"
           />
         </div>
-        <label className="flex items-center gap-2 px-4 py-2 rounded-xl border border-dashed border-line dark:border-line-dark cursor-pointer hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors w-fit">
-          <Upload className="w-4 h-4 text-content-secondary" />
-          <span className="text-sm text-content-secondary">{file ? file.name : "Choose video file"}</span>
-          <input type="file" accept="video/*" onChange={e => setFile(e.target.files?.[0] || null)} className="hidden" />
-        </label>
         {error && <p className="text-xs text-red-500">{error}</p>}
         <button
           onClick={handleUpload}

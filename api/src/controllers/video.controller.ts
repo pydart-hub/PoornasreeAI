@@ -7,7 +7,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 
 // ── Shared helper: YouTube URL validation ────────────────────────────────
-function isValidYouTubeUrl(url: string): boolean {
+export function isValidYouTubeUrl(url: string): boolean {
   try {
     const u = new URL(url);
     return (

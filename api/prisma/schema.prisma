@@ -435,7 +435,7 @@ model RdVideo {
   id           String   @id @default(uuid())
   title        String
   description  String?  @db.Text
-  filePath     String   // relative upload path on server
+  youtubeUrl   String   // YouTube URL of the video
   uploadedById String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
