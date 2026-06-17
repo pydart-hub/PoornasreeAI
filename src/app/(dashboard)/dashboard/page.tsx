@@ -57,7 +57,6 @@ const ALL_USERS = [
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" />, exact: true },
-  { href: "/chat", label: "AI Chat", icon: <MessageSquare className="w-4 h-4" /> },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -133,7 +132,7 @@ export default function AdminDashboard() {
   // Auth guard — only admin
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
-    if (!isLoading && user && user.role !== "admin") router.replace("/chat");
+    if (!isLoading && user && user.role !== "admin") router.replace("/");
   }, [user, isLoading, router]);
 
   // Handle file upload

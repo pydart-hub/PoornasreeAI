@@ -73,7 +73,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register({ email: form.email, password: form.password, firstName: form.firstName, lastName: form.lastName || undefined });
-      router.push("/chat");
+      router.push("/");
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
