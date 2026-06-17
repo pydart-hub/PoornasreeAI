@@ -27,6 +27,7 @@ import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
 import { startDailySummaryScheduler } from "./services/engineer-ticket-notification.service";
+import { startSessionCleanupCron } from "./services/session-cleanup.service";
 
 const app = express();
 
@@ -131,6 +132,9 @@ httpServer.listen(env.PORT, async () => {
 
   // Start daily engineer ticket summary scheduler at 8:00 AM
   startDailySummaryScheduler();
+
+  // Start background inactivity sweep for manual support chats
+  startSessionCleanupCron();
 
   // Index training.json intents into Qdrant in the background.
   // Runs non-blocking so a slow Ollama startup doesn't delay the HTTP server.

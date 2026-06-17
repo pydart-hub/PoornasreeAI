@@ -105,6 +105,27 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
       });
     }
 
+    // Send automated greeting when the agent takes over
+    if (botState) {
+      const greetingMsg = "Hello, our customer support agent is now live and ready to assist you. Please feel free to ask your questions or clarify any doubts.";
+      await WhatsAppService.sendMessage(phoneNumber, greetingMsg);
+      
+      const sentMsgRecord = await prisma.simulateMessage.create({
+        data: {
+          phoneNumber,
+          role: "bot",
+          content: greetingMsg,
+        },
+      });
+
+      if (io) {
+        io.to("customer_support").emit("support-chat:message", {
+          phoneNumber,
+          message: sentMsgRecord,
+        });
+      }
+    }
+
     if (!session) {
       const newSession = await prisma.conversationSession.create({
         data: {
