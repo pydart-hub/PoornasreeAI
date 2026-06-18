@@ -305,6 +305,21 @@ export async function dealerComplete(req: Request, res: Response): Promise<void>
   }
 }
 
+// ── PATCH /api/tickets/:id/dealer-note ────────────────────────────────────
+export async function dealerUpdateNote(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const { note } = req.body;
+    if (!note?.trim()) { res.status(400).json({ error: "note is required" }); return; }
+    const ticket = await TicketService.dealerUpdateNote(id, req.user!.userId, note);
+    io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
 function notifyTicketClosed(ticket: { id: string; ticketNumber: string; customerId: string }) {
   io?.to(`user:${ticket.customerId}`).emit("ticket:closed", {
     ticketId: ticket.id,

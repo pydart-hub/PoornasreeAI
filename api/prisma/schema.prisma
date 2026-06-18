@@ -250,6 +250,7 @@ model Ticket {
   passtestMatched    Boolean   @default(false)
   dealerResponse     String?   // pending | accepted | rejected | completed
   dealerRespondedAt  DateTime?
+  dealerNote         String?   @db.Text  // free-text note from dealer (via WhatsApp or dashboard)
 
   // Lifecycle
   status             TicketStatus @default(OPEN)

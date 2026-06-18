@@ -26,6 +26,9 @@ import {
   sendReportMenuList,
   type EngineerTicketRow,
 } from "../services/engineer-ticket-whatsapp.shared";
+import {
+  handleDealerWhatsAppMessage,
+} from "../services/dealer-whatsapp.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -406,6 +409,26 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   if (engineer) {
     await routeEngineerMessage(from, text, engineer);
+    return;
+  }
+
+  // ── Check if sender is a dealer ──
+  const allDealers = await prisma.user.findMany({
+    where: { role: "dealer" },
+    select: { id: true, firstName: true, whatsappNumber: true },
+  });
+
+  const dealer = allDealers.find(d => {
+    if (!d.whatsappNumber) return false;
+    const cleanDb = d.whatsappNumber.replace(/\D/g, "");
+    if (cleanDb.length >= 10 && cleanFrom.length >= 10) {
+      return cleanDb.slice(-10) === cleanFrom.slice(-10);
+    }
+    return cleanDb === cleanFrom;
+  });
+
+  if (dealer) {
+    await handleDealerWhatsAppMessage(from, text, dealer);
     return;
   }
 

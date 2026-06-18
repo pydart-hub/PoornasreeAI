@@ -555,7 +555,7 @@ export async function assignDealer(ticketId: string, dealerId: string, assignedB
 
   // Ticket stays under MANAGER ownerType — only assignedDealerId changes.
   // This keeps all tickets always visible to the service manager.
-  return prisma.ticket.update({
+  const updated = await prisma.ticket.update({
     where: { id: ticketId },
     data: {
       assignedDealerId: dealerId,
@@ -565,6 +565,14 @@ export async function assignDealer(ticketId: string, dealerId: string, assignedB
     },
     include: TICKET_INCLUDE,
   });
+
+  // Notify dealer via WhatsApp
+  const { notifyDealerTicketAssigned } = await import("./dealer-ticket-notification.service");
+  notifyDealerTicketAssigned(ticketId).catch((err) =>
+    console.error("[ticket] Dealer WhatsApp assign notify failed:", (err as Error).message),
+  );
+
+  return updated;
 }
 
 // ── dealerAccept ──────────────────────────────────────────────────────────
@@ -636,4 +644,23 @@ export async function dealerComplete(ticketId: string, dealerUserId: string) {
   });
   notifyTicketEvent("ticket.closed", ticketId);
   return updated;
+}
+
+// ── dealerUpdateNote ──────────────────────────────────────────────────────
+// Dealer adds/updates a free-text note on a ticket assigned to them.
+export async function dealerUpdateNote(ticketId: string, dealerUserId: string, note: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.assignedDealerId !== dealerUserId) {
+    throw Object.assign(new Error("Ticket is not assigned to you"), { status: 403 });
+  }
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot update a closed ticket"), { status: 400 });
+  }
+
+  return prisma.ticket.update({
+    where: { id: ticketId },
+    data: { dealerNote: note.trim() },
+    include: TICKET_INCLUDE,
+  });
 }
