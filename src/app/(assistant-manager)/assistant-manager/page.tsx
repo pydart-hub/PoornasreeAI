@@ -1113,6 +1113,7 @@ export default function AssistantManagerPage() {
           ticket={drawerTicket}
           engineers={engineers}
           dealers={[]}
+          assistants={[]}
           isArchived={false}
           assigningId={assigningId}
           assigningDealerId={null}

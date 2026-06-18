@@ -11,15 +11,18 @@ interface DrawerAssignmentProps {
   ticket: ServiceTicket;
   engineers: Engineer[];
   dealers: Dealer[];
+  assistants: any[];
   assigningId: string | null;
   assigningDealerId: string | null;
   onAssignEngineer: (ticketId: string, engineerId: string) => Promise<void>;
   onAssignDealer: (ticketId: string, dealerId: string) => Promise<void>;
+  onAssignAssistant?: (ticketId: string, assistantId: string) => Promise<void>;
 }
 
-export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assigningId, assigningDealerId, onAssignEngineer, onAssignDealer }: DrawerAssignmentProps) {
+export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assistants, assigningId, assigningDealerId, onAssignEngineer, onAssignDealer, onAssignAssistant }: DrawerAssignmentProps) {
   const [reassignOpen, setReassignOpen] = useState(false);
   const [confirmEng, setConfirmEng] = useState<Engineer | null>(null);
+  const [asstReassignOpen, setAsstReassignOpen] = useState(false);
 
   const isClosed = ticket.status === "CLOSED";
   const engineer = ticket.assignedEngineer;
@@ -44,6 +47,8 @@ export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assigni
     setConfirmEng(null);
     setReassignOpen(false);
   };
+
+  const currentAssistant = assistants?.find(a => a.id === ticket.ownerId);
 
   return (
     <div className="px-5 py-4 border-t border-line dark:border-line-dark">
@@ -225,6 +230,93 @@ export function DrawerAssignment({ ticket, engineers, dealers: _dealers, assigni
                   {DEALER_RESPONSE_LABELS[ticket.dealerResponse] ?? ticket.dealerResponse}
                 </span>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Assistant Manager section ── */}
+      {!isClosed && assistants && assistants.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-line dark:border-line-dark">
+          <h4 className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-2">
+            Assistant Manager Assignment
+          </h4>
+          {currentAssistant ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-500/15 flex items-center justify-center shrink-0">
+                    <UserCheck className="w-3.5 h-3.5 text-primary dark:text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-content dark:text-content-dark truncate">
+                      {currentAssistant.firstName} {currentAssistant.lastName ?? ""}
+                    </p>
+                    <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
+                      Assigned Assistant Manager
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {!asstReassignOpen && (
+                <button
+                  onClick={() => setAsstReassignOpen(true)}
+                  className="flex items-center gap-1 text-xs text-primary dark:text-blue-400 hover:text-primary-hover font-medium transition-colors"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  Change Assistant Manager
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                ⚠ No assistant manager assigned
+              </p>
+              {!asstReassignOpen && (
+                <button
+                  onClick={() => setAsstReassignOpen(true)}
+                  className="flex items-center gap-1 text-xs text-primary dark:text-blue-400 hover:text-primary-hover font-medium transition-colors"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Assign Assistant Manager
+                </button>
+              )}
+            </div>
+          )}
+
+          {asstReassignOpen && (
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">
+                  Select Assistant Manager
+                </p>
+                <button onClick={() => setAsstReassignOpen(false)} className="text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary">
+                  Cancel
+                </button>
+              </div>
+              <div className="border border-line dark:border-line-dark rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                {assistants.map(asst => (
+                  <button
+                    key={asst.id}
+                    onClick={async () => {
+                      if (onAssignAssistant) {
+                        await onAssignAssistant(ticket.id, asst.id);
+                      }
+                      setAsstReassignOpen(false);
+                    }}
+                    disabled={assigningId === ticket.id}
+                    className="w-full text-left px-3 py-2 text-xs text-content dark:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors flex items-center justify-between gap-2 border-b border-line dark:border-line-dark last:border-b-0"
+                  >
+                    <span className="truncate">{asst.firstName} {asst.lastName ?? ""}</span>
+                    {asst.engineerPincodes && asst.engineerPincodes.length > 0 && (
+                      <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
+                        ({asst.engineerPincodes.map((p: any) => p.code).join(", ")})
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

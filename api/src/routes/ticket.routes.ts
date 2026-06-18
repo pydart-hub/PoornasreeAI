@@ -10,6 +10,7 @@ import {
   getTicket,
   assignEngineer,
   unassignEngineer,
+  assignAssistant,
   assignDealer,
   dealerAccept,
   dealerReject,
@@ -39,6 +40,9 @@ router.get("/:id", authorize("admin", "service_manager", "assistant_service_mana
 
 // ASSIGN ENGINEER: service_manager, assistant_service_manager or admin
 router.patch("/:id/assign-engineer", authorize("service_manager", "assistant_service_manager", "admin"), assignEngineer);
+
+// ASSIGN ASSISTANT: service_manager or admin
+router.patch("/:id/assign-assistant", authorize("service_manager", "admin"), assignAssistant);
 
 // ASSIGN DEALER: service_manager or admin routes ticket to a dealer for field handling
 router.patch("/:id/assign-dealer", authorize("service_manager", "admin"), assignDealer);

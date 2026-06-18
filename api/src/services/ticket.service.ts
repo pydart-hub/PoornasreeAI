@@ -575,6 +575,36 @@ export async function assignDealer(ticketId: string, dealerId: string, assignedB
   return updated;
 }
 
+// ── assignAssistant ───────────────────────────────────────────────────────
+// Service manager assigns a ticket to an assistant manager.
+// Sets ownerId to the assistant manager's ID so they can see and manage it.
+export async function assignAssistant(ticketId: string, assistantId: string, assignedBy?: string) {
+  const assistant = await prisma.user.findUnique({
+    where: { id: assistantId },
+    select: { id: true, role: true, managerId: true },
+  });
+  if (!assistant || assistant.role !== "assistant_service_manager") {
+    throw Object.assign(new Error("Invalid assistant manager ID"), { status: 400 });
+  }
+
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.status === TicketStatus.CLOSED) {
+    throw Object.assign(new Error("Cannot assign a closed ticket"), { status: 400 });
+  }
+
+  const updated = await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      ownerId: assistantId,
+      ...(assignedBy ? { assignedManagerId: assignedBy } : {}),
+    },
+    include: TICKET_INCLUDE,
+  });
+
+  return updated;
+}
+
 // ── dealerAccept ──────────────────────────────────────────────────────────
 export async function dealerAccept(ticketId: string, dealerUserId: string) {
   const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });

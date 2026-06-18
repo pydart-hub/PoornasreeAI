@@ -204,7 +204,7 @@ export async function updateMyEngineer(req: Request, res: Response): Promise<voi
 
     const engineer = await prisma.user.findUnique({
       where: { id: engineerId },
-      select: { role: true, managerId: true, hrEngineerId: true, email: true },
+      select: { role: true, managerId: true, hrEngineerId: true, email: true, manager: { select: { managerId: true } } },
     });
     if (!engineer || engineer.role !== "service_engineer") {
       res.status(404).json({ error: "Engineer not found" });
@@ -312,7 +312,7 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
         hrEngineerId: true,
         whatsappNumber: true,
         engineerPincodes: { select: { code: true } },
-        manager: { select: { firstName: true, lastName: true } },
+        manager: { select: { firstName: true, lastName: true, managerId: true } },
       },
     });
 
@@ -449,7 +449,7 @@ export async function setEngineerPincodes(req: Request, res: Response): Promise<
 
     const engineer = await prisma.user.findUnique({
       where: { id: engineerId },
-      select: { role: true, managerId: true, hrEngineerId: true },
+      select: { role: true, managerId: true, hrEngineerId: true, manager: { select: { managerId: true } } },
     });
     if (!engineer || engineer.role !== "service_engineer") {
       res.status(404).json({ error: "Engineer not found" });
@@ -980,7 +980,7 @@ export async function exportTickets(req: Request, res: Response): Promise<void> 
 export async function createAssistantManager(req: Request, res: Response): Promise<void> {
   try {
     const managerId = req.user!.userId;
-    const { email, firstName, lastName, whatsappNumber } = req.body;
+    const { email, firstName, lastName, whatsappNumber, pincodeId, engineerIds } = req.body;
 
     if (!email || !firstName) {
       res.status(400).json({ error: "email and firstName are required" });
@@ -999,30 +999,46 @@ export async function createAssistantManager(req: Request, res: Response): Promi
     const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
     const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const assistant = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash: unusablePasswordHash,
-        firstName: firstName.trim(),
-        lastName: lastName?.trim() ?? null,
-        role: "assistant_service_manager",
-        managerId,
-        setPasswordToken: tokenHash,
-        setPasswordTokenExpiry: tokenExpiry,
-        ...(parseWhatsappForStorage(whatsappNumber) ? { whatsappNumber: parseWhatsappForStorage(whatsappNumber)! } : {}),
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        whatsappNumber: true,
-        role: true,
-        createdAt: true,
-        manager: { select: { id: true, firstName: true, lastName: true } },
-        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
-        _count: { select: { managedEngineers: true } },
-      },
+    const assistant = await prisma.$transaction(async (tx) => {
+      const newAssistant = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash: unusablePasswordHash,
+          firstName: firstName.trim(),
+          lastName: lastName?.trim() ?? null,
+          role: "assistant_service_manager",
+          managerId,
+          setPasswordToken: tokenHash,
+          setPasswordTokenExpiry: tokenExpiry,
+          ...(parseWhatsappForStorage(whatsappNumber) ? { whatsappNumber: parseWhatsappForStorage(whatsappNumber)! } : {}),
+          ...(pincodeId ? { engineerPincodes: { connect: [{ id: pincodeId }] } } : {}),
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          whatsappNumber: true,
+          role: true,
+          createdAt: true,
+          manager: { select: { id: true, firstName: true, lastName: true } },
+          engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
+          _count: { select: { managedEngineers: true } },
+        },
+      });
+
+      if (Array.isArray(engineerIds) && engineerIds.length > 0) {
+        // Assign the selected engineers to this assistant manager
+        await tx.user.updateMany({
+          where: { id: { in: engineerIds }, role: "service_engineer" },
+          data: { managerId: newAssistant.id },
+        });
+        
+        // Update the managedEngineers count manually since it was fetched before update
+        newAssistant._count.managedEngineers = engineerIds.length;
+      }
+
+      return newAssistant;
     });
 
     const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;

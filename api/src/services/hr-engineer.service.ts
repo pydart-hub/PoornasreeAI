@@ -261,40 +261,31 @@ export function engineerManagerWhere(
   if (role === "service_manager") {
     return {
       role: "service_engineer",
-      OR: [{ managerId: userId }, { managerId: null }],
-    };
-  }
-  if (role === "assistant_service_manager" && parentManagerId) {
-    return {
-      role: "service_engineer",
-      OR: [{ managerId: userId }, { managerId: parentManagerId }, { managerId: null }],
+      OR: [
+        { managerId: userId },
+        { managerId: null },
+        { manager: { managerId: userId } }
+      ],
     };
   }
   if (role === "assistant_service_manager") {
     return {
       role: "service_engineer",
-      OR: [{ managerId: userId }, { managerId: null }],
+      managerId: userId,
     };
   }
   return { role: "service_engineer" };
 }
 
 export async function canManagerAccessEngineer(
-  engineer: { managerId: string | null; hrEngineerId: number | null },
+  engineer: { managerId: string | null; hrEngineerId: number | null, manager?: { managerId: string | null } | null },
   callerId: string,
   callerRole: string,
   parentManagerId?: string | null,
 ): Promise<boolean> {
   if (engineer.managerId === callerId) return true;
-  if (engineer.managerId === null && (callerRole === "service_manager" || callerRole === "assistant_service_manager")) return true;
-  if (
-    callerRole === "assistant_service_manager" &&
-    parentManagerId &&
-    engineer.managerId === parentManagerId &&
-    engineer.hrEngineerId != null
-  ) {
-    return true;
-  }
+  if (engineer.managerId === null && callerRole === "service_manager") return true;
+  if (callerRole === "service_manager" && engineer.manager?.managerId === callerId) return true;
   return false;
 }
 

@@ -98,13 +98,8 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
       // Manager explicitly assigns tickets to engineers or dealers.
     }
     else if (role === "assistant_service_manager") {
-      // Show only tickets within the assistant manager's assigned pincodes
-      const asstUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { engineerPincodes: { select: { id: true } } },
-      });
-      const pincodeIds = asstUser?.engineerPincodes.map(p => p.id) ?? [];
-      filters.managedPincodeIds = pincodeIds; // empty = no tickets shown
+      // Show only tickets explicitly assigned to this assistant manager
+      filters.ownerId = userId;
     }
     // admin: no filter — sees all tickets
 
@@ -151,9 +146,10 @@ export async function getTicket(req: Request, res: Response): Promise<void> {
       if (ticket.customerId !== userId) { res.status(403).json({ error: "Access denied" }); return; }
     } else if (role === "service_engineer" || role === "service") {
       if (ticket.assignedEngineerId !== userId) { res.status(403).json({ error: "Access denied: not assigned to this ticket" }); return; }
+    } else if (role === "assistant_service_manager") {
+      if (ticket.ownerId !== userId) { res.status(403).json({ error: "Access denied: you do not own this ticket" }); return; }
     }
     // service_manager: sees all tickets — no pincode ownership restriction
-    // assistant_service_manager: sees any ticket by ID (ticket list is already pincode-scoped)
     // admin: full access — no filter
 
     res.json({ ticket });
@@ -182,6 +178,7 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
           hrEngineerId: true,
           role: true,
           engineerPincodes: { select: { id: true } },
+          manager: { select: { managerId: true } },
         },
       });
       if (!engineer || engineer.role !== "service_engineer") {
@@ -212,15 +209,10 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
         }
       }
 
-      // For assistant managers: also verify the ticket is in their assigned pincodes
-      if (req.user!.role === "assistant_service_manager" && existing.pincodeId) {
-        const asst = await prisma.user.findUnique({
-          where: { id: callerId },
-          select: { engineerPincodes: { select: { id: true } } },
-        });
-        const asstPincodeIds = new Set(asst?.engineerPincodes.map(p => p.id) ?? []);
-        if (!asstPincodeIds.has(existing.pincodeId)) {
-          res.status(403).json({ error: "This ticket is outside your assigned zone" }); return;
+      // For assistant managers: verify the ticket is explicitly assigned to them (ownerId === callerId)
+      if (req.user!.role === "assistant_service_manager") {
+        if (existing.ownerId !== callerId) {
+          res.status(403).json({ error: "Access denied: you do not own this ticket" }); return;
         }
       }
     }
@@ -257,6 +249,22 @@ export async function assignDealer(req: Request, res: Response): Promise<void> {
 
     const ticket = await TicketService.assignDealer(id, dealerId, req.user!.userId);
     io?.to(`user:${dealerId}`).emit("ticket:assigned", { ticketId: id });
+    io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
+    res.json({ ticket });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+// ── PATCH /api/tickets/:id/assign-assistant ──────────────────────────────
+export async function assignAssistant(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const { assistantId } = req.body;
+    if (!assistantId) { res.status(400).json({ error: "assistantId is required" }); return; }
+
+    const ticket = await TicketService.assignAssistant(id, assistantId, req.user!.userId);
     io?.to("managers").emit("ticket:updated", { ticketId: id, ticket });
     res.json({ ticket });
   } catch (err: unknown) {

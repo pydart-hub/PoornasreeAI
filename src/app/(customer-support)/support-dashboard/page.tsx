@@ -556,7 +556,7 @@ export default function SupportDashboard() {
                    
                    <div className="flex items-center gap-2">
                      <Button 
-                       variant={activeSession.isBotPaused ? "primary" : "destructive"} 
+                       variant={activeSession.isBotPaused ? "primary" : "danger"} 
                        size="sm"
                        onClick={handleToggleBot}
                        disabled={toggling}
@@ -707,7 +707,7 @@ export default function SupportDashboard() {
                                 <h3 className="font-bold text-base text-[#111b21] dark:text-[#e9edef] leading-tight">
                                   {customerContext.profile.name}
                                 </h3>
-                                <Badge variant="secondary" className="mt-1 capitalize bg-primary/10 text-primary border-primary/20 dark:bg-[#00a884]/20 dark:text-[#00a884] dark:border-[#00a884]/30">
+                                <Badge variant="default" className="mt-1 capitalize bg-primary/10 text-primary border-primary/20 dark:bg-[#00a884]/20 dark:text-[#00a884] dark:border-[#00a884]/30">
                                   {customerContext.profile.role}
                                 </Badge>
                               </div>

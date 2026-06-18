@@ -302,7 +302,7 @@ export default function ServiceManagerPage() {
   // ── Assistant Manager state ──
   const [assistants, setAssistants] = useState<AssistantManager[]>([]);
   const [showAddAssistant, setShowAddAssistant] = useState(false);
-  const [newAsst, setNewAsst] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] as string[] });
+  const [newAsst, setNewAsst] = useState({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeId: "", engineerIds: [] as string[] });
   const [addingAssistant, setAddingAssistant] = useState(false);
   const [assistantCreated, setAssistantCreated] = useState<{ name: string; email: string; setPasswordUrl: string; hasWhatsapp: boolean } | null>(null);
   const [editingAsst, setEditingAsst] = useState<AssistantManager | null>(null);
@@ -687,6 +687,19 @@ export default function ServiceManagerPage() {
       else await fetchData();
     } catch { setError("Network error"); }
     finally { setAssigningDealerId(null); }
+  };
+
+  const handleAssignAssistant = async (ticketId: string, assistantId: string) => {
+    setAssigningId(ticketId);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}/assign-assistant`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ assistantId }),
+      });
+      if (!res.ok) { const { error: msg } = await res.json(); setError(msg || "Failed to assign assistant"); }
+      else await fetchData();
+    } catch { setError("Network error"); }
+    finally { setAssigningId(null); }
   };
 
   const handleAddEngineer = async () => {
@@ -1663,85 +1676,60 @@ export default function ServiceManagerPage() {
                         placeholder="e.g. 919876543210"
                         className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
-                    {myPincodes.length > 0 && (() => {
-                      const asstStates = Array.from(new Set(myPincodes.map(p => p.state).filter((s): s is string => !!s))).sort();
-                      const filteredPincodes = newAsstPincodeState
-                        ? myPincodes.filter(p => p.state === newAsstPincodeState)
-                        : [];
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Pincodes</label>
-                            {newAsst.pincodeIds.length > 0 && (
-                              <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                                {newAsst.pincodeIds.length} selected
-                              </span>
-                            )}
-                          </div>
-                          {/* Step 1 — State dropdown */}
+                    {myPincodes.length > 0 && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assign Location *</label>
                           <select
-                            value={newAsstPincodeState}
-                            onChange={e => setNewAsstPincodeState(e.target.value)}
+                            value={newAsst.pincodeId}
+                            onChange={e => setNewAsst(f => ({ ...f, pincodeId: e.target.value, engineerIds: [] }))}
                             className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                            <option value="">Select a state…</option>
-                            {asstStates.map(s => (
-                              <option key={s} value={s}>{s}</option>
+                            <option value="">Select a location…</option>
+                            {myPincodes.map(p => (
+                              <option key={p.id} value={p.id}>{p.code} — {[p.place, p.district].filter(Boolean).join(", ")}</option>
                             ))}
                           </select>
-                          {/* Step 2 — Pincodes for selected state */}
-                          {newAsstPincodeState && (
-                            <div className="rounded-lg border border-line dark:border-line-dark overflow-hidden">
-                              <div className="px-3 py-1.5 bg-surface-secondary dark:bg-surface-dark-secondary border-b border-line dark:border-line-dark flex items-center justify-between">
-                                <span className="text-[11px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{newAsstPincodeState}</span>
-                                <div className="flex gap-2">
-                                  <button type="button" onClick={() => setNewAsst(f => ({
-                                    ...f,
-                                    pincodeIds: Array.from(new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])),
-                                  }))} className="text-[11px] text-primary hover:underline">All</button>
-                                  <button type="button" onClick={() => setNewAsst(f => ({
-                                    ...f,
-                                    pincodeIds: f.pincodeIds.filter(id => !filteredPincodes.some(p => p.id === id)),
-                                  }))} className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary hover:underline">None</button>
-                                </div>
-                              </div>
-                              <div className="p-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                                {filteredPincodes.map(p => (
-                                  <button key={p.id} type="button"
-                                    onClick={() => setNewAsst(f => ({
-                                      ...f,
-                                      pincodeIds: f.pincodeIds.includes(p.id)
-                                        ? f.pincodeIds.filter(id => id !== p.id)
-                                        : [...f.pincodeIds, p.id],
-                                    }))}
-                                    className={cn(
-                                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                      newAsst.pincodeIds.includes(p.id)
-                                        ? "bg-primary text-white border-primary"
-                                        : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                                    )}>
-                                    {p.code}{p.place ? ` · ${p.place}` : ""}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {/* Summary of all selected pincodes across states */}
-                          {newAsst.pincodeIds.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {myPincodes.filter(p => newAsst.pincodeIds.includes(p.id)).map(p => (
-                                <span key={p.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
-                                  {p.code}{p.place ? ` · ${p.place}` : ""}
-                                  <button type="button" onClick={() => setNewAsst(f => ({ ...f, pincodeIds: f.pincodeIds.filter(id => id !== p.id) }))}
-                                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center hover:bg-primary/20">
-                                    <X className="w-2.5 h-2.5" />
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
-                      );
-                    })()}
+                        {newAsst.pincodeId && (() => {
+                          const locEngineers = engineers.filter(e => e.engineerPincodes?.some(p => p.id === newAsst.pincodeId));
+                          return (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Engineers</label>
+                                {newAsst.engineerIds.length > 0 && (
+                                  <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                    {newAsst.engineerIds.length} selected
+                                  </span>
+                                )}
+                              </div>
+                              {locEngineers.length === 0 ? (
+                                <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">No engineers available in this location.</p>
+                              ) : (
+                                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto py-1">
+                                  {locEngineers.map(e => (
+                                    <button key={e.id} type="button"
+                                      onClick={() => setNewAsst(f => ({
+                                        ...f,
+                                        engineerIds: f.engineerIds.includes(e.id)
+                                          ? f.engineerIds.filter(id => id !== e.id)
+                                          : [...f.engineerIds, e.id],
+                                      }))}
+                                      className={cn(
+                                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                        newAsst.engineerIds.includes(e.id)
+                                          ? "bg-primary text-white border-primary"
+                                          : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                                      )}>
+                                      {e.firstName} {e.lastName}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                     <div className="flex gap-2 pt-1">
                       <button onClick={() => { setShowAddAssistant(false); setNewAsstPincodeState(""); }}
                         className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
@@ -1751,6 +1739,7 @@ export default function ServiceManagerPage() {
                         disabled={addingAssistant}
                         onClick={async () => {
                           if (!newAsst.firstName.trim() || !newAsst.email.trim()) { setError("Name and email are required"); return; }
+                          if (!newAsst.pincodeId) { setError("Location is required"); return; }
                           setAddingAssistant(true);
                           try {
                             const res = await fetch("/api/manager/assistants", {
@@ -1760,22 +1749,17 @@ export default function ServiceManagerPage() {
                                 lastName: newAsst.lastName.trim() || undefined,
                                 email: newAsst.email.trim(),
                                 whatsappNumber: newAsst.whatsappNumber.trim() || undefined,
+                                pincodeId: newAsst.pincodeId,
+                                engineerIds: newAsst.engineerIds,
                               }),
                             });
                             if (!res.ok) { const d = await res.json(); setError(d.error || "Failed to add"); }
                             else {
                               const data = await res.json();
-                              // Assign pincodes if any selected
-                              if (newAsst.pincodeIds.length > 0) {
-                                await fetch(`/api/manager/assistants/${data.assistant.id}/pincodes`, {
-                                  method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
-                                  body: JSON.stringify({ pincodeIds: newAsst.pincodeIds }),
-                                });
-                              }
                               setShowAddAssistant(false);
                               setNewAsstPincodeState("");
                               setAssistantCreated({ name: newAsst.firstName.trim(), email: newAsst.email.trim(), setPasswordUrl: data.setPasswordUrl, hasWhatsapp: !!newAsst.whatsappNumber.trim() });
-                              setNewAsst({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeIds: [] });
+                              setNewAsst({ firstName: "", lastName: "", email: "", whatsappNumber: "", pincodeId: "", engineerIds: [] });
                               await fetchData();
                             }
                           } catch { setError("Network error"); }
@@ -2939,12 +2923,14 @@ export default function ServiceManagerPage() {
           ticket={drawerTicket}
           engineers={sortedEngineers}
           dealers={dealers}
+          assistants={assistants}
           isArchived={archivedIds.has(drawerTicket.id)}
           assigningId={assigningId}
           assigningDealerId={assigningDealerId}
           onClose={() => { setDrawerTicket(null); setDrawerReassign(false); setDrawerConfirmEng(null); }}
           onAssignEngineer={handleAssignEngineer}
           onAssignDealer={handleAssignDealer}
+          onAssignAssistant={handleAssignAssistant}
           onCancelAssignment={handleCancelAssignment}
           onArchive={handleArchive}
           onUnarchive={handleUnarchive}

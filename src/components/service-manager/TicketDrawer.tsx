@@ -20,12 +20,14 @@ export function TicketDrawer({
   ticket,
   engineers,
   dealers,
+  assistants,
   isArchived,
   assigningId,
   assigningDealerId,
   onClose,
   onAssignEngineer,
   onAssignDealer,
+  onAssignAssistant,
   onCancelAssignment,
   onArchive,
   onUnarchive,
@@ -100,10 +102,12 @@ export function TicketDrawer({
             ticket={ticket}
             engineers={engineers}
             dealers={dealers}
+            assistants={assistants}
             assigningId={assigningId}
             assigningDealerId={assigningDealerId}
             onAssignEngineer={handleAssign}
             onAssignDealer={async (ticketId, dealerId) => { await onAssignDealer(ticketId, dealerId); setShowDealerPanel(false); }}
+            onAssignAssistant={onAssignAssistant}
           />
 
           {/* ── 5. Issue Details ── */}

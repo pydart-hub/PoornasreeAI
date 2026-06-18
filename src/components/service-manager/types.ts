@@ -72,12 +72,14 @@ export interface TicketDrawerProps {
   ticket: ServiceTicket;
   engineers: Engineer[];
   dealers: Dealer[];
+  assistants: any[];
   isArchived: boolean;
   assigningId: string | null;
   assigningDealerId: string | null;
   onClose: () => void;
   onAssignEngineer: (ticketId: string, engineerId: string) => Promise<void>;
   onAssignDealer: (ticketId: string, dealerId: string) => Promise<void>;
+  onAssignAssistant?: (ticketId: string, assistantId: string) => Promise<void>;
   onCancelAssignment: (ticketId: string) => Promise<void>;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
