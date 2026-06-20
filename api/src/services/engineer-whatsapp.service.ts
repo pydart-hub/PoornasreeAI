@@ -698,6 +698,11 @@ export async function handleEngineerWhatsAppMessage(
     upperText === "HELLO" ||
     upperText === "HEY"
   ) {
+    // Clear any stuck active troubleshooting session so the user gets a fresh start
+    await prisma.troubleshootingSession.deleteMany({
+      where: { phoneNumber: from, status: "ACTIVE" },
+    });
+    
     await sendEngineerMenu(from, engineer);
     return;
   }

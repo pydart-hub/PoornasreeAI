@@ -29,6 +29,7 @@ import {
 import {
   handleDealerWhatsAppMessage,
 } from "../services/dealer-whatsapp.service";
+import { searchTrainingVideos } from "../services/engineer-training-video.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -831,7 +832,25 @@ async function handleEngineerTroubleshootStep(
     return;
   }
 
-  // Unrecognised input during a session — re-show current step
+  // Unrecognised input during a session — first check if it's an AI training video query
+  try {
+    const matchedVideos = await searchTrainingVideos(text.trim());
+    if (matchedVideos.length > 0) {
+      const videoList = matchedVideos
+        .map((v) => `▶️ *${v.title}*\n${v.youtubeUrl}`)
+        .join("\n\n");
+      await sendEngineerMessage(
+        from,
+        `📺 *Training Videos matching "${text.trim()}":*\n\n${videoList}`,
+      );
+      // Wait briefly so messages arrive in order
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch (err) {
+    console.error("[whatsapp] Training video search error during troubleshoot:", err);
+  }
+
+  // Re-show current step
   const template = await prisma.documentIssue.findUnique({
     where: { problemType: session.problemType },
     include: { steps: { where: { stepNumber: session.currentStep }, take: 1 } },
