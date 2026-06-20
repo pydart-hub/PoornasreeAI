@@ -5,6 +5,7 @@ import { io } from "../lib/socket";
 import * as TicketService from "./ticket.service";
 import * as WhatsAppService from "./whatsapp.service";
 import { startFeedbackFlow } from "./simulate.service";
+import { searchTrainingVideos } from "./engineer-training-video.service";
 import {
   ENG_PREFIX,
   ENGINEER_ACTIVE_TICKET_SELECT,
@@ -970,6 +971,26 @@ export async function handleEngineerWhatsAppMessage(
   if (upperText === "HELP") {
     await sendEngineerMessage(from, helpText());
     return;
+  }
+
+  // ── Training video search (Groq AI) ───────────────────────────────────
+  // Only fires when no existing command, ticket flow, or troubleshooting matched.
+  // Completely separate from R&D / troubleshooting videos.
+  try {
+    const matchedVideos = await searchTrainingVideos(trimmed);
+    if (matchedVideos.length > 0) {
+      const videoList = matchedVideos
+        .map((v) => `▶️ *${v.title}*\n${v.youtubeUrl}`)
+        .join("\n\n");
+      await sendEngineerMessage(
+        from,
+        `📺 *Training Videos matching "${trimmed}":*\n\n${videoList}`,
+      );
+      return;
+    }
+  } catch (err) {
+    console.error("[engineer-wa] Training video search error:", err);
+    // Non-fatal — fall through to default response
   }
 
   await sendEngineerMessage(

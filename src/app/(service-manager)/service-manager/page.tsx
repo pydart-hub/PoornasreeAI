@@ -1690,44 +1690,47 @@ export default function ServiceManagerPage() {
                             ))}
                           </select>
                         </div>
-                        {newAsst.pincodeId && (() => {
-                          const locEngineers = engineers.filter(e => e.engineerPincodes?.some(p => p.id === newAsst.pincodeId));
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Engineers</label>
-                                {newAsst.engineerIds.length > 0 && (
-                                  <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                                    {newAsst.engineerIds.length} selected
-                                  </span>
-                                )}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Engineers</label>
+                            {newAsst.engineerIds.length > 0 && (
+                              <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                {newAsst.engineerIds.length} selected
+                              </span>
+                            )}
+                          </div>
+                          {!newAsst.pincodeId ? (
+                            <p className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary italic p-2 border border-dashed border-line dark:border-line-dark rounded-lg text-center">
+                              Please select a location first to assign engineers.
+                            </p>
+                          ) : (() => {
+                            const locEngineers = engineers.filter(e => e.engineerPincodes?.some(p => p.id === newAsst.pincodeId));
+                            if (locEngineers.length === 0) {
+                              return <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">No engineers available in this location.</p>;
+                            }
+                            return (
+                              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto py-1">
+                                {locEngineers.map(e => (
+                                  <button key={e.id} type="button"
+                                    onClick={() => setNewAsst(f => ({
+                                      ...f,
+                                      engineerIds: f.engineerIds.includes(e.id)
+                                        ? f.engineerIds.filter(id => id !== e.id)
+                                        : [...f.engineerIds, e.id],
+                                    }))}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                      newAsst.engineerIds.includes(e.id)
+                                        ? "bg-primary text-white border-primary"
+                                        : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                                    )}>
+                                    {e.firstName} {e.lastName}
+                                  </button>
+                                ))}
                               </div>
-                              {locEngineers.length === 0 ? (
-                                <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">No engineers available in this location.</p>
-                              ) : (
-                                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto py-1">
-                                  {locEngineers.map(e => (
-                                    <button key={e.id} type="button"
-                                      onClick={() => setNewAsst(f => ({
-                                        ...f,
-                                        engineerIds: f.engineerIds.includes(e.id)
-                                          ? f.engineerIds.filter(id => id !== e.id)
-                                          : [...f.engineerIds, e.id],
-                                      }))}
-                                      className={cn(
-                                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                        newAsst.engineerIds.includes(e.id)
-                                          ? "bg-primary text-white border-primary"
-                                          : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                                      )}>
-                                      {e.firstName} {e.lastName}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
+                            );
+                          })()}
+                        </div>
                       </div>
                     )}
                     <div className="flex gap-2 pt-1">

@@ -29,6 +29,7 @@ import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbo
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
 import { listManualComplaints, createManualComplaint, updateManualComplaint, reviewManualComplaint, deleteManualComplaint, scanManualComplaints } from "../controllers/manualComplaint.controller";
+import { listTrainingVideos, createTrainingVideo, updateTrainingVideo, deleteTrainingVideo } from "../controllers/engineer-training-video.controller";
 
 const router = Router();
 
@@ -221,5 +222,11 @@ router.post("/manual-complaints/scan", scanManualComplaints);
 router.patch("/manual-complaints/:id", updateManualComplaint);
 router.patch("/manual-complaints/:id/review", reviewManualComplaint);
 router.delete("/manual-complaints/:id", deleteManualComplaint);
+
+// Engineer Training Videos (private AI-searchable videos for engineers)
+router.get("/training-videos", listTrainingVideos);
+router.post("/training-videos", createTrainingVideo);
+router.patch("/training-videos/:id", updateTrainingVideo);
+router.delete("/training-videos/:id", deleteTrainingVideo);
 
 export default router;

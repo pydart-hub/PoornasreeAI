@@ -73,4 +73,8 @@ export const env = {
   ),
   // UUID of service_manager who owns HR-synced engineers; empty = first service_manager in DB
   HR_SYNC_MANAGER_ID: process.env.HR_SYNC_MANAGER_ID || "",
+
+  // ── Groq LLM API ───────────────────────────────────────────────────────
+  // Used for engineer training video search (AI intent matching).
+  GROQ_API_KEY: process.env.GROQ_API_KEY || "",
 } as const;

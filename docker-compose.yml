@@ -92,6 +92,7 @@ services:
       WA_ENGINEER_TICKET_TEMPLATE_LANG: ${WA_ENGINEER_TICKET_TEMPLATE_LANG:-en}
       FRONTEND_URL: ${FRONTEND_URL:-https://ai.poornasreecloud.com}
       INTEGRATION_WEBHOOK_URL: ${INTEGRATION_WEBHOOK_URL:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     volumes:
       - api_uploads:/app/uploads
       - ./data/training/training.json:/app/data/training.json:ro

@@ -1,0 +1,60 @@
+1. Channels - 3    
+            COW           FAT 1% to 7%
+            BUFFALO       FAT 7% to 15%
+            MIX           FAT 1% to 15%
+2. TEST MODE - 4
+            NORMAL MODE    - Only sample testing
+            REMOTE MODE    - Farmer ID and Milk Weight entry with sample test details.Most purpose FIELD COLLECTION
+            MANUAL ENTRY   - SAMPLE NOT TEST THE MACHINE- Manually parameters entry
+            ID&WEIGHT ENTRY- ID and weight enter first, then after the collection-sample will test
+
+3. Saved Result edit/delete   - View result then edit - is not edit option go to analyzer settings > correction > last settings "Edit enable"
+4. Sales    - Local sale facility in our machine
+5. Despatch - Total Collection to BMC/Dairy - Despatch ID entry > other sett. > Farmer sett. > last settings
+
+5. Reports - Summary report
+             Despatch
+             Collections
+             Farmer
+             Sales
+
+     Note: Reports export to - Printout, USB pendrive,RS232 serial port,Bluetooth etc
+6. Chart 3 types      CHANNEL-1   150Kb file size max.
+                      CHANNEL-2   150Kb file size max.
+                      CHANNEL-3   150Kb file size max.
+
+     Note: Chart load from - USB Pen, Cloud server and "Chart generation" as Method-5 types (tS rate & FAT SNF generation,others) - Slab mode generation.
+
+     Extra features about rate chart
+      1. Auto chart  - SET - Auto fat limit
+                       Over the set FAT eg: above the result FAT value 7% , Rate pick from the second channel rate chart
+      2. Upper and lower rate select option - 3% to 7% FAT file.Below 3% result a fixed rate will load.
+      
+7. Farmer details entry & file loading and bonus
+8. Date,time and Shift/shift close entering
+9.  Weigning scale settings
+10. WiFi/GSM settings and cloud URL entry.  - must enter the scanning interval more than 5-minutes
+11. Printer and Display settings-Multiple page -down key press-Page shift
+12. Additional features
+          1.Machine ON time cleaning alert - How to enable - Analyzer settings > cleaning setting > ....
+          2.Password protected access control and Single key channel testing option. - How to enable - Other settings > Pass reset > ON time access > ...
+          3.Additional reports-Machine cleaning statistics and calibration log report      
+          4.After the result - "SAVE" asking  - How to enable - Other settings > Data out settings > ask to save? enable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          
+            
+
+                         

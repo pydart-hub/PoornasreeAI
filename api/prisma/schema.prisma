@@ -533,3 +533,17 @@ model WorkReportImage {
 
   workReport   WorkReport @relation(fields: [workReportId], references: [id], onDelete: Cascade)
 }
+
+// ── Engineer Training Video (private YouTube videos for engineer self-learning) ──
+// Uploaded by admin. Engineers can ask about these via WhatsApp free-text;
+// Groq LLM matches the query to relevant videos.
+// Separate from RdVideo (which auto-sends during troubleshooting) to avoid conflicts.
+model EngineerTrainingVideo {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  youtubeUrl  String
+  topic       String   @db.Text  // e.g. "channels", "chart settings", "wifi/cloud", etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

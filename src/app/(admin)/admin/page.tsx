@@ -35,6 +35,7 @@ import {
   Film,
   Ticket,
   Package,
+  GraduationCap,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -62,6 +63,7 @@ import WhatsAppSettingsTab from "@/components/admin/WhatsAppSettingsTab";
 
 import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
+import EngineerTrainingVideosTab from "@/components/admin/EngineerTrainingVideosTab";
 
 // ─────────────────────────────────────────────
 // Types
@@ -122,7 +124,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products" | "whatsapp">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products" | "whatsapp" | "trainingvideos">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -485,6 +487,7 @@ export default function AdminPage() {
                 { key: "products",  label: "Products",  icon: <Package className="w-3.5 h-3.5" />,   count: null },
                 { key: "whatsapp",  label: "WhatsApp",  icon: <MessageSquare className="w-3.5 h-3.5" />, count: null },
                 { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" />, count: null },
+                { key: "trainingvideos", label: "Training Videos", icon: <GraduationCap className="w-3.5 h-3.5" />, count: null },
               ] as const).map(({ key, label, icon, count }) => (
                 <button key={key} onClick={() => key === "users" ? router.push("/admin/users") : setActiveTab(key as typeof activeTab)}
                   className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
@@ -1485,6 +1488,9 @@ export default function AdminPage() {
           {activeTab === "products" && <ProductsTab />}
 
           {activeTab === "whatsapp" && <WhatsAppSettingsTab />}
+
+          {/* ── Training Videos Tab ── */}
+          {activeTab === "trainingvideos" && <EngineerTrainingVideosTab />}
 
         </div>
       </main>
