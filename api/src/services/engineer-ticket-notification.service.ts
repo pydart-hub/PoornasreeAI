@@ -97,14 +97,6 @@ export async function sendDailyEngineerSummary(): Promise<void> {
     });
 
     if (tickets.length === 0) {
-      await sendEngineerMessage(
-        eng.whatsappNumber,
-        `📅 *Daily Ticket Summary - 8:00 AM*\n\nHi ${eng.firstName}, you have no assigned or pending tickets today. Great job!`,
-        [
-          { id: "TICKETS", title: "📋 My Tickets" },
-          { id: "HELP", title: "❓ Help" },
-        ]
-      );
       continue;
     }
 
