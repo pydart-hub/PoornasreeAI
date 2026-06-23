@@ -1136,7 +1136,26 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     const notificationText = `🚨 *Live Chat Request*\n\nA customer wants to speak with support.\n👤 *Name:* ${customerName}\n📱 *Phone:* ${customerPhone}\n\nPlease log into the dashboard, pause the chatbot for this user, and chat manually.`;
 
     try {
-      await WhatsAppService.sendMessage(support.supportPhone, notificationText);
+      console.log(`[simulate] Sending live chat support notification to ${support.supportPhone} via template...`);
+      const sentTemplate = await WhatsAppService.sendTemplate(support.supportPhone, {
+        name: "engineer_ticket_assigned",
+        languageCode: "en",
+        bodyParameters: [
+          "Support Team",
+          "Live Chat Request",
+          customerName.replace(/[\n\r\t]/g, " ").trim().slice(0, 100),
+          customerPhone.replace(/[\n\r\t]/g, " ").trim().slice(0, 50),
+          "WhatsApp Chatbot",
+          "Wants to connect with support. Please log into the dashboard, pause the chatbot, and reply manually."
+        ]
+      });
+
+      if (!sentTemplate) {
+        console.warn("[simulate] Template notification failed, sending plain text fallback...");
+        await WhatsAppService.sendMessage(support.supportPhone, notificationText);
+      } else {
+        console.log("[simulate] Template notification sent successfully.");
+      }
     } catch (err) {
       console.error("[simulate] Failed to send support WhatsApp notification:", err);
     }
