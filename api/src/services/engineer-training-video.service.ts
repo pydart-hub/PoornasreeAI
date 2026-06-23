@@ -56,20 +56,25 @@ async function groqSearch(
     .map((v, i) => `${i + 1}. Title: "${v.title}" | Topic: "${v.topic}"${v.description ? ` | Description: "${v.description}"` : ""}`)
     .join("\n");
 
-  const systemPrompt = `You are a technical assistant for a milk analyzer/ECOD machine service company called Poornasree.
-Engineers ask about machine topics via WhatsApp. Your job is to match their query to relevant training videos.
+  const systemPrompt = `You are a strict topic-matching assistant for Poornasree, a milk analyzer/ECOD machine service company.
+Engineers search for training videos via WhatsApp. Your job is to find videos whose Topic EXACTLY matches what the engineer is asking about.
 
 Available training videos:
 ${videoList}
 
-Instructions:
-- The engineer's query may be a single word, a phrase, or a question.
-- Match the query to the most relevant videos based on topic, title, and description.
-- Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3, 5]
-- If NO videos match the query, return an empty array: []
-- Maximum ${limit} matches.
-- Be generous with matching — if the query is even loosely related, include it.
-- Common queries: "channels", "chart", "reports", "wifi", "weighing", "farmer", "shift", "printer", "display", "cleaning", "calibration", "test mode", "ecod"`;
+Matching Rules:
+1. The "Topic" field is the primary match key — it is set precisely by the admin.
+2. Match the engineer's query against each video's Topic field. Correct obvious spelling mistakes (e.g. "repots" → "reports", "chanels" → "channels", "ecod channls" → "ecod channels").
+3. STRICT DISTINCTION: Topics that sound similar are DIFFERENT and must NOT be confused:
+   - Topic "reports" ≠ Topic "eco d reports" — these are separate videos.
+   - If the engineer types "Reports" → return ONLY videos with Topic = "reports".
+   - If the engineer types "ECO D Reports" or "ecod reports" → return ONLY videos with Topic = "eco d reports".
+   - If the engineer types "ECO D" or "ecod" (without specifying a sub-topic) → match all ECO D related topics.
+4. Do NOT return all videos that loosely share a word. Only include a video if the engineer's intent clearly matches that specific topic.
+5. If the query has spelling errors, first mentally correct the spelling, then match strictly.
+6. Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3, 5]
+7. If NO videos match precisely, return an empty array: []
+8. Maximum ${limit} matches. Prefer accuracy over quantity.`;
 
   const res = await fetch(GROQ_API_URL, {
     method: "POST",
@@ -81,9 +86,9 @@ Instructions:
       model: GROQ_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Engineer query: "${query}"` },
+        { role: "user", content: `Engineer query: "${query}"\n\nWhich video numbers match? Reply with only a JSON array.` },
       ],
-      temperature: 0.1,
+      temperature: 0.0,
       max_tokens: 100,
     }),
   });
@@ -129,31 +134,53 @@ function fallbackKeywordSearch(
   videos: { id: string; title: string; description: string | null; youtubeUrl: string; topic: string }[],
   limit: number,
 ): TrainingVideoMatch[] {
-  const queryLower = query.toLowerCase();
+  const queryLower = query.toLowerCase().trim();
   const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 1);
 
   const scored = videos
     .map((v) => {
-      const topicLower = v.topic.toLowerCase();
+      const topicLower = v.topic.toLowerCase().trim();
       const titleLower = v.title.toLowerCase();
       const descLower = (v.description || "").toLowerCase();
 
       let score = 0;
-      // Full phrase match
-      if (topicLower.includes(queryLower) || queryLower.includes(topicLower)) score += 5;
-      if (titleLower.includes(queryLower) || queryLower.includes(titleLower)) score += 4;
-      if (descLower.includes(queryLower)) score += 3;
 
-      // Word-level match
-      for (const qw of queryWords) {
-        if (topicLower.includes(qw)) score += 2;
-        if (titleLower.includes(qw)) score += 1;
-        if (descLower.includes(qw)) score += 1;
+      // ── Exact topic match: highest priority ────────────────────────────
+      if (topicLower === queryLower) {
+        score += 20;
+      } else {
+        // ── Word-level matching with specificity penalty ─────────────────
+        // This prevents "reports" (1 word) from matching "eco d reports" (3 words).
+        const topicWords = topicLower.split(/\s+/).filter((w) => w.length > 1);
+        const matchedWords = queryWords.filter((qw) => topicWords.some((tw) => tw === qw));
+        const matchRatio = queryWords.length > 0 ? matchedWords.length / queryWords.length : 0;
+
+        if (matchRatio === 1 && matchedWords.length > 0) {
+          // All query words matched — penalize if topic is much more specific than query
+          const extraWords = topicWords.length - queryWords.length;
+          if (extraWords === 0) {
+            score += 10; // Perfect word set match (e.g. query "reports" == topic "reports")
+          } else if (extraWords === 1) {
+            score += 4;  // Topic slightly more specific — allow
+          }
+          // extraWords > 1: no bonus (e.g. "reports" query vs "eco d reports" topic)
+        } else if (matchRatio >= 0.5 && topicWords.length <= queryWords.length + 1) {
+          // Partial match only if topic is not much broader than query
+          score += Math.round(matchRatio * 3);
+        }
       }
+
+      // Title exact/partial match (secondary)
+      if (titleLower === queryLower) score += 6;
+      else if (titleLower.includes(queryLower)) score += 3;
+
+      // Description match (lowest priority)
+      if (descLower.includes(queryLower)) score += 1;
 
       return { video: v, score };
     })
-    .filter((s) => s.score > 0)
+    // Require a meaningful score to avoid returning all videos on weak overlap
+    .filter((s) => s.score >= 10)
     .sort((a, b) => b.score - a.score);
 
   return scored.slice(0, limit).map((s) => ({
