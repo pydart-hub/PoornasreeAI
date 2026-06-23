@@ -56,16 +56,15 @@ async function groqSearch(
     .map((v, i) => `${i + 1}. Title: "${v.title}" | Topic: "${v.topic}"${v.description ? ` | Description: "${v.description}"` : ""}`)
     .join("\n");
 
-  const systemPrompt = `You are a strict topic-matching assistant for Poornasree, a milk analyzer/ECOD machine service company.
-Engineers search for training videos via WhatsApp. Your job is to find videos whose Topic EXACTLY match.
+  const systemPrompt = `You are a generous topic-matching assistant for Poornasree.
 
 Available training videos:
 ${videoList}
 
 Matching Rules:
 1. The "Topic" field may contain multiple distinct tags separated by commas (e.g. "Printer,Display"). Treat each tag as a separate topic.
-2. If the query has spelling mistakes, mentally correct them first (e.g., "repots" -> "reports", "dispay" -> "display").
-3. Find ALL videos that are relevant to the core concepts in the query.
+2. If the query has spelling mistakes, mentally correct them first (e.g., "printor" -> "printer", "repots" -> "reports", "dispay" -> "display").
+3. Find ALL videos that are relevant to the core concepts in the query. Do NOT filter out videos based on extra words like 'ECO D'. We want a broad initial match.
 4. Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3]
 5. If NO videos match precisely, return an empty array: []
 6. Maximum ${limit} matches. Prefer accuracy over quantity.`;
@@ -138,36 +137,38 @@ function filterSpecificVideos(query: string, matches: TrainingVideoMatch[]): Tra
   if (meaningfulQueryWords.length === 0) return matches;
 
   const scoredMatches = matches.map(v => {
-    const videoWordsList = normalize(`${v.title} ${v.topic}`).split(" ").filter(w => w.length > 1);
-    const videoWords = new Set(videoWordsList);
+    // Only use TOPIC for specificity tracking to avoid title noise
+    const topicWordsList = normalize(v.topic).split(" ").filter(w => w.length > 1);
+    const topicWords = new Set(topicWordsList);
     
-    let extraCount = 0;
-    for (const vw of videoWordsList) {
-      if (!stopWords.has(vw) && !meaningfulQueryWords.includes(vw)) {
-        extraCount++;
+    let extraTopicCount = 0;
+    for (const tw of topicWordsList) {
+      if (!stopWords.has(tw) && !meaningfulQueryWords.includes(tw)) {
+        extraTopicCount++;
       }
     }
 
     let missingCount = 0;
     for (const qw of meaningfulQueryWords) {
-      if (!videoWords.has(qw)) {
+      if (!topicWords.has(qw)) {
         missingCount++;
       }
     }
 
-    return { v, extraCount, missingCount };
+    return { v, extraTopicCount, missingCount };
   });
 
   // First, find videos that match the most query words (minimize missingCount)
   const minMissing = Math.min(...scoredMatches.map(m => m.missingCount));
   const bestCoverage = scoredMatches.filter(m => m.missingCount === minMissing);
 
-  // Second, among those with best coverage, prefer videos that aren't overly specific (minimize extraCount)
-  const minExtra = Math.min(...bestCoverage.map(m => m.extraCount));
+  // Second, among those with best coverage, strictly prefer videos that have ZERO extra specific topic words
+  // (or the absolute minimum if no generic video exists)
+  const minExtra = Math.min(...bestCoverage.map(m => m.extraTopicCount));
   
-  // Allow slightly higher extra count (e.g. +1) to handle varying descriptions, but filter out heavily specific ones
+  // STRICT FILTER: Do not allow +1 anymore. This prevents "ecod" videos from showing up for general queries.
   return bestCoverage
-    .filter(m => m.extraCount <= minExtra + 1)
+    .filter(m => m.extraTopicCount === minExtra)
     .map(m => m.v);
 }
 
