@@ -59,6 +59,9 @@ async function groqSearch(
   const systemPrompt = `You are a strict topic-matching assistant for Poornasree, a milk analyzer/ECOD machine service company.
 Engineers search for training videos via WhatsApp. Your job is to find videos whose Topic EXACTLY match.
 
+Available training videos:
+${videoList}
+
 Matching Rules:
 1. The "Topic" field may contain multiple distinct tags separated by commas (e.g. "Printer,Display"). Treat each tag as a separate topic.
 2. If the query has spelling mistakes, mentally correct them first (e.g., "repots" -> "reports", "dispay" -> "display").
