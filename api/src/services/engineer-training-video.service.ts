@@ -57,23 +57,15 @@ async function groqSearch(
     .join("\n");
 
   const systemPrompt = `You are a strict topic-matching assistant for Poornasree, a milk analyzer/ECOD machine service company.
-Engineers search for training videos via WhatsApp. Your job is to find videos whose Topic EXACTLY matches what the engineer is asking about.
-
-Available training videos:
-${videoList}
+Engineers search for training videos via WhatsApp. Your job is to find videos whose Topic EXACTLY match.
 
 Matching Rules:
 1. The "Topic" field may contain multiple distinct tags separated by commas (e.g. "Printer,Display"). Treat each tag as a separate topic.
 2. If the query has spelling mistakes, mentally correct them first (e.g., "repots" -> "reports", "dispay" -> "display").
-3. STRICT DISTINCTION ("ECO D" vs general): 
-   - Topics that sound similar are DIFFERENT and must NOT be confused.
-   - If the engineer types a general query like "Printer" or "Reports" without explicitly mentioning "ECO D" or "ecod", you MUST NOT return ECO D specific videos. Return ONLY the general videos.
-   - If the engineer types "ECO D Reports" or "ecod channels", you MUST ONLY return the ECO D specific videos.
-4. If they type "Printer and display", match the video whose topics cover "printer" and "display". DO NOT return ECO D videos unless they said "ECO D".
-5. Only include a video if its Topic is highly relevant to the engineer's query. Do not return unrelated videos.
-6. Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3]
-7. If NO videos match precisely, return an empty array: []
-8. Maximum ${limit} matches. Prefer accuracy over quantity.`;
+3. Find ALL videos that are relevant to the core concepts in the query.
+4. Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3]
+5. If NO videos match precisely, return an empty array: []
+6. Maximum ${limit} matches. Prefer accuracy over quantity.`;
 
   const res = await fetch(GROQ_API_URL, {
     method: "POST",
@@ -112,9 +104,8 @@ Matching Rules:
   const indices: number[] = JSON.parse(jsonMatch[0]);
   if (!Array.isArray(indices) || indices.length === 0) return [];
 
-  return indices
+  const rawMatches = indices
     .filter((i) => i >= 1 && i <= videos.length)
-    .slice(0, limit)
     .map((i) => {
       const v = videos[i - 1];
       return {
@@ -125,6 +116,56 @@ Matching Rules:
         topic: v.topic,
       };
     });
+
+  return filterSpecificVideos(query, rawMatches).slice(0, limit);
+}
+
+/**
+ * Helper to dynamically filter specialized videos (e.g. "ECO D") out of general queries ("printer")
+ * and prioritize specialized videos when explicitly requested ("ecod printer").
+ */
+function filterSpecificVideos(query: string, matches: TrainingVideoMatch[]): TrainingVideoMatch[] {
+  if (matches.length <= 1) return matches;
+
+  const normalize = (s: string) => s.toLowerCase().replace(/eco\s+d/g, "ecod").replace(/[^a-z0-9]+/g, " ").trim();
+  const queryWords = normalize(query).split(" ");
+  const stopWords = new Set(["and", "or", "the", "a", "an", "settings", "sms", "alert", "video", "training", "how", "to", "for"]);
+  const meaningfulQueryWords = queryWords.filter(w => !stopWords.has(w) && w.length > 1);
+
+  if (meaningfulQueryWords.length === 0) return matches;
+
+  const scoredMatches = matches.map(v => {
+    const videoWordsList = normalize(`${v.title} ${v.topic}`).split(" ").filter(w => w.length > 1);
+    const videoWords = new Set(videoWordsList);
+    
+    let extraCount = 0;
+    for (const vw of videoWordsList) {
+      if (!stopWords.has(vw) && !meaningfulQueryWords.includes(vw)) {
+        extraCount++;
+      }
+    }
+
+    let missingCount = 0;
+    for (const qw of meaningfulQueryWords) {
+      if (!videoWords.has(qw)) {
+        missingCount++;
+      }
+    }
+
+    return { v, extraCount, missingCount };
+  });
+
+  // First, find videos that match the most query words (minimize missingCount)
+  const minMissing = Math.min(...scoredMatches.map(m => m.missingCount));
+  const bestCoverage = scoredMatches.filter(m => m.missingCount === minMissing);
+
+  // Second, among those with best coverage, prefer videos that aren't overly specific (minimize extraCount)
+  const minExtra = Math.min(...bestCoverage.map(m => m.extraCount));
+  
+  // Allow slightly higher extra count (e.g. +1) to handle varying descriptions, but filter out heavily specific ones
+  return bestCoverage
+    .filter(m => m.extraCount <= minExtra + 1)
+    .map(m => m.v);
 }
 
 /** Simple fallback: keyword overlap when Groq is unavailable */
@@ -136,57 +177,27 @@ function fallbackKeywordSearch(
   const queryLower = query.toLowerCase().trim();
   const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 1);
 
-  const scored = videos
-    .map((v) => {
-      const topicLower = v.topic.toLowerCase().trim();
-      const titleLower = v.title.toLowerCase();
-      const descLower = (v.description || "").toLowerCase();
+  const rawMatches = videos.filter((v) => {
+    const topicLower = v.topic.toLowerCase().trim();
+    const titleLower = v.title.toLowerCase();
 
-      let score = 0;
-
-      // ── Exact topic match: highest priority ────────────────────────────
-      if (topicLower === queryLower) {
-        score += 20;
-      } else {
-        // ── Word-level matching with specificity penalty ─────────────────
-        // This prevents "reports" (1 word) from matching "eco d reports" (3 words).
-        const topicWords = topicLower.split(/\s+/).filter((w) => w.length > 1);
-        const matchedWords = queryWords.filter((qw) => topicWords.some((tw) => tw === qw));
-        const matchRatio = queryWords.length > 0 ? matchedWords.length / queryWords.length : 0;
-
-        if (matchRatio === 1 && matchedWords.length > 0) {
-          // All query words matched — penalize if topic is much more specific than query
-          const extraWords = topicWords.length - queryWords.length;
-          if (extraWords === 0) {
-            score += 10; // Perfect word set match (e.g. query "reports" == topic "reports")
-          } else if (extraWords === 1) {
-            score += 4;  // Topic slightly more specific — allow
-          }
-          // extraWords > 1: no bonus (e.g. "reports" query vs "eco d reports" topic)
-        } else if (matchRatio >= 0.5 && topicWords.length <= queryWords.length + 1) {
-          // Partial match only if topic is not much broader than query
-          score += Math.round(matchRatio * 3);
-        }
-      }
-
-      // Title exact/partial match (secondary)
-      if (titleLower === queryLower) score += 6;
-      else if (titleLower.includes(queryLower)) score += 3;
-
-      // Description match (lowest priority)
-      if (descLower.includes(queryLower)) score += 1;
-
-      return { video: v, score };
-    })
-    // Require a meaningful score to avoid returning all videos on weak overlap
-    .filter((s) => s.score >= 10)
-    .sort((a, b) => b.score - a.score);
-
-  return scored.slice(0, limit).map((s) => ({
-    id: s.video.id,
-    title: s.video.title,
-    description: s.video.description,
-    youtubeUrl: s.video.youtubeUrl,
-    topic: s.video.topic,
+    // Broad matching: Does it contain the exact query string, or at least one significant query word?
+    if (topicLower.includes(queryLower) || titleLower.includes(queryLower)) {
+      return true;
+    }
+    
+    if (queryWords.length > 0) {
+      const topicWords = topicLower.split(/\s+/);
+      return queryWords.some(qw => topicWords.includes(qw));
+    }
+    return false;
+  }).map(v => ({
+    id: v.id,
+    title: v.title,
+    description: v.description,
+    youtubeUrl: v.youtubeUrl,
+    topic: v.topic,
   }));
+
+  return filterSpecificVideos(query, rawMatches).slice(0, limit);
 }
