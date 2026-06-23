@@ -41,6 +41,7 @@ import {
   getWhatsAppSupportSettings,
 } from "./chatbotSettings.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
+import * as WhatsAppService from "./whatsapp.service";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -401,13 +402,13 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "অনুগ্রহ করে নিচের মেনু থেকে একটি বৈধ বিকল্প নির্বাচন করুন 👇",
   },
   SPEAK_TO_SUPPORT: {
-    en: "📞 *Speak to Support*\n\n{contact}\n\nOur support team will reach out to you shortly.",
-    hi: "📞 *सहायता से बात करें*\n\n{contact}\n\nहमारी सहायता टीम जल्द ही आपसे संपर्क करेगी।",
-    ta: "📞 *ஆதரவு குழுவுடன் பேசவும்*\n\n{contact}\n\nஎங்கள் ஆதரவுக் குழு விரைவில் உங்களைத் தொடர்புகொள்ளும்.",
-    kn: "📞 *ಬೆಂಬಲ ತಂಡದೊಂದಿಗೆ ಮಾತನಾಡಿ*\n\n{contact}\n\nನಮ್ಮ ಬೆಂಬಲ ತಂಡವು ಶೀಘ್ರದಲ್ಲೇ ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸುತ್ತದೆ.",
-    mr: "📞 *सपोर्ट टीमशी बोला*\n\n{contact}\n\nआमची सपोर्ट टीम लवकरच तुमच्याशी संपर्क साधेल.",
-    te: "📞 *మద్దతు బృందంతో మాట్లాడండి*\n\n{contact}\n\nమా మద్దతు బృందం త్వరలో మిమ్మల్ని సంప్రదిస్తుంది.",
-    bn: "📞 *সাপোর্ট টিমের সাথে কথা বলুন*\n\n{contact}\n\nআমাদের সাপোর্ট টিম শীঘ্রই আপনার সাথে যোগাযোগ করবে।",
+    en: "📞 *Speak to Support*\n\n{contact}\n\nPlease wait, we are finding you the best support... Our support team will reach out to you shortly.",
+    hi: "📞 *सहायता से बात करें*\n\n{contact}\n\nकृपया प्रतीक्षा करें, हम आपके लिए सर्वश्रेष्ठ सहायता खोज रहे हैं... हमारी सहायता टीम जल्द ही आपसे संपर्क करेगी।",
+    ta: "📞 *ஆதரவு குழுவுடன் பேசவும்*\n\n{contact}\n\nதயவுசெய்து காத்திருக்கவும், நாங்கள் சிறந்த ஆதரவைக் கண்டறிகிறோம்... எங்கள் ஆதரவுக் குழு விரைவில் உங்களைத் தொடர்புகொள்ளும்.",
+    kn: "📞 *ಬೆಂಬಲ ತಂಡದೊಂದಿಗೆ ಮಾತನಾಡಿ*\n\n{contact}\n\nದಯವಿಟ್ಟು ನಿರೀಕ್ಷಿಸಿ, ನಾವು ನಿಮಗೆ ಉತ್ತಮ ಬೆಂಬಲವನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇವೆ... ನಮ್ಮ ಬೆಂಬಲ ತಂಡವು ಶೀಘ್ರದಲ್ಲೇ ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸುತ್ತದೆ.",
+    mr: "📞 *सपोर्ट टीमशी बोला*\n\n{contact}\n\nकृपया प्रतीक्षा करा, आम्ही तुमच्यासाठी सर्वोत्तम सपोर्ट शोधत आहोत... आमची सपोर्ट टीम लवकरच तुमच्याशी संपर्क साधेल.",
+    te: "📞 *మద్దతు బృందంతో మాట్లాడండి*\n\n{contact}\n\nదయచేసి వేచి ఉండండి, మేము మీకు ఉత్తమ మద్దతును కనుగొంటున్నాము... మా మద్దతు బృందం త్వరలో మిమ్మల్ని సంప్రదిస్తుంది.",
+    bn: "📞 *সাপোর্ট টিমের সাথে কথা বলুন*\n\n{contact}\n\nঅনুগ্রহ করে অপেক্ষা করুন, আমরা আপনার জন্য সেরা সহায়তা খুঁজছি... আমাদের সাপোর্ট টিম শীঘ্রই আপনার সাথে যোগাযোগ করবে।",
   },
   LANG_SELECT: {
     en: "🌐 *Select your preferred language:*\n\nChoose your language to continue 👇",
@@ -1129,6 +1130,17 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     await updateSession(sessionId, "COMPLETED", meta);
     const support = await getWhatsAppSupportSettings();
     const contact = formatSupportContactBlock(support);
+    // Send WhatsApp notification to support contact
+    const customerName = meta.customerName || "Not Provided";
+    const customerPhone = meta.customerPhone || phoneNumber;
+    const notificationText = `🚨 *Live Chat Request*\n\nA customer wants to speak with support.\n👤 *Name:* ${customerName}\n📱 *Phone:* ${customerPhone}\n\nPlease log into the dashboard, pause the chatbot for this user, and chat manually.`;
+
+    try {
+      await WhatsAppService.sendMessage(support.supportPhone, notificationText);
+    } catch (err) {
+      console.error("[simulate] Failed to send support WhatsApp notification:", err);
+    }
+
     return makeReply(t("SPEAK_TO_SUPPORT", lang, { contact }), [getMenuButton(lang)]);
   }
   if (choice === "5") {
