@@ -320,6 +320,7 @@ export function handleWebhook(req: Request, res: Response): void {
   res.sendStatus(200);
 
   // Process asynchronously so Meta doesn't time out.
+  console.log("[whatsapp] Incoming webhook payload:", JSON.stringify(req.body));
   processWebhook(req.body).catch((err) =>
     console.error("[whatsapp] Webhook processing error:", err),
   );
