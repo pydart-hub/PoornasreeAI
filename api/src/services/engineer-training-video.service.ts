@@ -198,21 +198,27 @@ function fallbackKeywordSearch(
   videos: { id: string; title: string; description: string | null; youtubeUrl: string; topic: string }[],
   limit: number,
 ): TrainingVideoMatch[] {
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const queryLower = query.toLowerCase().trim();
-  const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 1);
+  const queryWords = normalize(query).split(" ").filter((w) => w.length > 1);
 
   const rawMatches = videos.filter((v) => {
-    const topicLower = v.topic.toLowerCase().trim();
     const titleLower = v.title.toLowerCase();
+    const topicLower = v.topic.toLowerCase();
 
-    // Broad matching: Does it contain the exact query string, or at least one significant query word?
-    if (topicLower.includes(queryLower) || titleLower.includes(queryLower)) {
+    // Exact phrase match in title or topic
+    if (titleLower.includes(queryLower) || topicLower.includes(queryLower)) {
       return true;
     }
     
+    // Broad keyword matching
     if (queryWords.length > 0) {
-      const topicWords = topicLower.split(/\s+/);
-      return queryWords.some(qw => topicWords.includes(qw));
+      const titleWords = normalize(v.title).split(" ");
+      const topicWords = normalize(v.topic).split(" ");
+      const allWords = [...titleWords, ...topicWords];
+      
+      // Return true if any meaningful query word is found
+      return queryWords.some(qw => allWords.includes(qw));
     }
     return false;
   }).map(v => ({
