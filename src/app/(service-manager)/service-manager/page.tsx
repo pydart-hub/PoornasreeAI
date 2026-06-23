@@ -49,6 +49,7 @@ import { getSocket } from "@/lib/socket-client";
 import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
 import { parseTicketDescription, resolveTicketCustomerName } from "@/components/service-manager/utils";
 import { getAssignmentMode, DEALER_RESPONSE_LABELS } from "@/components/service-manager/assignmentMode";
+import PincodeSelector from "@/components/service-manager/PincodeSelector";
 import {
   type WorkReport,
   type ReplacedPart,
@@ -2824,64 +2825,11 @@ export default function ServiceManagerPage() {
                   <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
                     Assign Pincodes * <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({newEng.pincodeIds.length} selected)</span>
                   </label>
-                  <div className="space-y-1.5">
-                    {Object.entries(
-                      myPincodes.reduce<Record<string, PincodeInfo[]>>((acc, p) => {
-                        const s = p.state || "Other"; acc[s] = [...(acc[s] || []), p]; return acc;
-                      }, {})
-                    ).sort(([a], [b]) => a.localeCompare(b)).map(([stateName, pins]) => {
-                      const isOpen = expandedStates.has("add:" + stateName);
-                      const selCount = pins.filter(p => newEng.pincodeIds.includes(p.id)).length;
-                      return (
-                        <div key={stateName} className="border border-line dark:border-line-dark rounded-lg overflow-hidden">
-                          <div className="flex items-center justify-between px-3 py-2 bg-surface dark:bg-surface-dark">
-                            <button type="button"
-                              onClick={() => setExpandedStates(prev => { const s = new Set(Array.from(prev)); if (s.has("add:" + stateName)) { s.delete("add:" + stateName); } else { s.add("add:" + stateName); } return s; })}
-                              className="flex items-center gap-1.5 flex-1 text-left min-w-0">
-                              <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-content-tertiary dark:text-content-dark-tertiary transition-transform", isOpen && "rotate-180")} />
-                              <span className="text-xs font-semibold text-content dark:text-content-dark truncate">{stateName}</span>
-                              <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary shrink-0">
-                                {selCount > 0 ? `${selCount}/${pins.length} selected` : `${pins.length}`}
-                              </span>
-                            </button>
-                            {selCount < pins.length ? (
-                              <button type="button"
-                                onClick={() => setNewEng(prev => ({ ...prev, pincodeIds: Array.from(new Set([...prev.pincodeIds, ...pins.map(p => p.id)])) }))}
-                                className="ml-2 shrink-0 text-[10px] text-primary hover:text-primary-hover font-medium transition-colors">All</button>
-                            ) : (
-                              <button type="button"
-                                onClick={() => setNewEng(prev => ({ ...prev, pincodeIds: prev.pincodeIds.filter(id => !pins.some(p => p.id === id)) }))}
-                                className="ml-2 shrink-0 text-[10px] text-rose-500 hover:text-rose-600 font-medium transition-colors">Clear</button>
-                            )}
-                          </div>
-                          {isOpen && (
-                            <div className="flex flex-wrap gap-1.5 p-2.5 border-t border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-                              {pins.map(p => {
-                                const selected = newEng.pincodeIds.includes(p.id);
-                                return (
-                                  <button key={p.id} type="button"
-                                    onClick={() => setNewEng(prev => {
-                                      const isSel = prev.pincodeIds.includes(p.id);
-                                      return { ...prev, pincodeIds: isSel ? prev.pincodeIds.filter(x => x !== p.id) : [...prev.pincodeIds, p.id] };
-                                    })}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-colors",
-                                      selected
-                                        ? "bg-primary text-white border-primary"
-                                        : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary border-line dark:border-line-dark hover:border-primary hover:text-primary"
-                                    )}>
-                                    <MapPin className="w-3 h-3 shrink-0" />
-                                    <span className="truncate max-w-[140px]">{[p.place, p.district].filter(Boolean).join(", ") || p.code}</span>
-                                    <span className="shrink-0 opacity-60">— {p.code}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <PincodeSelector
+                    selectedPincodeIds={newEng.pincodeIds}
+                    onChange={(ids) => setNewEng((prev) => ({ ...prev, pincodeIds: ids }))}
+                    allPincodes={myPincodes}
+                  />
                 </div>
               )}
             </div>
@@ -3024,64 +2972,11 @@ export default function ServiceManagerPage() {
                 {myPincodes.length === 0 ? (
                   <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary italic py-2">You have no pincodes assigned yet.</p>
                 ) : (
-                  <div className="space-y-1.5">
-                    {Object.entries(
-                      myPincodes.reduce<Record<string, PincodeInfo[]>>((acc, p) => {
-                        const s = p.state || "Other"; acc[s] = [...(acc[s] || []), p]; return acc;
-                      }, {})
-                    ).sort(([a], [b]) => a.localeCompare(b)).map(([stateName, pins]) => {
-                      const isOpen = expandedStates.has("edit:" + stateName);
-                      const selCount = pins.filter(p => editForm.pincodeIds.includes(p.id)).length;
-                      return (
-                        <div key={stateName} className="border border-line dark:border-line-dark rounded-lg overflow-hidden">
-                          <div className="flex items-center justify-between px-3 py-2 bg-surface dark:bg-surface-dark">
-                            <button type="button"
-                              onClick={() => setExpandedStates(prev => { const s = new Set(Array.from(prev)); if (s.has("edit:" + stateName)) { s.delete("edit:" + stateName); } else { s.add("edit:" + stateName); } return s; })}
-                              className="flex items-center gap-1.5 flex-1 text-left min-w-0">
-                              <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 text-content-tertiary dark:text-content-dark-tertiary transition-transform", isOpen && "rotate-180")} />
-                              <span className="text-xs font-semibold text-content dark:text-content-dark truncate">{stateName}</span>
-                              <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary shrink-0">
-                                {selCount > 0 ? `${selCount}/${pins.length} selected` : `${pins.length}`}
-                              </span>
-                            </button>
-                            {selCount < pins.length ? (
-                              <button type="button"
-                                onClick={() => setEditForm(prev => ({ ...prev, pincodeIds: Array.from(new Set([...prev.pincodeIds, ...pins.map(p => p.id)])) }))}
-                                className="ml-2 shrink-0 text-[10px] text-primary hover:text-primary-hover font-medium transition-colors">All</button>
-                            ) : (
-                              <button type="button"
-                                onClick={() => setEditForm(prev => ({ ...prev, pincodeIds: prev.pincodeIds.filter(id => !pins.some(p => p.id === id)) }))}
-                                className="ml-2 shrink-0 text-[10px] text-rose-500 hover:text-rose-600 font-medium transition-colors">Clear</button>
-                            )}
-                          </div>
-                          {isOpen && (
-                            <div className="flex flex-wrap gap-1.5 p-2.5 border-t border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card">
-                              {pins.map(p => {
-                                const selected = editForm.pincodeIds.includes(p.id);
-                                return (
-                                  <button key={p.id} type="button"
-                                    onClick={() => setEditForm(prev => {
-                                      const isSel = prev.pincodeIds.includes(p.id);
-                                      return { ...prev, pincodeIds: isSel ? prev.pincodeIds.filter(x => x !== p.id) : [...prev.pincodeIds, p.id] };
-                                    })}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-colors",
-                                      selected
-                                        ? "bg-primary text-white border-primary"
-                                        : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary border-line dark:border-line-dark hover:border-primary hover:text-primary"
-                                    )}>
-                                    <MapPin className="w-3 h-3 shrink-0" />
-                                    <span className="truncate max-w-[140px]">{[p.place, p.district].filter(Boolean).join(", ") || p.code}</span>
-                                    <span className="shrink-0 opacity-60">— {p.code}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <PincodeSelector
+                    selectedPincodeIds={editForm.pincodeIds}
+                    onChange={(ids) => setEditForm((prev) => ({ ...prev, pincodeIds: ids }))}
+                    allPincodes={myPincodes}
+                  />
                 )}
               </div>
             </div>
