@@ -131,45 +131,65 @@ function filterSpecificVideos(query: string, matches: TrainingVideoMatch[]): Tra
 
   const normalize = (s: string) => s.toLowerCase().replace(/eco\s+d/g, "ecod").replace(/[^a-z0-9]+/g, " ").trim();
   const queryWords = normalize(query).split(" ");
-  const stopWords = new Set(["and", "or", "the", "a", "an", "settings", "sms", "alert", "video", "training", "how", "to", "for"]);
+  const stopWords = new Set(["and", "or", "the", "a", "an", "settings", "sms", "alert", "video", "training", "how", "to", "for", "with"]);
   const meaningfulQueryWords = queryWords.filter(w => !stopWords.has(w) && w.length > 1);
 
   if (meaningfulQueryWords.length === 0) return matches;
 
+  // Identify specific product lines
+  const specificProducts = ["ecod", "lactosure", "amcu", "dpcu"];
+  const queryProducts = specificProducts.filter(p => queryWords.includes(p));
+
   const scoredMatches = matches.map(v => {
-    // Only use TOPIC for specificity tracking to avoid title noise
+    const titleWordsList = normalize(v.title).split(" ").filter(w => w.length > 1);
     const topicWordsList = normalize(v.topic).split(" ").filter(w => w.length > 1);
-    const topicWords = new Set(topicWordsList);
+    const allWordsList = [...titleWordsList, ...topicWordsList];
+    const allWords = new Set(allWordsList);
     
-    let extraTopicCount = 0;
-    for (const tw of topicWordsList) {
+    // Check if the video is for a specific product
+    const videoProducts = specificProducts.filter(p => allWords.has(p));
+    
+    // A video is an "unwanted specific" if it is for a product the user didn't ask for.
+    const hasUnwantedProduct = videoProducts.some(p => !queryProducts.includes(p));
+
+    let extraCount = 0;
+    for (const tw of allWords) {
       if (!stopWords.has(tw) && !meaningfulQueryWords.includes(tw)) {
-        extraTopicCount++;
+        extraCount++;
       }
     }
 
     let missingCount = 0;
     for (const qw of meaningfulQueryWords) {
-      if (!topicWords.has(qw)) {
+      if (!allWords.has(qw)) {
         missingCount++;
       }
     }
 
-    return { v, extraTopicCount, missingCount };
+    return { v, extraCount, missingCount, hasUnwantedProduct };
   });
 
-  // First, find videos that match the most query words (minimize missingCount)
-  const minMissing = Math.min(...scoredMatches.map(m => m.missingCount));
-  const bestCoverage = scoredMatches.filter(m => m.missingCount === minMissing);
+  // Sort by missingCount first
+  scoredMatches.sort((a, b) => {
+    if (a.missingCount !== b.missingCount) return a.missingCount - b.missingCount;
+    // Unwanted products go to the bottom
+    if (a.hasUnwantedProduct && !b.hasUnwantedProduct) return 1;
+    if (!a.hasUnwantedProduct && b.hasUnwantedProduct) return -1;
+    return a.extraCount - b.extraCount;
+  });
 
-  // Second, among those with best coverage, strictly prefer videos that have ZERO extra specific topic words
-  // (or the absolute minimum if no generic video exists)
-  const minExtra = Math.min(...bestCoverage.map(m => m.extraTopicCount));
-  
-  // STRICT FILTER: Do not allow +1 anymore. This prevents "ecod" videos from showing up for general queries.
-  return bestCoverage
-    .filter(m => m.extraTopicCount === minExtra)
-    .map(m => m.v);
+  // Take the best missingCount
+  const minMissing = scoredMatches[0].missingCount;
+  let bestMatches = scoredMatches.filter(m => m.missingCount === minMissing);
+
+  // If we have generic matches, drop the unwanted specific ones entirely
+  const hasGeneric = bestMatches.some(m => !m.hasUnwantedProduct);
+  if (hasGeneric) {
+    bestMatches = bestMatches.filter(m => !m.hasUnwantedProduct);
+  }
+
+  // Return the best matches, sorted by relevance
+  return bestMatches.map(m => m.v);
 }
 
 /** Simple fallback: keyword overlap when Groq is unavailable */
