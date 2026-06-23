@@ -63,16 +63,15 @@ Available training videos:
 ${videoList}
 
 Matching Rules:
-1. The "Topic" field is the primary match key — it is set precisely by the admin.
-2. Match the engineer's query against each video's Topic field. Correct obvious spelling mistakes (e.g. "repots" → "reports", "chanels" → "channels", "ecod channls" → "ecod channels").
-3. STRICT DISTINCTION: Topics that sound similar are DIFFERENT and must NOT be confused:
-   - Topic "reports" ≠ Topic "eco d reports" — these are separate videos.
-   - If the engineer types "Reports" → return ONLY videos with Topic = "reports".
-   - If the engineer types "ECO D Reports" or "ecod reports" → return ONLY videos with Topic = "eco d reports".
-   - If the engineer types "ECO D" or "ecod" (without specifying a sub-topic) → match all ECO D related topics.
-4. Do NOT return all videos that loosely share a word. Only include a video if the engineer's intent clearly matches that specific topic.
-5. If the query has spelling errors, first mentally correct the spelling, then match strictly.
-6. Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3, 5]
+1. The "Topic" field may contain multiple distinct tags separated by commas (e.g. "Printer,Display"). Treat each tag as a separate topic.
+2. If the query has spelling mistakes, mentally correct them first (e.g., "repots" -> "reports", "dispay" -> "display").
+3. STRICT DISTINCTION ("ECO D" vs general): 
+   - Topics that sound similar are DIFFERENT and must NOT be confused.
+   - If the engineer types a general query like "Printer" or "Reports" without explicitly mentioning "ECO D" or "ecod", you MUST NOT return ECO D specific videos. Return ONLY the general videos.
+   - If the engineer types "ECO D Reports" or "ecod channels", you MUST ONLY return the ECO D specific videos.
+4. If they type "Printer and display", match the video whose topics cover "printer" and "display". DO NOT return ECO D videos unless they said "ECO D".
+5. Only include a video if its Topic is highly relevant to the engineer's query. Do not return unrelated videos.
+6. Return ONLY a JSON array of matching video numbers (1-indexed). Example: [1, 3]
 7. If NO videos match precisely, return an empty array: []
 8. Maximum ${limit} matches. Prefer accuracy over quantity.`;
 
