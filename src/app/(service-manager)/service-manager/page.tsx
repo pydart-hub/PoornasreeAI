@@ -49,7 +49,6 @@ import { getSocket } from "@/lib/socket-client";
 import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
 import { parseTicketDescription, resolveTicketCustomerName } from "@/components/service-manager/utils";
 import { getAssignmentMode, DEALER_RESPONSE_LABELS } from "@/components/service-manager/assignmentMode";
-import TestCustomerPanel from "@/components/admin/TestCustomerPanel";
 import {
   type WorkReport,
   type ReplacedPart,
@@ -1005,8 +1004,6 @@ export default function ServiceManagerPage() {
           {/* ═══════════════════ TICKETS VIEW ═══════════════════ */}
           {pageView === "tickets" && (
             <>
-              <TestCustomerPanel onCleared={() => fetchData()} />
-
               {/* ── Toolbar ── */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex gap-0.5 bg-white dark:bg-surface-dark-secondary shadow-sm p-1 rounded-lg border border-slate-200 dark:border-white/10">
