@@ -10,6 +10,18 @@ import { enrichTicketFromSerial, resolveDealerFromPasstestCustomer } from "./dea
 import * as WhatsAppService from "./whatsapp.service";
 import { notifyTicketEvent } from "./integration-webhook.service";
 
+export const activeOtps = new Map<string, { code: string; expiresAt: Date }>();
+
+export function getActiveOtp(ticketId: string): string | null {
+  const record = activeOtps.get(ticketId);
+  if (!record) return null;
+  if (new Date() > record.expiresAt) {
+    activeOtps.delete(ticketId);
+    return null;
+  }
+  return record.code;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const TICKET_INCLUDE = {
@@ -436,6 +448,8 @@ export async function requestOTP(ticketId: string, engineerId: string, isAdmin =
   const codeHash   = await bcrypt.hash(plainCode, 10);
   const expiresAt  = new Date(Date.now() + 30 * 60 * 1000);  // 30 minutes
 
+  activeOtps.set(ticketId, { code: plainCode, expiresAt });
+
   await prisma.ticket.update({
     where: { id: ticketId },
     data:  {
@@ -495,6 +509,7 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
   const valid = await bcrypt.compare(code, ticket.otpCodeHash);
 
   if (valid) {
+    activeOtps.delete(ticketId);
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
       data:  { otpVerified: true, status: TicketStatus.CLOSED, closedAt: new Date() },

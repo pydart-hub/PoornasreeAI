@@ -23,7 +23,7 @@ export async function publicRequestOTP(req: Request, res: Response): Promise<voi
   try {
     const id = String(req.params.id);
     const engineerId = await TicketService.requireAssignedEngineerId(id);
-    const resend = req.body?.resend === true;
+    const resend = req.body?.resend === true || req.query?.resend === "true";
     const result = await TicketService.requestOTP(id, engineerId, false, resend);
     res.json({
       message: "OTP sent to the customer via WhatsApp.",
@@ -39,7 +39,7 @@ export async function publicRequestOTP(req: Request, res: Response): Promise<voi
 export async function publicVerifyOTP(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id);
-    const { code } = req.body;
+    const code = (req.body?.code || req.query?.code) as string | undefined;
     if (!code?.trim()) {
       res.status(400).json({ error: "code is required" });
       return;
@@ -55,3 +55,4 @@ export async function publicVerifyOTP(req: Request, res: Response): Promise<void
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
