@@ -102,9 +102,9 @@ export function formatDealerTicketDetailMessage(
     ? `${t.assignedEngineer.firstName} ${t.assignedEngineer.lastName ?? ""}`.trim()
     : null;
   const createdAt = t.createdAt
-    ? new Date(t.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) +
+    ? new Date(t.createdAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }) +
       ", " +
-      new Date(t.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+      new Date(t.createdAt).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true })
     : "—";
 
   const dealerStatus = t.dealerResponse

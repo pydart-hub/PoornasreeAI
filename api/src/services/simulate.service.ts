@@ -1245,7 +1245,7 @@ async function showTicketStatus(sessionId: string, phoneNumber: string, meta: Se
 
   const lines = tickets.map((t, i) => {
     const emoji = statusEmoji[t.status] || "⚪";
-    const date = t.createdAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const date = t.createdAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" });
     const complaint = t.problemDescription?.slice(0, 40) || "—";
     return `${i + 1}. *${t.ticketNumber}*\n   ${emoji} ${t.status}\n   📅 ${date}\n   📝 ${complaint}`;
   });

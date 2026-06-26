@@ -87,9 +87,9 @@ export function formatTicketDetailMessage(
     ? `${t.assignedManager.firstName} ${t.assignedManager.lastName ?? ""}`.trim()
     : "—";
   const assignedAt = t.updatedAt
-    ? t.updatedAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) +
+    ? t.updatedAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }) +
       ", " +
-      t.updatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+      t.updatedAt.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true })
     : "—";
 
   const lines = [
