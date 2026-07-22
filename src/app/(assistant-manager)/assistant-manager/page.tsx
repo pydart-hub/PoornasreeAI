@@ -833,50 +833,54 @@ export default function AssistantManagerPage() {
                 {/* ── Add Engineer Modal ── */}
                 {showAddEngineer && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark flex flex-col max-h-[90vh]">
+                      <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark shrink-0">
                         <h3 className="text-base font-bold text-content dark:text-content-dark">Add Engineer</h3>
-                        <button onClick={() => setShowAddEngineer(false)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                        <button onClick={() => setShowAddEngineer(false)} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors"><X className="w-5 h-5" /></button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+
+                      <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
+                            <input value={newEng.firstName} onChange={e => setNewEng(f => ({ ...f, firstName: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
+                            <input value={newEng.lastName} onChange={e => setNewEng(f => ({ ...f, lastName: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          </div>
+                        </div>
                         <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
-                          <input value={newEng.firstName} onChange={e => setNewEng(f => ({ ...f, firstName: e.target.value }))}
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
+                          <input type="email" value={newEng.email} onChange={e => setNewEng(f => ({ ...f, email: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Used at login. After setup, first name also works as username.</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
+                          <input type="tel" value={newEng.whatsappNumber} onChange={e => setNewEng(f => ({ ...f, whatsappNumber: e.target.value }))}
+                            placeholder="e.g. 919876543210"
                             className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
-                          <input value={newEng.lastName} onChange={e => setNewEng(f => ({ ...f, lastName: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                        </div>
+                        {myPincodes.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
+                              Assign Pincodes <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({newEng.pincodeIds.length} selected)</span>
+                            </label>
+                            <PincodeSelector
+                              selectedPincodeIds={newEng.pincodeIds}
+                              onChange={(ids) => setNewEng((prev) => ({ ...prev, pincodeIds: ids }))}
+                              allPincodes={myPincodes}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
-                        <input type="email" value={newEng.email} onChange={e => setNewEng(f => ({ ...f, email: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                        <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Used at login. After setup, first name also works as username.</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
-                        <input type="tel" value={newEng.whatsappNumber} onChange={e => setNewEng(f => ({ ...f, whatsappNumber: e.target.value }))}
-                          placeholder="e.g. 919876543210"
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                      </div>
-                      {myPincodes.length > 0 && (
-                        <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
-                            Assign Pincodes <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({newEng.pincodeIds.length} selected)</span>
-                          </label>
-                          <PincodeSelector
-                            selectedPincodeIds={newEng.pincodeIds}
-                            onChange={(ids) => setNewEng((prev) => ({ ...prev, pincodeIds: ids }))}
-                            allPincodes={myPincodes}
-                          />
-                        </div>
-                      )}
-                      <div className="flex gap-2 pt-1">
+
+                      <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl shrink-0">
                         <button onClick={() => setShowAddEngineer(false)}
-                          className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                          className="px-4 py-2 rounded-lg text-sm font-medium border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                           Cancel
                         </button>
                         <button
@@ -912,7 +916,7 @@ export default function AssistantManagerPage() {
                             } catch { setError("Network error"); }
                             finally { setAddingEngineer(false); }
                           }}
-                          className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
+                          className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                           {addingEngineer ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Create Engineer"}
                         </button>
                       </div>
@@ -957,78 +961,82 @@ export default function AssistantManagerPage() {
                 {/* ── Edit Engineer Modal ── */}
                 {editingEng && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                    <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl shadow-xl w-full max-w-md border border-line dark:border-line-dark flex flex-col max-h-[90vh]">
+                      <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-line-dark shrink-0">
                         <div>
                           <h3 className="text-base font-bold text-content dark:text-content-dark">Edit Engineer</h3>
                           {editingEng.pendingSetup && (
                             <p className="text-xs text-primary-600 dark:text-amber-400 mt-0.5">This engineer has not set a password yet.</p>
                           )}
                         </div>
-                        <button onClick={closeEditModal} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary"><X className="w-4 h-4" /></button>
+                        <button onClick={closeEditModal} className="p-1.5 rounded-lg hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors"><X className="w-5 h-5" /></button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+
+                      <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
+                            <input value={editForm.firstName} onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
+                            <input value={editForm.lastName} onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          </div>
+                        </div>
                         <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">First Name *</label>
-                          <input value={editForm.firstName} onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
+                          <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                             className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Last Name</label>
-                          <input value={editForm.lastName} onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
+                          <input type="tel" value={editForm.whatsappNumber} onChange={e => setEditForm(f => ({ ...f, whatsappNumber: e.target.value }))}
                             className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                         </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Login email *</label>
-                        <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">WhatsApp Number</label>
-                        <input type="tel" value={editForm.whatsappNumber} onChange={e => setEditForm(f => ({ ...f, whatsappNumber: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Set login password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(optional)</span></label>
-                        <input type="password" value={editForm.newPassword} onChange={e => setEditForm(f => ({ ...f, newPassword: e.target.value }))}
-                          placeholder="Min 8 characters"
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                        <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Use this if the engineer lost the setup link.</p>
-                      </div>
-                      <div className="rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark px-3 py-3 space-y-2">
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Send a fresh set-password link (expires in 7 days).</p>
-                        <button
-                          type="button"
-                          onClick={() => handleResendSetupLink(editingEng)}
-                          disabled={resendingSetupLink}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-primary text-primary hover:bg-primary/5 disabled:opacity-50 transition-colors"
-                        >
-                          {resendingSetupLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                          Resend setup link
-                        </button>
-                      </div>
-                      {myPincodes.length > 0 && (
                         <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
-                            Assigned Pincodes <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({editForm.pincodeIds.length} selected)</span>
-                          </label>
-                          <PincodeSelector
-                            selectedPincodeIds={editForm.pincodeIds}
-                            onChange={(ids) => setEditForm((prev) => ({ ...prev, pincodeIds: ids }))}
-                            allPincodes={myPincodes}
-                          />
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Set login password <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">(optional)</span></label>
+                          <input type="password" value={editForm.newPassword} onChange={e => setEditForm(f => ({ ...f, newPassword: e.target.value }))}
+                            placeholder="Min 8 characters"
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">Use this if the engineer lost the setup link.</p>
                         </div>
-                      )}
-                      <div className="flex gap-2 pt-1">
+                        <div className="rounded-lg border border-line dark:border-line-dark bg-surface dark:bg-surface-dark px-3 py-3 space-y-2">
+                          <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Send a fresh set-password link (expires in 7 days).</p>
+                          <button
+                            type="button"
+                            onClick={() => handleResendSetupLink(editingEng)}
+                            disabled={resendingSetupLink}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-primary text-primary hover:bg-primary/5 disabled:opacity-50 transition-colors"
+                          >
+                            {resendingSetupLink ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                            Resend setup link
+                          </button>
+                        </div>
+                        {myPincodes.length > 0 && (
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
+                              Assigned Pincodes <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({editForm.pincodeIds.length} selected)</span>
+                            </label>
+                            <PincodeSelector
+                              selectedPincodeIds={editForm.pincodeIds}
+                              onChange={(ids) => setEditForm((prev) => ({ ...prev, pincodeIds: ids }))}
+                              allPincodes={myPincodes}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-line dark:border-line-dark bg-surface dark:bg-surface-dark rounded-b-2xl shrink-0">
                         <button onClick={closeEditModal}
-                          className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
+                          className="px-4 py-2 rounded-lg text-sm font-medium border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
                           Cancel
                         </button>
                         <button
                           disabled={savingEdit}
                           onClick={handleSaveEdit}
-                          className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
+                          className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
                           {savingEdit ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Save Changes"}
                         </button>
                       </div>
