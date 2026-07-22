@@ -1598,7 +1598,8 @@ export default function ServiceManagerPage() {
                           <button
                             onClick={() => {
                               setEditingAsst(asst);
-                              setEditAsstPincodeState("");
+                              const initialSt = asst.engineerPincodes[0]?.state || myPincodes.find(p => asst.engineerPincodes.some(ap => ap.id === p.id))?.state || "";
+                              setEditAsstPincodeState(initialSt);
                               setEditAsstForm({
                                 firstName: asst.firstName,
                                 lastName: asst.lastName ?? "",
@@ -1875,7 +1876,7 @@ export default function ServiceManagerPage() {
                       const asstStates = Array.from(new Set(myPincodes.map(p => p.state).filter((s): s is string => !!s))).sort();
                       const filteredPincodes = editAsstPincodeState
                         ? myPincodes.filter(p => p.state === editAsstPincodeState)
-                        : [];
+                        : myPincodes;
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
@@ -1891,48 +1892,46 @@ export default function ServiceManagerPage() {
                             value={editAsstPincodeState}
                             onChange={e => setEditAsstPincodeState(e.target.value)}
                             className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                            <option value="">Select a state…</option>
+                            <option value="">All States ({asstStates.length})</option>
                             {asstStates.map(s => (
                               <option key={s} value={s}>{s}</option>
                             ))}
                           </select>
-                          {/* Step 2 — Pincodes for selected state */}
-                          {editAsstPincodeState && (
-                            <div className="rounded-lg border border-line dark:border-line-dark overflow-hidden">
-                              <div className="px-3 py-1.5 bg-surface-secondary dark:bg-surface-dark-secondary border-b border-line dark:border-line-dark flex items-center justify-between">
-                                <span className="text-[11px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{editAsstPincodeState}</span>
-                                <div className="flex gap-2">
-                                  <button type="button" onClick={() => setEditAsstForm(f => ({
-                                    ...f,
-                                    pincodeIds: Array.from(new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])),
-                                  }))} className="text-[11px] text-primary hover:underline">All</button>
-                                  <button type="button" onClick={() => setEditAsstForm(f => ({
-                                    ...f,
-                                    pincodeIds: f.pincodeIds.filter(id => !filteredPincodes.some(p => p.id === id)),
-                                  }))} className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary hover:underline">None</button>
-                                </div>
-                              </div>
-                              <div className="p-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                                {filteredPincodes.map(p => (
-                                  <button key={p.id} type="button"
-                                    onClick={() => setEditAsstForm(f => ({
-                                      ...f,
-                                      pincodeIds: f.pincodeIds.includes(p.id)
-                                        ? f.pincodeIds.filter(id => id !== p.id)
-                                        : [...f.pincodeIds, p.id],
-                                    }))}
-                                    className={cn(
-                                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                      editAsstForm.pincodeIds.includes(p.id)
-                                        ? "bg-primary text-white border-primary"
-                                        : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                                    )}>
-                                    {p.code}{p.place ? ` · ${p.place}` : ""}
-                                  </button>
-                                ))}
+                          {/* Step 2 — Pincodes for selected state or all states */}
+                          <div className="rounded-lg border border-line dark:border-line-dark overflow-hidden">
+                            <div className="px-3 py-1.5 bg-surface-secondary dark:bg-surface-dark-secondary border-b border-line dark:border-line-dark flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide">{editAsstPincodeState || "All States"}</span>
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => setEditAsstForm(f => ({
+                                  ...f,
+                                  pincodeIds: Array.from(new Set([...f.pincodeIds, ...filteredPincodes.map(p => p.id)])),
+                                }))} className="text-[11px] text-primary hover:underline">All</button>
+                                <button type="button" onClick={() => setEditAsstForm(f => ({
+                                  ...f,
+                                  pincodeIds: f.pincodeIds.filter(id => !filteredPincodes.some(p => p.id === id)),
+                                }))} className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary hover:underline">None</button>
                               </div>
                             </div>
-                          )}
+                            <div className="p-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                              {filteredPincodes.map(p => (
+                                <button key={p.id} type="button"
+                                  onClick={() => setEditAsstForm(f => ({
+                                    ...f,
+                                    pincodeIds: f.pincodeIds.includes(p.id)
+                                      ? f.pincodeIds.filter(id => id !== p.id)
+                                      : [...f.pincodeIds, p.id],
+                                  }))}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                    editAsstForm.pincodeIds.includes(p.id)
+                                      ? "bg-primary text-white border-primary"
+                                      : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                                  )}>
+                                  {p.code}{p.place ? ` · ${p.place}` : ""}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                           {/* Summary of all selected pincodes across states */}
                           {editAsstForm.pincodeIds.length > 0 && (
                             <div className="flex flex-wrap gap-1">
