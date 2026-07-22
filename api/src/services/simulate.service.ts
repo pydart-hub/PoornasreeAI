@@ -2203,12 +2203,6 @@ async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string
   const lang: Lang = (meta.language ?? "en") as Lang;
 
   let workingMeta = meta;
-  if (!endCustomerName(workingMeta) || !workingMeta.manualPincode) {
-    const saved = await loadSavedEndCustomer(phoneNumber);
-    if (saved) {
-      workingMeta = { ...workingMeta, ...saved, skipEndCustomerConfirm: true };
-    }
-  }
 
   // Pre-populate manualAddress from Passtest machine address if available and not already set
   if (workingMeta.machineData && !workingMeta.manualAddress?.trim()) {
@@ -2220,12 +2214,7 @@ async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string
     }
   }
 
-  if (!endCustomerName(workingMeta)) {
-    await updateSession(sessionId, "PASSTEST_CUSTOMER_NAME", workingMeta);
-    return makeReply(t("ENTER_NAME", lang));
-  }
-
-  // Extract pincode from Passtest address if missing
+  // Extract pincode from Passtest address if missing, BEFORE falling back to saved customer
   if (!workingMeta.manualPincode && workingMeta.manualAddress) {
     const extracted = extractPincodeFromAddress(workingMeta.manualAddress);
     if (extracted) {
@@ -2242,6 +2231,18 @@ async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string
         };
       }
     }
+  }
+
+  if (!endCustomerName(workingMeta) || !workingMeta.manualPincode) {
+    const saved = await loadSavedEndCustomer(phoneNumber);
+    if (saved) {
+      workingMeta = { ...workingMeta, ...saved, skipEndCustomerConfirm: false }; // Must confirm if using saved location for a Passtest machine
+    }
+  }
+
+  if (!endCustomerName(workingMeta)) {
+    await updateSession(sessionId, "PASSTEST_CUSTOMER_NAME", workingMeta);
+    return makeReply(t("ENTER_NAME", lang));
   }
 
   if (!workingMeta.manualPincode) {
