@@ -123,59 +123,28 @@ export default function PincodeSelector({
         )}
       </div>
 
-      {/* State Filter Chips */}
-      <div className="space-y-1">
-        <label className="text-[10px] font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider">
-          Filter by State
-        </label>
-        <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-1">
-          {/* "All" chip */}
-          <button
-            type="button"
-            onClick={() => setActiveState("All")}
-            className={cn(
-              "px-3 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer",
-              activeState === "All"
-                ? "bg-primary text-white border-primary shadow-sm"
-                : "bg-surface dark:bg-surface text-content-secondary dark:text-content-dark-secondary border-line dark:border-line-dark hover:border-primary/50"
-            )}
-          >
-            All States ({allPincodes.length})
-          </button>
-
-          {states.map((state) => {
-            const counts = stateCounts[state] || { total: 0, selected: 0 };
-            const isSelected = activeState === state;
-            return (
-              <button
-                key={state}
-                type="button"
-                onClick={() => setActiveState(state)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5",
-                  isSelected
-                    ? "bg-primary text-white border-primary shadow-sm"
-                    : "bg-surface dark:bg-surface text-content-secondary dark:text-content-dark-secondary border-line dark:border-line-dark hover:border-primary/50"
-                )}
-              >
-                <span>{state}</span>
-                <span
-                  className={cn(
-                    "text-[10px] px-1 py-0.5 rounded-full font-bold",
-                    isSelected
-                      ? "bg-white/20 text-white"
-                      : counts.selected > 0
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                      : "bg-slate-100 dark:bg-slate-800 text-content-tertiary dark:text-content-dark-tertiary"
-                  )}
-                >
-                  {counts.selected > 0 ? `${counts.selected}/${counts.total}` : counts.total}
-                </span>
-              </button>
-            );
-          })}
+      {/* State Filter Dropdown */}
+      {states.length > 0 && (
+        <div className="space-y-1">
+          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">
+            Filter State
+          </label>
+          <select
+            value={activeState}
+            onChange={(e) => setActiveState(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer">
+            <option value="All">All States ({allPincodes.length})</option>
+            {states.map((state) => {
+              const counts = stateCounts[state] || { total: 0, selected: 0 };
+              return (
+                <option key={state} value={state}>
+                  {state} ({counts.total})
+                </option>
+              );
+            })}
+          </select>
         </div>
-      </div>
+      )}
 
       {/* Quick Select Actions */}
       <div className="flex items-center justify-between text-xs py-1 border-b border-line/50 dark:border-line-dark/50">
