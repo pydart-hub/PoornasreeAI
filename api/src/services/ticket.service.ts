@@ -192,10 +192,21 @@ export async function createTicket(data: {
   // Route to Assistant Manager if pincode matches their assigned pincodes, otherwise default manager
   let ownerId: string | null = null;
   if (data.pincodeId) {
+    const pincodeRecord = await prisma.pincode.findUnique({
+      where: { id: data.pincodeId },
+      select: { id: true, code: true },
+    });
     const assistantManager = await prisma.user.findFirst({
       where: {
         role: "assistant_service_manager",
-        engineerPincodes: { some: { id: data.pincodeId } },
+        engineerPincodes: {
+          some: {
+            OR: [
+              { id: data.pincodeId },
+              ...(pincodeRecord?.code ? [{ code: pincodeRecord.code }] : []),
+            ],
+          },
+        },
       },
       select: { id: true },
     });
