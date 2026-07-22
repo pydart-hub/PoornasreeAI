@@ -259,6 +259,8 @@ export default function ServiceManagerPage() {
   const [customValidating, setCustomValidating] = useState(false);
   const [savingCustom, setSavingCustom] = useState(false);
   const [customError, setCustomError] = useState("");
+  const [activeLocSearch, setActiveLocSearch] = useState("");
+  const [activeLocStateFilter, setActiveLocStateFilter] = useState("");
 
   // ── Work Reports state ──
   const [workReports, setWorkReports] = useState<WorkReport[]>([]);
@@ -1997,271 +1999,404 @@ export default function ServiceManagerPage() {
           )}
 
           {/* ═══════════════════ LOCATIONS VIEW ═══════════════════ */}
-          {pageView === "locations" && (
-            <section className="space-y-4">
-              <div>
-                <h2 className="text-lg font-bold text-content dark:text-content-dark">Locations</h2>
-                <p className="text-sm text-content-secondary dark:text-content-dark-secondary">Manage your service zones — {myPincodes.length} pincode{myPincodes.length !== 1 ? "s" : ""}</p>
-              </div>
+          {pageView === "locations" && (() => {
+            // State for active locations filtering
+            const activeStatesList = Array.from(new Set(myPincodes.map(p => p.state).filter(Boolean))).sort();
+            const activeDistrictsCount = new Set(myPincodes.map(p => p.district).filter(Boolean)).size;
 
-              {/* Add service zones card */}
-              <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-4">
-                {/* Header + mode toggle */}
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wider">Add Service Zones</p>
-                  <div className="flex rounded-lg border border-line dark:border-line-dark overflow-hidden text-xs">
-                    <button type="button"
-                      onClick={() => setLocMode("browse")}
-                      className={cn("px-3 py-1.5 font-semibold transition-colors",
-                        locMode === "browse" ? "bg-primary text-white" : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary hover:bg-surface dark:hover:bg-surface-dark")}>
-                      Browse
-                    </button>
-                    <button type="button"
-                      onClick={() => { setLocMode("custom"); setCustomError(""); }}
-                      className={cn("px-3 py-1.5 font-semibold transition-colors border-l border-line dark:border-line-dark",
-                        locMode === "custom" ? "bg-primary text-white" : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary hover:bg-surface dark:hover:bg-surface-dark")}>
-                      Custom
-                    </button>
+            return (
+              <section className="space-y-6">
+                {/* Header + Stats */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-content dark:text-content-dark">Locations</h2>
+                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">Manage your active service zones & pincodes</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark rounded-xl px-3.5 py-1.5 shadow-sm text-center">
+                      <p className="text-[10px] font-bold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider">Total Zones</p>
+                      <p className="text-base font-bold text-primary dark:text-primary-300 font-mono">{myPincodes.length}</p>
+                    </div>
+                    <div className="bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark rounded-xl px-3.5 py-1.5 shadow-sm text-center">
+                      <p className="text-[10px] font-bold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider">States</p>
+                      <p className="text-base font-bold text-content dark:text-content-dark font-mono">{activeStatesList.length}</p>
+                    </div>
+                    <div className="bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark rounded-xl px-3.5 py-1.5 shadow-sm text-center">
+                      <p className="text-[10px] font-bold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider">Districts</p>
+                      <p className="text-base font-bold text-content dark:text-content-dark font-mono">{activeDistrictsCount}</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* ── CUSTOM mode ── */}
-                {locMode === "custom" && (() => {
-                  const trimmedCode = customForm.code.trim();
-                  const isDuplicate = trimmedCode.length === 6 && myPincodes.some(p => p.code === trimmedCode);
-                  return (
-                    <div className="space-y-3">
-                      {/* Pincode */}
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode *</label>
-                        <div className="relative">
-                          <input type="text" inputMode="numeric" maxLength={6}
-                            placeholder="e.g. 600001"
-                            value={customForm.code}
-                            onChange={e => setCustomForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                            className={cn(
-                              "w-full px-3 py-2 rounded-lg text-sm border bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2",
-                              isDuplicate
-                                ? "border-amber-400 focus:ring-amber-200 focus:border-amber-400"
-                                : "border-line dark:border-line-dark focus:ring-primary/20 focus:border-primary"
-                            )} />
-                          {customValidating && !isDuplicate && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
-                          )}
-                          {isDuplicate && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded">
-                              Already added
-                            </span>
-                          )}
-                        </div>
-                        {customValidating && !isDuplicate && <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-1">Looking up pincode…</p>}
-                        {isDuplicate && (
-                          <p className="text-xs text-amber-600 mt-1">
-                            {trimmedCode} is already in your service zones.
-                          </p>
-                        )}
+                {/* Add service zones card */}
+                <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl border border-line dark:border-line-dark shadow-sm p-5 space-y-4">
+                  {/* Header + mode toggle */}
+                  <div className="flex items-center justify-between gap-2 border-b border-line/60 dark:border-line-dark/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-primary-50 dark:bg-primary-500/10 text-primary">
+                        <MapPin className="w-4 h-4" />
                       </div>
-                      {/* Place */}
-                      <div>
-                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Place / Area *</label>
-                        <input type="text" placeholder="e.g. Adyar"
-                          value={customForm.place}
-                          onChange={e => setCustomForm(f => ({ ...f, place: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                      </div>
-                      {/* District + State side-by-side */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">District *</label>
-                          <input type="text" placeholder="e.g. Chennai"
-                            value={customForm.district}
-                            onChange={e => setCustomForm(f => ({ ...f, district: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State *</label>
-                          <input type="text" placeholder="e.g. Tamil Nadu"
-                            value={customForm.state}
-                            onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                        </div>
-                      </div>
-                      {customError && <p className="text-xs text-red-500">{customError}</p>}
-                      <button onClick={handleSaveCustom} disabled={savingCustom || isDuplicate}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
-                        {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        Add Custom Pincode
+                      <p className="text-sm font-bold text-content dark:text-content-dark">Add New Service Zones</p>
+                    </div>
+                    <div className="flex rounded-xl border border-line dark:border-line-dark overflow-hidden text-xs">
+                      <button type="button"
+                        onClick={() => setLocMode("browse")}
+                        className={cn("px-3.5 py-1.5 font-semibold transition-colors",
+                          locMode === "browse" ? "bg-primary text-white" : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary hover:bg-surface dark:hover:bg-surface-dark")}>
+                        Browse Pincodes
+                      </button>
+                      <button type="button"
+                        onClick={() => { setLocMode("custom"); setCustomError(""); }}
+                        className={cn("px-3.5 py-1.5 font-semibold transition-colors border-l border-line dark:border-line-dark",
+                          locMode === "custom" ? "bg-primary text-white" : "bg-surface-card dark:bg-surface-dark-card text-content-secondary dark:text-content-dark-secondary hover:bg-surface dark:hover:bg-surface-dark")}>
+                        Custom Input
                       </button>
                     </div>
-                  );
-                })()}
-
-                {/* ── BROWSE mode ── */}
-                {locMode === "browse" && <>
-                {/* Step 1 — State */}
-                <div>
-                  <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State</label>
-                  <select
-                    value={locState}
-                    onChange={e => { setLocState(e.target.value); setLocDistrict(""); setLocSelected([]); }}
-                    className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                    <option value="">Select state…</option>
-                    {getStates().map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                {/* Step 2 — District */}
-                {locState && (
-                  <div>
-                    <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">District</label>
-                    <select
-                      value={locDistrict}
-                      onChange={e => { setLocDistrict(e.target.value); setLocSelected([]); }}
-                      className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                      <option value="">Select district…</option>
-                      {getDistricts(locState).map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
                   </div>
-                )}
 
-                {/* Step 3 — Pincodes multi-select */}
-                {locState && locDistrict && (() => {
-                  const existing = new Set(myPincodes.map(p => p.code));
-                  const available = getPincodes(locState, locDistrict);
-                  return (
-                    <div>
-                      <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">Pincodes</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
-                        {available.map(p => {
-                          const alreadySaved = existing.has(p.code);
-                          const isChosen = locSelected.some(s => s.code === p.code);
-                          return (
-                            <button key={p.code} type="button"
-                              disabled={alreadySaved}
-                              onClick={() => setLocSelected(prev =>
-                                isChosen ? prev.filter(s => s.code !== p.code) : [...prev, p]
-                              )}
-                              className={cn(
-                                "flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs border transition-colors",
-                                alreadySaved
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-not-allowed opacity-60"
-                                  : isChosen
-                                    ? "border-primary bg-primary-50 text-primary font-semibold"
-                                    : "border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary/40 hover:bg-primary-50/50"
-                              )}>
-                              <span className="font-mono font-bold shrink-0">{p.code}</span>
-                              <span className="truncate text-content-tertiary dark:text-content-dark-tertiary">{p.name}</span>
-                              {alreadySaved && <span className="ml-auto shrink-0 text-emerald-500">✓</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Selected chips */}
-                {locSelected.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">{locSelected.length} selected</p>
-                    <div className="flex flex-wrap gap-2">
-                      {locSelected.map(p => (
-                        <span key={p.code}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-100 text-primary-700 border border-primary-200">
-                          {p.code}
-                          <button type="button" onClick={() => setLocSelected(prev => prev.filter(s => s.code !== p.code))}
-                            className="ml-0.5 text-primary-400 hover:text-primary-700">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {error && pageView === "locations" && <p className="text-xs text-red-500">{error}</p>}
-
-                <button onClick={handleSaveLocations}
-                  disabled={savingLocations || locSelected.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
-                  {savingLocations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  Save {locSelected.length > 0 ? `${locSelected.length} ` : ""}Zone{locSelected.length !== 1 ? "s" : ""}
-                </button>
-                </>}
-              </div>
-
-              {/* Pincode list */}
-              {myPincodes.length === 0 ? (
-                <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
-                  <MapPin className="w-10 h-10 mb-3 opacity-40" />
-                  <p className="text-sm">No locations yet</p>
-                  <p className="text-xs mt-1">Add your first service zone above</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {myPincodes.map(p => {
-                    const isEditing = editingPincode?.id === p.id;
+                  {/* ── CUSTOM mode ── */}
+                  {locMode === "custom" && (() => {
+                    const trimmedCode = customForm.code.trim();
+                    const isDuplicate = trimmedCode.length === 6 && myPincodes.some(p => p.code === trimmedCode);
                     return (
-                      <div key={p.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-3.5 space-y-3">
-                        {!isEditing ? (
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-primary-50 text-primary border border-primary-200">
-                                {p.code}
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Pincode *</label>
+                          <div className="relative">
+                            <input type="text" inputMode="numeric" maxLength={6}
+                              placeholder="e.g. 600001"
+                              value={customForm.code}
+                              onChange={e => setCustomForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                              className={cn(
+                                "w-full px-3 py-2 rounded-lg text-sm border bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2",
+                                isDuplicate
+                                  ? "border-amber-400 focus:ring-amber-200 focus:border-amber-400"
+                                  : "border-line dark:border-line-dark focus:ring-primary/20 focus:border-primary"
+                              )} />
+                            {customValidating && !isDuplicate && (
+                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                            )}
+                            {isDuplicate && (
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-600 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded">
+                                Already added
                               </span>
-                              <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate">{[p.place, p.district, p.state].filter(Boolean).join(", ") || "—"}</p>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => openEditPincode(p)}
-                                className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-primary hover:bg-primary-50 transition-colors" title="Edit">
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => handleDeletePincode(p.id)} disabled={deletingPincodeId === p.id}
-                                className="p-2 rounded-lg text-content-tertiary dark:text-content-dark-tertiary hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                                {deletingPincodeId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <input type="text" inputMode="numeric" maxLength={6}
-                                value={editPincodeForm.code}
-                                onChange={e => setEditPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                              <input type="text" placeholder="Place"
-                                value={editPincodeForm.place}
-                                onChange={e => setEditPincodeForm(f => ({ ...f, place: e.target.value }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                              <input type="text" placeholder="District"
-                                value={editPincodeForm.district}
-                                onChange={e => setEditPincodeForm(f => ({ ...f, district: e.target.value }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                              <input type="text" placeholder="State"
-                                value={editPincodeForm.state}
-                                onChange={e => setEditPincodeForm(f => ({ ...f, state: e.target.value }))}
-                                className="px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={handleSavePincodeEdit} disabled={savingPincodeEdit}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
-                                {savingPincodeEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                                Save
-                              </button>
-                              <button onClick={() => setEditingPincode(null)}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
-                                Cancel
-                              </button>
-                            </div>
+                          {customValidating && !isDuplicate && <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary mt-1">Looking up pincode…</p>}
+                          {isDuplicate && (
+                            <p className="text-xs text-amber-600 mt-1">
+                              {trimmedCode} is already in your service zones.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Place / Area *</label>
+                          <input type="text" placeholder="e.g. Adyar"
+                            value={customForm.place}
+                            onChange={e => setCustomForm(f => ({ ...f, place: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">District *</label>
+                            <input type="text" placeholder="e.g. Chennai"
+                              value={customForm.district}
+                              onChange={e => setCustomForm(f => ({ ...f, district: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                           </div>
-                        )}
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State *</label>
+                            <input type="text" placeholder="e.g. Tamil Nadu"
+                              value={customForm.state}
+                              onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+                          </div>
+                        </div>
+                        {customError && <p className="text-xs text-red-500">{customError}</p>}
+                        <button onClick={handleSaveCustom} disabled={savingCustom || isDuplicate}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
+                          {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                          Add Custom Pincode
+                        </button>
                       </div>
                     );
-                  })}
+                  })()}
+
+                  {/* ── BROWSE mode ── */}
+                  {locMode === "browse" && <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">State</label>
+                        <select
+                          value={locState}
+                          onChange={e => { setLocState(e.target.value); setLocDistrict(""); setLocSelected([]); }}
+                          className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer">
+                          <option value="">Select state…</option>
+                          {getStates().map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+
+                      {locState && (
+                        <div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">District</label>
+                          <select
+                            value={locDistrict}
+                            onChange={e => { setLocDistrict(e.target.value); setLocSelected([]); }}
+                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer">
+                            <option value="">Select district…</option>
+                            {getDistricts(locState).map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Pincodes selection */}
+                    {locState && locDistrict && (() => {
+                      const existing = new Set(myPincodes.map(p => p.code));
+                      const available = getPincodes(locState, locDistrict);
+                      const unsaved = available.filter(p => !existing.has(p.code));
+                      const allUnsavedSelected = unsaved.length > 0 && unsaved.every(p => locSelected.some(s => s.code === p.code));
+
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <label className="font-semibold text-content-secondary dark:text-content-dark-secondary">
+                              Pincodes in {locDistrict} ({available.length})
+                            </label>
+                            {unsaved.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (allUnsavedSelected) {
+                                    setLocSelected(prev => prev.filter(s => !unsaved.some(u => u.code === s.code)));
+                                  } else {
+                                    const newSelected = [...locSelected];
+                                    unsaved.forEach(u => {
+                                      if (!newSelected.some(s => s.code === u.code)) newSelected.push(u);
+                                    });
+                                    setLocSelected(newSelected);
+                                  }
+                                }}
+                                className="text-primary hover:text-primary-hover font-semibold cursor-pointer"
+                              >
+                                {allUnsavedSelected ? "Deselect All Unsaved" : `Select All Unsaved (${unsaved.length})`}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto pr-1">
+                            {available.map(p => {
+                              const alreadySaved = existing.has(p.code);
+                              const isChosen = locSelected.some(s => s.code === p.code);
+                              return (
+                                <button key={p.code} type="button"
+                                  disabled={alreadySaved}
+                                  onClick={() => setLocSelected(prev =>
+                                    isChosen ? prev.filter(s => s.code !== p.code) : [...prev, p]
+                                  )}
+                                  className={cn(
+                                    "flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs border transition-colors",
+                                    alreadySaved
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-not-allowed opacity-60 dark:bg-emerald-950/20 dark:border-emerald-800 dark:text-emerald-400"
+                                      : isChosen
+                                        ? "border-primary bg-primary-50 text-primary font-semibold dark:bg-primary-950/30"
+                                        : "border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary/40 hover:bg-primary-50/50"
+                                  )}>
+                                  <span className="font-mono font-bold shrink-0">{p.code}</span>
+                                  <span className="truncate text-content-tertiary dark:text-content-dark-tertiary">{p.name}</span>
+                                  {alreadySaved && <span className="ml-auto shrink-0 text-emerald-500 font-bold">Saved</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Selected chips */}
+                    {locSelected.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-line/50 dark:border-line-dark/50">
+                        <p className="text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">{locSelected.length} pincodes selected for saving</p>
+                        <div className="flex flex-wrap gap-2">
+                          {locSelected.map(p => (
+                            <span key={p.code}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-100 text-primary-700 border border-primary-200 dark:bg-primary-900/40 dark:text-primary-300 dark:border-primary-700">
+                              {p.code}
+                              <button type="button" onClick={() => setLocSelected(prev => prev.filter(s => s.code !== p.code))}
+                                className="ml-0.5 text-primary-400 hover:text-primary-700">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {error && pageView === "locations" && <p className="text-xs text-red-500">{error}</p>}
+
+                    <div className="flex items-center justify-end pt-2">
+                      <button onClick={handleSaveLocations}
+                        disabled={savingLocations || locSelected.length === 0}
+                        className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm">
+                        {savingLocations ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Save {locSelected.length > 0 ? `${locSelected.length} ` : ""}Zone{locSelected.length !== 1 ? "s" : ""}
+                      </button>
+                    </div>
+                  </>}
                 </div>
-              )}
-            </section>
-          )}
+
+                {/* ── ACTIVE SERVICE ZONES SECTION ── */}
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-bold text-content dark:text-content-dark">Active Service Zones</h3>
+                      <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Grouped by state & district — {myPincodes.length} pincodes</p>
+                    </div>
+                    {/* Search & State Filter */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative min-w-[160px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-content-tertiary dark:text-content-dark-tertiary" />
+                        <input
+                          type="text"
+                          value={activeLocSearch}
+                          onChange={(e) => setActiveLocSearch(e.target.value)}
+                          placeholder="Search pincode or place..."
+                          className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        {activeLocSearch && (
+                          <button onClick={() => setActiveLocSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-content-tertiary p-0.5">
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      <select
+                        value={activeLocStateFilter}
+                        onChange={(e) => setActiveLocStateFilter(e.target.value)}
+                        className="px-3 py-1.5 rounded-xl text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer">
+                        <option value="">All States ({myPincodes.length})</option>
+                        {activeStatesList.map(state => {
+                          const count = myPincodes.filter(p => (p.state || "Other") === state).length;
+                          return <option key={state ?? "other"} value={state ?? ""}>{state} ({count})</option>;
+                        })}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Active Pincodes Grouped Render */}
+                  {myPincodes.length === 0 ? (
+                    <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
+                      <MapPin className="w-10 h-10 mb-3 opacity-40" />
+                      <p className="text-sm font-semibold">No locations added yet</p>
+                      <p className="text-xs mt-1 text-center max-w-xs">Select a state and district above to add your first service zones.</p>
+                    </div>
+                  ) : (() => {
+                    // Filter active pincodes
+                    const filtered = myPincodes.filter((p) => {
+                      if (activeLocStateFilter && (p.state || "Other") !== activeLocStateFilter) return false;
+                      if (activeLocSearch.trim()) {
+                        const q = activeLocSearch.trim().toLowerCase();
+                        const code = (p.code || "").toLowerCase();
+                        const place = (p.place || "").toLowerCase();
+                        const district = (p.district || "").toLowerCase();
+                        const state = (p.state || "").toLowerCase();
+                        return code.includes(q) || place.includes(q) || district.includes(q) || state.includes(q);
+                      }
+                      return true;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="bg-surface-card dark:bg-surface-dark-card rounded-2xl border border-line dark:border-line-dark shadow-sm py-12 text-center">
+                          <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary italic">No active locations match your search/filter.</p>
+                        </div>
+                      );
+                    }
+
+                    // Group by State -> District
+                    const groups: Record<string, Record<string, PincodeInfo[]>> = {};
+                    filtered.forEach((p) => {
+                      const st = p.state || "Other States";
+                      const dist = p.district || "General";
+                      if (!groups[st]) groups[st] = {};
+                      if (!groups[st][dist]) groups[st][dist] = [];
+                      groups[st][dist].push(p);
+                    });
+
+                    return (
+                      <div className="space-y-6">
+                        {Object.entries(groups).map(([st, distMap]) => (
+                          <div key={st} className="space-y-3">
+                            <div className="flex items-center gap-2 px-1">
+                              <span className="text-xs font-bold uppercase tracking-wider text-primary dark:text-primary-300">{st}</span>
+                              <span className="h-px flex-1 bg-line dark:bg-line-dark" />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {Object.entries(distMap).map(([dist, pincodesInDist]) => (
+                                <div key={dist} className="bg-surface-card dark:bg-surface-dark-card rounded-2xl border border-line dark:border-line-dark shadow-sm p-4 space-y-3">
+                                  <div className="flex items-center justify-between border-b border-line/60 dark:border-line-dark/60 pb-2">
+                                    <div className="flex items-center gap-2">
+                                      <MapPin className="w-4 h-4 text-primary shrink-0" />
+                                      <span className="text-sm font-bold text-content dark:text-content-dark">{dist}</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary-50 text-primary dark:bg-primary-950/40 dark:text-primary-300">
+                                      {pincodesInDist.length} pincodes
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {pincodesInDist.map((p) => {
+                                      const isEditing = editingPincode?.id === p.id;
+                                      return (
+                                        <div key={p.id} className="group relative bg-surface dark:bg-surface-dark rounded-xl border border-line dark:border-line-dark p-2.5 transition-all hover:border-primary/40">
+                                          {!isEditing ? (
+                                            <div className="flex items-center justify-between gap-2">
+                                              <div className="min-w-0">
+                                                <span className="font-mono text-xs font-bold text-primary dark:text-primary-300 block">{p.code}</span>
+                                                <span className="text-[11px] text-content-secondary dark:text-content-dark-secondary truncate block">{p.place || "—"}</span>
+                                              </div>
+                                              <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => openEditPincode(p)} className="p-1 rounded text-content-tertiary hover:text-primary" title="Edit">
+                                                  <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button onClick={() => handleDeletePincode(p.id)} disabled={deletingPincodeId === p.id} className="p-1 rounded text-content-tertiary hover:text-red-500" title="Delete">
+                                                  {deletingPincodeId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-2">
+                                              <input type="text" inputMode="numeric" maxLength={6}
+                                                value={editPincodeForm.code}
+                                                onChange={e => setEditPincodeForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                                                className="w-full px-2 py-1 rounded text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark" />
+                                              <input type="text" placeholder="Place"
+                                                value={editPincodeForm.place}
+                                                onChange={e => setEditPincodeForm(f => ({ ...f, place: e.target.value }))}
+                                                className="w-full px-2 py-1 rounded text-xs border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark" />
+                                              <div className="flex items-center gap-1">
+                                                <button onClick={handleSavePincodeEdit} disabled={savingPincodeEdit} className="px-2 py-1 rounded text-[10px] font-bold bg-primary text-white">Save</button>
+                                                <button onClick={() => setEditingPincode(null)} className="px-2 py-1 rounded text-[10px] font-medium text-content-secondary">Cancel</button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </section>
+            );
+          })()}
 
           {/* ═══════════════════ DEALERS VIEW ═══════════════════ */}
           {pageView === "dealers" && (
