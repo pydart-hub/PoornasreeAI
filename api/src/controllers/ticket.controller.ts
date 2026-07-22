@@ -98,8 +98,20 @@ export async function listTickets(req: Request, res: Response): Promise<void> {
       // Manager explicitly assigns tickets to engineers or dealers.
     }
     else if (role === "assistant_service_manager") {
-      // Show only tickets explicitly assigned to this assistant manager
-      filters.ownerId = userId;
+      const assistantUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          engineerPincodes: { select: { id: true } },
+          managedEngineers: { select: { id: true } },
+        },
+      });
+      const pincodeIds = assistantUser?.engineerPincodes.map(p => p.id) ?? [];
+      const engineerIds = assistantUser?.managedEngineers.map(e => e.id) ?? [];
+      filters.assistantScope = {
+        assistantId: userId,
+        pincodeIds,
+        engineerIds,
+      };
     }
     // admin: no filter — sees all tickets
 
@@ -147,7 +159,22 @@ export async function getTicket(req: Request, res: Response): Promise<void> {
     } else if (role === "service_engineer" || role === "service") {
       if (ticket.assignedEngineerId !== userId) { res.status(403).json({ error: "Access denied: not assigned to this ticket" }); return; }
     } else if (role === "assistant_service_manager") {
-      if (ticket.ownerId !== userId) { res.status(403).json({ error: "Access denied: you do not own this ticket" }); return; }
+      const assistantUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          engineerPincodes: { select: { id: true } },
+          managedEngineers: { select: { id: true } },
+        },
+      });
+      const assistantPincodeIds = assistantUser?.engineerPincodes.map(p => p.id) ?? [];
+      const assistantEngineerIds = assistantUser?.managedEngineers.map(e => e.id) ?? [];
+      const isOwner = ticket.ownerId === userId;
+      const isPincodeCovered = ticket.pincodeId ? assistantPincodeIds.includes(ticket.pincodeId) : false;
+      const isEngineerManaged = ticket.assignedEngineerId ? assistantEngineerIds.includes(ticket.assignedEngineerId) : false;
+
+      if (!isOwner && !isPincodeCovered && !isEngineerManaged) {
+        res.status(403).json({ error: "Access denied: this ticket is not in your assigned zone or team" }); return;
+      }
     }
     // service_manager: sees all tickets — no pincode ownership restriction
     // admin: full access — no filter
@@ -209,10 +236,23 @@ export async function assignEngineer(req: Request, res: Response): Promise<void>
         }
       }
 
-      // For assistant managers: verify the ticket is explicitly assigned to them (ownerId === callerId)
+      // For assistant managers: verify ticket is in scope (owned, covered pincode, or managed engineer)
       if (req.user!.role === "assistant_service_manager") {
-        if (existing.ownerId !== callerId) {
-          res.status(403).json({ error: "Access denied: you do not own this ticket" }); return;
+        const assistantUser = await prisma.user.findUnique({
+          where: { id: callerId },
+          select: {
+            engineerPincodes: { select: { id: true } },
+            managedEngineers: { select: { id: true } },
+          },
+        });
+        const assistantPincodeIds = assistantUser?.engineerPincodes.map(p => p.id) ?? [];
+        const assistantEngineerIds = assistantUser?.managedEngineers.map(e => e.id) ?? [];
+        const isOwner = existing.ownerId === callerId;
+        const isPincodeCovered = existing.pincodeId ? assistantPincodeIds.includes(existing.pincodeId) : false;
+        const isEngineerManaged = existing.assignedEngineerId ? assistantEngineerIds.includes(existing.assignedEngineerId) : false;
+
+        if (!isOwner && !isPincodeCovered && !isEngineerManaged) {
+          res.status(403).json({ error: "Access denied: this ticket is not in your assigned zone or team" }); return;
         }
       }
     }

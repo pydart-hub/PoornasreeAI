@@ -189,12 +189,28 @@ export async function createTicket(data: {
     resolvedDealerId = passtestDealerId;
   }
 
-  // All tickets go to service manager queue
-  const defaultManager = await prisma.user.findFirst({
-    where: { role: "service_manager" },
-    select: { id: true },
-  });
-  const ownerId = defaultManager?.id ?? null;
+  // Route to Assistant Manager if pincode matches their assigned pincodes, otherwise default manager
+  let ownerId: string | null = null;
+  if (data.pincodeId) {
+    const assistantManager = await prisma.user.findFirst({
+      where: {
+        role: "assistant_service_manager",
+        engineerPincodes: { some: { id: data.pincodeId } },
+      },
+      select: { id: true },
+    });
+    if (assistantManager) {
+      ownerId = assistantManager.id;
+    }
+  }
+
+  if (!ownerId) {
+    const defaultManager = await prisma.user.findFirst({
+      where: { role: "service_manager" },
+      select: { id: true },
+    });
+    ownerId = defaultManager?.id ?? null;
+  }
 
   const ticket = await prisma.ticket.create({
     data: {
@@ -242,13 +258,33 @@ export async function listTickets(filters: {
   ownerType?:         TicketOwnerType;
   ownerId?:           string;
   assignedDealerId?:  string; // dealer assigned by service manager for field work
+  assistantScope?: {
+    assistantId: string;
+    pincodeIds: string[];
+    engineerIds: string[];
+  };
 }) {
   const where: Record<string, unknown> = {};
   if (filters.status !== undefined) where.status           = filters.status;
 
-  // Owner-based routing filter
-  if (filters.ownerType) where.ownerType = filters.ownerType;
-  if (filters.ownerId)   where.ownerId   = filters.ownerId;
+  // Assistant Manager scope filtering (OR: owned, covered pincodes, or managed engineers)
+  if (filters.assistantScope) {
+    const { assistantId, pincodeIds, engineerIds } = filters.assistantScope;
+    const orConditions: Record<string, unknown>[] = [
+      { ownerId: assistantId },
+    ];
+    if (pincodeIds.length > 0) {
+      orConditions.push({ pincodeId: { in: pincodeIds } });
+    }
+    if (engineerIds.length > 0) {
+      orConditions.push({ assignedEngineerId: { in: engineerIds } });
+    }
+    where.OR = orConditions;
+  } else {
+    // Owner-based routing filter
+    if (filters.ownerType) where.ownerType = filters.ownerType;
+    if (filters.ownerId)   where.ownerId   = filters.ownerId;
+  }
 
   // Multi-pincode manager filter: only tickets in managed pincodes (no unrouted)
   if (filters.managedPincodeIds) {

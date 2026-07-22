@@ -60,8 +60,8 @@ export function initSocket(httpServer: HttpServer): SocketIOServer {
       socket.join("service_engineers");
     }
 
-    // Service managers join "managers" room (ticket:new events)
-    if (role === "service_manager") {
+    // Service managers & assistant service managers join "managers" room (ticket:new events)
+    if (role === "service_manager" || role === "assistant_service_manager") {
       socket.join("managers");
     }
 
