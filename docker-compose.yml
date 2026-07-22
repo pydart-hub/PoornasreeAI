@@ -83,6 +83,7 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       QDRANT_URL: http://qdrant:6333
       OLLAMA_URL: http://ollama:11434
+      WA_BUSINESS_ACCOUNT_ID: ${WA_BUSINESS_ACCOUNT_ID:-}
       WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
       WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
       WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN:-}
@@ -92,6 +93,7 @@ services:
       WA_ENGINEER_TICKET_TEMPLATE_LANG: ${WA_ENGINEER_TICKET_TEMPLATE_LANG:-en}
       FRONTEND_URL: ${FRONTEND_URL:-https://ai.poornasreecloud.com}
       INTEGRATION_WEBHOOK_URL: ${INTEGRATION_WEBHOOK_URL:-}
+      PUBLIC_OTP_SECRET: ${PUBLIC_OTP_SECRET:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
     volumes:
       - api_uploads:/app/uploads

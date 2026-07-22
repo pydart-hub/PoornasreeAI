@@ -140,7 +140,9 @@ export async function sendDailyEngineerSummary(): Promise<void> {
 let dailySummaryTimeout: NodeJS.Timeout | null = null;
 
 /**
- * Starts the daily recurring 8:00 AM scheduler.
+ * Starts the daily recurring 8:00 AM IST scheduler.
+ * Uses explicit IST offset (UTC+5:30) so it works correctly even if
+ * the VPS is running UTC (the common production default).
  */
 export function startDailySummaryScheduler(): void {
   if (dailySummaryTimeout) {
@@ -148,17 +150,28 @@ export function startDailySummaryScheduler(): void {
   }
 
   const scheduleNext = () => {
-    const now = new Date();
-    const target = new Date();
-    target.setHours(8, 0, 0, 0);
+    const nowUtc = Date.now();
 
-    // If it's already past 8:00 AM today, schedule for 8:00 AM tomorrow
-    if (now.getTime() >= target.getTime()) {
-      target.setDate(target.getDate() + 1);
+    // IST = UTC + 5h30m = UTC + 330 minutes
+    const IST_OFFSET_MS = 330 * 60 * 1000;
+    const nowIst = new Date(nowUtc + IST_OFFSET_MS);
+
+    // Build today's 8:00 AM IST as a UTC timestamp
+    const istMidnight = Date.UTC(
+      nowIst.getUTCFullYear(),
+      nowIst.getUTCMonth(),
+      nowIst.getUTCDate(),
+    );
+    let target8AmUtc = istMidnight + 8 * 60 * 60 * 1000 - IST_OFFSET_MS;
+
+    // If we already passed 8:00 AM IST today, schedule for tomorrow
+    if (nowUtc >= target8AmUtc) {
+      target8AmUtc += 24 * 60 * 60 * 1000;
     }
 
-    const delay = target.getTime() - now.getTime();
-    console.log(`[scheduler] Next engineer daily summary scheduled in ${Math.round(delay / 1000 / 60)} minutes (at ${target.toLocaleString()})`);
+    const delay = target8AmUtc - nowUtc;
+    const fireAt = new Date(target8AmUtc).toISOString();
+    console.log(`[scheduler] Next engineer daily summary at 8:00 AM IST (UTC: ${fireAt}), in ${Math.round(delay / 1000 / 60)} minutes`);
 
     dailySummaryTimeout = setTimeout(async () => {
       console.log("[scheduler] Triggering daily engineer ticket summaries...");

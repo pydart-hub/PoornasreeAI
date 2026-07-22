@@ -4,17 +4,17 @@ import * as WhatsAppService from "./whatsapp.service";
 import { io } from "../lib/socket";
 
 export function startSessionCleanupCron() {
-  // Run every minute
-  cron.schedule("* * * * *", async () => {
+  // Run every 5 minutes — check for sessions inactive for 15+ minutes
+  cron.schedule("*/5 * * * *", async () => {
     try {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
 
-      // Find all paused sessions that haven't been updated in 5 minutes
+      // Find all paused sessions that haven't been updated in 15 minutes
       const expiredSessions = await prisma.conversationSession.findMany({
         where: {
           isBotPaused: true,
           updatedAt: {
-            lt: fiveMinutesAgo,
+            lt: fifteenMinutesAgo,
           },
         },
       });
@@ -77,5 +77,5 @@ export function startSessionCleanupCron() {
       console.error("[session-cleanup] Error during cron execution:", error);
     }
   });
-  console.log("[session-cleanup] Cron job initialized (runs every minute).");
+  console.log("[session-cleanup] Cron job initialized (runs every 5 minutes, closes sessions inactive for 15+ minutes).");
 }

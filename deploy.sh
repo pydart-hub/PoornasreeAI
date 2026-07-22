@@ -71,9 +71,9 @@ echo "[3/3] Restarting $QUICK_SVC..."
 compose up -d --no-deps "$QUICK_SVC" 2>&1 | tee -a /tmp/compose-build.log
 
 if [ "$QUICK_SVC" = "api" ]; then
-  echo " Applying schema..."
-  compose exec -T api npx prisma db push --accept-data-loss \
-    || echo "  (schema push skipped)"
+  echo " Applying migrations..."
+  compose exec -T api npx prisma migrate deploy \
+    || echo "  ⚠️  Migration failed — check schema before proceeding"
 fi
 
 DEPLOY_END=$(date +%s)

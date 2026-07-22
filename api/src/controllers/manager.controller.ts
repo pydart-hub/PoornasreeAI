@@ -382,15 +382,32 @@ export async function resendEngineerSetupLink(req: Request, res: Response): Prom
 // Manager deletes one of their own engineers. Unlinks tickets before deletion.
 export async function deleteEngineer(req: Request, res: Response): Promise<void> {
   try {
-    const managerId = req.user!.userId;
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
     const engineerId = String(req.params.id);
 
     const engineer = await prisma.user.findUnique({
       where: { id: engineerId },
-      select: { role: true, managerId: true, hrEngineerId: true },
+      select: {
+        role: true,
+        managerId: true,
+        hrEngineerId: true,
+        manager: { select: { managerId: true } },
+      },
     });
-    if (!engineer || engineer.role !== "service_engineer" || engineer.managerId !== managerId) {
+
+    if (!engineer || engineer.role !== "service_engineer") {
       res.status(404).json({ error: "Engineer not found" });
+      return;
+    }
+
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+
+    if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
+      res.status(403).json({ error: "This engineer is not in your team" });
       return;
     }
     if (engineer.hrEngineerId != null) {

@@ -4,7 +4,6 @@
 
 import { Router, Request, Response } from "express";
 import { TicketStatus } from "@prisma/client";
-import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
 import {
   publicStartWork,
@@ -20,22 +19,13 @@ import {
 } from "../lib/ticket-export.mapper";
 const router = Router();
 
-
-const STAGE_MAP: Record<string, StageSlug> = {
-  // Canonical Slugs
-  "created": "created",
-  "assigned": "assigned",
-  "in-progress": "in-progress",
-  "pending-otp": "pending-otp",
-  "closed": "closed",
-
-  // Friendly/Requested Aliases
-  "new": "created",
-  "started": "in-progress",
-  "requested-otp": "pending-otp",
-  "generated-otp": "pending-otp",
-  "closing-list": "closed",
-};
+const STAGE_SLUGS: StageSlug[] = [
+  "created",
+  "assigned",
+  "in-progress",
+  "pending-otp",
+  "closed",
+];
 
 function parseSince(since: string | undefined): Date | undefined | "invalid" {
   if (!since?.trim()) return undefined;
@@ -141,80 +131,12 @@ router.patch("/tickets/:id/start", publicStartWork);
 router.post("/tickets/:id/otp", publicRequestOTP);
 router.post("/tickets/:id/verify-otp", publicVerifyOTP);
 
-// GET aliases for browser testing/GET integrations:
-router.get("/tickets/:id/start", publicStartWork);
-router.get("/tickets/:id/start-work", publicStartWork);
-router.get("/tickets/:id/otp", publicRequestOTP);
-router.get("/tickets/:id/request-otp", publicRequestOTP);
-router.get("/tickets/:id/verify-otp", publicVerifyOTP);
-router.get("/tickets/:id/verify-otp-get", publicVerifyOTP);
-
-// Retrieve active OTP code (for external app testing/verification)
-// Requires X-OTP-Secret header matching PUBLIC_OTP_SECRET env var.
-// Endpoint is fully disabled if PUBLIC_OTP_SECRET is not configured.
-router.get("/tickets/:id/active-otp", async (req: Request, res: Response): Promise<void> => {
-  const { env } = await import("../config/env");
-
-  // Disabled if no secret is configured (safe default)
-  if (!env.PUBLIC_OTP_SECRET) {
-    res.status(503).json({
-      success: false,
-      error: "Active OTP endpoint is disabled. Set PUBLIC_OTP_SECRET to enable it.",
-    });
-    return;
-  }
-
-  // Verify shared secret header
-  const provided = req.headers["x-otp-secret"] as string | undefined;
-  if (!provided || provided !== env.PUBLIC_OTP_SECRET) {
-    res.status(401).json({ success: false, error: "Invalid or missing X-OTP-Secret header" });
-    return;
-  }
-
-  try {
-    const id = String(req.params.id);
-    const activeCode = getActiveOtp(id);
-    if (activeCode) {
-      res.json({ success: true, otp: activeCode });
-    } else {
-      res.status(404).json({ success: false, error: "No active OTP found for this ticket ID (it may have expired or not been generated yet)" });
-    }
-  } catch (err: unknown) {
-    const e = err as { message?: string };
-    res.status(500).json({ success: false, error: e.message ?? "Internal server error" });
-  }
-});
-
-
 // ── Stage endpoints (register before /tickets/:id) ─────────────────────────
 
-router.get("/tickets/stage/:stage", (req: Request, res: Response) => {
-  const rawStage = String(req.params.stage);
-  const stage = STAGE_MAP[rawStage.toLowerCase()];
-  if (!stage) {
-    res.status(400).json({
-      success: false,
-      data: null,
-      message: `Invalid stage. Must be one of: ${Object.keys(STAGE_MAP).join(", ")}`,
-    });
-    return;
-  }
-  listTicketsByStage(stage, req, res);
-});
-
-router.get("/tickets/stage/:stage/:id", (req: Request, res: Response) => {
-  const rawStage = String(req.params.stage);
-  const stage = STAGE_MAP[rawStage.toLowerCase()];
-  if (!stage) {
-    res.status(400).json({
-      success: false,
-      data: null,
-      message: `Invalid stage. Must be one of: ${Object.keys(STAGE_MAP).join(", ")}`,
-    });
-    return;
-  }
-  getTicketByStage(stage, req, res);
-});
+for (const stage of STAGE_SLUGS) {
+  router.get(`/tickets/stage/${stage}`, (req, res) => listTicketsByStage(stage, req, res));
+  router.get(`/tickets/stage/${stage}/:id`, (req, res) => getTicketByStage(stage, req, res));
+}
 
 // ── GET /api/public/tickets (legacy) ──────────────────────────────────────
 router.get("/tickets", async (req: Request, res: Response): Promise<void> => {

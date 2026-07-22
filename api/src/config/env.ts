@@ -77,4 +77,9 @@ export const env = {
   // ── Groq LLM API ───────────────────────────────────────────────────────
   // Used for engineer training video search (AI intent matching).
   GROQ_API_KEY: process.env.GROQ_API_KEY || "",
+
+  // ── Public OTP endpoint security ────────────────────────────────────────
+  // Required as X-OTP-Secret header to access GET /api/public/tickets/:id/active-otp.
+  // Leave empty to disable the endpoint completely (safest default).
+  PUBLIC_OTP_SECRET: process.env.PUBLIC_OTP_SECRET || "",
 } as const;
