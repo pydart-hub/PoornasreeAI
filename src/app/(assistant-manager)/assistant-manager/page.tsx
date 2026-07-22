@@ -37,6 +37,7 @@ import {
 import { getSocket } from "@/lib/socket-client";
 import { TicketDrawer } from "@/components/service-manager/TicketDrawer";
 import { parseTicketDescription, resolveTicketCustomerName } from "@/components/service-manager/utils";
+import PincodeSelector from "@/components/service-manager/PincodeSelector";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
@@ -863,26 +864,14 @@ export default function AssistantManagerPage() {
                       </div>
                       {myPincodes.length > 0 && (
                         <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assign Pincodes</label>
-                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                            {myPincodes.map(p => (
-                              <button key={p.id} type="button"
-                                onClick={() => setNewEng(f => ({
-                                  ...f,
-                                  pincodeIds: f.pincodeIds.includes(p.id)
-                                    ? f.pincodeIds.filter(id => id !== p.id)
-                                    : [...f.pincodeIds, p.id],
-                                }))}
-                                className={cn(
-                                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                  newEng.pincodeIds.includes(p.id)
-                                    ? "bg-primary text-white border-primary"
-                                    : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                                )}>
-                                {p.code}{p.place ? ` · ${p.place}` : ""}
-                              </button>
-                            ))}
-                          </div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
+                            Assign Pincodes <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({newEng.pincodeIds.length} selected)</span>
+                          </label>
+                          <PincodeSelector
+                            selectedPincodeIds={newEng.pincodeIds}
+                            onChange={(ids) => setNewEng((prev) => ({ ...prev, pincodeIds: ids }))}
+                            allPincodes={myPincodes}
+                          />
                         </div>
                       )}
                       <div className="flex gap-2 pt-1">
@@ -1021,26 +1010,14 @@ export default function AssistantManagerPage() {
                       </div>
                       {myPincodes.length > 0 && (
                         <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assigned Pincodes</label>
-                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                            {myPincodes.map(p => (
-                              <button key={p.id} type="button"
-                                onClick={() => setEditForm(f => ({
-                                  ...f,
-                                  pincodeIds: f.pincodeIds.includes(p.id)
-                                    ? f.pincodeIds.filter(id => id !== p.id)
-                                    : [...f.pincodeIds, p.id],
-                                }))}
-                                className={cn(
-                                  "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                  editForm.pincodeIds.includes(p.id)
-                                    ? "bg-primary text-white border-primary"
-                                    : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                                )}>
-                                {p.code}{p.place ? ` · ${p.place}` : ""}
-                              </button>
-                            ))}
-                          </div>
+                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-2">
+                            Assigned Pincodes <span className="font-normal text-content-tertiary dark:text-content-dark-tertiary">({editForm.pincodeIds.length} selected)</span>
+                          </label>
+                          <PincodeSelector
+                            selectedPincodeIds={editForm.pincodeIds}
+                            onChange={(ids) => setEditForm((prev) => ({ ...prev, pincodeIds: ids }))}
+                            allPincodes={myPincodes}
+                          />
                         </div>
                       )}
                       <div className="flex gap-2 pt-1">
