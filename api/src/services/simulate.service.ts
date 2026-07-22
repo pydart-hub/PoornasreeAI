@@ -20,7 +20,7 @@
 // Global commands (any state): MENU (restart), BYE (close)
 
 import prisma from "../lib/prisma";
-import { fetchPlaceFromPincode } from "../lib/pincode";
+import { fetchPlaceFromPincode, extractPincodeFromAddress } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
 import { embedText, searchVectors } from "./vector.service";
@@ -346,6 +346,15 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया एक वैध 6 अंकी पिनकोड प्रविष्ट करा.",
     te: "దయచేసి సరైన 6 అంకెల పినకోడ్‌ను నమోదు చేయండి.",
     bn: "অনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন।",
+  },
+  PINCODE_NOT_FOUND: {
+    en: "❌ Pincode *{pincode}* does not exist in our records.\n\nPlease enter a valid 6-digit pincode:",
+    hi: "❌ पिनकोड *{pincode}* हमारे रिकॉर्ड में मौजूद नहीं है।\n\nकृपया एक वैध 6 अंकों का पिनकोड दर्ज करें:",
+    ta: "❌ பின்கோடு *{pincode}* எங்கள் பதிவுகளில் இல்லை.\n\nதயவுசெய்து சரியான 6 இலக்க பின்கோடை உள்ளிடவும்:",
+    kn: "❌ ಪಿನ್‌ಕೋಡ್ *{pincode}* ನಮ್ಮ ದಾಖಲೆಗಳಲ್ಲಿ ಅಸ್ತಿತ್ವದಲ್ಲಿಲ್ಲ.\n\nದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ 6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ:",
+    mr: "❌ पिनकोड *{pincode}* आमच्या रेकॉर्डमध्ये अस्तित्वात नाही.\n\nकृपया एक वैध 6 अंकी पिनकोड प्रविष्ट करा:",
+    te: "❌ పినకోడ్ *{pincode}* మా రికార్డులలో లేదు.\n\nదయచేసి సరైన 6 అంకెల పినకోడ్‌ను నమోదు చేయండి:",
+    bn: "❌ পিনকোড *{pincode}* আমাদের রেকর্ডে নেই।\n\nঅনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন:",
   },
   PINCODE_CONFIRM: {
     en: "📍 *We found your area:*\n{location}\n📮 *Pincode:* {pincode}\n\nIs this your service area?",
@@ -876,7 +885,6 @@ const RATING_LIST: ReplyList = {
   ],
 };
 
-
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function handleMessage(phoneNumber: string, message: string) {
   const text = message.trim();
@@ -887,10 +895,12 @@ export async function handleMessage(phoneNumber: string, message: string) {
     return makeReply("");
   }
 
+  const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
+  const lang: Lang = (meta.language ?? "en") as Lang;
+
   // ── Global navigation commands (any state except feedback) ──────────────
   // Note: "HI" is excluded while in CHANGE_LANGUAGE — it collides with the Hindi button id.
   if (isGlobalRestartCommand(upper)) {
-    const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
     // If in feedback flow, don't interrupt
     if (session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED") {
       return routeState(session, phoneNumber, text, meta);
@@ -899,18 +909,21 @@ export async function handleMessage(phoneNumber: string, message: string) {
     if (session.state === "CHANGE_LANGUAGE") {
       return routeState(session, phoneNumber, text, meta);
     }
+    if (session.state !== "GREETING" && session.state !== "ASK_PHONE") {
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(
+        t("GREETING_HEADER", lang) + t("MAIN_MENU_MSG", lang),
+        undefined,
+        getMainMenuList(lang)
+      );
+    }
     return startGreeting(phoneNumber);
   }
 
   if (upper === "BYE" || upper === "CLOSE") {
-    const sMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
-    const lang: Lang = (sMeta.language ?? "en") as Lang;
     await updateSession(session.id, "COMPLETED", {});
     return makeReply(t("SESSION_CLOSED", lang));
   }
-
-  const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
-  const lang: Lang = (meta.language ?? "en") as Lang;
 
   return routeState(session, phoneNumber, text, meta);
 }
@@ -1043,7 +1056,7 @@ async function routeState(
       return handleEndCustomerAddress(session.id, phoneNumber, meta, text);
 
     case "PASSTEST_CUSTOMER_NAME":
-      return handlePasstestCustomerName(session.id, meta, text);
+      return handlePasstestCustomerName(session.id, phoneNumber, meta, text);
 
     case "PASSTEST_PINCODE":
       return handlePasstestPincode(session.id, meta, text);
@@ -2031,13 +2044,17 @@ async function handleComplaintManualPincode(sessionId: string, _phoneNumber: str
   }
 
   const resolved = await fetchPlaceFromPincode(digits);
+  if (!resolved || !resolved.place) {
+    return makeReply(t("PINCODE_NOT_FOUND", lang, { pincode: digits }));
+  }
+
   const updatedMeta: SessionMeta = {
     ...meta,
     manualPincode:  digits,
-    manualPlace:    resolved?.place,
-    manualDistrict: resolved?.district,
-    manualState:    resolved?.state,
-    pincodeDisplay: resolved?.display || digits,
+    manualPlace:    resolved.place,
+    manualDistrict: resolved.district,
+    manualState:    resolved.state,
+    pincodeDisplay: resolved.display,
   };
 
   return showManualPincodeConfirm(sessionId, updatedMeta);
@@ -2193,9 +2210,38 @@ async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string
     }
   }
 
+  // Pre-populate manualAddress from Passtest machine address if available and not already set
+  if (workingMeta.machineData && !workingMeta.manualAddress?.trim()) {
+    const addr1 = workingMeta.machineData.Address1 || "";
+    const addr2 = workingMeta.machineData.Address2 || "";
+    const fullAddress = [addr1, addr2].filter(Boolean).join(", ");
+    if (fullAddress) {
+      workingMeta.manualAddress = fullAddress;
+    }
+  }
+
   if (!endCustomerName(workingMeta)) {
     await updateSession(sessionId, "PASSTEST_CUSTOMER_NAME", workingMeta);
     return makeReply(t("ENTER_NAME", lang));
+  }
+
+  // Extract pincode from Passtest address if missing
+  if (!workingMeta.manualPincode && workingMeta.manualAddress) {
+    const extracted = extractPincodeFromAddress(workingMeta.manualAddress);
+    if (extracted) {
+      const resolved = await fetchPlaceFromPincode(extracted);
+      if (resolved && resolved.place) { // Only automatically resolve if pincode is valid and has a location
+        workingMeta = {
+          ...workingMeta,
+          manualPincode:  extracted,
+          manualPlace:    resolved.place,
+          manualDistrict: resolved.district,
+          manualState:    resolved.state,
+          pincodeDisplay: resolved.display,
+          skipEndCustomerConfirm: false, // Must confirm the automatically fetched pincode
+        };
+      }
+    }
   }
 
   if (!workingMeta.manualPincode) {
@@ -2215,14 +2261,13 @@ async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string
   return showPasstestPincodeConfirm(sessionId, workingMeta);
 }
 
-async function handlePasstestCustomerName(sessionId: string, meta: SessionMeta, text: string) {
+async function handlePasstestCustomerName(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   if (text.length < 2) {
     return makeReply(t("SHORT_NAME", lang));
   }
   const updatedMeta: SessionMeta = { ...meta, manualName: text.trim(), customerName: text.trim() };
-  await updateSession(sessionId, "PASSTEST_PINCODE", updatedMeta);
-  return makeReply(t("ENTER_PINCODE", lang));
+  return beginPasstestTicketBooking(sessionId, phoneNumber, updatedMeta);
 }
 
 async function handlePasstestPincode(sessionId: string, meta: SessionMeta, text: string) {
@@ -2233,13 +2278,17 @@ async function handlePasstestPincode(sessionId: string, meta: SessionMeta, text:
   }
 
   const resolved = await fetchPlaceFromPincode(digits);
+  if (!resolved || !resolved.place) {
+    return makeReply(t("PINCODE_NOT_FOUND", lang, { pincode: digits }));
+  }
+
   const updatedMeta: SessionMeta = {
     ...meta,
     manualPincode:  digits,
-    manualPlace:    resolved?.place,
-    manualDistrict: resolved?.district,
-    manualState:    resolved?.state,
-    pincodeDisplay: resolved?.display || digits,
+    manualPlace:    resolved.place,
+    manualDistrict: resolved.district,
+    manualState:    resolved.state,
+    pincodeDisplay: resolved.display,
   };
 
   return showPasstestPincodeConfirm(sessionId, updatedMeta);
@@ -2255,6 +2304,9 @@ async function handlePasstestPincodeConfirm(
   if (text === "1" || /^yes/i.test(text)) {
     if (!endCustomerName(meta) || !meta.manualPincode) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+    }
+    if (meta.manualAddress?.trim()) {
+      return executePasstestTicketCreation(sessionId, phoneNumber, meta);
     }
     await updateSession(sessionId, "END_CUSTOMER_ADDRESS", meta);
     return makeReply(t("ENTER_ADDRESS", lang));
