@@ -1679,63 +1679,93 @@ export default function ServiceManagerPage() {
                         placeholder="e.g. 919876543210"
                         className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
                     </div>
-                    {myPincodes.length > 0 && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assign Location *</label>
-                          <select
-                            value={newAsst.pincodeId}
-                            onChange={e => setNewAsst(f => ({ ...f, pincodeId: e.target.value, engineerIds: [] }))}
-                            className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                            <option value="">Select a location…</option>
-                            {myPincodes.map(p => (
-                              <option key={p.id} value={p.id}>{p.code} — {[p.place, p.district].filter(Boolean).join(", ")}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Engineers</label>
-                            {newAsst.engineerIds.length > 0 && (
-                              <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                                {newAsst.engineerIds.length} selected
-                              </span>
-                            )}
-                          </div>
-                          {!newAsst.pincodeId ? (
-                            <p className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary italic p-2 border border-dashed border-line dark:border-line-dark rounded-lg text-center">
-                              Please select a location first to assign engineers.
-                            </p>
-                          ) : (() => {
-                            const locEngineers = engineers.filter(e => e.engineerPincodes?.some(p => p.id === newAsst.pincodeId));
-                            if (locEngineers.length === 0) {
-                              return <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">No engineers available in this location.</p>;
-                            }
-                            return (
-                              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto py-1">
-                                {locEngineers.map(e => (
-                                  <button key={e.id} type="button"
-                                    onClick={() => setNewAsst(f => ({
-                                      ...f,
-                                      engineerIds: f.engineerIds.includes(e.id)
-                                        ? f.engineerIds.filter(id => id !== e.id)
-                                        : [...f.engineerIds, e.id],
-                                    }))}
-                                    className={cn(
-                                      "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                                      newAsst.engineerIds.includes(e.id)
-                                        ? "bg-primary text-white border-primary"
-                                        : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
-                                    )}>
-                                    {e.firstName} {e.lastName}
-                                  </button>
+                    {myPincodes.length > 0 && (() => {
+                      const asstStates = Array.from(new Set(myPincodes.map(p => p.state).filter((s): s is string => !!s))).sort();
+                      const filteredPincodes = newAsstPincodeState
+                        ? myPincodes.filter(p => p.state === newAsstPincodeState)
+                        : myPincodes;
+
+                      return (
+                        <div className="space-y-4">
+                          {asstStates.length > 0 && (
+                            <div>
+                              <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Filter State</label>
+                              <select
+                                value={newAsstPincodeState}
+                                onChange={e => {
+                                  const selState = e.target.value;
+                                  setNewAsstPincodeState(selState);
+                                  if (selState) {
+                                    const inState = myPincodes.some(p => p.id === newAsst.pincodeId && p.state === selState);
+                                    if (!inState) {
+                                      setNewAsst(f => ({ ...f, pincodeId: "", engineerIds: [] }));
+                                    }
+                                  }
+                                }}
+                                className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                <option value="">All States ({asstStates.length})</option>
+                                {asstStates.map(s => (
+                                  <option key={s} value={s}>{s}</option>
                                 ))}
-                              </div>
-                            );
-                          })()}
+                              </select>
+                            </div>
+                          )}
+                          <div>
+                            <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary mb-1">Assign Location *</label>
+                            <select
+                              value={newAsst.pincodeId}
+                              onChange={e => setNewAsst(f => ({ ...f, pincodeId: e.target.value, engineerIds: [] }))}
+                              className="w-full px-3 py-2 rounded-lg text-sm border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                              <option value="">Select a location…</option>
+                              {filteredPincodes.map(p => (
+                                <option key={p.id} value={p.id}>{p.code} — {[p.place, p.district].filter(Boolean).join(", ")}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-xs font-semibold text-content-secondary dark:text-content-dark-secondary">Assign Engineers</label>
+                              {newAsst.engineerIds.length > 0 && (
+                                <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                  {newAsst.engineerIds.length} selected
+                                </span>
+                              )}
+                            </div>
+                            {!newAsst.pincodeId ? (
+                              <p className="text-[11px] text-content-tertiary dark:text-content-dark-tertiary italic p-2 border border-dashed border-line dark:border-line-dark rounded-lg text-center">
+                                Please select a location first to assign engineers.
+                              </p>
+                            ) : (() => {
+                              const locEngineers = engineers.filter(e => e.engineerPincodes?.some(p => p.id === newAsst.pincodeId));
+                              if (locEngineers.length === 0) {
+                                return <p className="text-[11px] text-amber-600 dark:text-amber-400 italic">No engineers available in this location.</p>;
+                              }
+                              return (
+                                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto py-1">
+                                  {locEngineers.map(e => (
+                                    <button key={e.id} type="button"
+                                      onClick={() => setNewAsst(f => ({
+                                        ...f,
+                                        engineerIds: f.engineerIds.includes(e.id)
+                                          ? f.engineerIds.filter(id => id !== e.id)
+                                          : [...f.engineerIds, e.id],
+                                      }))}
+                                      className={cn(
+                                        "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                        newAsst.engineerIds.includes(e.id)
+                                          ? "bg-primary text-white border-primary"
+                                          : "border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary"
+                                      )}>
+                                      {e.firstName} {e.lastName}
+                                    </button>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                     <div className="flex gap-2 pt-1">
                       <button onClick={() => { setShowAddAssistant(false); setNewAsstPincodeState(""); }}
                         className="flex-1 px-4 py-2 rounded-lg text-sm border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:bg-surface-secondary dark:hover:bg-surface-dark-secondary transition-colors">
