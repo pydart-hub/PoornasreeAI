@@ -1121,7 +1121,10 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
     return makeReply(t("PHONE_FOUND", lang, { name: displayName }) + "\n\n" + t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
 
-  return makeReply(t("PHONE_NOT_FOUND", lang), [getSkipButton(lang)]);
+  // New user registration flow: accept the number and proceed to main menu
+  const newMeta: SessionMeta = { customerPhone: digits, language: prevMeta.language };
+  await updateSession(sessionId, "MAIN_MENU", newMeta);
+  return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
 }
 
 // ── MAIN_MENU ─────────────────────────────────────────────────────────────
