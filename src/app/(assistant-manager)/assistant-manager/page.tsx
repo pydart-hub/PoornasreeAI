@@ -42,7 +42,7 @@ import PincodeSelector from "@/components/service-manager/PincodeSelector";
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "engineers" | "locations";
+type PageView = "tickets" | "engineers";
 
 interface PincodeInfo {
   id: string;
@@ -354,7 +354,6 @@ export default function AssistantManagerPage() {
             {([
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-4 h-4" />, count: total },
               { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-4 h-4" />, count: engineers.length },
-              { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-4 h-4" />, count: myPincodes.length },
             ]).map((nav) => (
               <button key={nav.key} onClick={() => { setPageView(nav.key); if (isMobile) setSidebarOpen(false); }}
                 className={cn(
@@ -410,7 +409,7 @@ export default function AssistantManagerPage() {
             <Menu className="w-4 h-4" />
           </button>
           <span className="text-sm font-semibold text-content dark:text-content-dark">
-            {pageView === "tickets" ? "Tickets" : pageView === "engineers" ? "Engineers" : "My Locations"}
+            {pageView === "tickets" ? "Tickets" : "Engineers"}
           </span>
           {myPincodes.length === 0 && pageView === "tickets" && (
             <span className="hidden sm:inline text-xs text-primary-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/20">
@@ -1046,39 +1045,7 @@ export default function AssistantManagerPage() {
               </section>
             )}
 
-            {/* ═══════════════════ LOCATIONS VIEW ═══════════════════ */}
-            {pageView === "locations" && (
-              <section className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold text-content dark:text-content-dark">My Locations</h2>
-                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                    {myPincodes.length > 0
-                      ? `${myPincodes.length} pincode zone${myPincodes.length !== 1 ? "s" : ""} assigned to you`
-                      : "No zones assigned yet — contact your service manager"}
-                  </p>
-                </div>
-                {myPincodes.length === 0 ? (
-                  <div className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm py-16 flex flex-col items-center text-content-tertiary dark:text-content-dark-tertiary">
-                    <MapPin className="w-10 h-10 mb-3 opacity-40" />
-                    <p className="text-sm">No pincodes assigned</p>
-                    <p className="text-xs mt-1 text-center max-w-xs">Your service manager needs to assign pincodes to your account. Once assigned, you will see tickets from those zones.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {myPincodes.map(p => (
-                      <div key={p.id} className="bg-surface-card dark:bg-surface-dark-card rounded-xl border border-line dark:border-line-dark shadow-sm p-4 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-primary shrink-0" />
-                          <span className="text-sm font-bold text-content dark:text-content-dark font-mono">{p.code}</span>
-                        </div>
-                        {p.place && <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{p.place}</p>}
-                        {p.district && <p className="text-xs text-content-tertiary dark:text-content-dark-tertiary">{p.district}{p.state ? `, ${p.state}` : ""}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
+
 
           </div>
         </main>
