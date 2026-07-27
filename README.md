@@ -55,6 +55,7 @@ See **[docs/DEPLOY-RUNBOOK.md](docs/DEPLOY-RUNBOOK.md)**.
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/user-guides/README.md](docs/user-guides/README.md) | **User Guides** (Customer, Engineer, Manager, Support, Dealer, Admin) |
 | [docs/DEPLOY-RUNBOOK.md](docs/DEPLOY-RUNBOOK.md) | Deployment runbook (only guide) |
 | [docs/plan.md](docs/plan.md) | Architecture & WhatsApp flow |
 | [docs/TICKET_INTEGRATION.md](docs/TICKET_INTEGRATION.md) | Public ticket API |

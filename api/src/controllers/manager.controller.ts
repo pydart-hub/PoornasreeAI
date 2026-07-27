@@ -434,19 +434,27 @@ export async function deleteEngineer(req: Request, res: Response): Promise<void>
       return;
     }
 
-    await prisma.user.delete({ where: { id: engineerId } });
+    await prisma.$transaction(async (tx) => {
+      await tx.supportRequest.updateMany({
+        where: { engineerId: engineerId },
+        data: { engineerId: null },
+      });
+      await tx.ticket.updateMany({
+        where: { assignedEngineerId: engineerId },
+        data: { assignedEngineerId: null },
+      });
+      await tx.supportMessage.deleteMany({ where: { senderId: engineerId } });
+      await tx.trainingFeedback.deleteMany({ where: { createdById: engineerId } });
+      await tx.document.deleteMany({ where: { uploadedById: engineerId } });
+      await tx.rdVideo.deleteMany({ where: { uploadedById: engineerId } });
+      await tx.user.delete({ where: { id: engineerId } });
+    });
 
     res.json({ message: "Engineer deleted" });
   } catch (err: unknown) {
     console.error("deleteEngineer error:", err);
-    const code = (err as { code?: string })?.code;
-    if (code === "P2003") {
-      res.status(400).json({
-        error: "Cannot delete this engineer — their account is linked to other records (e.g. work reports). Contact admin if you need them removed.",
-      });
-      return;
-    }
-    res.status(500).json({ error: "Internal server error" });
+    const message = err instanceof Error ? err.message : "Internal server error";
+    res.status(500).json({ error: message });
   }
 }
 

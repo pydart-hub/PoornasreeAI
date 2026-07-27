@@ -200,7 +200,7 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       }
     }
 
-    // Delete in a transaction, manually removing related records that lack
+    // Delete in a transaction, manually removing/unlinking related records that lack
     // onDelete: Cascade in the schema to avoid FK constraint violations.
     await prisma.$transaction(async (tx) => {
       // Unassign engineer from any support requests (engineerId is nullable)
@@ -208,6 +208,21 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
         where: { engineerId: id },
         data: { engineerId: null },
       });
+
+      // Unassign user from tickets where they are set as dealer, assigned dealer, assigned manager, or assigned engineer
+      await tx.ticket.updateMany({ where: { dealerId: id }, data: { dealerId: null } });
+      await tx.ticket.updateMany({ where: { assignedDealerId: id }, data: { assignedDealerId: null } });
+      await tx.ticket.updateMany({ where: { assignedManagerId: id }, data: { assignedManagerId: null } });
+      await tx.ticket.updateMany({ where: { assignedEngineerId: id }, data: { assignedEngineerId: null } });
+
+      // Unlink managed engineers (if deleting a manager)
+      await tx.user.updateMany({
+        where: { managerId: id },
+        data: { managerId: null },
+      });
+
+      // Delete work reports submitted by this user (if dealer)
+      await tx.workReport.deleteMany({ where: { dealerId: id } });
 
       // Delete support messages sent by this user
       await tx.supportMessage.deleteMany({ where: { senderId: id } });
@@ -218,15 +233,19 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       // Delete documents uploaded by this user (chunks cascade automatically)
       await tx.document.deleteMany({ where: { uploadedById: id } });
 
+      // Delete R&D videos uploaded by this user
+      await tx.rdVideo.deleteMany({ where: { uploadedById: id } });
+
       // Delete the user — conversations, messages, customerRequests, and
       // their nested records cascade via existing onDelete: Cascade directives.
       await tx.user.delete({ where: { id } });
     });
 
     res.json({ message: "User deleted" });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("deleteUser error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    const message = err instanceof Error ? err.message : "Internal server error";
+    res.status(500).json({ error: message });
   }
 }
 

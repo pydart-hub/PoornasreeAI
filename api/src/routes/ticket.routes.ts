@@ -21,12 +21,16 @@ import {
   verifyOTP,
   listEngineers,
   getEngineerFeedback,
+  deleteAllTickets,
 } from "../controllers/ticket.controller";
 
 const router = Router();
 router.use(protect);
 
 // ── Core CRUD ─────────────────────────────────────────────────────────────
+// DELETE ALL TICKETS: service_manager or admin
+router.delete("/all", authorize("service_manager", "admin"), deleteAllTickets);
+
 // CREATE TICKET: dealer, customer, or admin
 router.post("/", authorize("dealer", "admin", "customer"), createTicket);
 

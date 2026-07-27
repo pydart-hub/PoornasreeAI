@@ -178,11 +178,18 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
 
     if (!(await requireCustomerTarget(id, res))) return;
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.supportMessage.deleteMany({ where: { senderId: id } });
+      await tx.trainingFeedback.deleteMany({ where: { createdById: id } });
+      await tx.document.deleteMany({ where: { uploadedById: id } });
+      await tx.user.delete({ where: { id } });
+    });
+
     res.json({ message: "Customer deleted" });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("sales.deleteUser error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    const message = err instanceof Error ? err.message : "Internal server error";
+    res.status(500).json({ error: message });
   }
 }
 

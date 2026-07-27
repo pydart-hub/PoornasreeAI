@@ -656,3 +656,19 @@ export async function getEngineerFeedback(req: Request, res: Response): Promise<
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
+// ── DELETE /api/tickets/all ────────────────────────────────────────────────
+export async function deleteAllTickets(req: Request, res: Response): Promise<void> {
+  try {
+    const role = req.user!.role;
+    if (role !== "service_manager" && role !== "admin") {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+    const result = await prisma.ticket.deleteMany({});
+    res.json({ message: `Successfully deleted all ${result.count} ticket(s)`, count: result.count });
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
