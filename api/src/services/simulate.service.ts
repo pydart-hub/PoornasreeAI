@@ -284,15 +284,6 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     te: "✅ అన్ని ట్రబుల్షూటింగ్ దశలు పూర్తయ్యాయి కానీ సమస్య పరిష్కరించబడలేదు.\n\nమీరు సేవా సందర్శనను బుక్ చేయాలనుకుంటున్నారా? మా సాంకేతిక నిపుణుడు మీకు సహాయం చేస్తారు. 🔧",
     bn: "✅ সমস্ত সমস্যা সমাধানের পদক্ষেপ সম্পন্ন হয়েছে তবে সমস্যাটির সমাধান হয়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনাকে সহায়তা করবেন। 🔧",
   },
-  ALL_STEPS_DONE_BASE: {
-    en: "✅ All troubleshooting steps have been completed but the issue is not resolved.",
-    hi: "✅ सभी समस्या निवारण चरण पूरे हो गए लेकिन समस्या हल नहीं हुई।",
-    ta: "✅ அனைத்து பழுதுநீக்கும் படிகளும் நிறைவடைந்துள்ளன, ஆனால் சிக்கல் தீர்க்கப்படவில்லை.",
-    kn: "✅ ಎಲ್ಲಾ ದೋಷನಿವಾರಣೆ ಹಂತಗಳು ಪೂರ್ಣಗೊಂಡಿವೆ ಆದರೆ ಸಮಸ್ಯೆ ಬಗೆಹರಿದಿಲ್ಲ.",
-    mr: "✅ सर्व समस्या निवारण चरण पूर्ण झाले आहेत परंतु समस्या सुटली नाही.",
-    te: "✅ అన్ని ట్రబుల్షూటింగ్ దశలు పూర్తయ్యాయి కానీ సమస్య పరిష్కరించబడలేదు.",
-    bn: "✅ সমস্ত সমস্যা সমাধানের পদক্ষেপ সম্পন্ন হয়েছে তবে সমস্যাটির সমাধান হয়নি।",
-  },
   ASK_BOOK_SERVICE: {
     en: "😔 Sorry the troubleshooting didn't help.\n\nWould you like to book a service visit? Our technician will come to your location. 🔧",
     hi: "😔 माफ़ कीजिए समस्या निवारण से मदद नहीं मिली।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा। 🔧",
@@ -555,6 +546,40 @@ function getMenuButton(lang: Lang): ReplyButton {
   return { id: "MENU", title: lang === "hi" ? "⬅️ मुख्य मेनू" : "⬅️ Main Menu" };
 }
 
+function getBackButton(lang: Lang): ReplyButton {
+  return { id: "GO_BACK", title: t_extra("GO_BACK_TITLE", lang) };
+}
+
+function getBackRow(lang: Lang) {
+  return {
+    id: "GO_BACK",
+    title: t_extra("GO_BACK_TITLE", lang),
+    description: t_extra("GO_BACK_DESC", lang),
+  };
+}
+
+function getRegisterAnotherComplaintButton(lang: Lang): ReplyButton {
+  return { id: "YES", title: t_extra("REGISTER_ANOTHER_COMPLAINT_BUTTON", lang) };
+}
+
+function isGlobalBackCommand(text: string): boolean {
+  const upper = text.toUpperCase().trim();
+  return (
+    upper === "GO_BACK" ||
+    upper === "BACK" ||
+    upper === "PREVIOUS" ||
+    upper === "PREVIOUS_STEP" ||
+    upper === "00" ||
+    upper.includes("GO BACK") ||
+    upper.includes("पीछे जाएं") ||
+    upper.includes("பின்செல்லவும்") ||
+    upper.includes("ஹಿಂದೆ ಹೋಗಿ") ||
+    upper.includes("मागे जा") ||
+    upper.includes("వెనుకకు వెళ్ళు") ||
+    upper.includes("ফিরে যান")
+  );
+}
+
 function getYesNoButtons(lang: Lang): ReplyButton[] {
   return [
     { id: "1", title: lang === "hi" ? "हाँ ✅" : "Yes ✅" },
@@ -563,6 +588,33 @@ function getYesNoButtons(lang: Lang): ReplyButton[] {
 }
 
 const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
+  GO_BACK_TITLE: {
+    en: "🔙 Go Back",
+    hi: "🔙 पीछे जाएं",
+    ta: "🔙 பின்செல்லவும்",
+    kn: "🔙 ಹಿಂದೆ ಹೋಗಿ",
+    mr: "🔙 मागे जा",
+    te: "🔙 వెనుకకు వెళ్ళు",
+    bn: "🔙 ফিরে যান",
+  },
+  GO_BACK_DESC: {
+    en: "Return to previous step",
+    hi: "पिछली स्क्रीन पर लौटें",
+    ta: "முந்தைய படிக்கு திரும்பு",
+    kn: "ಹಿಂದಿನ ಹಂತಕ್ಕೆ ಹಿಂತಿರುಗಿ",
+    mr: "मागील पायरीवर जा",
+    te: "మునుపటి దశకు తిరిగి వెళ్లండి",
+    bn: "পূর্ববর্তী ধাপে ফিরে যান",
+  },
+  REGISTER_ANOTHER_COMPLAINT_BUTTON: {
+    en: "Register Another Complaint 📝",
+    hi: "दूसरी शिकायत दर्ज करें 📝",
+    ta: "மற்றொரு புகாரைப் பதிவுசெய்க 📝",
+    kn: "ಮತ್ತೊಂದು ದೂರನ್ನು ನೋಂದಾಯಿಸಿ 📝",
+    mr: "दूसरी तक्रार नोंदवा 📝",
+    te: "మరొక ఫిర్యాదును నమోదు చేయండి 📝",
+    bn: "অন্য একটি অভিযোগ নথিভুক্ত করুন 📝",
+  },
   NEXT_COMPLAINT_PROMPT: {
     en: "Please select your next complaint:",
     hi: "कृपया अपनी अगली शिकायत चुनें:",
@@ -920,12 +972,156 @@ export async function handleMessage(phoneNumber: string, message: string) {
     return startGreeting(phoneNumber);
   }
 
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    if (
+      session.state !== "GREETING" &&
+      session.state !== "ASK_PHONE" &&
+      session.state !== "FEEDBACK_RATING" &&
+      session.state !== "FEEDBACK_SATISFIED" &&
+      session.state !== "CHANGE_LANGUAGE"
+    ) {
+      return handleGlobalBack(session, phoneNumber, meta);
+    }
+  }
+
   if (upper === "BYE" || upper === "CLOSE") {
     await updateSession(session.id, "COMPLETED", {});
     return makeReply(t("SESSION_CLOSED", lang));
   }
 
   return routeState(session, phoneNumber, text, meta);
+}
+
+// ── Global Back Handler ──────────────────────────────────────────────────
+async function handleGlobalBack(
+  session: { id: string; state: string },
+  phoneNumber: string,
+  meta: SessionMeta,
+) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+
+  switch (session.state) {
+    case "MACHINE_CONFIRM": {
+      const updatedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
+      await updateSession(session.id, "COMPLAINT_ASK_SERIAL", updatedMeta);
+      return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    }
+
+    case "COMPLAINT_CATEGORY": {
+      await updateSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
+      return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    }
+
+    case "COMPLAINT_PRODUCT": {
+      const products = await fetchActiveCatalogue();
+      if (usesCategoryFlow(products)) {
+        return showCategorySelection(session.id, meta);
+      }
+      await updateSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
+      return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    }
+
+    case "COMPLAINT_SUBCATEGORY": {
+      return showProductSelection(session.id, meta);
+    }
+
+    case "COMPLAINT_DESCRIBE": {
+      if (meta.complaintSubcategory) {
+        const productName = meta.selectedProduct || meta.machineData?.m_model;
+        const listRows = await fetchComplaintListRows(lang, productName, undefined, meta.productCategory);
+        const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+        if (hasSubCategories) {
+          const clearedMeta: SessionMeta = { ...meta, complaintSubcategory: undefined };
+          await updateSession(session.id, "COMPLAINT_SUBCATEGORY", clearedMeta);
+          return makeReply(
+            lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝",
+            undefined,
+            { buttonText: lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝", rows: listRows }
+          );
+        }
+      }
+      if (meta.selectedProduct) {
+        return showProductSelection(session.id, meta);
+      }
+      if (meta.tsSerialPath && meta.machineData) {
+        await updateSession(session.id, "MACHINE_CONFIRM", meta);
+        return makeReply(
+          t("MACHINE_FOUND", lang, {
+            customer: meta.machineData.customer || "N/A",
+            model:    meta.machineData.m_model  || "N/A",
+            serial:   meta.serialNumber || "N/A",
+            address:  [meta.machineData.Address1, meta.machineData.Address2].filter(Boolean).join(", ") || "N/A",
+          }),
+          [...getYesNoButtons(lang), getBackButton(lang)]
+        );
+      }
+      return showProductSelection(session.id, meta);
+    }
+
+    case "TROUBLESHOOT_STEP":
+    case "TROUBLESHOOT_DONE_OPTIONS":
+    case "ASK_VIDEO_TUTORIAL":
+    case "VIDEO_HELPED":
+    case "ASK_BOOK_SERVICE": {
+      const productName = meta.selectedProduct || meta.machineData?.m_model;
+      const listRows = await fetchComplaintListRows(lang, productName, meta.complaintSubcategory, meta.productCategory);
+      const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+      const nextState = hasSubCategories && !meta.complaintSubcategory ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
+      const clearedMeta: SessionMeta = { ...meta, complaint: undefined, tsSteps: undefined, tsCurrentStep: undefined };
+      await updateSession(session.id, nextState, clearedMeta);
+      return makeReply(
+        t("DESCRIBE_COMPLAINT", lang),
+        undefined,
+        listRows.length > 0 ? { buttonText: hasSubCategories ? (lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝") : (lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝"), rows: listRows } : undefined
+      );
+    }
+
+    case "COMPLAINT_MANUAL_NAME":
+    case "PASSTEST_CUSTOMER_NAME": {
+      await updateSession(session.id, "ASK_BOOK_SERVICE", meta);
+      return makeReply(
+        t("ASK_BOOK_SERVICE", lang),
+        [getBookServiceButton(lang), getBackButton(lang), getMenuButton(lang)]
+      );
+    }
+
+    case "COMPLAINT_MANUAL_PINCODE": {
+      await updateSession(session.id, "COMPLAINT_MANUAL_NAME", meta);
+      return makeReply(t("ENTER_NAME", lang), [getBackButton(lang), getMenuButton(lang)]);
+    }
+
+    case "PASSTEST_PINCODE": {
+      await updateSession(session.id, "PASSTEST_CUSTOMER_NAME", meta);
+      return makeReply(t("ENTER_NAME", lang), [getBackButton(lang), getMenuButton(lang)]);
+    }
+
+    case "COMPLAINT_MANUAL_PINCODE_CONFIRM": {
+      await updateSession(session.id, "COMPLAINT_MANUAL_PINCODE", meta);
+      return makeReply(t("ENTER_PINCODE", lang), [getBackButton(lang), getMenuButton(lang)]);
+    }
+
+    case "PASSTEST_PINCODE_CONFIRM": {
+      await updateSession(session.id, "PASSTEST_PINCODE", meta);
+      return makeReply(t("ENTER_PINCODE", lang), [getBackButton(lang), getMenuButton(lang)]);
+    }
+
+    case "END_CUSTOMER_ADDRESS": {
+      if (meta.manualPincode) {
+        return showManualPincodeConfirm(session.id, meta);
+      }
+      await updateSession(session.id, "COMPLAINT_MANUAL_PINCODE", meta);
+      return makeReply(t("ENTER_PINCODE", lang), [getBackButton(lang), getMenuButton(lang)]);
+    }
+
+    case "ANOTHER_COMPLAINT_PROMPT": {
+      return showProductSelection(session.id, meta);
+    }
+
+    default: {
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+    }
+  }
 }
 
 // ── Greeting / Registration check ─────────────────────────────────────────
@@ -1348,7 +1544,8 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
           { id: "SUBCAT_POWER", title: "Power, Sensor & Display", description: "Not turning on, Temp error, Display" },
           { id: "SUBCAT_DATA", title: "Data, Network & Print", description: "WiFi, Printer, SMS, Cloud" },
           { id: "SUBCAT_SCALE", title: "Scale & Reading", description: "Reading variation, Weighing scale" },
-          { id: "COMPLAINT_OTHER", title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)", description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue" }
+          { id: "COMPLAINT_OTHER", title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)", description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue" },
+          getBackRow(lang),
         ];
       } else {
         // Filter analyzer complaints based on selected subCategory
@@ -1380,7 +1577,7 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
 
   // Format the rows to ensure unique titles and lengths
   const seenTitles = new Set<string>();
-  const rows = filteredTemplates.slice(0, 9).map((t) => {
+  const rows = filteredTemplates.slice(0, 8).map((t) => {
     let title = t.title.trim();
     let description = t.description?.trim();
 
@@ -1427,6 +1624,8 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
     description: lang === "hi" ? "अपनी समस्या लिखकर बताएं" : "Describe your issue",
   });
 
+  rows.push(getBackRow(lang));
+
   return rows;
 }
 
@@ -1449,7 +1648,7 @@ async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: 
     const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
     return showProductSelection(sessionId, clearedMeta);
   }
-  return makeReply(t("SELECT_VALID", lang), [...getYesNoButtons(lang), getMenuButton(lang)]);
+  return makeReply(t("SELECT_VALID", lang), [...getYesNoButtons(lang), getBackButton(lang)]);
 }
 
 // ── Product catalogue helpers ─────────────────────────────────────────────
@@ -1517,6 +1716,8 @@ async function showCategorySelection(sessionId: string, meta: SessionMeta) {
       title: PRODUCT_CATEGORIES[key].label.slice(0, 24),
     }));
 
+  categoryRows.push(getBackRow(lang));
+
   await updateSession(sessionId, "COMPLAINT_CATEGORY", { ...meta, productCategory: undefined });
   return makeReply(
     t("SELECT_CATEGORY", lang),
@@ -1559,7 +1760,9 @@ async function showProductList(
   products: CatalogueProduct[],
 ) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  const productRows = products.map((p, i) => ({ id: String(i + 1), title: p.name.slice(0, 24) }));
+  const productRows = products.slice(0, 8).map((p, i) => ({ id: String(i + 1), title: p.name.slice(0, 24) }));
+  productRows.push(getBackRow(lang));
+
   await updateSession(sessionId, "COMPLAINT_PRODUCT", meta);
   const categoryLabel = meta.productCategory ? getCategoryLabel(meta.productCategory) : "";
   const header = categoryLabel
@@ -2550,7 +2753,24 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
     io?.to("managers").emit("ticket:new", ticket);
   }
 
-  await updateSession(sessionId, "COMPLETED", {});
+  const clearedMeta: SessionMeta = {
+    customerName: meta.customerName || meta.manualName,
+    customerPhone: meta.customerPhone || phoneNumber,
+    selectedProduct: meta.selectedProduct,
+    productCategory: meta.productCategory,
+    machineData: meta.machineData,
+    serialNumber: meta.serialNumber,
+    tsSerialPath: meta.tsSerialPath,
+    manualName: meta.manualName,
+    manualPincode: meta.manualPincode,
+    manualPlace: meta.manualPlace,
+    manualDistrict: meta.manualDistrict,
+    manualState: meta.manualState,
+    manualAddress: meta.manualAddress,
+    pincodeDisplay: meta.pincodeDisplay,
+    language: meta.language,
+  };
+  await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", clearedMeta);
 
   return makeReply(
     t("TICKET_CONFIRMED", lang, {
@@ -2558,8 +2778,8 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
       product:  productName || "N/A",
       issue:    complaintText,
       location: pincodeLocationDisplay(meta),
-    }),
-    [getMenuButton(lang)]
+    }) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
+    [getRegisterAnotherComplaintButton(lang), getMenuButton(lang)]
   );
 }
 
@@ -2619,7 +2839,24 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
 
   io?.to("managers").emit("ticket:new", ticket);
 
-  await updateSession(sessionId, "COMPLETED", {});
+  const clearedMeta: SessionMeta = {
+    customerName: meta.customerName || meta.manualName,
+    customerPhone: meta.customerPhone || phoneNumber,
+    selectedProduct: meta.selectedProduct,
+    productCategory: meta.productCategory,
+    machineData: meta.machineData,
+    serialNumber: meta.serialNumber,
+    tsSerialPath: meta.tsSerialPath,
+    manualName: meta.manualName,
+    manualPincode: meta.manualPincode,
+    manualPlace: meta.manualPlace,
+    manualDistrict: meta.manualDistrict,
+    manualState: meta.manualState,
+    manualAddress: meta.manualAddress,
+    pincodeDisplay: meta.pincodeDisplay,
+    language: meta.language,
+  };
+  await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", clearedMeta);
 
   return makeReply(
     t("TICKET_CONFIRMED", lang, {
@@ -2627,8 +2864,8 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
       product:  productName || "N/A",
       issue:    complaintText,
       location: [meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || meta.pincodeDisplay || "N/A",
-    }),
-    [getMenuButton(lang)]
+    }) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
+    [getRegisterAnotherComplaintButton(lang), getMenuButton(lang)]
   );
 }
 
