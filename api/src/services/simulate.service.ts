@@ -1887,8 +1887,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     }).catch(e => console.error("[simulate] failed to log manual complaint:", e));
   }
 
-  const isCustomPath = !!meta.customComplaintPath || isOtherOption;
-  const template = isCustomPath ? null : (selectedTemplate || await findDocumentIssue(complaintText, productName));
+  const template = selectedTemplate || (await findDocumentIssue(complaintText, productName));
 
   // ── Video recommendations: search by complaint + product name ──────────
   const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
@@ -1947,7 +1946,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     [
       getYesResolvedButton(lang),
       getNotResolvedButton(lang),
-      getMenuButton(lang),
+      getBackButton(lang),
     ]
   );
 }
@@ -2574,14 +2573,19 @@ export async function findDocumentIssue(
     }
   }
 
-  // Search by description, hard-filtered by audience.
-  async function findByDescription(text: string) {
+  // Search by title/description/problemType, hard-filtered by audience.
+  async function findByText(text: string) {
     if (!text.trim()) return null;
+    const cleanText = text.trim();
     const match = await prisma.documentIssue.findFirst({
       where: {
         isActive: true,
         audience: { in: audienceFilter },
-        description: { contains: text, mode: "insensitive" },
+        OR: [
+          { title: { contains: cleanText, mode: "insensitive" } },
+          { description: { contains: cleanText, mode: "insensitive" } },
+          { problemType: { contains: cleanText.toLowerCase().replace(/\s+/g, "_"), mode: "insensitive" } },
+        ],
       },
       include,
     });
@@ -2590,13 +2594,22 @@ export async function findDocumentIssue(
 
   // 2. Match full complaint phrase
   if (complaintText.trim()) {
-    const phraseMatch = await findByDescription(complaintText.trim());
+    const phraseMatch = await findByText(complaintText.trim());
     if (phraseMatch) return phraseMatch;
 
-    // 3. Try individual significant words (≥5 chars)
-    const words = complaintText.split(/\s+/).filter((w: string) => w.length >= 5);
+    // 3. Try individual significant words (≥3 chars)
+    const words = complaintText
+      .split(/\s+/)
+      .filter((w: string) => w.length >= 3 && !/^(the|and|for|in|on|at|to|a|an|is|of|with|not|how|what|why|show|shown)$/i.test(w));
     for (const word of words) {
-      const wordMatch = await findByDescription(word);
+      const wordMatch = await findByText(word);
+      if (wordMatch) return wordMatch;
+    }
+
+    // Fallback: also try all words ≥3 chars including show/shown
+    const allWords = complaintText.split(/\s+/).filter((w: string) => w.length >= 3);
+    for (const word of allWords) {
+      const wordMatch = await findByText(word);
       if (wordMatch) return wordMatch;
     }
   }
