@@ -588,6 +588,15 @@ function getYesNoButtons(lang: Lang): ReplyButton[] {
 }
 
 const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
+  FLOW_INTERRUPTED: {
+    en: "⚠️ It looks like you selected an option from a previous message.\n\nPlease choose a valid option below or return to the Main Menu:",
+    hi: "⚠️ ऐसा प्रतीत होता है कि आपने पिछले संदेश का विकल्प चुना है।\n\nकृपया नीचे दिए गए विकल्पों में से चुनें या मुख्य मेनू पर लौटें:",
+    ta: "⚠️ முந்தைய செய்தியிலிருந்து ஒரு விருப்பத்தைத் தேர்ந்தெடுத்தது போல் தெரிகிறது.\n\nதயவுசெய்து கீழே உள்ள விருப்பத்தைத் தேர்ந்தெடுக்கவும் அல்லது முதன்மை மெனுவிற்குத் திரும்பவும்:",
+    kn: "⚠️ ನೀವು ಹಿಂದಿನ ಸಂದೇಶದಿಂದ ಆಯ್ಕೆಯನ್ನು ಆರಿಸಿರುವಂತೆ ತೋರುತ್ತಿದೆ.\n\nದಯವಿಟ್ಟು ಕೆಳಗಿನ ಮಾನ್ಯವಾದ ಆಯ್ಕೆಯನ್ನು ಆರಿಸಿ ಅಥವಾ ಮುಖ್ಯ ಮೆನುಗೆ ಹಿಂತಿರುಗಿ:",
+    mr: "⚠️ असे दिसते की आपण मागील संदेशातील पर्याय निवडला आहे.\n\nकृपया खालीलपैकी एक पर्याय निवडा किंवा मुख्य मेनूवर जा:",
+    te: "⚠️ మీరు మునుపటి సందేశం నుండి ఒక ఎంపికను ఎంచుకున్నట్లు కనిపిస్తోంది.\n\nదయచేసి క్రింద ఉన్న ఎంపికలలో ఒకదాన్ని ఎంచుకోండి లేదా ప్రధాన మెనుకి తిరిగి వెళ్లండి:",
+    bn: "⚠️ মনে হচ্ছে আপনি পূর্ববর্তী বার্তার একটি বিকল্প নির্বাচন করেছেন।\n\nঅনুগ্রহ করে নীচের সঠিক বিকল্পটি নির্বাচন করুন বা প্রধান মেনুতে ফিরে যান:",
+  },
   GO_BACK_TITLE: {
     en: "🔙 Go Back",
     hi: "🔙 पीछे जाएं",
@@ -2033,7 +2042,18 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "YES" || upper === "1") {
+  const isResolved =
+    upper === "RESOLVED" ||
+    upper === "YES" ||
+    upper.includes("RESOLVED") ||
+    upper.includes("हल हुआ") ||
+    upper.includes("தீர்க்கப்பட்டது") ||
+    upper.includes("ಪರಿಹರಿಸಲಾಗಿದೆ") ||
+    upper.includes("सुटली") ||
+    upper.includes("పరిష్కరించబడింది") ||
+    upper.includes("সমাধান হয়েছে");
+
+  if (isResolved) {
     await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
     return makeReply(
       t("ISSUE_RESOLVED", lang) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
@@ -2046,7 +2066,18 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   }
 
   // "Not Resolved" → show Book Service or Main Menu
-  if (upper === "NOT_RESOLVED" || upper === "NO" || upper === "2") {
+  const isNotResolved =
+    upper === "NOT_RESOLVED" ||
+    upper === "NO" ||
+    upper.includes("NOT RESOLVED") ||
+    upper.includes("हल नहीं") ||
+    upper.includes("தீர்க்கப்படவில்லை") ||
+    upper.includes("ಪರಿಹರಿಸಲಾಗಿಲ್ಲ") ||
+    upper.includes("सुटली नाही") ||
+    upper.includes("పరిష్కరించబడలేదు") ||
+    upper.includes("সমাধান হয়নি");
+
+  if (isNotResolved) {
     const videos = meta.videoSearchQuery ? await findVideosForQuery(meta.videoSearchQuery, 1) : [];
     if (videos.length > 0) {
       await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", meta);
@@ -2055,6 +2086,7 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
         [
           getShowVideoButton(lang),
           getNoBookServiceButton(lang),
+          getMenuButton(lang),
         ]
       );
     }
@@ -2070,7 +2102,7 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   }
 
   // Direct Book Service (from NO_STEPS flow where there are no troubleshoot steps)
-  if (upper === "BOOK_SERVICE") {
+  if (upper === "BOOK_SERVICE" || upper.includes("BOOK SERVICE") || upper.includes("सेवा बुक")) {
     if (meta.tsSerialPath && meta.machineData) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
@@ -2079,7 +2111,7 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   }
 
   return makeReply(
-    t("SELECT_VALID", lang),
+    t_extra("FLOW_INTERRUPTED", lang),
     [
       getYesResolvedButton(lang),
       getNotResolvedButton(lang),
@@ -2093,7 +2125,10 @@ async function handleAskVideoTutorial(sessionId: string, phoneNumber: string, me
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "YES" || upper === "1") {
+  const isYes = upper === "YES" || upper.includes("SHOW VIDEO") || upper.includes("वीडियो दिखाएं");
+  const isNo = upper === "NO" || upper === "BOOK_SERVICE" || upper.includes("BOOK SERVICE") || upper.includes("सेवा बुक");
+
+  if (isYes) {
     const videos = meta.videoSearchQuery ? await findVideosForQuery(meta.videoSearchQuery, 3) : [];
     if (videos.length === 0) {
       await updateSession(sessionId, "ASK_BOOK_SERVICE", meta);
@@ -2111,11 +2146,12 @@ async function handleAskVideoTutorial(sessionId: string, phoneNumber: string, me
       [
         getYesResolvedButton(lang),
         getNoBookServiceButton(lang),
+        getMenuButton(lang),
       ]
     );
   }
 
-  if (upper === "NO" || upper === "2" || upper === "BOOK_SERVICE") {
+  if (isNo) {
     if (meta.tsSerialPath && meta.machineData) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
@@ -2124,10 +2160,11 @@ async function handleAskVideoTutorial(sessionId: string, phoneNumber: string, me
   }
 
   return makeReply(
-    t("SELECT_VALID", lang),
+    t_extra("FLOW_INTERRUPTED", lang),
     [
       getShowVideoButton(lang),
       getNoBookServiceButton(lang),
+      getMenuButton(lang),
     ]
   );
 }
@@ -2137,7 +2174,19 @@ async function handleVideoHelped(sessionId: string, phoneNumber: string, meta: S
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "YES" || upper === "1") {
+  const isYes =
+    upper === "YES" ||
+    upper === "RESOLVED" ||
+    upper.includes("RESOLVED") ||
+    upper.includes("हल हुआ");
+
+  const isNo =
+    upper === "NO" ||
+    upper === "BOOK_SERVICE" ||
+    upper.includes("BOOK SERVICE") ||
+    upper.includes("सेवा बुक");
+
+  if (isYes) {
     await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
     return makeReply(
       t("ISSUE_RESOLVED", lang) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
@@ -2149,7 +2198,7 @@ async function handleVideoHelped(sessionId: string, phoneNumber: string, meta: S
     );
   }
 
-  if (upper === "NO" || upper === "2" || upper === "BOOK_SERVICE") {
+  if (isNo) {
     if (meta.tsSerialPath && meta.machineData) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
@@ -2158,10 +2207,11 @@ async function handleVideoHelped(sessionId: string, phoneNumber: string, meta: S
   }
 
   return makeReply(
-    t("SELECT_VALID", lang),
+    t_extra("FLOW_INTERRUPTED", lang),
     [
       getYesResolvedButton(lang),
       getNoBookServiceButton(lang),
+      getMenuButton(lang),
     ]
   );
 }
@@ -2171,7 +2221,19 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "YES" || upper === "1") {
+  const isYes =
+    upper === "YES" ||
+    upper === "ANOTHER_YES" ||
+    upper.includes("ANOTHER") ||
+    upper.includes("दूसरी");
+
+  const isNo =
+    upper === "NO" ||
+    upper === "ANOTHER_NO" ||
+    upper.includes("THANK") ||
+    upper.includes("नहीं");
+
+  if (isYes) {
     const productName = meta.selectedProduct || meta.machineData?.m_model;
     const listRows = await fetchComplaintListRows(lang, productName, undefined, meta.productCategory);
     const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
@@ -2188,15 +2250,15 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
     );
   }
 
-  if (upper === "NO" || upper === "2") {
+  if (isNo) {
     await updateSession(sessionId, "COMPLETED", {});
     return makeReply(t_extra("THANK_YOU", lang), [getMenuButton(lang)]);
   }
 
   return makeReply(
-    t("SELECT_VALID", lang),
+    t_extra("FLOW_INTERRUPTED", lang),
     [
-      getYesAnotherIssueButton(lang),
+      getRegisterAnotherComplaintButton(lang),
       getNoButton(lang),
       getMenuButton(lang)
     ]
@@ -2208,7 +2270,9 @@ async function handleAskBookService(sessionId: string, phoneNumber: string, meta
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "BOOK_SERVICE" || upper === "1") {
+  const isBook = upper === "BOOK_SERVICE" || upper.includes("BOOK") || upper.includes("सेवा बुक");
+
+  if (isBook) {
     if (meta.tsSerialPath && meta.machineData) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
@@ -2221,7 +2285,7 @@ async function handleAskBookService(sessionId: string, phoneNumber: string, meta
   }
 
   return makeReply(
-    t("SELECT_VALID", lang),
+    t_extra("FLOW_INTERRUPTED", lang),
     [
       getBookServiceButton(lang),
       getMenuButton(lang),
