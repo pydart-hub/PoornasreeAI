@@ -36,6 +36,7 @@ import {
   Ticket,
   Package,
   GraduationCap,
+  MapPin,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -152,7 +153,7 @@ export default function AdminPage() {
   const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
 
   // Analytics state
-  const [analyticsView, setAnalyticsView] = useState<"overview" | "customer" | "service">("overview");
+  const [analyticsView, setAnalyticsView] = useState<"overview" | "customer" | "service" | "whatsapp">("overview");
   const [analytics, setAnalytics] = useState<{
     totalConversations: number;
     totalSupportRequests: number;
@@ -192,6 +193,25 @@ export default function AdminPage() {
     timeline: { date: string; conversations: number }[];
   } | null>(null);
   const [serviceAnalyticsLoading, setServiceAnalyticsLoading] = useState(false);
+
+  const [whatsappAnalytics, setWhatsappAnalytics] = useState<{
+    groupBy: "state" | "district";
+    totalUniqueUsers: number;
+    usersWithLocation: number;
+    usersWithoutLocation: number;
+    byLocation: { name: string; count: number }[];
+    users: {
+      phoneNumber: string;
+      name: string | null;
+      state: string;
+      district: string;
+      place: string;
+      pincode: string | null;
+      lastActiveAt: string;
+    }[];
+  } | null>(null);
+  const [whatsappGroupBy, setWhatsappGroupBy] = useState<"state" | "district">("state");
+  const [whatsappAnalyticsLoading, setWhatsappAnalyticsLoading] = useState(false);
 
   // ── Responsive ──────────────────────────────
   useEffect(() => {
@@ -269,6 +289,17 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchWhatsappAnalytics = useCallback(async (groupBy: "state" | "district" = whatsappGroupBy) => {
+    setWhatsappAnalyticsLoading(true);
+    try {
+      const res = await fetch(`/api/admin/analytics/whatsapp?groupBy=${groupBy}`, { credentials: "include" });
+      const data = await res.json();
+      if (res.ok) setWhatsappAnalytics(data);
+    } finally {
+      setWhatsappAnalyticsLoading(false);
+    }
+  }, [whatsappGroupBy]);
+
   // ── Fetch videos ──────────────────────────────
   const fetchVideos = useCallback(async () => {
     setVideosLoading(true);
@@ -305,7 +336,10 @@ export default function AdminPage() {
     if (analyticsView === "service" && !serviceAnalytics && !serviceAnalyticsLoading) {
       fetchServiceAnalytics();
     }
-  }, [analyticsView, activeTab, user, customerAnalytics, customerAnalyticsLoading, serviceAnalytics, serviceAnalyticsLoading, fetchCustomerAnalytics, fetchServiceAnalytics]);
+    if (analyticsView === "whatsapp" && !whatsappAnalytics && !whatsappAnalyticsLoading) {
+      fetchWhatsappAnalytics();
+    }
+  }, [analyticsView, activeTab, user, customerAnalytics, customerAnalyticsLoading, serviceAnalytics, serviceAnalyticsLoading, fetchCustomerAnalytics, fetchServiceAnalytics, whatsappAnalytics, whatsappAnalyticsLoading, fetchWhatsappAnalytics]);
 
   // ── Video CRUD ───────────────────────────────
   const handleSaveVideo = useCallback(async () => {
@@ -1101,12 +1135,13 @@ export default function AdminPage() {
                     onClick={() => {
                       if (analyticsView === "overview") { setAnalytics(null); fetchAnalytics(); }
                       else if (analyticsView === "customer") { setCustomerAnalytics(null); fetchCustomerAnalytics(); }
+                      else if (analyticsView === "whatsapp") { setWhatsappAnalytics(null); fetchWhatsappAnalytics(); }
                       else { setServiceAnalytics(null); fetchServiceAnalytics(); }
                     }}
                     className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
                     title="Refresh"
                   >
-                    <RefreshCw className={cn("w-4 h-4", (analyticsLoading || customerAnalyticsLoading || serviceAnalyticsLoading) && "animate-spin")} />
+                    <RefreshCw className={cn("w-4 h-4", (analyticsLoading || customerAnalyticsLoading || serviceAnalyticsLoading || whatsappAnalyticsLoading) && "animate-spin")} />
                   </button>
                 </div>
               </div>
@@ -1117,6 +1152,7 @@ export default function AdminPage() {
                   { key: "overview"  as const, label: "Overview",  icon: <BarChart2 className="w-3.5 h-3.5" /> },
                   { key: "customer"  as const, label: "Customer",  icon: <span className="text-sm">👤</span> },
                   { key: "service"   as const, label: "Service",   icon: <span className="text-sm">🔧</span> },
+                  { key: "whatsapp"  as const, label: "WhatsApp",  icon: <MessageSquare className="w-3.5 h-3.5" /> },
                 ]).map(({ key, label, icon }) => (
                   <button
                     key={key}
@@ -1470,6 +1506,125 @@ export default function AdminPage() {
                           </PieChart>
                         </ResponsiveContainer>
                       )}
+                    </div>
+                  </>
+                )
+              )}
+
+              {analyticsView === "whatsapp" && (
+                whatsappAnalyticsLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
+                  </div>
+                ) : !whatsappAnalytics ? (
+                  <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
+                    <MessageSquare className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-40" />
+                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No WhatsApp chatbot data yet</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
+                      Unique customers who messaged the WhatsApp chatbot (staff and dealer numbers excluded). Location from tickets or pincode collected in chat.
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                        <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2">
+                          <MessageSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <p className="text-xl font-bold text-content dark:text-content-dark">{whatsappAnalytics.totalUniqueUsers}</p>
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total chatbot users</p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                        <div className="inline-flex p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 mb-2">
+                          <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <p className="text-xl font-bold text-content dark:text-content-dark">{whatsappAnalytics.usersWithLocation}</p>
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">With location known</p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark col-span-2 sm:col-span-1">
+                        <div className="inline-flex p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 mb-2">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <p className="text-xl font-bold text-content dark:text-content-dark">{whatsappAnalytics.usersWithoutLocation}</p>
+                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Location unknown</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Group by</span>
+                      {(["state", "district"] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => {
+                            setWhatsappGroupBy(g);
+                            setWhatsappAnalytics(null);
+                            fetchWhatsappAnalytics(g);
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                            whatsappGroupBy === g
+                              ? "bg-emerald-600 text-white"
+                              : "bg-surface-tertiary dark:bg-surface-dark-tertiary text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
+                          )}
+                        >
+                          {g === "state" ? "State" : "District"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {whatsappAnalytics.byLocation.length > 0 && (
+                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
+                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">
+                          Users by {whatsappGroupBy === "state" ? "state" : "district"}
+                        </h3>
+                        <ResponsiveContainer width="100%" height={Math.min(420, 48 + whatsappAnalytics.byLocation.length * 36)}>
+                          <BarChart data={whatsappAnalytics.byLocation.slice(0, 20)} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.15} />
+                            <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
+                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                            <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} name="Users" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    <div className="rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark overflow-hidden">
+                      <div className="px-4 py-3 border-b border-line dark:border-line-dark">
+                        <h3 className="text-sm font-semibold text-content dark:text-content-dark">User log by location</h3>
+                      </div>
+                      <div className="overflow-x-auto max-h-[28rem] overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="sticky top-0 bg-surface-card dark:bg-surface-dark-card text-left text-xs text-content-secondary dark:text-content-dark-secondary border-b border-line dark:border-line-dark">
+                            <tr>
+                              <th className="px-4 py-2 font-medium">Phone</th>
+                              <th className="px-4 py-2 font-medium">Name</th>
+                              <th className="px-4 py-2 font-medium">State</th>
+                              <th className="px-4 py-2 font-medium">District</th>
+                              <th className="px-4 py-2 font-medium">Place</th>
+                              <th className="px-4 py-2 font-medium">Pincode</th>
+                              <th className="px-4 py-2 font-medium">Last active</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {whatsappAnalytics.users.map((u) => (
+                              <tr key={u.phoneNumber} className="border-b border-line/60 dark:border-line-dark/60 last:border-0">
+                                <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{u.phoneNumber}</td>
+                                <td className="px-4 py-2">{u.name ?? "—"}</td>
+                                <td className="px-4 py-2">{u.state}</td>
+                                <td className="px-4 py-2">{u.district}</td>
+                                <td className="px-4 py-2">{u.place}</td>
+                                <td className="px-4 py-2">{u.pincode ?? "—"}</td>
+                                <td className="px-4 py-2 text-xs text-content-secondary dark:text-content-dark-secondary whitespace-nowrap">
+                                  {new Date(u.lastActiveAt).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </>
                 )

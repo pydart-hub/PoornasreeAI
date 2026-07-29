@@ -19,7 +19,13 @@ import {
   deleteAllDealersAdmin,
   clearTestCustomer,
 } from "../controllers/admin.controller";
-import { getAnalytics, getAnalyticsTimeline, getCustomerAnalytics, getServiceAnalytics } from "../controllers/support.controller";
+import {
+  getAnalytics,
+  getAnalyticsTimeline,
+  getCustomerAnalytics,
+  getServiceAnalytics,
+  getWhatsappChatbotAnalytics,
+} from "../controllers/support.controller";
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 
@@ -164,6 +170,9 @@ router.get("/analytics/customer", getCustomerAnalytics);
 
 // GET /api/admin/analytics/service  —  service-specific analytics
 router.get("/analytics/service", getServiceAnalytics);
+
+// GET /api/admin/analytics/whatsapp  —  WhatsApp chatbot users by location
+router.get("/analytics/whatsapp", getWhatsappChatbotAnalytics);
 
 // GET /api/admin/export/chats    —  CSV download of all chat logs
 router.get("/export/chats", exportChats);

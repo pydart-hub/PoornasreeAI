@@ -566,3 +566,231 @@ export async function getServiceAnalytics(req: Request, res: Response): Promise<
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ── WhatsApp chatbot analytics helpers ───────────────────────────────────
+
+function waPhoneKey(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : d;
+}
+
+type WaLocation = {
+  state: string;
+  district: string;
+  place: string;
+  pincode: string | null;
+};
+
+const UNKNOWN_LOCATION: WaLocation = {
+  state: "Unknown",
+  district: "Unknown",
+  place: "Unknown",
+  pincode: null,
+};
+
+function locationFromSessionMetadata(metadata: unknown): WaLocation | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const m = metadata as Record<string, unknown>;
+  const state = String(m.manualState ?? "").trim();
+  const district = String(m.manualDistrict ?? "").trim();
+  const place = String(m.manualPlace ?? "").trim();
+  const pincode = m.manualPincode != null ? String(m.manualPincode).trim() : null;
+  if (!state && !district && !place && !pincode) return null;
+  return {
+    state: state || UNKNOWN_LOCATION.state,
+    district: district || UNKNOWN_LOCATION.district,
+    place: place || UNKNOWN_LOCATION.place,
+    pincode: pincode || null,
+  };
+}
+
+function locationFromTicket(ticket: {
+  state: string | null;
+  district: string | null;
+  place: string | null;
+  pincode: { code: string; state: string | null; district: string | null; place: string | null } | null;
+}): WaLocation | null {
+  const state = ticket.state?.trim() || ticket.pincode?.state?.trim() || "";
+  const district = ticket.district?.trim() || ticket.pincode?.district?.trim() || "";
+  const place = ticket.place?.trim() || ticket.pincode?.place?.trim() || "";
+  const pincode = ticket.pincode?.code?.trim() || null;
+  if (!state && !district && !place && !pincode) return null;
+  return {
+    state: state || UNKNOWN_LOCATION.state,
+    district: district || UNKNOWN_LOCATION.district,
+    place: place || UNKNOWN_LOCATION.place,
+    pincode,
+  };
+}
+
+function hasKnownLocation(loc: WaLocation): boolean {
+  return (
+    loc.state !== UNKNOWN_LOCATION.state ||
+    loc.district !== UNKNOWN_LOCATION.district ||
+    loc.place !== UNKNOWN_LOCATION.place ||
+    !!loc.pincode
+  );
+}
+
+// ── GET /api/admin/analytics/whatsapp ────────────────────────────────────
+// Distinct WhatsApp chatbot users (customer flow) with location breakdown.
+export async function getWhatsappChatbotAnalytics(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const groupBy =
+      req.query.groupBy === "district" ? ("district" as const) : ("state" as const);
+
+    const [staffUsers, sessions, userMessageAgg, tickets] = await Promise.all([
+      prisma.user.findMany({
+        where: { whatsappNumber: { not: null } },
+        select: { whatsappNumber: true, role: true },
+      }),
+      prisma.conversationSession.findMany({
+        select: { phoneNumber: true, metadata: true, updatedAt: true },
+      }),
+      prisma.simulateMessage.groupBy({
+        by: ["phoneNumber"],
+        where: { role: "user" },
+        _max: { createdAt: true },
+      }),
+      prisma.ticket.findMany({
+        where: { phoneNumber: { not: null } },
+        select: {
+          phoneNumber: true,
+          state: true,
+          district: true,
+          place: true,
+          createdAt: true,
+          pincode: { select: { code: true, state: true, district: true, place: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const staffKeys = new Set<string>();
+    const staffRoles = new Set([
+      "service_engineer",
+      "dealer",
+      "admin",
+      "service_manager",
+      "assistant_manager",
+      "sales",
+      "customer_support",
+      "marketing",
+      "hr",
+    ]);
+    for (const u of staffUsers) {
+      if (!u.whatsappNumber || !staffRoles.has(u.role)) continue;
+      staffKeys.add(waPhoneKey(u.whatsappNumber));
+    }
+
+    type UserRow = {
+      phoneNumber: string;
+      lastActiveAt: Date;
+      name: string | null;
+      location: WaLocation;
+    };
+
+    const users = new Map<string, UserRow>();
+
+    const ensureUser = (phone: string, lastActiveAt: Date) => {
+      const key = waPhoneKey(phone);
+      if (!key || staffKeys.has(key)) return null;
+      const existing = users.get(key);
+      if (!existing) {
+        users.set(key, {
+          phoneNumber: phone,
+          lastActiveAt,
+          name: null,
+          location: { ...UNKNOWN_LOCATION },
+        });
+        return users.get(key)!;
+      }
+      if (lastActiveAt > existing.lastActiveAt) {
+        existing.lastActiveAt = lastActiveAt;
+        existing.phoneNumber = phone;
+      }
+      return existing;
+    };
+
+    for (const s of sessions) {
+      const row = ensureUser(s.phoneNumber, s.updatedAt);
+      if (!row) continue;
+      const meta = s.metadata as Record<string, unknown> | null;
+      const name = meta?.customerName != null ? String(meta.customerName).trim() : "";
+      if (name) row.name = name;
+    }
+
+    for (const m of userMessageAgg) {
+      ensureUser(m.phoneNumber, m._max.createdAt ?? new Date(0));
+    }
+
+    for (const t of tickets) {
+      if (!t.phoneNumber) continue;
+      const row = ensureUser(t.phoneNumber, t.createdAt);
+      if (!row) continue;
+      const loc = locationFromTicket(t);
+      if (loc && !hasKnownLocation(row.location)) {
+        row.location = loc;
+      }
+    }
+
+    for (const s of sessions) {
+      const key = waPhoneKey(s.phoneNumber);
+      const row = users.get(key);
+      if (!row || hasKnownLocation(row.location)) continue;
+      const loc = locationFromSessionMetadata(s.metadata);
+      if (loc) row.location = loc;
+      const meta = s.metadata as Record<string, unknown> | null;
+      const name = meta?.customerName != null ? String(meta.customerName).trim() : "";
+      if (name && !row.name) row.name = name;
+    }
+
+    const userList = Array.from(users.values()).sort(
+      (a, b) => b.lastActiveAt.getTime() - a.lastActiveAt.getTime(),
+    );
+
+    const byLocationMap = new Map<string, number>();
+    for (const u of userList) {
+      const label =
+        groupBy === "district"
+          ? u.location.district !== UNKNOWN_LOCATION.district
+            ? `${u.location.district}, ${u.location.state}`
+            : u.location.state !== UNKNOWN_LOCATION.state
+              ? `${u.location.state} (district unknown)`
+              : "Unknown"
+          : u.location.state;
+      byLocationMap.set(label, (byLocationMap.get(label) ?? 0) + 1);
+    }
+
+    const byLocation = Array.from(byLocationMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const usersWithLocation = userList.filter((u) => hasKnownLocation(u.location)).length;
+
+    res.json({
+      groupBy,
+      totalUniqueUsers: userList.length,
+      usersWithLocation,
+      usersWithoutLocation: userList.length - usersWithLocation,
+      byLocation,
+      users: userList.map((u) => ({
+        phoneNumber: u.phoneNumber,
+        name: u.name,
+        state: u.location.state,
+        district: u.location.district,
+        place: u.location.place,
+        pincode: u.location.pincode,
+        lastActiveAt: u.lastActiveAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    console.error("getWhatsappChatbotAnalytics:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

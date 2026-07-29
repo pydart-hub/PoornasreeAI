@@ -32,11 +32,14 @@ PoornasreeAI/
 ## Quick start (local)
 
 ```bash
-# Frontend
-npm install && npm run dev
+# Frontend + remote VPS API (SSH tunnel)
+./scripts/dev-with-server-api.sh
 
-# API (separate terminal)
-cd api && npm install && npm run dev
+# Frontend + remote API via public HTTPS (no tunnel)
+./scripts/dev-with-server-api.sh --public
+
+# Both local frontend and API
+npm install && npm run dev
 ```
 
 ## Deploy
