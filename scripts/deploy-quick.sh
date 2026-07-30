@@ -22,6 +22,27 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# VPS /bin/bash is occasionally wiped (0 bytes + immutable). Restore before deploy.
+repair_remote_bash_if_needed() {
+  ssh "$SSH_HOST" "dash -c '
+    if /bin/bash --version >/dev/null 2>&1; then
+      exit 0
+    fi
+    echo \"⚠️  /bin/bash broken on server — restoring from apt package...\"
+    cd /root
+    chattr -i /bin/bash /usr/bin/bash 2>/dev/null || true
+    apt-get update -qq
+    apt-get download -qq bash || exit 1
+    deb=\$(ls -t bash_*.deb 2>/dev/null | head -1)
+    rm -rf /tmp/bash-fix
+    dpkg-deb -x \"\$deb\" /tmp/bash-fix
+    cp -f /tmp/bash-fix/usr/bin/bash /bin/bash
+    cp -f /tmp/bash-fix/usr/bin/bash /usr/bin/bash
+    chmod 755 /bin/bash /usr/bin/bash
+    /bin/bash --version | head -1
+  '"
+}
+
 run_deploy() {
   local m="$1"
   local cmd="cd '$REMOTE_DIR' && git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $m"
@@ -34,6 +55,7 @@ run_deploy() {
 }
 
 echo "Old-style VPS deploy → $SSH_HOST ($MODE${FULL:+ + quick})"
+repair_remote_bash_if_needed
 if [[ "${FULL:-0}" -eq 1 ]]; then
   run_deploy quick-api
   run_deploy quick

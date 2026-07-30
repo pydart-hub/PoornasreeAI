@@ -25,6 +25,7 @@ import {
   getCustomerAnalytics,
   getServiceAnalytics,
   getWhatsappChatbotAnalytics,
+  getWhatsappLiveUsers,
 } from "../controllers/support.controller";
 import { exportChats, exportSupport, exportTickets } from "../controllers/export.controller";
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
@@ -173,6 +174,9 @@ router.get("/analytics/service", getServiceAnalytics);
 
 // GET /api/admin/analytics/whatsapp  —  WhatsApp chatbot users by location
 router.get("/analytics/whatsapp", getWhatsappChatbotAnalytics);
+
+// GET /api/admin/analytics/whatsapp/live  —  recently active WhatsApp users
+router.get("/analytics/whatsapp/live", getWhatsappLiveUsers);
 
 // GET /api/admin/export/chats    —  CSV download of all chat logs
 router.get("/export/chats", exportChats);

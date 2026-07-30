@@ -632,6 +632,57 @@ function hasKnownLocation(loc: WaLocation): boolean {
   );
 }
 
+function waLocationChartLabel(
+  groupBy: "state" | "district" | "place",
+  loc: WaLocation,
+): string {
+  if (groupBy === "district") {
+    if (loc.district !== UNKNOWN_LOCATION.district) return `${loc.district}, ${loc.state}`;
+    if (loc.state !== UNKNOWN_LOCATION.state) return `${loc.state} (district unknown)`;
+    return "Unknown";
+  }
+  if (groupBy === "place") {
+    if (loc.place !== UNKNOWN_LOCATION.place) return `${loc.place}, ${loc.district}`;
+    if (loc.district !== UNKNOWN_LOCATION.district) return `${loc.district} (place unknown)`;
+    return "Unknown";
+  }
+  return loc.state;
+}
+
+function parseQueryDate(value: unknown): Date | null {
+  if (value == null || value === "") return null;
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+type WaUserRow = {
+  phoneNumber: string;
+  lastActiveAt: Date;
+  name: string | null;
+  location: WaLocation;
+};
+
+function sortWaUsers(
+  rows: WaUserRow[],
+  sort: "lastActive" | "name" | "state",
+  sortDir: "asc" | "desc",
+): void {
+  const dir = sortDir === "asc" ? 1 : -1;
+  rows.sort((a, b) => {
+    if (sort === "name") {
+      const an = (a.name ?? "").toLowerCase();
+      const bn = (b.name ?? "").toLowerCase();
+      return an.localeCompare(bn) * dir;
+    }
+    if (sort === "state") {
+      const cmp = a.location.state.localeCompare(b.location.state);
+      if (cmp !== 0) return cmp * dir;
+      return a.location.district.localeCompare(b.location.district) * dir;
+    }
+    return (a.lastActiveAt.getTime() - b.lastActiveAt.getTime()) * dir;
+  });
+}
+
 // ── GET /api/admin/analytics/whatsapp ────────────────────────────────────
 // Distinct WhatsApp chatbot users (customer flow) with location breakdown.
 export async function getWhatsappChatbotAnalytics(req: Request, res: Response): Promise<void> {
@@ -641,8 +692,25 @@ export async function getWhatsappChatbotAnalytics(req: Request, res: Response): 
       return;
     }
 
-    const groupBy =
-      req.query.groupBy === "district" ? ("district" as const) : ("state" as const);
+    const groupByRaw = String(req.query.groupBy ?? "state");
+    const groupBy: "state" | "district" | "place" =
+      groupByRaw === "district" ? "district" : groupByRaw === "place" ? "place" : "state";
+
+    const since = parseQueryDate(req.query.since);
+    let until = parseQueryDate(req.query.until);
+    if (until) {
+      until = new Date(until);
+      until.setHours(23, 59, 59, 999);
+    }
+
+    const stateFilter = String(req.query.state ?? "").trim();
+    const districtFilter = String(req.query.district ?? "").trim();
+    const locationFilter = String(req.query.location ?? "all").trim().toLowerCase();
+    const search = String(req.query.search ?? "").trim().toLowerCase();
+    const sortRaw = String(req.query.sort ?? "lastActive");
+    const sort: "lastActive" | "name" | "state" =
+      sortRaw === "name" ? "name" : sortRaw === "state" ? "state" : "lastActive";
+    const sortDir: "asc" | "desc" = req.query.sortDir === "asc" ? "asc" : "desc";
 
     const [staffUsers, sessions, userMessageAgg, tickets] = await Promise.all([
       prisma.user.findMany({
@@ -688,12 +756,7 @@ export async function getWhatsappChatbotAnalytics(req: Request, res: Response): 
       staffKeys.add(waPhoneKey(u.whatsappNumber));
     }
 
-    type UserRow = {
-      phoneNumber: string;
-      lastActiveAt: Date;
-      name: string | null;
-      location: WaLocation;
-    };
+    type UserRow = WaUserRow;
 
     const users = new Map<string, UserRow>();
 
@@ -750,20 +813,70 @@ export async function getWhatsappChatbotAnalytics(req: Request, res: Response): 
       if (name && !row.name) row.name = name;
     }
 
-    const userList = Array.from(users.values()).sort(
-      (a, b) => b.lastActiveAt.getTime() - a.lastActiveAt.getTime(),
-    );
+    const userList = Array.from(users.values());
+
+    const filterOptions = {
+      states: [
+        ...new Set(
+          userList.map((u) => u.location.state).filter((s) => s && s !== UNKNOWN_LOCATION.state),
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+      districts: [
+        ...new Set(
+          userList
+            .map((u) =>
+              u.location.district !== UNKNOWN_LOCATION.district
+                ? `${u.location.district}|${u.location.state}`
+                : null,
+            )
+            .filter((x): x is string => !!x),
+        ),
+      ]
+        .map((key) => {
+          const [district, state] = key.split("|");
+          return { district, state, label: `${district}, ${state}` };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    };
+
+    let filtered = userList;
+
+    if (since) {
+      filtered = filtered.filter((u) => u.lastActiveAt >= since);
+    }
+    if (until) {
+      filtered = filtered.filter((u) => u.lastActiveAt <= until);
+    }
+    if (stateFilter) {
+      const s = stateFilter.toLowerCase();
+      filtered = filtered.filter((u) => u.location.state.toLowerCase() === s);
+    }
+    if (districtFilter) {
+      const d = districtFilter.toLowerCase();
+      filtered = filtered.filter((u) => u.location.district.toLowerCase() === d);
+    }
+    if (locationFilter === "known") {
+      filtered = filtered.filter((u) => hasKnownLocation(u.location));
+    } else if (locationFilter === "unknown") {
+      filtered = filtered.filter((u) => !hasKnownLocation(u.location));
+    }
+    if (search) {
+      const digits = search.replace(/\D/g, "");
+      filtered = filtered.filter((u) => {
+        if (u.name?.toLowerCase().includes(search)) return true;
+        const phone = u.phoneNumber.toLowerCase();
+        const phoneDigits = u.phoneNumber.replace(/\D/g, "");
+        if (phone.includes(search)) return true;
+        if (digits && phoneDigits.includes(digits)) return true;
+        return false;
+      });
+    }
+
+    sortWaUsers(filtered, sort, sortDir);
 
     const byLocationMap = new Map<string, number>();
-    for (const u of userList) {
-      const label =
-        groupBy === "district"
-          ? u.location.district !== UNKNOWN_LOCATION.district
-            ? `${u.location.district}, ${u.location.state}`
-            : u.location.state !== UNKNOWN_LOCATION.state
-              ? `${u.location.state} (district unknown)`
-              : "Unknown"
-          : u.location.state;
+    for (const u of filtered) {
+      const label = waLocationChartLabel(groupBy, u.location);
       byLocationMap.set(label, (byLocationMap.get(label) ?? 0) + 1);
     }
 
@@ -771,15 +884,19 @@ export async function getWhatsappChatbotAnalytics(req: Request, res: Response): 
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    const usersWithLocation = userList.filter((u) => hasKnownLocation(u.location)).length;
+    const usersWithLocation = filtered.filter((u) => hasKnownLocation(u.location)).length;
 
     res.json({
       groupBy,
-      totalUniqueUsers: userList.length,
+      sort,
+      sortDir,
+      totalUnfiltered: userList.length,
+      totalUniqueUsers: filtered.length,
       usersWithLocation,
-      usersWithoutLocation: userList.length - usersWithLocation,
+      usersWithoutLocation: filtered.length - usersWithLocation,
       byLocation,
-      users: userList.map((u) => ({
+      filterOptions,
+      users: filtered.map((u) => ({
         phoneNumber: u.phoneNumber,
         name: u.name,
         state: u.location.state,
@@ -791,6 +908,156 @@ export async function getWhatsappChatbotAnalytics(req: Request, res: Response): 
     });
   } catch (err) {
     console.error("getWhatsappChatbotAnalytics:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+const WA_STAFF_ROLES = new Set([
+  "service_engineer",
+  "dealer",
+  "admin",
+  "service_manager",
+  "assistant_manager",
+  "sales",
+  "customer_support",
+  "marketing",
+  "hr",
+]);
+
+async function loadWaStaffPhoneKeys(): Promise<Set<string>> {
+  const staffUsers = await prisma.user.findMany({
+    where: { whatsappNumber: { not: null } },
+    select: { whatsappNumber: true, role: true },
+  });
+  const staffKeys = new Set<string>();
+  for (const u of staffUsers) {
+    if (!u.whatsappNumber || !WA_STAFF_ROLES.has(u.role)) continue;
+    staffKeys.add(waPhoneKey(u.whatsappNumber));
+  }
+  return staffKeys;
+}
+
+// ── GET /api/admin/analytics/whatsapp/live ───────────────────────────────
+// Customers active on WhatsApp in the last N minutes (default 15).
+export async function getWhatsappLiveUsers(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const minutesRaw = parseInt(String(req.query.minutes ?? "15"), 10);
+    const windowMinutes = Number.isFinite(minutesRaw) && minutesRaw > 0 ? Math.min(minutesRaw, 120) : 15;
+    const since = new Date(Date.now() - windowMinutes * 60 * 1000);
+
+    const [staffKeys, recentActivity, tickets] = await Promise.all([
+      loadWaStaffPhoneKeys(),
+      // Message activity is the source of truth — session.updatedAt often stays stale
+      // when the user chats without an FSM state transition.
+      prisma.simulateMessage.groupBy({
+        by: ["phoneNumber"],
+        where: { createdAt: { gte: since } },
+        _max: { createdAt: true },
+      }),
+      prisma.ticket.findMany({
+        where: { phoneNumber: { not: null } },
+        select: {
+          phoneNumber: true,
+          state: true,
+          district: true,
+          place: true,
+          pincode: { select: { code: true, state: true, district: true, place: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const ticketLocByPhone = new Map<string, WaLocation>();
+    for (const t of tickets) {
+      if (!t.phoneNumber) continue;
+      const key = waPhoneKey(t.phoneNumber);
+      if (ticketLocByPhone.has(key)) continue;
+      const loc = locationFromTicket(t);
+      if (loc) ticketLocByPhone.set(key, loc);
+    }
+
+    const liveEntries = recentActivity
+      .filter((row) => {
+        const key = waPhoneKey(row.phoneNumber);
+        return key && !staffKeys.has(key) && row._max.createdAt;
+      })
+      .map((row) => ({
+        phoneNumber: row.phoneNumber,
+        lastActiveAt: row._max.createdAt as Date,
+      }))
+      .sort((a, b) => b.lastActiveAt.getTime() - a.lastActiveAt.getTime());
+
+    const livePhones = liveEntries.map((e) => e.phoneNumber);
+
+    const [sessions, lastMessages] = livePhones.length
+      ? await Promise.all([
+          prisma.conversationSession.findMany({
+            where: { phoneNumber: { in: livePhones } },
+            orderBy: { updatedAt: "desc" },
+          }),
+          prisma.simulateMessage.findMany({
+            where: { phoneNumber: { in: livePhones } },
+            orderBy: { createdAt: "desc" },
+            distinct: ["phoneNumber"],
+            select: { phoneNumber: true, role: true, content: true, createdAt: true },
+          }),
+        ])
+      : [[], []];
+
+    const sessionByPhone = new Map<string, (typeof sessions)[0]>();
+    for (const s of sessions) {
+      const key = waPhoneKey(s.phoneNumber);
+      if (!sessionByPhone.has(key)) sessionByPhone.set(key, s);
+    }
+
+    const lastMsgByPhone = new Map(
+      lastMessages.map((m) => [waPhoneKey(m.phoneNumber), m]),
+    );
+
+    const liveUsers = liveEntries.map((entry) => {
+      const key = waPhoneKey(entry.phoneNumber);
+      const session = sessionByPhone.get(key);
+      const meta = (session?.metadata ?? null) as Record<string, unknown> | null;
+      const name = meta?.customerName != null ? String(meta.customerName).trim() : null;
+      let location = ticketLocByPhone.get(key) ?? { ...UNKNOWN_LOCATION };
+      if (!hasKnownLocation(location) && session) {
+        const fromMeta = locationFromSessionMetadata(session.metadata);
+        if (fromMeta) location = fromMeta;
+      }
+      const lastMsg = lastMsgByPhone.get(key);
+      return {
+        phoneNumber: entry.phoneNumber,
+        name,
+        state: location.state,
+        district: location.district,
+        place: location.place,
+        pincode: location.pincode,
+        sessionState: session?.state ?? "UNKNOWN",
+        isBotPaused: session?.isBotPaused ?? false,
+        lastActiveAt: entry.lastActiveAt.toISOString(),
+        lastMessage: lastMsg
+          ? {
+              role: lastMsg.role,
+              content: lastMsg.content.slice(0, 200),
+              createdAt: lastMsg.createdAt.toISOString(),
+            }
+          : null,
+      };
+    });
+
+    res.json({
+      windowMinutes,
+      liveCount: liveUsers.length,
+      liveUsers,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("getWhatsappLiveUsers:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }

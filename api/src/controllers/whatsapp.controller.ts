@@ -442,6 +442,18 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     savedMessage = await prisma.simulateMessage.create({
       data: { phoneNumber: from, role: "user", content: text },
     });
+
+    // Bump session activity timestamp (updatedAt) for live dashboards
+    const touchSession = await prisma.conversationSession.findFirst({
+      where: { phoneNumber: from },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (touchSession) {
+      await prisma.conversationSession.update({
+        where: { id: touchSession.id },
+        data: { metadata: (touchSession.metadata as object) ?? {} },
+      });
+    }
     
     // Broadcast the new user message to the dashboard
     const { io } = await import("../lib/socket");
