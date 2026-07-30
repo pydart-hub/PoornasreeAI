@@ -14,7 +14,7 @@ model User {
   passwordHash     String
   firstName        String
   lastName         String?
-  // Roles: customer | service | service_engineer | service_manager | assistant_service_manager | dealer | admin | sales | customer_support
+  // Roles: customer | service | service_engineer | service_manager | assistant_service_manager | dealer | admin | super_admin | sales | customer_support | marketing | customer_service
   role             String             @default("customer")
   createdAt        DateTime           @default(now())
 
@@ -387,6 +387,20 @@ model ChatbotSetting {
   supportHours String?
   supportNote  String?  @db.Text
   updatedAt    DateTime @updatedAt
+}
+
+// ── System settings (super-admin configurable keys) ───────────────────────
+// Secrets are stored AES-GCM encrypted. Non-secrets are plain text.
+// Runtime reads DB first, then falls back to process.env.
+model SystemSetting {
+  key         String   @id
+  value       String   @db.Text
+  isSecret    Boolean  @default(false)
+  label       String?
+  description String?  @db.Text
+  category    String   @default("general")
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
 }
 
 // ── Product Catalogue ────────────────────────────────────────────────────

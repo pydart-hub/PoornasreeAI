@@ -4,9 +4,13 @@
 import ExcelJS from "exceljs";
 import bcrypt from "bcrypt";
 import prisma from "../lib/prisma";
+import { runtime } from "./runtime-config.service";
 
 const SALT_ROUNDS = 12;
-const DEFAULT_PASSWORD = process.env.DEALER_DEFAULT_PASSWORD ?? "Dealer@2026";
+
+function defaultDealerPassword(): string {
+  return runtime.dealerDefaultPassword();
+}
 
 export interface ParsedDealerRow {
   firstName: string;
@@ -238,7 +242,7 @@ export async function importDealerRows(
 
   for (const row of rows) {
     try {
-      const password = row.password || DEFAULT_PASSWORD;
+      const password = row.password || defaultDealerPassword();
       if (password.length < 8) {
         result.errors++;
         result.errorMessages.push(`Password too short for ${row.firstName}`);

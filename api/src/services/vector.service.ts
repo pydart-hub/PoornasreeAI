@@ -4,16 +4,25 @@
 
 import { QdrantClient } from "@qdrant/js-client-rest";
 import axios from "axios";
+import { runtime } from "./runtime-config.service";
 
 // ── Config ────────────────────────────────────────────────────────────
-const QDRANT_URL   = process.env.QDRANT_URL   || "http://localhost:6333";
-const OLLAMA_URL   = process.env.OLLAMA_URL   || "http://localhost:11434";
 const COLLECTION   = "poornasree_docs";
 const VECTOR_SIZE  = 768;           // nomic-embed-text dimension
 const EMBED_MODEL  = "nomic-embed-text";
 
-// ── Qdrant client (singleton) ─────────────────────────────────────────
-const qdrant = new QdrantClient({ url: QDRANT_URL });
+function qdrantUrl(): string {
+  return runtime.qdrantUrl();
+}
+function ollamaUrl(): string {
+  return runtime.ollamaUrl();
+}
+
+let qdrant: QdrantClient | null = null;
+function getQdrant(): QdrantClient {
+  if (!qdrant) qdrant = new QdrantClient({ url: qdrantUrl() });
+  return qdrant;
+}
 
 /**
  * Ensure the Qdrant collection exists; create it if missing.
@@ -21,10 +30,11 @@ const qdrant = new QdrantClient({ url: QDRANT_URL });
  */
 export async function ensureCollection(): Promise<void> {
   try {
-    const { collections } = await qdrant.getCollections();
+    const client = getQdrant();
+    const { collections } = await client.getCollections();
     const exists = collections.some((c) => c.name === COLLECTION);
     if (!exists) {
-      await qdrant.createCollection(COLLECTION, {
+      await client.createCollection(COLLECTION, {
         vectors: { size: VECTOR_SIZE, distance: "Cosine" },
       });
       console.log(`[vector] Created Qdrant collection "${COLLECTION}"`);
@@ -41,7 +51,7 @@ export async function ensureCollection(): Promise<void> {
  * Get a 768-dim embedding for a text string via Ollama.
  */
 export async function embedText(text: string): Promise<number[]> {
-  const { data } = await axios.post(`${OLLAMA_URL}/api/embeddings`, {
+  const { data } = await axios.post(`${ollamaUrl()}/api/embeddings`, {
     model: EMBED_MODEL,
     prompt: text,
   });
@@ -56,7 +66,7 @@ export async function upsertVector(
   embedding: number[],
   payload: Record<string, unknown>
 ): Promise<void> {
-  await qdrant.upsert(COLLECTION, {
+  await getQdrant().upsert(COLLECTION, {
     wait: true,
     points: [{ id, vector: embedding, payload }],
   });
@@ -89,7 +99,7 @@ export async function searchVectors(
     };
   }
 
-  const results = await qdrant.search(COLLECTION, searchParams);
+  const results = await getQdrant().search(COLLECTION, searchParams);
 
   return results.map((r) => ({
     score:   r.score,
@@ -101,7 +111,7 @@ export async function searchVectors(
  * Delete all vectors associated with a specific document from Qdrant.
  */
 export async function deleteVectorsByDocumentId(documentId: string): Promise<void> {
-  await qdrant.delete(COLLECTION, {
+  await getQdrant().delete(COLLECTION, {
     wait: true,
     filter: {
       must: [{ key: "documentId", match: { value: documentId } }],

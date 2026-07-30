@@ -20,6 +20,7 @@ import marketingRoutes from "./routes/marketing.routes";
 import complaintRoutes from "./routes/complaint.routes";
 import supportChatRoutes from "./routes/support-chat";
 import simulateRoutes from "./routes/simulate.routes";
+import superAdminRoutes from "./routes/super-admin.routes";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
 import { protect } from "./middleware/auth";
@@ -28,6 +29,7 @@ import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
 import { startDailySummaryScheduler } from "./services/engineer-ticket-notification.service";
 import { startSessionCleanupCron } from "./services/session-cleanup.service";
+import { loadRuntimeConfig } from "./services/runtime-config.service";
 
 const app = express();
 
@@ -65,6 +67,7 @@ app.get("/api/rd-videos", protect, listRdVideos);
 // otherwise chatRoutes' protect middleware intercepts admin/support/sales
 // requests first and can cause duplicate auth checks or unexpected 401s.
 app.use("/api/admin",        adminRoutes);
+app.use("/api/super-admin",  superAdminRoutes);
 app.use("/api/manager",      managerRoutes);
 app.use("/api/support",      supportRoutes);
 app.use("/api/sales",        salesRoutes);
@@ -126,6 +129,9 @@ initSocket(httpServer);
 // ── Start ────────────────────────────────────────
 httpServer.listen(env.PORT, async () => {
   console.log(`[${env.NODE_ENV}] API server running on http://localhost:${env.PORT}`);
+
+  // Load super-admin DB settings into memory (falls back to env)
+  await loadRuntimeConfig();
 
   // Ensure Qdrant collection exists
   await ensureCollection();

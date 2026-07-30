@@ -1,6 +1,5 @@
 // Outbound WhatsApp when a service manager assigns a ticket to an engineer.
 
-import { env } from "../config/env";
 import prisma from "../lib/prisma";
 import {
   formatCustomerPhoneDisplay,

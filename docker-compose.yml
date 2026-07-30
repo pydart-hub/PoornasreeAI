@@ -95,11 +95,16 @@ services:
       INTEGRATION_WEBHOOK_URL: ${INTEGRATION_WEBHOOK_URL:-}
       PUBLIC_OTP_SECRET: ${PUBLIC_OTP_SECRET:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      CHATBOT_MODE: ${CHATBOT_MODE:-legacy_fsm}
+      GROQ_MODEL_FAST: ${GROQ_MODEL_FAST:-llama-3.1-8b-instant}
+      GROQ_MODEL_AGENT: ${GROQ_MODEL_AGENT:-llama-3.3-70b-versatile}
+      GROQ_MAX_TOKENS_REPLY: ${GROQ_MAX_TOKENS_REPLY:-600}
     volumes:
       - api_uploads:/app/uploads
       - ./data/training/training.json:/app/data/training.json:ro
       - ./data/training/customer-training.json:/app/data/customer-training.json:ro
       - ./data/training/chatbot-training.json:/app/data/chatbot-training.json:ro
+      - ./data/training/company-knowledge.json:/app/data/company-knowledge.json:ro
     ports:
       - "127.0.0.1:4000:4000"
     networks:

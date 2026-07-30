@@ -2,7 +2,7 @@
 // First contact must use an approved Meta template (outside the 24h session window).
 // Plain text is used as fallback when no template is configured or template send fails.
 
-import { env } from "../config/env";
+import { runtime } from "./runtime-config.service";
 import * as WhatsAppService from "./whatsapp.service";
 
 export type EngineerSetupRecipient = {
@@ -50,13 +50,13 @@ export async function sendEngineerSetupNotification(
   rawToken: string,
   managerName: string,
 ): Promise<boolean> {
-  const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
-  const templateName = env.WA_ENGINEER_SETUP_TEMPLATE.trim();
+  const setPasswordUrl = `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
+  const templateName = runtime.waEngineerSetupTemplate().trim();
 
   if (templateName) {
     const viaTemplate = await WhatsAppService.sendTemplate(engineer.whatsappNumber, {
       name: templateName,
-      languageCode: env.WA_ENGINEER_SETUP_TEMPLATE_LANG,
+      languageCode: runtime.waEngineerSetupTemplateLang(),
       bodyParameters: [
         templateParam(engineer.firstName, 60),
         templateParam(managerName, 80),

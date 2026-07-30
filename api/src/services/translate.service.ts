@@ -1,6 +1,6 @@
 import axios from "axios";
+import { runtime } from "./runtime-config.service";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const GEN_MODEL = "phi3:mini";
 
 const LANG_NAMES: Record<string, string> = {
@@ -45,7 +45,7 @@ ${langName} Translation:`;
   try {
     const t0 = Date.now();
     const { data } = await axios.post(
-      `${OLLAMA_URL}/api/chat`,
+      `${runtime.ollamaUrl()}/api/chat`,
       {
         model: GEN_MODEL,
         messages: [{ role: "user", content: translationPrompt }],

@@ -27,7 +27,7 @@ import { embedText, searchVectors } from "./vector.service";
 import { translateText } from "./translate.service";
 
 import { io } from "../lib/socket";
-import { env } from "../config/env";
+import { runtime } from "./runtime-config.service";
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CATEGORY_KEYS,
@@ -42,6 +42,10 @@ import {
 } from "./chatbotSettings.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 import * as WhatsAppService from "./whatsapp.service";
+import {
+  handleCustomerAgentMessage,
+  isGroqChatbotEnabled,
+} from "./whatsapp-agent.service";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -959,6 +963,57 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (meta.language ?? "en") as Lang;
 
+  // ── Groq conversational agent (feature-flagged) ─────────────────────────
+  // Preserves feedback FSM and falls back to legacy menus on agent errors /
+  // when agent returns null (e.g. Book service → serial/complaint FSM).
+  const inFeedback =
+    session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED";
+  const inLegacyTransactional =
+    session.state === "COMPLAINT_ASK_SERIAL" ||
+    session.state === "MACHINE_CONFIRM" ||
+    session.state === "COMPLAINT_CATEGORY" ||
+    session.state === "COMPLAINT_PRODUCT" ||
+    session.state === "COMPLAINT_SUBCATEGORY" ||
+    session.state === "COMPLAINT_DESCRIBE" ||
+    session.state === "TROUBLESHOOT_STEP" ||
+    session.state === "TROUBLESHOOT_DONE_OPTIONS" ||
+    session.state === "ASK_VIDEO_TUTORIAL" ||
+    session.state === "VIDEO_HELPED" ||
+    session.state === "ANOTHER_COMPLAINT_PROMPT" ||
+    session.state === "ASK_BOOK_SERVICE" ||
+    session.state === "COMPLAINT_MANUAL_NAME" ||
+    session.state === "COMPLAINT_MANUAL_PINCODE" ||
+    session.state === "COMPLAINT_MANUAL_PINCODE_CONFIRM" ||
+    session.state === "END_CUSTOMER_ADDRESS" ||
+    session.state === "PASSTEST_CUSTOMER_NAME" ||
+    session.state === "PASSTEST_PINCODE" ||
+    session.state === "PASSTEST_PINCODE_CONFIRM" ||
+    session.state === "CHECK_STATUS" ||
+    session.state === "CHANGE_LANGUAGE" ||
+    session.state === "ASK_PHONE";
+
+  if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
+    try {
+      const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
+      if (agentReply) {
+        return makeReply(agentReply.message, agentReply.buttons, undefined, undefined, agentReply.followUpMessage);
+      }
+      // null → agent requested FSM handoff (e.g. BOOK_SERVICE → serial prompt)
+      const refreshed = await getOrCreateSession(phoneNumber);
+      const refreshedMeta: SessionMeta = (refreshed.metadata as SessionMeta) ?? meta;
+      const refreshedLang: Lang = (refreshedMeta.language ?? lang) as Lang;
+      if (refreshed.state === "COMPLAINT_ASK_SERIAL") {
+        return makeReply(
+          t("SERIAL_PROMPT", refreshedLang),
+          [getSkipButton(refreshedLang), getMenuButton(refreshedLang)],
+        );
+      }
+    } catch (err) {
+      console.error("[simulate] Groq agent failed — falling back to FSM:", err);
+      // fall through to legacy FSM
+    }
+  }
+
   // ── Global navigation commands (any state except feedback) ──────────────
   // Note: "HI" is excluded while in CHANGE_LANGUAGE — it collides with the Hindi button id.
   if (isGlobalRestartCommand(upper)) {
@@ -969,6 +1024,17 @@ export async function handleMessage(phoneNumber: string, message: string) {
     // Let language selection handle button taps (LANG_EN / LANG_HI)
     if (session.state === "CHANGE_LANGUAGE") {
       return routeState(session, phoneNumber, text, meta);
+    }
+    // Groq mode: MENU/HI restarts into agent welcome
+    if (isGroqChatbotEnabled()) {
+      try {
+        const agentReply = await handleCustomerAgentMessage(phoneNumber, "MENU");
+        if (agentReply) {
+          return makeReply(agentReply.message, agentReply.buttons, undefined, undefined, agentReply.followUpMessage);
+        }
+      } catch (err) {
+        console.error("[simulate] Groq agent MENU failed:", err);
+      }
     }
     if (session.state !== "GREETING" && session.state !== "ASK_PHONE") {
       await updateSession(session.id, "MAIN_MENU", meta);
@@ -1411,7 +1477,7 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
   }
 
   // Build image array for WhatsApp (only products that have an image)
-  const baseUrl = env.FRONTEND_URL.replace(/\/$/, "");
+  const baseUrl = runtime.frontendUrl().replace(/\/$/, "");
   const images: ProductImage[] = products
     .filter(p => p.imageUrl)
     .map(p => ({

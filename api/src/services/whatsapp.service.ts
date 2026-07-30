@@ -2,13 +2,13 @@
 // Sends outbound messages via Meta's Graph API v21.0.
 // Uses native fetch (Node 18+) — no extra dependencies.
 
-import { env } from "../config/env";
+import { runtime } from "./runtime-config.service";
 
 const API_VERSION = "v21.0";
 
-/** Returns true when all three WhatsApp env vars are configured. */
+/** Returns true when WhatsApp Cloud API credentials are configured (DB or env). */
 export function isConfigured(): boolean {
-  return !!(env.WA_PHONE_NUMBER_ID && env.WA_ACCESS_TOKEN && env.WA_VERIFY_TOKEN);
+  return !!(runtime.waPhoneNumberId() && runtime.waAccessToken() && runtime.waVerifyToken());
 }
 
 /**
@@ -53,12 +53,12 @@ async function postWhatsAppMessage(
     return null;
   }
 
-  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ messaging_product: "whatsapp", to: normalized, ...payload }),
@@ -143,13 +143,13 @@ export async function sendInteractiveButtons(
     return;
   }
 
-  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -195,13 +195,13 @@ export async function sendInteractiveList(
     return;
   }
 
-  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -250,13 +250,13 @@ export async function sendImage(
     return;
   }
 
-  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -295,13 +295,13 @@ export async function sendVideo(
     return;
   }
 
-  const url = `https://graph.facebook.com/${API_VERSION}/${env.WA_PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

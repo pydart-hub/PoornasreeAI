@@ -88,6 +88,10 @@ const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
     "analytics.view": true,
     "profile.edit": true,
   },
+  super_admin: {
+    all: true,
+    "system.settings": true,
+  },
 };
 
 function enrichUser(raw: Omit<User, "permissions" | "languagePref" | "themePref">): User {

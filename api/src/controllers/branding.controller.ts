@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma";
-import { env } from "../config/env";
+import { runtime } from "../services/runtime-config.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import * as fs from "fs";
 
@@ -264,7 +264,7 @@ export async function sendCampaign(req: Request, res: Response): Promise<void> {
   });
 
   // Build the public image URL from the relative path
-  const publicImageUrl = `${env.FRONTEND_URL}${campaign.imageUrl}`;
+  const publicImageUrl = `${runtime.frontendUrl()}${campaign.imageUrl}`;
 
   // Fire-and-forget the bulk send so HTTP response returns immediately
   res.json({ success: true, message: "Campaign send started", total: campaign.leads.length });

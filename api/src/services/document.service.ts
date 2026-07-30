@@ -707,7 +707,8 @@ async function embedTextChunks(
 }
 
 async function extractIssuesFromLLM(documentId: string, text: string, documentType: string) {
-  const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
+  const { runtime } = await import("./runtime-config.service");
+  const OLLAMA_URL = runtime.ollamaUrl();
   const GEN_MODEL = "phi3:mini";
 
   const prompt = `You are a technical support extraction system. 

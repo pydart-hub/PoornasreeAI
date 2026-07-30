@@ -16,7 +16,7 @@ const FEATURES = [
   {
     icon: <Users className="w-4 h-4 text-primary-300" />,
     title: "Multi-tier Access",
-    desc: "Admin → Manager → Engineer → Dealer",
+    desc: "Super Admin → Admin → Manager → Engineer → Dealer",
   },
   {
     icon: <BarChart3 className="w-4 h-4 text-primary-300" />,
@@ -28,6 +28,7 @@ const FEATURES = [
 // ── Role → route map ──────────────────────────────────────────────────
 function roleRoute(role: string): string {
   switch (role) {
+    case "super_admin":      return "/super-admin";
     case "admin":            return "/admin";
     case "service":
     case "service_engineer": return "/service";

@@ -12,6 +12,7 @@ import {
   publicVerifyOTP,
 } from "../controllers/public-ticket.controller";
 import { getActiveOtp } from "../services/ticket.service";
+import { runtime } from "../services/runtime-config.service";
 import {
   PUBLIC_TICKET_SELECT,
   STATUS_BY_STAGE,
@@ -156,7 +157,7 @@ router.get("/tickets/:id/active-otp", async (req: Request, res: Response): Promi
   const { env } = await import("../config/env");
 
   // Disabled if no secret is configured (safe default)
-  if (!env.PUBLIC_OTP_SECRET) {
+  if (!runtime.publicOtpSecret()) {
     res.status(503).json({
       success: false,
       error: "Active OTP endpoint is disabled. Set PUBLIC_OTP_SECRET to enable it.",
@@ -166,7 +167,7 @@ router.get("/tickets/:id/active-otp", async (req: Request, res: Response): Promi
 
   // Verify shared secret header
   const provided = req.headers["x-otp-secret"] as string | undefined;
-  if (!provided || provided !== env.PUBLIC_OTP_SECRET) {
+  if (!provided || provided !== runtime.publicOtpSecret()) {
     res.status(401).json({ success: false, error: "Invalid or missing X-OTP-Secret header" });
     return;
   }

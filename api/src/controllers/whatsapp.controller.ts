@@ -6,7 +6,7 @@ import { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import prisma from "../lib/prisma";
-import { env } from "../config/env";
+import { runtime } from "../services/runtime-config.service";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import {
@@ -304,7 +304,7 @@ export function verifyWebhook(req: Request, res: Response): void {
   const token     = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === env.WA_VERIFY_TOKEN) {
+  if (mode === "subscribe" && token === runtime.waVerifyToken()) {
     console.log("[whatsapp] Webhook verified by Meta ✅");
     res.status(200).send(challenge);
     return;
@@ -906,7 +906,7 @@ async function handleEngineerImage(
     // Step 1: Resolve media URL from Meta Graph API
     const metaUrlRes = await fetch(
       `https://graph.facebook.com/v21.0/${mediaId}`,
-      { headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` } },
+      { headers: { Authorization: `Bearer ${runtime.waAccessToken()}` } },
     );
     if (!metaUrlRes.ok) throw new Error(`Media URL fetch failed: ${metaUrlRes.status}`);
     const metaUrlJson = (await metaUrlRes.json()) as { url?: string; mime_type?: string };
@@ -916,7 +916,7 @@ async function handleEngineerImage(
 
     // Step 2: Download the image binary
     const imgRes = await fetch(downloadUrl, {
-      headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` },
+      headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
     });
     if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
     const buffer = Buffer.from(await imgRes.arrayBuffer());
@@ -1030,7 +1030,7 @@ async function handleCustomerImage(
     // Step 1: Resolve media URL from Meta Graph API
     const metaUrlRes = await fetch(
       `https://graph.facebook.com/v21.0/${mediaId}`,
-      { headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` } },
+      { headers: { Authorization: `Bearer ${runtime.waAccessToken()}` } },
     );
     if (!metaUrlRes.ok) throw new Error(`Media URL fetch failed: ${metaUrlRes.status}`);
     const metaUrlJson = (await metaUrlRes.json()) as { url?: string; mime_type?: string };
@@ -1040,7 +1040,7 @@ async function handleCustomerImage(
 
     // Step 2: Download the image binary
     const imgRes = await fetch(downloadUrl, {
-      headers: { Authorization: `Bearer ${env.WA_ACCESS_TOKEN}` },
+      headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
     });
     if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
     const buffer = Buffer.from(await imgRes.arrayBuffer());

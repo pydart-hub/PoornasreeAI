@@ -10,7 +10,7 @@ import prisma from "../lib/prisma";
 import ExcelJS from "exceljs";
 import * as WhatsAppService from "../services/whatsapp.service";
 import { sendEngineerSetupNotification } from "../services/engineer-onboarding.service";
-import { env } from "../config/env";
+import { runtime } from "../services/runtime-config.service";
 import { upsertPincode, importDealersFromExcel, deleteAllDealers } from "../services/dealerImport.service";
 import {
   syncHrEngineers,
@@ -33,7 +33,7 @@ function generateSetupToken(): { rawToken: string; tokenHash: string; tokenExpir
 }
 
 function buildSetPasswordUrl(rawToken: string): string {
-  return `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+  return `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
 }
 
 function isPendingSetup(setPasswordToken: string | null, setPasswordTokenExpiry: Date | null): boolean {
@@ -1066,7 +1066,7 @@ export async function createAssistantManager(req: Request, res: Response): Promi
       return newAssistant;
     });
 
-    const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+    const setPasswordUrl = `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
     if (assistant.whatsappNumber) {
       const manager = assistant.manager;
       const managerName = manager ? `${manager.firstName}${manager.lastName ? " " + manager.lastName : ""}` : "your manager";
@@ -1271,7 +1271,7 @@ export async function importEngineers(req: Request, res: Response): Promise<void
         select: { id: true, email: true, firstName: true, whatsappNumber: true },
       });
 
-      const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+      const setPasswordUrl = `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
       if (engineer.whatsappNumber) {
         const greeting = [
           `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
@@ -1380,7 +1380,7 @@ export async function importAssistants(req: Request, res: Response): Promise<voi
         select: { id: true, email: true, firstName: true, whatsappNumber: true },
       });
 
-      const setPasswordUrl = `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+      const setPasswordUrl = `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
       if (assistant.whatsappNumber) {
         const greeting = [
           `🎉 Welcome to Poornasree, ${assistant.firstName}!`,

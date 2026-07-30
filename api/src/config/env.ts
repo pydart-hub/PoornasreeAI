@@ -75,8 +75,15 @@ export const env = {
   HR_SYNC_MANAGER_ID: process.env.HR_SYNC_MANAGER_ID || "",
 
   // ── Groq LLM API ───────────────────────────────────────────────────────
-  // Used for engineer training video search (AI intent matching).
+  // Used for WhatsApp conversational agent + engineer training video search.
   GROQ_API_KEY: process.env.GROQ_API_KEY || "",
+  // chatbots: "groq" = human training-grounded agent; "legacy_fsm" = menu FSM
+  CHATBOT_MODE: (process.env.CHATBOT_MODE === "groq" ? "groq" : "legacy_fsm") as
+    | "groq"
+    | "legacy_fsm",
+  GROQ_MODEL_FAST: optional("GROQ_MODEL_FAST", "llama-3.1-8b-instant"),
+  GROQ_MODEL_AGENT: optional("GROQ_MODEL_AGENT", "llama-3.3-70b-versatile"),
+  GROQ_MAX_TOKENS_REPLY: parseInt(optional("GROQ_MAX_TOKENS_REPLY", "600"), 10),
 
   // ── Public OTP endpoint security ────────────────────────────────────────
   // Required as X-OTP-Secret header to access GET /api/public/tickets/:id/active-otp.

@@ -3,9 +3,8 @@
 // Completely separate from RdVideo / troubleshooting video matching.
 
 import prisma from "../lib/prisma";
-import { env } from "../config/env";
+import { groqChat, isGroqConfigured } from "./groq.service";
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
 interface TrainingVideoMatch {
@@ -34,7 +33,7 @@ export async function searchTrainingVideos(
   if (!trimmedQuery || trimmedQuery.length < 2) return [];
 
   // If Groq API key not configured, fall back to simple keyword match
-  if (!env.GROQ_API_KEY) {
+  if (!isGroqConfigured()) {
     return fallbackKeywordSearch(trimmedQuery, allVideos, limit);
   }
 
@@ -69,32 +68,19 @@ Matching Rules:
 5. If NO videos match precisely, return an empty array: []
 6. Maximum ${limit} matches. Prefer accuracy over quantity.`;
 
-  const res = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const resContent = await groqChat(
+    [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Engineer query: "${query}"\n\nWhich video numbers match? Reply with only a JSON array.` },
+    ],
+    {
       model: GROQ_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Engineer query: "${query}"\n\nWhich video numbers match? Reply with only a JSON array.` },
-      ],
-      temperature: 0.0,
-      max_tokens: 100,
-    }),
-  });
+      temperature: 0,
+      maxTokens: 100,
+    },
+  );
 
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    throw new Error(`Groq API ${res.status}: ${errBody}`);
-  }
-
-  const data = await res.json() as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = data.choices?.[0]?.message?.content?.trim() ?? "";
+  const content = resContent.trim();
 
   // Parse the JSON array from the response
   const jsonMatch = content.match(/\[[\d,\s]*\]/);

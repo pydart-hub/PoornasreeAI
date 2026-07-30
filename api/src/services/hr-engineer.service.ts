@@ -6,7 +6,7 @@ import axios, { AxiosError } from "axios";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
-import { env } from "../config/env";
+import { runtime } from "./runtime-config.service";
 import { normalizeWhatsappNumber } from "./whatsapp.service";
 import { sendEngineerSetupNotification } from "./engineer-onboarding.service";
 
@@ -64,7 +64,7 @@ export async function fetchHrEngineers(forceRefresh = false): Promise<HrEngineer
     return _cache.data;
   }
 
-  const url = env.HR_ENGINEERS_URL;
+  const url = runtime.hrEngineersUrl();
   console.log(`[hr-engineer.service] Fetching roster from ${url}`);
 
   try {
@@ -106,9 +106,9 @@ export async function fetchHrEngineers(forceRefresh = false): Promise<HrEngineer
 async function resolveManagerId(): Promise<string> {
   if (_resolvedManagerId) return _resolvedManagerId;
 
-  if (env.HR_SYNC_MANAGER_ID) {
+  if (runtime.hrSyncManagerId()) {
     const user = await prisma.user.findFirst({
-      where: { id: env.HR_SYNC_MANAGER_ID, role: "service_manager" },
+      where: { id: runtime.hrSyncManagerId(), role: "service_manager" },
       select: { id: true },
     });
     if (user) {

@@ -4,7 +4,7 @@
 import axios from "axios";
 import { TicketStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
-import { env } from "../config/env";
+import { runtime } from "./runtime-config.service";
 import {
   PUBLIC_TICKET_SELECT,
   STAGE_BY_STATUS,
@@ -32,7 +32,7 @@ const EVENT_STAGE: Partial<Record<IntegrationEvent, StageSlug>> = {
 
 /** Fire-and-forget webhook; never throws to callers. */
 export function notifyTicketEvent(event: IntegrationEvent, ticketId: string): void {
-  if (!env.INTEGRATION_WEBHOOK_URL) return;
+  if (!runtime.integrationWebhookUrl()) return;
 
   void (async () => {
     try {
@@ -58,7 +58,7 @@ export function notifyTicketEventWithTicket(
   ticket: Parameters<typeof toStageExportDto>[0],
   stageOverride?: StageSlug,
 ): void {
-  if (!env.INTEGRATION_WEBHOOK_URL) return;
+  if (!runtime.integrationWebhookUrl()) return;
 
   const stage = stageOverride ?? EVENT_STAGE[event] ?? STAGE_BY_STATUS[ticket.status as TicketStatus];
   const data = toStageExportDto(ticket, stage);
@@ -70,7 +70,7 @@ export function notifyTicketEventWithTicket(
 
 async function postWebhook(event: IntegrationEvent, data: StageExportDto): Promise<void> {
   await axios.post(
-    env.INTEGRATION_WEBHOOK_URL,
+    runtime.integrationWebhookUrl(),
     {
       event,
       stage: data.stage,

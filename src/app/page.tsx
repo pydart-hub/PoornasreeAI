@@ -15,6 +15,8 @@ export default function Home() {
           router.replace("/login");
         } else if (user.role === "customer") {
           router.replace("/customer");
+        } else if (user.role === "super_admin") {
+          router.replace("/super-admin");
         } else if (user.role === "admin") {
           router.replace("/admin");
         } else if (user.role === "service" || user.role === "service_engineer") {

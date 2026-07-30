@@ -6,7 +6,7 @@ import fs from "fs";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { sendEngineerSetupNotification } from "../services/engineer-onboarding.service";
-import { env } from "../config/env";
+import { runtime } from "../services/runtime-config.service";
 import prisma from "../lib/prisma";
 import { processDocument } from "../services/document.service";
 import { deleteVectorsByDocumentId } from "../services/vector.service";
@@ -26,7 +26,7 @@ function generateSetupToken(): { rawToken: string; tokenHash: string; tokenExpir
 }
 
 function buildSetPasswordUrl(rawToken: string): string {
-  return `${env.FRONTEND_URL}/set-password?token=${rawToken}`;
+  return `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
 }
 
 const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "customer_support", "marketing"];

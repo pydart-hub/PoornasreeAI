@@ -27,6 +27,14 @@ const SEED_USERS: {
     lastName: "Poornasree",
     role: "admin",
   },
+  // Super Admin — system keys / runtime config dashboard only
+  {
+    email: "superadmin@poornasree.com",
+    password: "SuperAdmin@1234",
+    firstName: "Super",
+    lastName: "Admin",
+    role: "super_admin",
+  },
   // Service Manager — mapped to Chennai
   {
     email: "manager@poornasree.com",

@@ -1,0 +1,56 @@
+{
+  "intents": [
+    {
+      "tag": "company_about_poornasree",
+      "role": "customer",
+      "patterns": [
+        "What is Poornasree",
+        "About Poornasree Equipments",
+        "Who are you",
+        "Tell me about the company"
+      ],
+      "responses": [
+        "Poornasree Equipments Pvt Ltd manufactures and supports milk analyzer equipment and related products such as LactoSure and LactoGrand analyzers, Vibro ultrasonic stirrers, adapters, and data/display accessories. We provide WhatsApp-based troubleshooting and field service support across India. For live help, contact Customer Care at +91 94009 61291."
+      ]
+    },
+    {
+      "tag": "company_products_overview",
+      "role": "customer",
+      "patterns": [
+        "What products do you sell",
+        "Poornasree products list",
+        "Milk analyzer models",
+        "Do you have Vibro"
+      ],
+      "responses": [
+        "Our main product lines include: LactoSure ECO series (ECO V3, ECO S, ECO V, ECO SV, ECO D), LactoGrand series (Lite, S Pro, S Pro Connect +, SD), Vibro Ultrasonic Stirrer, LactoSure EXD (external display), and LactoSure DPS-T (data processing system). For model-specific troubleshooting, tell me your machine name and the problem you are facing."
+      ]
+    },
+    {
+      "tag": "company_support_contact",
+      "role": "customer",
+      "patterns": [
+        "Customer care number",
+        "Support phone",
+        "How do I contact support",
+        "Talk to human"
+      ],
+      "responses": [
+        "You can reach Poornasree Customer Care on WhatsApp/phone at +91 94009 61291. You can also ask me to connect you to a live support agent from this chat, or ask me to help raise a service visit request."
+      ]
+    },
+    {
+      "tag": "company_service_request_help",
+      "role": "customer",
+      "patterns": [
+        "How to raise service request",
+        "Book engineer visit",
+        "I need service",
+        "Complaint registration"
+      ],
+      "responses": [
+        "I can help you raise a service request. Tell me your machine model and the issue, or tap Book service visit. Our team will arrange field support after we collect the needed details."
+      ]
+    }
+  ]
+}

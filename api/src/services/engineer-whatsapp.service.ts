@@ -978,6 +978,22 @@ export async function handleEngineerWhatsAppMessage(
     return;
   }
 
+  // ── Groq technical Q&A from service training docs ─────────────────────
+  try {
+    const { isGroqChatbotEnabled, handleEngineerAgentMessage } = await import(
+      "./whatsapp-agent.service"
+    );
+    if (isGroqChatbotEnabled()) {
+      const agentReply = await handleEngineerAgentMessage(engineer.firstName, trimmed, from);
+      if (agentReply) {
+        await sendEngineerMessage(from, agentReply);
+        return;
+      }
+    }
+  } catch (err) {
+    console.error("[engineer-wa] Groq agent error:", err);
+  }
+
   // ── Training video search (Groq AI) ───────────────────────────────────
   // Only fires when no existing command, ticket flow, or troubleshooting matched.
   // Completely separate from R&D / troubleshooting videos.
