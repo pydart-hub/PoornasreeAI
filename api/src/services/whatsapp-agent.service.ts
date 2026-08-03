@@ -371,7 +371,14 @@ Customer Name: ${customerName || "Customer"}
 Registered Machines:\n${machines}
 Active Support Tickets:\n${activeTickets}
 
-TRAINING DOCUMENTS & TROUBLESHOOTING GUIDES:\n${catalogContext.slice(0, 4500)}
+TRAINING DOCUMENTS & TROUBLESHOOTING GUIDES:\n${catalogContext.slice(0, 6000)}
+
+TROUBLESHOOTING INSTRUCTIONS (CRITICAL):
+- When a customer reports a machine issue (e.g. "Vibro not working", "Analyzer not on", "Low battery error"), you MUST provide the EXACT CHECK and ACTION steps from the training documents above.
+- Format troubleshooting as numbered steps: "Step 1: CHECK ... → If failed, ACTION: ..."
+- After listing ALL checks and actions, ask: "Did these steps resolve your issue?"
+- If the training documents contain a matching troubleshooting guide, use it EXACTLY. Do NOT make up your own steps.
+- If no matching guide exists, ask clarifying questions about the specific machine model and error symptoms.
 
 REPLY FORMATTING (WhatsApp Friendly):
 - Keep paragraphs short (2-3 lines max) with clean line breaks.
@@ -433,6 +440,14 @@ export async function handleCustomerAgentMessage(
     return handleTalkToSupport(phoneNumber, session.id, meta);
   }
 
+  if (upper === "YES_RESOLVED") {
+    await updateAgentSession(session.id, "AGENT_CHAT", { ...meta, lastComplaint: undefined });
+    return makeReply(
+      `Great! 🎉 Glad the issue is resolved. If you face any other problems in the future, feel free to reach out anytime. We're always here to help!`,
+      [{ id: "troubleshoot", title: "🔧 Troubleshoot" }, { id: "book_service", title: "🛠️ Book Service" }],
+    );
+  }
+
   if (upper === "BOOK_SERVICE" || upper === "BOOK SERVICE" || upper === "2") {
     await updateAgentSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
     return makeReply(
@@ -446,17 +461,26 @@ export async function handleCustomerAgentMessage(
 
   // Explicit language request detection (e.g. "Talk in Malayalam", "Speak Hindi", "Tamil")
   const lowerText = text.toLowerCase();
-  if (/malayalam|മലയാളം/i.test(lowerText)) meta.language = "ml";
-  else if (/hindi|हिंदी|हिन्दी/i.test(lowerText)) meta.language = "hi";
-  else if (/tamil|தமிழ்/i.test(lowerText)) meta.language = "ta";
-  else if (/telugu|తెలుగు/i.test(lowerText)) meta.language = "te";
-  else if (/kannada|കന്നഡ|ಕನ್ನಡ/i.test(lowerText)) meta.language = "kn";
-  else if (/bengali|বাংলা/i.test(lowerText)) meta.language = "bn";
+  if (/\bmalayalam\b|മലയാളം/i.test(lowerText)) meta.language = "ml";
+  else if (/\bhindi\b|हिंदी|हिन्दी/i.test(lowerText)) meta.language = "hi";
+  else if (/\btamil\b|தமிழ்/i.test(lowerText)) meta.language = "ta";
+  else if (/\btelugu\b|తెలుగు/i.test(lowerText)) meta.language = "te";
+  else if (/\bkannada\b|ಕನ್ನಡ/i.test(lowerText)) meta.language = "kn";
+  else if (/\bbengali\b|বাংলা/i.test(lowerText)) meta.language = "bn";
+  // Detect Manglish (Malayalam written in English letters) - common Malayalam words
+  else if (/\b(ente|enikk|aanu|alla|undo|avunnilla|ariyumo|cheyyumo|ivide|evidaya|onnum|enthaanu|ningal|njan|mashineentha|paalu)\b/i.test(lowerText)) {
+    meta.language = "ml";
+  }
   else {
     const detectedLang = detectLanguageStrict(text);
-    meta.language = stabilizeLanguage(meta, detectedLang);
+    // Only override session language if confidently detected AND session not already established
+    if (meta.language && detectedLang === "en") {
+      // Keep existing session language if new message is ambiguous English
+    } else {
+      meta.language = stabilizeLanguage(meta, detectedLang);
+    }
   }
-  const lang = meta.language;
+  const lang = meta.language || "en";
 
   // Enrich Context
   const rawHistory = await loadRecentHistory(phoneNumber);
@@ -473,40 +497,85 @@ export async function handleCustomerAgentMessage(
   const catalogContext = formatCatalogForPrompt(catalog);
 
   // ── Structured Complaint Matching from Training Catalog ───────────────────
-  const isComplaintQuery = /vibro|analyzer|adapter|not working|not on|led|vibration|voltage|fuse|battery|error|reading|printer|wifi|gsm|sample|air in milk/i.test(text);
-  if (isComplaintQuery && !isEngineer && !isNewUser) {
-    const matched = catalog.find((e) => {
-      const hay = `${e.title} ${e.tag} ${e.patterns.join(" ")}`.toLowerCase();
-      return e.patterns.some((p) => text.toLowerCase().includes(p.toLowerCase())) ||
-        (text.toLowerCase().includes("vibro") && hay.includes("vibro")) ||
-        (text.toLowerCase().includes("adapter") && hay.includes("adapter"));
-    });
+  // ONLY match troubleshooting entries from JSON/document_issue sources (NOT products)
+  const troubleshootEntries = catalog.filter((e) => e.source === "json" || e.source === "document_issue");
+  const lowerMsg = text.toLowerCase();
 
-    if (matched && matched.content) {
-      meta.lastComplaint = matched.title;
-      await updateAgentSession(session.id, "AGENT_CHAT", meta);
+  // Build a relevance-scored match against all troubleshooting entries
+  let bestMatch: CatalogEntry | null = null;
+  let bestScore = 0;
 
-      let structuredText = `🔧 *Troubleshooting: ${matched.title}*\n\n${matched.content}\n\nDid this resolve your machine issue?`;
+  for (const entry of troubleshootEntries) {
+    let score = 0;
+    const hay = `${entry.title} ${entry.tag} ${entry.patterns.join(" ")} ${entry.content}`.toLowerCase();
 
-      // Attach video if available
-      try {
-        const matchedVideos = await findVideosForQuery(`${text} ${matched.title}`, 2);
-        if (matchedVideos.length > 0) {
-          structuredText += formatVideoSuggestions(
-            matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
-            lang,
-          );
-        }
-      } catch (e) {
-        console.error("[whatsapp-agent] Video lookup error:", e);
-      }
-
-      return makeReply(structuredText, [
-        { id: "YES_RESOLVED", title: "✅ Yes, Resolved" },
-        { id: "BOOK_SERVICE", title: "🛠️ Register Complaint" },
-        { id: "talk_agent", title: "💬 Talk to us" },
-      ]);
+    // Direct pattern match (highest weight)
+    for (const p of entry.patterns) {
+      if (p.length > 3 && lowerMsg.includes(p.toLowerCase())) score += 10;
     }
+
+    // Keyword overlap scoring
+    const msgWords = lowerMsg.split(/\s+/).filter((w) => w.length > 2);
+    for (const word of msgWords) {
+      if (hay.includes(word)) score += 2;
+    }
+
+    // Boost common product/complaint keywords
+    if (lowerMsg.includes("vibro") && hay.includes("vibro")) score += 5;
+    if (lowerMsg.includes("not working") && hay.includes("not working")) score += 5;
+    if (lowerMsg.includes("not on") && (hay.includes("not on") || hay.includes("not working"))) score += 5;
+    if (lowerMsg.includes("led") && hay.includes("led")) score += 3;
+    if (lowerMsg.includes("vibration") && hay.includes("vibration")) score += 3;
+    if (lowerMsg.includes("adapter") && hay.includes("adapter")) score += 5;
+    if (lowerMsg.includes("analyzer") && hay.includes("analyzer")) score += 5;
+    if (lowerMsg.includes("cloud") && hay.includes("cloud")) score += 5;
+    if (lowerMsg.includes("error") && hay.includes("error")) score += 3;
+    if (lowerMsg.includes("battery") && hay.includes("battery")) score += 3;
+    if (lowerMsg.includes("fat") && hay.includes("fat")) score += 3;
+    if (lowerMsg.includes("reading") && hay.includes("reading")) score += 3;
+    if (lowerMsg.includes("printer") && hay.includes("printer")) score += 3;
+    if (lowerMsg.includes("wifi") && hay.includes("wifi")) score += 3;
+    if (lowerMsg.includes("gsm") && hay.includes("gsm")) score += 3;
+    if (lowerMsg.includes("sample") && hay.includes("sample")) score += 3;
+    if (lowerMsg.includes("hot") && hay.includes("hot")) score += 3;
+    if (lowerMsg.includes("display") && hay.includes("display")) score += 3;
+    if (lowerMsg.includes("fuse") && hay.includes("fuse")) score += 3;
+    if (lowerMsg.includes("power") && hay.includes("power")) score += 3;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = entry;
+    }
+  }
+
+  // Only use structured match if score is significant (at least one keyword + one pattern)
+  if (bestMatch && bestScore >= 5) {
+    meta.lastComplaint = bestMatch.title;
+    await updateAgentSession(session.id, "AGENT_CHAT", meta);
+
+    let structuredText = `🔧 *Troubleshooting: ${bestMatch.title}*\n\n${bestMatch.content}`;
+
+    // Add "Did this resolve?" prompt
+    structuredText += `\n\n✅ Did these steps resolve your issue? If not, tap *Register Complaint* below and our field engineer will be assigned to you.`;
+
+    // Attach video if available
+    try {
+      const matchedVideos = await findVideosForQuery(`${text} ${bestMatch.title}`, 2);
+      if (matchedVideos.length > 0) {
+        structuredText += formatVideoSuggestions(
+          matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
+          lang,
+        );
+      }
+    } catch (e) {
+      console.error("[whatsapp-agent] Video lookup error:", e);
+    }
+
+    return makeReply(structuredText, [
+      { id: "YES_RESOLVED", title: "✅ Yes, Resolved" },
+      { id: "BOOK_SERVICE", title: "🛠️ Register Complaint" },
+      { id: "talk_agent", title: "💬 Talk to us" },
+    ]);
   }
 
   // Generate Groq completion
