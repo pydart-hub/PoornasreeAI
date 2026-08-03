@@ -262,13 +262,13 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।",
   },
   STEPS_FOUND: {
-    en: "🔧 *Troubleshooting Steps:*\n--------------------\n{steps}\n--------------------\n\nWere you able to resolve the issue?",
-    hi: "🔧 *समस्या निवारण चरण:*\n--------------------\n{steps}\n--------------------\n\nक्या आप समस्या हल करने में सफल रहे?",
-    ta: "🔧 *பழுதுநீக்கும் படிகள்:*\n--------------------\n{steps}\n--------------------\n\nஉங்களால் சிக்கலைத் தீர்க்க முடிந்ததா?",
-    kn: "🔧 *ದೋಷನಿವಾರಣೆ ಹಂತಗಳು:*\n--------------------\n{steps}\n--------------------\n\nಸಮಸ್ಯೆಯನ್ನು ಬಗೆಹರಿಸಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಯಿತೇ?",
-    mr: "🔧 *समस्या निवारण चरण:*\n--------------------\n{steps}\n--------------------\n\nतुम्ही समस्या सोडवू शकलात का?",
-    te: "🔧 *ట్రబుల్షూటింగ్ దశలు:*\n--------------------\n{steps}\n--------------------\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
-    bn: "🔧 *সমস্যা সমাধানের পদক্ষেপ:*\n--------------------\n{steps}\n--------------------\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
+    en: "🔧 *Troubleshooting Steps:*\n\n{steps}\n\nWere you able to resolve the issue?",
+    hi: "🔧 *समस्या निवारण चरण:*\n\n{steps}\n\nक्या आप समस्या हल करने में सफल रहे?",
+    ta: "🔧 *பழுதுநீக்கும் படிகள்:*\n\n{steps}\n\nஉங்களால் சிக்கலைத் தீர்க்க முடிந்ததா?",
+    kn: "🔧 *ದೋಷನಿವಾರಣೆ ಹಂತಗಳು:*\n\n{steps}\n\nಸಮಸ್ಯೆಯನ್ನು ಬಗೆಹರಿಸಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಯಿತೇ?",
+    mr: "🔧 *समस्या निवारण चरण:*\n\n{steps}\n\nतुम्ही समस्या सोडवू शकलात का?",
+    te: "🔧 *ట్రబుల్షూటింగ్ దశలు:*\n\n{steps}\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
+    bn: "🔧 *সমস্যা সমাধানের পদক্ষেপ:*\n\n{steps}\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
   },
   ISSUE_RESOLVED: {
     en: "🎉 *Issue Resolved!*\n\nWe're glad the troubleshooting helped! 😊\n\nThank you for choosing Poornasree Support. 🙏",
@@ -298,13 +298,13 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "😔 দুঃখিত, সমস্যা সমাধানটি সাহায্য করেনি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন। 🔧",
   },
   STEP_DISPLAY: {
-    en: "🔍 *Step {current} of {total}:*\n--------------------\n{step}\n--------------------\n\nWere you able to resolve the issue?",
-    hi: "🔍 *चरण {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nक्या आप समस्या हल करने में सफल रहे?",
-    ta: "🔍 *படி {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nஉங்களால் சிக்கலைத் தீர்க்க முடிந்ததா?",
-    kn: "🔍 *ಹಂತ {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nಸಮಸ್ಯೆಯನ್ನು ಬಗೆಹರಿಸಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಯಿತೇ?",
-    mr: "🔍 *चरण {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nतुम्ही समस्या सोडवू शकलात का?",
-    te: "🔍 *దశ {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
-    bn: "🔍 *ধাপ {current}/{total}:*\n--------------------\n{step}\n--------------------\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
+    en: "🔍 *Step {current} of {total}:*\n--------------------\n✓ {step}\n--------------------\n\nWere you able to resolve the issue?",
+    hi: "🔍 *चरण {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nक्या आप समस्या हल करने में सफल रहे?",
+    ta: "🔍 *படி {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nஉங்களால் சிக்கலைத் தீர்க்க முடிந்ததா?",
+    kn: "🔍 *ಹಂತ {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nಸಮಸ್ಯೆಯನ್ನು ಬಗೆಹರಿಸಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಯಿತೇ?",
+    mr: "🔍 *चरण {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nतुम्ही समस्या सोडवू शकलात का?",
+    te: "🔍 *దశ {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
+    bn: "🔍 *ধাপ {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
   },
   ENTER_NAME: {
     en: "Please enter your full name.",
@@ -2012,7 +2012,10 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
     }
   }
 
-    const stepsText = steps.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
+  // Format each step as a clearly separated bullet point
+  const stepsText = steps
+    .map((s: string, i: number) => `✓ *Step ${i + 1}:*\n${s}`)
+    .join("\n\n");
   const translatedStepsText = await translateText(stepsText, lang);
 
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);

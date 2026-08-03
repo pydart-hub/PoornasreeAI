@@ -625,7 +625,7 @@ export async function routeEngineerMessage(
         `🔍 *${template.title}*\n\n` +
         `🔧 *Step 1 of ${steps.length}:*\n` +
         `--------------------\n` +
-        steps[0].stepContent + "\n" +
+        `✓ ${steps[0].stepContent}\n` +
         `--------------------\n\n` +
         `Did this resolve the issue?`,
         [
@@ -833,7 +833,7 @@ async function handleEngineerTroubleshootStep(
       from,
       `🔧 *Step ${nextStep} of ${template.steps.length}:*\n` +
       `--------------------\n` +
-      step.stepContent + "\n" +
+      `✓ ${step.stepContent}\n` +
       `--------------------\n\n` +
       `Did this resolve the issue?`,
       [
@@ -871,7 +871,7 @@ async function handleEngineerTroubleshootStep(
   const stepContent = template?.steps[0]?.stepContent ?? "Step not found.";
   await sendEngineerMessage(
     from,
-    `Please choose an option for *Step ${session.currentStep}:*\n\n${stepContent}`,
+    `Please choose an option for *Step ${session.currentStep}:*\n\n✓ ${stepContent}`,
     [
       { id: "ENG_YES",  title: "✅ Resolved" },
       { id: "ENG_NEXT", title: "➡️ Next Step" },
