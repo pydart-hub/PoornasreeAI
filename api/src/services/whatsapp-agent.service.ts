@@ -467,9 +467,17 @@ export async function handleCustomerAgentMessage(
   else if (/\btelugu\b|తెలుగు/i.test(lowerText)) meta.language = "te";
   else if (/\bkannada\b|ಕನ್ನಡ/i.test(lowerText)) meta.language = "kn";
   else if (/\bbengali\b|বাংলা/i.test(lowerText)) meta.language = "bn";
-  // Detect Manglish (Malayalam written in English letters) - common Malayalam words
+  // Detect Manglish (Malayalam in English)
   else if (/\b(ente|enikk|aanu|alla|undo|avunnilla|ariyumo|cheyyumo|ivide|evidaya|onnum|enthaanu|ningal|njan|mashineentha|paalu)\b/i.test(lowerText)) {
     meta.language = "ml";
+  }
+  // Detect Hinglish (Hindi in English)
+  else if (/\b(meri|mera|mere|kaise|chalu|nhi|nahin|kare|kaam|karo|batao|kya|kaise)\b/i.test(lowerText)) {
+    meta.language = "hi";
+  }
+  // Detect Tanglish (Tamil in English)
+  else if (/\b(enadhu|enaku|ennudaiya|theriyuma|irukku|panla|varala|pannunga)\b/i.test(lowerText)) {
+    meta.language = "ta";
   }
   else {
     const detectedLang = detectLanguageStrict(text);
