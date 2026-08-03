@@ -3,6 +3,7 @@
 
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { clearTrainingCatalogCache } from "../services/training-catalog.service";
 
 // ── GET /api/admin/templates ─────────────────────────────────────────────
 export async function listTemplates(req: Request, res: Response): Promise<void> {
@@ -63,6 +64,7 @@ export async function createTemplate(req: Request, res: Response): Promise<void>
         title,
         description: description ?? null,
         audience: audience ?? "customer",
+        documentId: documentId,
         steps: {
           create: (steps as string[]).map((s, i) => ({
             stepNumber: i + 1,
@@ -73,6 +75,7 @@ export async function createTemplate(req: Request, res: Response): Promise<void>
       include: { steps: { orderBy: { stepNumber: "asc" } } },
     });
 
+    clearTrainingCatalogCache();
     res.status(201).json({ template });
   } catch (err) {
     console.error("createTemplate error:", err);
@@ -90,7 +93,7 @@ export async function updateTemplate(req: Request, res: Response): Promise<void>
     const existing = await prisma.documentIssue.findUnique({ where: { id } });
     if (!existing) { res.status(404).json({ error: "Template not found" }); return; }
 
-    const data: Record<string, unknown> = {};
+    const data: Record<string, any> = {};
     if (documentId !== undefined) data.documentId = documentId;
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
@@ -121,6 +124,7 @@ export async function updateTemplate(req: Request, res: Response): Promise<void>
       include: { steps: { orderBy: { stepNumber: "asc" } } },
     });
 
+    clearTrainingCatalogCache();
     res.json({ template });
   } catch (err) {
     console.error("updateTemplate error:", err);
@@ -136,6 +140,7 @@ export async function deleteTemplate(req: Request, res: Response): Promise<void>
     if (!existing) { res.status(404).json({ error: "Template not found" }); return; }
 
     await prisma.documentIssue.delete({ where: { id } });
+    clearTrainingCatalogCache();
     res.json({ message: "Template deleted" });
   } catch (err) {
     console.error("deleteTemplate error:", err);
