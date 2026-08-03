@@ -117,6 +117,40 @@ async function loadDocumentIssues(): Promise<CatalogEntry[]> {
   }
 }
 
+async function loadProductsFromDb(): Promise<CatalogEntry[]> {
+  try {
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: [{ category: "asc" }, { displayOrder: "asc" }],
+    });
+
+    return products.map((p) => {
+      const content = [
+        `PRODUCT MODEL: ${p.name}`,
+        `CATEGORY: ${p.category}`,
+        p.price ? `PRICE: ${p.price}` : "",
+        p.detail ? `FEATURES & SPECS: ${p.detail}` : "",
+        p.contactNumber ? `SALES CONTACT: ${p.contactNumber}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      return {
+        id: `product:${p.id}`,
+        tag: `product_${p.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+        role: "customer" as CatalogRole,
+        title: `Product Model: ${p.name}`,
+        patterns: [p.name, p.category, "product", "model", "features", "specs", "price"],
+        content,
+        source: "company" as const,
+      };
+    });
+  } catch (err: unknown) {
+    console.error("[training-catalog] Product load failed:", err);
+    return [];
+  }
+}
+
 /**
  * Load and merge all training sources. Dedupes by tag (JSON wins over DocumentIssue
  * when tags collide, except company pack which always stays).
@@ -135,10 +169,11 @@ export async function loadTrainingCatalog(force = false): Promise<CatalogEntry[]
   ];
 
   const fromDb = await loadDocumentIssues();
+  const fromProducts = await loadProductsFromDb();
 
   const byTag = new Map<string, CatalogEntry>();
-  // DocumentIssue first, then JSON overrides (JSON is curated)
   for (const e of fromDb) byTag.set(`${e.role}:${e.tag}`, e);
+  for (const e of fromProducts) byTag.set(`${e.role}:${e.tag}`, e);
   for (const e of fromJson) byTag.set(`${e.role}:${e.tag}`, e);
 
   const entries = Array.from(byTag.values());
@@ -208,6 +243,10 @@ export function prefilterCatalog(
 }
 
 export function invalidateTrainingCatalogCache(): void {
+  cache = null;
+}
+
+export function clearTrainingCatalogCache(): void {
   cache = null;
 }
 

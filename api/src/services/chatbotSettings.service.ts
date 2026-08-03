@@ -1,6 +1,7 @@
 import prisma from "../lib/prisma";
 
 export type WhatsAppSupportSettings = {
+  botName: string;
   supportPhone: string;
   supportEmail: string | null;
   supportHours: string | null;
@@ -8,6 +9,7 @@ export type WhatsAppSupportSettings = {
 };
 
 const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
+  botName: "Hari",
   supportPhone: "+91 94009 61291",
   supportEmail: null,
   supportHours: null,
@@ -18,6 +20,7 @@ export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSetti
   const row = await prisma.chatbotSetting.findUnique({ where: { id: "default" } });
   if (!row) return DEFAULT_SETTINGS;
   return {
+    botName: (row as any).botName?.trim() || DEFAULT_SETTINGS.botName,
     supportPhone: row.supportPhone?.trim() || DEFAULT_SETTINGS.supportPhone,
     supportEmail: row.supportEmail?.trim() || null,
     supportHours: row.supportHours?.trim() || null,
@@ -33,16 +36,20 @@ export async function updateWhatsAppSupportSettings(
     throw new Error("Support phone is required");
   }
 
+  const botName = data.botName?.trim();
+
   const row = await prisma.chatbotSetting.upsert({
     where: { id: "default" },
     create: {
       id: "default",
+      botName: botName || DEFAULT_SETTINGS.botName,
       supportPhone: phone || DEFAULT_SETTINGS.supportPhone,
       supportEmail: data.supportEmail?.trim() || null,
       supportHours: data.supportHours?.trim() || null,
       supportNote: data.supportNote?.trim() || null,
     },
     update: {
+      ...(botName !== undefined && { botName: botName || DEFAULT_SETTINGS.botName }),
       ...(phone !== undefined && { supportPhone: phone }),
       ...(data.supportEmail !== undefined && { supportEmail: data.supportEmail?.trim() || null }),
       ...(data.supportHours !== undefined && { supportHours: data.supportHours?.trim() || null }),
@@ -51,6 +58,7 @@ export async function updateWhatsAppSupportSettings(
   });
 
   return {
+    botName: (row as any).botName || DEFAULT_SETTINGS.botName,
     supportPhone: row.supportPhone,
     supportEmail: row.supportEmail,
     supportHours: row.supportHours,

@@ -4,6 +4,7 @@ import sharp from "sharp";
 import path from "path";
 import fs from "fs";
 import { isProductCategory, sortByCategory } from "../constants/productCategories";
+import { clearTrainingCatalogCache } from "../services/training-catalog.service";
 
 const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
 
@@ -58,6 +59,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       displayOrder: displayOrder ? parseInt(displayOrder, 10) : 0,
     },
   });
+  clearTrainingCatalogCache();
   res.status(201).json({ product });
 }
 
@@ -88,6 +90,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       ...(isActive !== undefined && { isActive: isActive === true || isActive === "true" }),
     },
   });
+  clearTrainingCatalogCache();
   res.json({ product: updated });
 }
 
@@ -100,5 +103,6 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
     return;
   }
   await prisma.product.delete({ where: { id } });
+  clearTrainingCatalogCache();
   res.json({ message: "Product deleted" });
 }

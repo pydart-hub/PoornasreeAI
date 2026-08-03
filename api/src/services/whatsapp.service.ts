@@ -327,3 +327,96 @@ export async function sendVideo(
     console.error(`[whatsapp] Network error sending video to ${to}:`, (err as Error).message);
   }
 }
+
+// ── Meta Approved Message Templates ─────────────────────────────────────────
+
+export async function sendTicketAssignedTemplate(
+  to: string,
+  customerName: string,
+  ticketNumber: string,
+  machineModel: string,
+  engineerName: string,
+  engineerPhone: string,
+): Promise<boolean> {
+  return sendTemplate(to, {
+    name: "ticket_assigned_v1",
+    languageCode: "en",
+    bodyParameters: [customerName, ticketNumber, machineModel, engineerName, engineerPhone],
+  });
+}
+
+export async function sendTicketStatusUpdateTemplate(
+  to: string,
+  customerName: string,
+  ticketNumber: string,
+  statusMessage: string,
+  engineerName: string,
+): Promise<boolean> {
+  return sendTemplate(to, {
+    name: "ticket_status_update_v1",
+    languageCode: "en",
+    bodyParameters: [customerName, ticketNumber, statusMessage, engineerName],
+  });
+}
+
+export async function sendServiceCompletedTemplate(
+  to: string,
+  customerName: string,
+  ticketNumber: string,
+): Promise<boolean> {
+  return sendTemplate(to, {
+    name: "service_completed_v1",
+    languageCode: "en",
+    bodyParameters: [customerName, ticketNumber],
+  });
+}
+
+export async function sendProductReleaseTemplate(
+  to: string,
+  customerName: string,
+  productName: string,
+  keySpecs: string,
+): Promise<boolean> {
+  return sendTemplate(to, {
+    name: "new_product_release_v1",
+    languageCode: "en",
+    bodyParameters: [customerName, productName, keySpecs],
+  });
+}
+
+export async function sendSpecialOfferTemplate(
+  to: string,
+  customerName: string,
+  offerDetails: string,
+  expiryDate: string,
+): Promise<boolean> {
+  return sendTemplate(to, {
+    name: "special_offer_broadcast_v1",
+    languageCode: "en",
+    bodyParameters: [customerName, offerDetails, expiryDate],
+  });
+}
+
+/** Download a media file (e.g. voice note audio / image) from Meta Cloud API */
+export async function downloadMediaBuffer(mediaId: string): Promise<Buffer | null> {
+  if (!isConfigured()) return null;
+  try {
+    const metaUrl = `https://graph.facebook.com/${API_VERSION}/${mediaId}`;
+    const infoRes = await fetch(metaUrl, {
+      headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
+    });
+    if (!infoRes.ok) return null;
+    const info = (await infoRes.json()) as { url?: string };
+    if (!info.url) return null;
+
+    const fileRes = await fetch(info.url, {
+      headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
+    });
+    if (!fileRes.ok) return null;
+    const arrayBuffer = await fileRes.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    console.error(`[whatsapp] Failed to download media ${mediaId}:`, (err as Error).message);
+    return null;
+  }
+}

@@ -26,10 +26,9 @@ import {
   sendReportMenuList,
   type EngineerTicketRow,
 } from "../services/engineer-ticket-whatsapp.shared";
-import {
-  handleDealerWhatsAppMessage,
-} from "../services/dealer-whatsapp.service";
+import { handleDealerWhatsAppMessage } from "../services/dealer-whatsapp.service";
 import { searchTrainingVideos } from "../services/engineer-training-video.service";
+import { transcribeAudioWithGroq } from "../services/groq.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -388,10 +387,32 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // Only process text and interactive (button/list reply) messages
+  // Process text, audio/voice, and interactive (button/list reply) messages
   let text = "";
   if (msg.type === "text") {
     text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
+  } else if (msg.type === "audio" || msg.type === "voice") {
+    const audioObj = (msg.audio || msg.voice) as Record<string, unknown> | undefined;
+    const mediaId = String(audioObj?.id ?? "");
+    if (mediaId) {
+      console.log(`[whatsapp] Downloading voice note audio (mediaId: ${mediaId})...`);
+      const audioBuffer = await WhatsAppService.downloadMediaBuffer(mediaId);
+      if (audioBuffer) {
+        try {
+          text = await transcribeAudioWithGroq(audioBuffer, "voicenote.ogg");
+          console.log(`[whatsapp] Transcribed voice note from ${from}: "${text}"`);
+        } catch (e) {
+          console.error("[whatsapp] Voice note transcription failed:", e);
+        }
+      }
+    }
+    if (!text) {
+      await WhatsAppService.sendMessage(
+        from,
+        "⚠️ Sorry, I could not transcribe your voice note clearly. Please try typing your issue in text.",
+      );
+      return;
+    }
   } else if (msg.type === "interactive") {
     const interactive = msg.interactive as Record<string, unknown> | undefined;
     if (interactive?.type === "button_reply") {
@@ -404,7 +425,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   } else {
     await WhatsAppService.sendMessage(
       from,
-      "⚠️ Sorry, I can only process text messages. Please type *MENU* to see options.",
+      "⚠️ Sorry, I can only process text or voice note messages. Please type or send a voice note.",
     );
     return;
   }

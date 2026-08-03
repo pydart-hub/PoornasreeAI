@@ -87,24 +87,35 @@ export async function groqChat(
 }
 
 /**
- * Parse a JSON object from a Groq response (tolerates markdown fences).
+ * Transcribe an audio file buffer (e.g. WhatsApp .ogg voice note) using Groq Whisper API.
+ * Supports Malayalam, Hindi, Tamil, Telugu, English, and 90+ languages.
  */
-export function parseGroqJson<T>(raw: string): T | null {
-  if (!raw) return null;
-  const cleaned = raw
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  try {
-    return JSON.parse(cleaned) as T;
-  } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as T;
-    } catch {
-      return null;
-    }
+export async function transcribeAudioWithGroq(
+  audioBuffer: Buffer,
+  fileName = "voicenote.ogg",
+): Promise<string> {
+  if (!isGroqConfigured()) {
+    throw new Error("GROQ_API_KEY is not configured");
   }
+
+  const formData = new FormData();
+  const blob = new Blob([audioBuffer as any], { type: "audio/ogg" });
+  formData.append("file", blob, fileName);
+  formData.append("model", "whisper-large-v3-turbo");
+
+  const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${runtime.groqApiKey()}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Groq Whisper API ${res.status}: ${errText.slice(0, 400)}`);
+  }
+
+  const data = (await res.json()) as { text?: string };
+  return data.text?.trim() ?? "";
 }

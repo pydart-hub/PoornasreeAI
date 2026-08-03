@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, MessageSquare, Save, Phone, Mail, Clock } from "lucide-react";
+import { Loader2, MessageSquare, Save, Phone, Mail, Clock, User } from "lucide-react";
 
 interface SupportSettings {
+  botName: string;
   supportPhone: string;
   supportEmail: string | null;
   supportHours: string | null;
@@ -19,6 +20,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
 export default function WhatsAppSettingsTab() {
   const [form, setForm] = useState({
+    botName: "Hari",
     supportPhone: "",
     supportEmail: "",
     supportHours: "",
@@ -35,6 +37,7 @@ export default function WhatsAppSettingsTab() {
       const data = await apiFetch<{ settings: SupportSettings }>("/api/admin/chatbot-settings");
       const s = data.settings;
       setForm({
+        botName: s.botName ?? "Hari",
         supportPhone: s.supportPhone ?? "",
         supportEmail: s.supportEmail ?? "",
         supportHours: s.supportHours ?? "",
@@ -63,13 +66,14 @@ export default function WhatsAppSettingsTab() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          botName: form.botName.trim() || "Hari",
           supportPhone: form.supportPhone.trim(),
           supportEmail: form.supportEmail.trim() || null,
           supportHours: form.supportHours.trim() || null,
           supportNote: form.supportNote.trim() || null,
         }),
       });
-      setSuccess("Support contact details saved. Customers will see these in Speak to Support.");
+      setSuccess("Support settings & AI Assistant persona updated successfully.");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -88,14 +92,30 @@ export default function WhatsAppSettingsTab() {
     <section className="space-y-6 max-w-xl">
       <div>
         <h2 className="text-lg font-semibold text-content dark:text-content-dark flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" /> WhatsApp — Speak to Support
+          <MessageSquare className="w-5 h-5" /> WhatsApp — Assistant Persona & Support
         </h2>
         <p className="text-sm text-content-secondary dark:text-content-dark-secondary mt-1">
-          Contact details shown when a customer selects <strong>Speak to Support</strong> in the chatbot menu.
+          Configure the AI Assistant's human persona name and customer support contact details.
         </p>
       </div>
 
       <div className="p-4 rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card space-y-4">
+        <div>
+          <label className="text-xs font-medium text-content-secondary flex items-center gap-1">
+            <User className="w-3 h-3 text-primary" /> AI Assistant Persona Name (e.g. Hari, Anu, Rajesh)
+          </label>
+          <input
+            type="text"
+            value={form.botName}
+            onChange={e => setForm(f => ({ ...f, botName: e.target.value }))}
+            placeholder="Default: Hari"
+            className="w-full mt-1 px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm font-medium"
+          />
+          <p className="text-[11px] text-content-tertiary mt-1">
+            The AI will introduce itself as this name and speak like a real human support team member.
+          </p>
+        </div>
+
         <div>
           <label className="text-xs font-medium text-content-secondary flex items-center gap-1">
             <Phone className="w-3 h-3" /> Phone number *
@@ -152,18 +172,16 @@ export default function WhatsAppSettingsTab() {
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-600 disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save contact details
+          Save Assistant & Contact Details
         </button>
       </div>
 
       <div className="p-4 rounded-2xl border border-dashed border-line dark:border-line-dark bg-surface-tertiary/50 dark:bg-surface-dark-tertiary/30">
-        <p className="text-xs font-semibold text-content-secondary uppercase tracking-wide mb-2">Preview (WhatsApp)</p>
+        <p className="text-xs font-semibold text-content-secondary uppercase tracking-wide mb-2">Preview (WhatsApp Persona Greeting)</p>
         <pre className="text-sm text-content dark:text-content-dark whitespace-pre-wrap font-sans">
-{`📞 *Speak to Support*
+{`Namaste! 🙏 I'm *${form.botName.trim() || "Hari"}* from Poornasree Equipments. 
 
-${form.supportPhone.trim() ? `📞 *Phone:* ${form.supportPhone.trim()}` : ""}${form.supportEmail.trim() ? `\n✉️ *Email:* ${form.supportEmail.trim()}` : ""}${form.supportHours.trim() ? `\n🕐 *Hours:* ${form.supportHours.trim()}` : ""}${form.supportNote.trim() ? `\n${form.supportNote.trim()}` : ""}
-
-Our support team will reach out to you shortly.`}
+How can I help you with your milk testing machine, service booking, or product questions today?`}
         </pre>
       </div>
     </section>
