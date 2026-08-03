@@ -26,6 +26,7 @@ import {
   isGroqConfigured,
 } from "./groq.service";
 import * as WhatsAppService from "./whatsapp.service";
+import { findDocumentIssue } from "./simulate.service";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type AgentReplyButton = { id: string; title: string };
@@ -45,7 +46,8 @@ type AgentMeta = {
   agentMode?: boolean;
   lastCatalogIds?: string[];
   customerMachines?: string[];
-  lastLangHints?: string[]; // recent detected languages to stabilize
+  lastLangHints?: string[];
+  lastComplaint?: string;
 };
 
 // ── Exported helpers ─────────────────────────────────────────────────────────
@@ -638,6 +640,43 @@ export async function handleCustomerAgentMessage(
   // Track language hints for stabilization
   meta.lastLangHints = [...(meta.lastLangHints || []).slice(-(LANG_CONTEXT_LIMIT - 1)), detectedLang];
 
+  // ── Structured troubleshooting button handlers ──────────────────────────────
+  if (upper === "YES_RESOLVED" || upper === "RESOLVED" || upper === "YES") {
+    if (meta.lastComplaint) {
+      await updateAgentSession(session.id, "AGENT_CHAT", { ...meta, lastComplaint: undefined });
+    }
+    const resolvedMsgs: Record<string, string> = {
+      en: "🎉 Glad that helped! Is there anything else I can assist you with?",
+      hi: "🎉 अच्छा है कि यह मदद की! क्या कुछ और है जिसमें मैं आपकी मदद कर सकता हूँ?",
+      ta: "🎉 அது உதவியதில் மகிழ்ச்சியடைகிறேன்! மற்ற எதையும் உதவ வேண்டுமா?",
+    };
+    return makeReply(resolvedMsgs[lang] || resolvedMsgs["en"], actionButtons(lang));
+  }
+
+  if (upper === "NOT_RESOLVED") {
+    return makeReply(
+      "😔 Sorry the steps didn't resolve the issue. Would you like me to book a service visit? Our technician will come to your location.",
+      [
+        { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+        { id: "TALK_AGENT", title: "💬 Talk to us" },
+        { id: "MENU", title: "📋 Menu" },
+      ]
+    );
+  }
+
+  if (upper === "BOOK_SERVICE") {
+    await updateAgentSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
+    const prompts: Record<string, string> = {
+      en: "Sure! Let's book a service visit. Please share your machine's serial number — or tap Skip to continue without it.",
+      hi: "ज़रूर! सर्विस विजिट बुक करते हैं। कृपया अपने मशीन के सीरियल नंबर साझा करें — या बिना इसे जारी रखने के लिए Skip टैप करें।",
+      ta: "நிச்சயம்! ஒரு சேவை வருகையை பதிவு செய்வோம். உங்கள் இயந்திரத்தின் சீரியல் எண்ணைப் பகிரவும்.",
+    };
+    return makeReply(prompts[lang] || prompts["en"], [
+      { id: "SKIP", title: "Skip ⏭️" },
+      { id: "MENU", title: "Menu 📋" },
+    ]);
+  }
+
   // ── Load context ───────────────────────────────────────────────────────────
   const rawHistory = await loadRecentHistory(phoneNumber);
   const customerCtx = await enrichCustomerContext(phoneNumber);
@@ -662,6 +701,52 @@ export async function handleCustomerAgentMessage(
     "cotton", "filter", "probe", "ultrasonic", "transducer",
   ];
   const isEngineer = engineerKeywords.some((kw) => text.toLowerCase().includes(kw));
+
+  // ── Complaint keywords — trigger DB troubleshooting lookup ──────────────────
+  const complaintKeywords = [
+    "not working", "not on", "not starting", "no power", "no display", "error",
+    "fault", "issue", "problem", "broken", "blinking", "flashing", "heating",
+    "low", "high", "vibration", "vibro", "display", "printer", "wifi",
+    "gsm", "cloud", "sensor", "fuse", "battery", "led", "scale", "reading",
+    "output", "input", "charging", "not printing", "not detecting", "not showing",
+    "not running", "not saving", "not sending", "result zero", "blank",
+    "restart", "milk", "analyzer", "adapter", "charger", "pump", "cotton",
+    "work", "start", "turn", "switch", "power", "connect", "disconnect",
+    "variation", "inconsistent", "wrong", "incorrect", "fail",
+  ];
+  const looksLikeComplaint = complaintKeywords.some((kw) => text.toLowerCase().includes(kw));
+
+  // ── Try structured troubleshooting from DB FIRST ───────────────────────────
+  if (looksLikeComplaint && !isNewUser && !isEngineer) {
+    try {
+      const machineName = meta.customerMachines?.[0] || "";
+      const template = await findDocumentIssue(text, machineName, ["customer", "both"]);
+
+      if (template && template.steps.length > 0) {
+        const actionable = template.steps
+          .map((s: { stepNumber: number; stepContent: string }) => `${s.stepNumber}. ${s.stepContent}`)
+          .join("\n");
+
+        const stepsText = actionable;
+
+        // Save complaint to session for context
+        meta.lastComplaint = template.title;
+        await updateAgentSession(session.id, "AGENT_CHAT", meta);
+
+        return makeReply(
+          `🔧 *${template.title}*\n\nHere are the troubleshooting steps:\n\n${stepsText}\n\nWas this helpful?`,
+          [
+            { id: "YES_RESOLVED", title: "✅ Yes, Resolved" },
+            { id: "NOT_RESOLVED", title: "❌ Not Resolved" },
+            { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+          ]
+        );
+      }
+    } catch (e) {
+      console.error("[whatsapp-agent] DB troubleshooting lookup failed:", e);
+      // fall through to AI
+    }
+  }
 
   // ── Load catalog (role-aware) ───────────────────────────────────────────────
   let catalogContext = "";
