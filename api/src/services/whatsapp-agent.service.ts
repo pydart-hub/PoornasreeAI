@@ -342,6 +342,7 @@ PERSONA & HUMAN TONE (CRITICAL):
 - Speak like a real human support team member — empathetic, warm, helpful, and natural.
 - NEVER sound like a rigid robot, automated bot, or canned menu system.
 - NEVER mention "AI", "LLM", "Prompt", "System Instructions", or "Training Catalog".
+- IMPORTANT: Our WhatsApp system CAN and DOES automatically attach product photos, model images, brochures, and video tutorial links directly into the customer's WhatsApp chat. NEVER claim "I cannot display images" or "I am a text-only interface". Reassure the user that you are sharing the photos/links in chat.
 
 LANGUAGE RULE (STRICT):
 - Identify the language used by the customer in their message and recent chat history.
@@ -489,13 +490,30 @@ export async function handleCustomerAgentMessage(
   }
 
   // ── Automatic Product Image Dispatch ──────────────────────────────────────
-  if (/product|model|price|catalog|brochure|eco v3|eco-v|eco sv-v4|eco d-v4|lactosure/i.test(text)) {
+  if (/image|images|photo|photos|pic|pics|picture|pictures|catalog|brochure|product|model|price|lactosure/i.test(text)) {
     try {
       const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
+      const baseUrl = process.env.FRONTEND_URL || "https://ai.poornasreecloud.com";
+
+      // 1. Check if specific product name matches
+      let matchedCount = 0;
       for (const prod of activeProducts) {
         if (prod.imageUrl && text.toLowerCase().includes(prod.name.toLowerCase())) {
-          const baseUrl = process.env.FRONTEND_URL || "https://ai.poornasreecloud.com";
           const fullImageUrl = prod.imageUrl.startsWith("http") ? prod.imageUrl : `${baseUrl}${prod.imageUrl}`;
+          await WhatsAppService.sendImage(
+            phoneNumber,
+            fullImageUrl,
+            `📸 *${prod.name}*\n${prod.detail || ""}`,
+          );
+          matchedCount++;
+        }
+      }
+
+      // 2. If user asked generally for images/photos and no specific model matched, send top 3 active model photos
+      if (matchedCount === 0 && /image|images|photo|photos|pic|pics|picture|pictures/i.test(text)) {
+        const withImages = activeProducts.filter((p) => Boolean(p.imageUrl)).slice(0, 3);
+        for (const prod of withImages) {
+          const fullImageUrl = prod.imageUrl!.startsWith("http") ? prod.imageUrl! : `${baseUrl}${prod.imageUrl}`;
           await WhatsAppService.sendImage(
             phoneNumber,
             fullImageUrl,
