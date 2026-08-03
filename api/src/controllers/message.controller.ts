@@ -18,7 +18,9 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       ? ["customer"]
       : userRole === "service"
         ? ["service"]
-        : undefined; // admin sees all
+        : userRole === "new_user"
+          ? ["new_user"]
+          : undefined; // admin sees all
 
     if (roleTypes) {
       const docCount = await prisma.document.count({
@@ -47,6 +49,8 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
       roleFilter = ["customer"];
     } else if (userRole === "service") {
       roleFilter = ["service"];
+    } else if (userRole === "new_user") {
+      roleFilter = ["new_user"];
     }
     // admin: no filter (retrieve all)
 
@@ -98,6 +102,15 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
           "Copy the solutions from the CONTEXT. Do not invent new steps.",
           "Format each step as: Step 1 -- <instruction from context>",
         ].join("\n")
+      : userRole === "new_user"
+        ? [
+            "SYSTEM:",
+            "You are PoornasreeAI, a friendly onboarding guide for new users of Poornasree milk testing equipment.",
+            "You MUST answer ONLY using the CONTEXT below. Do NOT use your own knowledge.",
+            "If the answer is not in the CONTEXT, respond exactly: \"I couldn't find this information in the documentation.\"",
+            "Be welcoming, simple, and encouraging. Use friendly language.",
+            "Format steps clearly: Step 1 -- <instruction from context>",
+          ].join("\n")
       : [
           "SYSTEM:",
           "You are PoornasreeAI, a technical support assistant for Poornasree milk analyzer equipment.",

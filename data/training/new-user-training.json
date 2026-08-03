@@ -1,0 +1,184 @@
+{
+  "intents": [
+    {
+      "tag": "new_user_welcome",
+      "patterns": [
+        "hi", "hello", "hey", "namaste", "good morning", "good evening",
+        "who are you", "what can you do", "help me",
+        "poornasree ai", "start", "begin"
+      ],
+      "responses": [
+        "Welcome to Poornasree AI! I am your personal assistant for Poornasree milk testing equipment. I can help you understand your product, walk you through setup, and guide you if something is not working. What would you like to explore today?"
+      ]
+    },
+    {
+      "tag": "new_user_what_is_milk_analyzer",
+      "patterns": [
+        "what is milk analyzer", "what does analyzer do",
+        "milk analyzer kya hai", "analyzer ka use kya hai",
+        "what is the machine for", "what product do you have",
+        "tell me about the equipment", "what is this device"
+      ],
+      "responses": [
+        "A milk analyzer is a device that measures the quality parameters of milk instantly. Poornasree analyzers can measure Fat, SNF (Solids-Not-Fat), CLR, Protein, and more — all in seconds. This helps dairy farmers, milk collection centers, and cooperatives test milk quality right at the source. Would you like to know about a specific model?"
+      ]
+    },
+    {
+      "tag": "new_user_what_is_vibro",
+      "patterns": [
+        "what is vibro", "what is vibro stirrer", "vibro kya hai",
+        "vibro stirrer ka use", "what does vibro do",
+        "vibro kaam kya hai", "vibro stirrer explain"
+      ],
+      "responses": [
+        "The VIBRO Milk Analyzer Stirrer is a motorized stirrer attachment for milk cans. It mixes milk uniformly before testing so your analyzer gives accurate readings every time. Without proper stirring, cream separation can cause wrong results. The VIBRO stirrer ensures consistent mixing in about 10-15 seconds. It is compatible with most Poornasree analyzers."
+      ]
+    },
+    {
+      "tag": "new_user_unboxing_checklist",
+      "patterns": [
+        "what is in the box", "what do i get",
+        "unboxing", "box mein kya hai", "items included",
+        "whats in the package", "what do i receive",
+        "kit mein kya hai", "what comes with it"
+      ],
+      "responses": [
+        "When you unbox your Poornasree equipment, here is what you should find: (1) The main unit (analyzer/stirrer/adapter), (2) Power adapter or charger, (3) Sample cups or beakers, (4) User manual with warranty card, (5) Cleaning brush or cotton swabs, (6) Calibration liquid or standard solution (for analyzers). If anything is missing, please share a photo of the package and we will arrange a replacement."
+      ]
+    },
+    {
+      "tag": "new_user_how_to_start",
+      "patterns": [
+        "how to start", "how to begin", "how do i use",
+        "first time setup", "initial setup", "getting started",
+        "shuru kaise kare", "kaise use kare",
+        "step by step start", "beginner guide"
+      ],
+      "responses": [
+        "Here is a simple getting-started guide: Step 1 -- Place the analyzer on a clean, flat surface away from direct sunlight. Step 2 -- Connect the power adapter and switch on the unit. Step 3 -- Wait for the self-test to complete (the display should show ready). Step 4 -- Pour a milk sample into the sample cup and place it in the analyzer. Step 5 -- Stir the milk well using the VIBRO stirrer before testing. Step 6 -- Press the TEST button and wait for the result. If any step is unclear, just ask!"
+      ]
+    },
+    {
+      "tag": "new_user_why_calibrate",
+      "patterns": [
+        "why calibrate", "what is calibration",
+        "calibration kya hai", "calibrate kaise kare",
+        "why is my reading wrong", "accuracy issue",
+        "wrong reading", "incorrect result",
+        "correct reading kaise le", "test karna kaise"
+      ],
+      "responses": [
+        "Calibration ensures your analyzer gives accurate results. Use the standard calibration liquid provided with the unit. Step 1 -- Pour calibration liquid into a clean sample cup. Step 2 -- Place it in the analyzer and run the test. Step 3 -- Compare the displayed value with the standard value on the bottle. Step 4 -- If they match, your device is calibrated. If not, adjust using the calibration buttons. We recommend calibrating once every 15 days for best accuracy."
+      ]
+    },
+    {
+      "tag": "new_user_warranty_info",
+      "patterns": [
+        "warranty", "warranty details", "warranty period",
+        "guarantee", "free service", "under warranty",
+        "warranty kya hai", "warranty kitne saal ka hai",
+        "repair free", "charges for repair",
+        "what is covered", "what is not covered"
+      ],
+      "responses": [
+        "Poornasree equipment comes with a standard 1-year manufacturer warranty from the date of purchase. The warranty covers manufacturing defects and component failures under normal use. It does NOT cover physical damage, unauthorized modifications, or consumables like cotton/filters. To claim warranty, contact our support team with your serial number and purchase invoice. For extended warranty options, ask your dealer at the time of purchase."
+      ]
+    },
+    {
+      "tag": "new_user_contact_info",
+      "patterns": [
+        "contact", "phone number", "call us", "reach us",
+        "address", "location", "where are you",
+        "customer care", "support number",
+        "contact kya hai", "number do", "call kaise kare"
+      ],
+      "responses": [
+        "You can reach Poornasree Equipments through multiple channels: Phone: +91-XXXXXXXXXX (call or WhatsApp), Email: info@poornasree.com, Website: www.poornasree.com. Our support team is available Monday to Saturday, 9 AM to 6 PM IST. For immediate help, WhatsApp is usually the fastest way!"
+      ]
+    },
+    {
+      "tag": "new_user_what_products",
+      "patterns": [
+        "what products", "what do you sell", "product list",
+        "all products", "product range", "your machines",
+        "kya products hai", "product kya kya hai",
+        "equipment list", "catalog", "brochure"
+      ],
+      "responses": [
+        "Poornasree offers a range of dairy testing equipment: Milk Analyzers (Fat, SNF, Protein testing), VIBRO Motorized Stirrer (for uniform milk mixing), Compact Power Adapter & Charger Adapter (portable power solutions), Sample Cups & Accessories (consumables). Each product is designed for Indian dairy conditions with rugged build quality and easy maintenance. Ask about any specific product for details!"
+      ]
+    },
+    {
+      "tag": "new_user_sample_testing_guide",
+      "patterns": [
+        "how to test milk", "how to take sample",
+        "milk testing guide", "sample testing steps",
+        "milk test kaise kare", "sample kaise le",
+        "how to take reading", "testing procedure"
+      ],
+      "responses": [
+        "Here is a simple milk testing guide: Step 1 -- Take a clean sample cup and fill it with milk (about 30-50ml). Step 2 -- Stir the milk thoroughly using the VIBRO stirrer for 10-15 seconds. Step 3 -- Pour the stirred milk into the analyzer cup and wipe the outside clean. Step 4 -- Place the cup in the analyzer slot and close the lid. Step 5 -- Press TEST button. Step 6 -- Read the Fat, SNF, and other values on the display. Remember: always use the same sample volume for consistent results!"
+      ]
+    },
+    {
+      "tag": "new_user_common_issues",
+      "patterns": [
+        "common problems", "frequently asked", "common issues",
+        "trouble using", "problem with new machine",
+        "issues faced", "what problems can happen",
+        "naye machine mein problem", "new product issues"
+      ],
+      "responses": [
+        "Common issues new users face: (1) Wrong readings -- usually because milk was not stirred well. Solution: use VIBRO stirrer for 10-15 seconds before testing. (2) Display not showing -- check power connection and adapter. (3) Error messages -- note the exact error code and contact support. (4) Printer not working -- check paper roll and connection. (5) Device not switching on -- verify adapter is working and fuse is intact. For any of these, I can give you detailed steps -- just ask!"
+      ]
+    },
+    {
+      "tag": "new_user_dealer_info",
+      "patterns": [
+        "where to buy", "how to purchase", "dealer",
+        "buy online", "distributor", "shop near me",
+        "kharid kaise kare", "dealer kya hai",
+        "nearest dealer", "authorized dealer",
+        "price", "cost", "how much"
+      ],
+      "responses": [
+        "To purchase Poornasree equipment: (1) Visit our website www.poornasree.com and use the dealer locator, (2) Call our sales team at +91-XXXXXXXXXX, (3) Visit any authorized Poornasree dealer in your district. Our dealers are available across major dairy farming regions. For exact pricing, please contact our sales team -- pricing may vary by model and region. We also offer demo requests so you can see the product in action before buying!"
+      ]
+    },
+    {
+      "tag": "new_user_tips_for_best_results",
+      "patterns": [
+        "tips", "best practices", "how to get accurate results",
+        "accurate reading", "tips for testing",
+        "better results", "improve accuracy",
+        "tips and tricks", "how to get best output"
+      ],
+      "responses": [
+        "Here are pro tips for the best testing results: (1) Always stir milk for 10-15 seconds before testing -- uneven milk gives wrong readings. (2) Use the correct sample volume -- too much or too little affects results. (3) Keep the analyzer clean -- wipe the cup and sensor area after every test. (4) Calibrate once every 15 days with standard liquid. (5) Test milk at room temperature -- very cold or hot milk may show different readings. (6) Replace cotton/filter regularly for consistent performance."
+      ]
+    },
+    {
+      "tag": "new_user_app_info",
+      "patterns": [
+        "mobile app", "app download", "app ka use",
+        "application", "software", "digital",
+        "app kaise use kare", "app kya hai",
+        "android app", "play store"
+      ],
+      "responses": [
+        "Poornasree offers digital solutions to help you manage your milk testing data. You can find our app on the Google Play Store (search for Poornasree). Features include: saving test results, tracking daily readings, generating reports, and SMS alerts for quality parameters. If you have trouble with the app, please tell us the specific issue and we will guide you!"
+      ]
+    },
+    {
+      "tag": "new_user_about_poornasree",
+      "patterns": [
+        "about poornasree", "company info", "who is poornasree",
+        "poornasree kya hai", "poornasree about",
+        "company background", "history", "established"
+      ],
+      "responses": [
+        "Poornasree Equipments is a trusted name in dairy testing equipment in India. We design and manufacture high-quality milk analyzers, vibro stirrers, power adapters, and accessories. Our products are certified with ISO 9001:2015, CE, ZED, and IMEX certifications. We serve dairy farmers, milk collection centers, cooperatives, and institutions across India. Our mission is to make accurate milk testing affordable and accessible to every dairy professional."
+      ]
+    }
+  ]
+}

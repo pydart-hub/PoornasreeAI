@@ -41,8 +41,8 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
     const title = (req.body.title as string)?.trim() || file.originalname;
     const documentType = (req.body.documentType as string)?.trim() || "service";
 
-    if (!["service", "customer"].includes(documentType)) {
-      res.status(400).json({ error: "documentType must be 'service' or 'customer'" });
+    if (!["service", "customer", "new_user"].includes(documentType)) {
+      res.status(400).json({ error: "documentType must be 'service', 'customer', or 'new_user'" });
       return;
     }
 

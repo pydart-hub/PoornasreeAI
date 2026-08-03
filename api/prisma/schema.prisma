@@ -108,7 +108,7 @@ model Document {
   id           String          @id @default(uuid())
   title        String
   filePath     String
-  documentType String          @default("service")    // "service" | "customer"
+  documentType String          @default("service")    // "service" | "customer" | "new_user"
   uploadedById String
   createdAt    DateTime        @default(now())
 

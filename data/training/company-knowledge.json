@@ -4,52 +4,192 @@
       "tag": "company_about_poornasree",
       "role": "customer",
       "patterns": [
-        "What is Poornasree",
-        "About Poornasree Equipments",
-        "Who are you",
-        "Tell me about the company"
+        "What is Poornasree", "About Poornasree Equipments", "Who are you",
+        "Tell me about the company", "Company history", "About your company",
+        "Poornasree kya hai", "Company ke bare mein batao"
       ],
       "responses": [
-        "Poornasree Equipments Pvt Ltd manufactures and supports milk analyzer equipment and related products such as LactoSure and LactoGrand analyzers, Vibro ultrasonic stirrers, adapters, and data/display accessories. We provide WhatsApp-based troubleshooting and field service support across India. For live help, contact Customer Care at +91 94009 61291."
+        "Poornasree Equipments Pvt Ltd was founded in 2011 and is headquartered in Kochi, Kerala. We are India's leading brand in milk testing equipment, serving dairy farmers and processors worldwide. With ~100 employees across 10 departments and a monthly production capacity of 2,500 units, we are ISO 9001:2015 certified with CE, ZED, and IMEX standards. Our mission is to build the best products that create the most value for our customers. For support, call +91 94009 61291."
       ]
     },
     {
       "tag": "company_products_overview",
       "role": "customer",
       "patterns": [
-        "What products do you sell",
-        "Poornasree products list",
-        "Milk analyzer models",
-        "Do you have Vibro"
+        "What products do you sell", "Poornasree products list",
+        "Milk analyzer models", "Do you have Vibro", "Products",
+        "What do you manufacture", "Your machines", "क्या प्रोडक्ट हैं"
       ],
       "responses": [
-        "Our main product lines include: LactoSure ECO series (ECO V3, ECO S, ECO V, ECO SV, ECO D), LactoGrand series (Lite, S Pro, S Pro Connect +, SD), Vibro Ultrasonic Stirrer, LactoSure EXD (external display), and LactoSure DPS-T (data processing system). For model-specific troubleshooting, tell me your machine name and the problem you are facing."
+        "We make 5 models and 30+ variants of milk analyzers under the LactoSure ECO series: LactoSure Eco, Eco-S, Eco V, Eco-SV, Eco-D-V4, Eco-CP, and Eco-SV-V4. They measure Fat, SNF, CLR, Protein, Lactose, Added Salt, Added Water, and Temperature. We also make VIBRO Ultrasonic Stirrers, LactoSure DPS-T Data Processing Unit, External Display, and Receipt Printer. Tell me which one interests you!"
       ]
     },
     {
-      "tag": "company_support_contact",
+      "tag": "company_contact",
       "role": "customer",
       "patterns": [
-        "Customer care number",
-        "Support phone",
-        "How do I contact support",
-        "Talk to human"
+        "Customer care number", "Support phone", "How do I contact support",
+        "Talk to human", "Phone number", "Contact details",
+        "Office address", "कंटैक्ट नंबर", "ঠিকানা"
       ],
       "responses": [
-        "You can reach Poornasree Customer Care on WhatsApp/phone at +91 94009 61291. You can also ask me to connect you to a live support agent from this chat, or ask me to help raise a service visit request."
+        "You can reach us at:\n🏢 Head Office (Kochi): 13/191-C, Mannoor Road, Maradu P.O, Ernakulam – 682304. Tel: +91 484 4859291. Mobile: +91 94009 61291 / +91 80757 90438.\n🏢 Delhi Office: Shop No. 12, First Floor, Co-Operative Cold Storage Market, Siyana Road, Bulandshahr, UP 203001. Mobile: +91 96057 57816.\n🌐 Website: poornasree.com"
       ]
     },
     {
       "tag": "company_service_request_help",
       "role": "customer",
       "patterns": [
-        "How to raise service request",
-        "Book engineer visit",
-        "I need service",
-        "Complaint registration"
+        "How to raise service request", "Book engineer visit",
+        "I need service", "Complaint registration", "Service booking",
+        "Need repair", "Field service", "सर्विस चाहिए"
       ],
       "responses": [
-        "I can help you raise a service request. Tell me your machine model and the issue, or tap Book service visit. Our team will arrange field support after we collect the needed details."
+        "I can help you book a service visit! Just share your machine model, serial number, and the issue you're facing. Our field engineers (Harisree Enterprises) are available across India with a 24-hour solution policy. I'll raise the ticket and our team will contact you to schedule the visit."
+      ]
+    },
+    {
+      "tag": "company_dealer",
+      "role": "customer",
+      "patterns": [
+        "Dealer inquiry", "Become a dealer", "Dealer network",
+        "Where to buy", "Distributor", "Authorized dealer",
+        "डीलर बनना", "दुकान"
+      ],
+      "responses": [
+        "We have a dealer network across B2B, B2C, Cooperative, Corporate, and Export channels. To become a dealer or find your nearest dealer, please visit poornasree.com or contact our sales team at +91 94009 61291."
+      ]
+    },
+    {
+      "tag": "company_certifications",
+      "role": "customer",
+      "patterns": [
+        "Certifications", "ISO certified", "Quality standards",
+        "CE certified", "Make in India"
+      ],
+      "responses": [
+        "Yes! Poornasree Equipments is ISO 9001:2015 certified (Production, QA, Store, Service, Purchase, Finance & HR, Customer Care, Dispatch). We also hold CE, ZED, and IMEX certifications. We're proud to be a Make in India brand and an OEM."
+      ]
+    },
+    {
+      "tag": "company_warranty",
+      "role": "customer",
+      "patterns": [
+        "Warranty", "Warranty period", "Guarantee",
+        "Warrenty", "Valid for how long"
+      ],
+      "responses": [
+        "All Poornasree products come with a standard warranty. For specific warranty terms on your model, please share your machine model and serial number, or contact our customer care at +91 94009 61291. Our service team can also help you claim warranty service."
+      ]
+    },
+    {
+      "tag": "company_spare_parts",
+      "role": "customer",
+      "patterns": [
+        "Spare parts", "Replacement parts", "Buy parts",
+        "配件", "Spare", "Part available"
+      ],
+      "responses": [
+        "We provide genuine spare parts for all Poornasree machines. Our service team uses genuine spares and sophisticated tools. To order spare parts, please share your machine model, serial number, and which part you need. We'll arrange it through our service team."
+      ]
+    },
+    {
+      "tag": "lactosure_eco_overview",
+      "role": "customer",
+      "patterns": [
+        "LactoSure ECO", "Tell me about LactoSure", "Eco analyzer",
+        "Milk analyzer features", "What can LactoSure measure"
+      ],
+      "responses": [
+        "The LactoSure ECO is India's fastest ultrasonic milk analyzer. It measures: Fat, SNF, CLR, Protein, Lactose, Added Salt, Added Water, and Temperature. It's compact, portable, has a user-friendly interface, and is built for on-site testing. Solar-powered variant and built-in battery option available. Available in 7 variants: Eco, Eco-S, Eco V, Eco-SV, Eco-D-V4, Eco-CP, Eco-SV-V4."
+      ]
+    },
+    {
+      "tag": "lactosure_troubleshoot_low_battery",
+      "role": "customer",
+      "patterns": [
+        "low battery", "battery not charging", "battery issue",
+        "power off", "not turning on", "बैटरी", "ப纬ோரி"
+      ],
+      "responses": [
+        "For low battery / not charging: 1) Connect the charger adapter and charge the battery fully (may take 4-6 hours for first charge). 2) Check if the charger LED indicator is lit. 3) Try a different power socket. 4) If still not charging, the battery may need replacement — book a service visit. For solar variant: ensure solar panel is getting adequate sunlight."
+      ]
+    },
+    {
+      "tag": "lactosure_troubleshoot_display",
+      "role": "customer",
+      "patterns": [
+        "display not working", "screen blank", "no display",
+        "display issue", "LED not showing"
+      ],
+      "responses": [
+        "For display issues: 1) Check if the machine is powered on (LED indicator). 2) Try turning it off and on again. 3) Check the display cable connections inside. 4) If using an external display (LactoSure EXD), ensure the cable is properly connected. If the issue persists, book a service visit."
+      ]
+    },
+    {
+      "tag": "lactosure_troubleshoot_wrong_reading",
+      "role": "customer",
+      "patterns": [
+        "wrong reading", "inaccurate", "not giving correct result",
+        "wrong fat", "wrong SNF", "calibration", "गलत रिजल्ट"
+      ],
+      "responses": [
+        "For inaccurate readings: 1) Clean the measuring cell thoroughly with warm water. 2) Use fresh, properly mixed milk sample at room temperature. 3) Run calibration with standard samples. 4) Check if the ultrasonic stirrer is working properly. 5) Ensure the sample temperature is within range. If readings are still off, book a service visit for recalibration."
+      ]
+    },
+    {
+      "tag": "vibro_troubleshoot",
+      "role": "customer",
+      "patterns": [
+        "VIBRO not working", "stirrer issue", "VIBRO problem",
+        "stirrer not mixing", " Vibro"
+      ],
+      "responses": [
+        "For VIBRO Ultrasonic Stirrer issues: 1) Check power connection and LED indicator. 2) Ensure the stirrer probe is clean and not damaged. 3) Check if the ultrasonic transducer is working (you should feel vibration). 4) Verify the sample volume is adequate. 5) If no vibration at all, the transducer may need replacement. Book a service visit if the issue persists."
+      ]
+    },
+    {
+      "tag": "dpu_troubleshoot",
+      "role": "customer",
+      "patterns": [
+        "DPU not working", "data processing unit issue",
+        "DPU problem", "data not saving", "DPS-T issue"
+      ],
+      "responses": [
+        "For LactoSure DPS-T (DPU) issues: 1) Check power supply connection. 2) Verify the analyzer-to-DPU cable is properly connected. 3) Restart the DPU. 4) Check if data is syncing between analyzer and DPU. 5) If the display on DPU is blank, try reconnecting the display cable. For persistent issues, book a service visit."
+      ]
+    },
+    {
+      "tag": "printer_troubleshoot",
+      "role": "customer",
+      "patterns": [
+        "printer not working", "no print", "printer issue",
+        "printing problem", "receipt not coming"
+      ],
+      "responses": [
+        "For printer issues: 1) Check if printer has paper and paper roll is loaded correctly. 2) Verify printer is connected to the analyzer/DPU. 3) Check if the printer driver is configured. 4) Try printing a test report. 5) If the printer head is dirty, clean it gently with isopropyl alcohol. If still not working, book a service visit."
+      ]
+    },
+    {
+      "tag": "company_android_app",
+      "role": "customer",
+      "patterns": [
+        "Android app", "mobile app", "app download",
+        "software", " Dairy app", "ऐप"
+      ],
+      "responses": [
+        "Poornasree offers an Android app and web-based dairy management software that connects with our analyzers. You can download the app from the Google Play Store. It provides real-time analysis, data storage, and connectivity with your milk analyzer and DPU. For setup help, contact our support team."
+      ]
+    },
+    {
+      "tag": "general_greeting",
+      "role": "customer",
+      "patterns": [
+        "hi", "hello", "hey", "good morning", "good evening",
+        "namaste", "vanakkam", "হ্যালো"
+      ],
+      "responses": [
+        "Hey! 👋 Welcome to Poornasree Equipments support. I'm here to help with your milk analyzer and related equipment. Tell me what's happening with your machine, or pick an option below."
       ]
     }
   ]

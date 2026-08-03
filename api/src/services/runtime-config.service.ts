@@ -62,7 +62,7 @@ export const SETTING_DEFINITIONS: SettingDefinition[] = [
     description: "groq = human training-grounded agent; legacy_fsm = classic menu bot.",
     category: "chatbot",
     isSecret: false,
-    defaultValue: "legacy_fsm",
+    defaultValue: "groq",
     options: ["legacy_fsm", "groq"],
   },
   {

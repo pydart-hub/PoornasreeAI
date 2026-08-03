@@ -1205,9 +1205,10 @@ async function startGreeting(phoneNumber: string) {
   const existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (existingMeta.language ?? "en") as Lang;
 
-  // Check if this phone has raised a ticket before
+  // Check if this phone has raised a ticket before (normalize for lookup)
+  const ticketLookupPhone = normalizePhone(phoneNumber);
   const existingTicket = await prisma.ticket.findFirst({
-    where: { phoneNumber },
+    where: { phoneNumber: ticketLookupPhone },
     orderBy: { createdAt: "desc" },
     select: {
       machineCustomer: true,
@@ -3148,28 +3149,79 @@ function makeReply(
   return { message, buttons, list, images, followUpMessage };
 }
 
-async function getOrCreateSession(phoneNumber: string) {
-  const existing = await prisma.conversationSession.findFirst({
+// ── Helpers ────────────────────────────────────────────────────────────────
+function normalizePhone(raw: string): string {
+  return raw.replace(/\D/g, "").slice(-10);
+}
+
+function countMetaKeys(meta: any): number {
+  return Object.keys(meta || {}).filter(
+    (k) => k !== "_count" && k !== "_type" && typeof meta[k] !== "undefined",
+  ).length;
+}
+
+// ── Session helpers ────────────────────────────────────────────────────────
+async function findBestSession(phoneNumber: string) {
+  const digits = normalizePhone(phoneNumber);
+  const candidates = await prisma.conversationSession.findMany({
     where: {
-      phoneNumber,
-      state: { notIn: ["COMPLETED"] },
+      OR: [
+        { phoneNumber },
+        { phoneNumber: "91" + digits },
+        { phoneNumber: "+91" + digits },
+        { phoneNumber: digits },
+      ],
     },
     orderBy: { updatedAt: "desc" },
+    take: 5,
   });
-  if (existing) return existing;
+  if (candidates.length === 0) return null;
 
-  // Find the most recent session to carry over isBotPaused and supportAgentId status
-  const lastSession = await prisma.conversationSession.findFirst({
-    where: { phoneNumber },
-    orderBy: { updatedAt: "desc" },
-  });
+  // Prefer non-COMPLETED sessions; among those, pick the richest metadata
+  const active = candidates.filter((s) => s.state !== "COMPLETED");
+  const pool = active.length > 0 ? active : candidates;
+  return pool.sort((a, b) => countMetaKeys(b.metadata) - countMetaKeys(a.metadata))[0];
+}
 
+async function getOrCreateSession(phoneNumber: string) {
+  const digits = normalizePhone(phoneNumber);
+  const best = await findBestSession(phoneNumber);
+
+  if (best) {
+    // Normalize phone number format for consistency
+    if (best.phoneNumber !== digits) {
+      await prisma.conversationSession.update({
+        where: { id: best.id },
+        data: { phoneNumber: digits },
+      });
+      // Delete other duplicate sessions for this customer (keep completed history)
+      const allCandidates = await prisma.conversationSession.findMany({
+        where: {
+          OR: [
+            { phoneNumber },
+            { phoneNumber: "91" + digits },
+            { phoneNumber: "+91" + digits },
+            { phoneNumber: digits },
+          ],
+        },
+      });
+      const others = allCandidates.filter((s) => s.id !== best.id && s.state !== "COMPLETED");
+      if (others.length > 0) {
+        await prisma.conversationSession.deleteMany({
+          where: { id: { in: others.map((s) => s.id) } },
+        });
+      }
+    }
+    return best;
+  }
+
+  // No existing session — create a fresh one
   return prisma.conversationSession.create({
     data: {
-      phoneNumber,
+      phoneNumber: digits,
       state: "GREETING",
-      isBotPaused: lastSession ? lastSession.isBotPaused : false,
-      supportAgentId: lastSession ? lastSession.supportAgentId : null,
+      isBotPaused: false,
+      supportAgentId: null,
     },
   });
 }

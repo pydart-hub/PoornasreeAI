@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 import prisma from "../lib/prisma";
 
-export type CatalogRole = "customer" | "service";
+export type CatalogRole = "customer" | "service" | "new_user";
 
 export type CatalogEntry = {
   id: string;
@@ -52,7 +52,7 @@ function loadJsonIntents(fileName: string, defaultRole: CatalogRole, source: Cat
     for (const intent of intents) {
       if (!intent.tag || !intent.responses?.[0]) continue;
       const role: CatalogRole =
-        intent.role === "customer" ? "customer" : intent.role === "service" ? "service" : defaultRole;
+        intent.role === "customer" ? "customer" : intent.role === "service" ? "service" : intent.role === "new_user" ? "new_user" : defaultRole;
       const content = String(intent.responses[0]).trim();
       if (!content) continue;
       out.push({
@@ -85,7 +85,9 @@ async function loadDocumentIssues(): Promise<CatalogEntry[]> {
     return issues.map((issue) => {
       const audience = String(issue.audience || "both").toLowerCase();
       const role: CatalogRole =
-        audience === "engineer" || audience === "service" ? "service" : "customer";
+        audience === "engineer" || audience === "service" ? "service"
+        : audience === "new_user" ? "new_user"
+        : "customer";
       const steps = issue.steps
         .map((s) => `${s.stepNumber}. ${s.stepContent}`)
         .join("\n");
@@ -128,6 +130,7 @@ export async function loadTrainingCatalog(force = false): Promise<CatalogEntry[]
     ...loadJsonIntents("company-knowledge.json", "customer", "company"),
     ...loadJsonIntents("customer-training.json", "customer", "json"),
     ...loadJsonIntents("chatbot-training.json", "customer", "json"),
+    ...loadJsonIntents("new-user-training.json", "new_user", "json"),
     ...loadJsonIntents("training.json", "service", "json"),
   ];
 
@@ -151,8 +154,10 @@ export async function loadTrainingCatalog(force = false): Promise<CatalogEntry[]
 export async function getCatalogForRole(role: CatalogRole): Promise<CatalogEntry[]> {
   const all = await loadTrainingCatalog();
   if (role === "service") {
-    // Engineers can see service docs; also "both"-style customer-facing company info is less useful.
     return all.filter((e) => e.role === "service");
+  }
+  if (role === "new_user") {
+    return all.filter((e) => e.role === "new_user" || e.source === "company");
   }
   return all.filter((e) => e.role === "customer" || e.source === "company");
 }
