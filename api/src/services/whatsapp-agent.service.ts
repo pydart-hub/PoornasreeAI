@@ -11,6 +11,7 @@ import {
 import { runtime } from "./runtime-config.service";
 import {
   getCatalogForRole,
+  loadTrainingCatalog,
   prefilterCatalog,
   formatCatalogForPrompt,
   type CatalogEntry,
@@ -505,8 +506,9 @@ export async function handleCustomerAgentMessage(
   const catalogContext = formatCatalogForPrompt(catalog);
 
   // ── Structured Complaint Matching from Training Catalog ───────────────────
-  // ONLY match troubleshooting entries from JSON/document_issue sources (NOT products)
-  const troubleshootEntries = catalog.filter((e) => e.source === "json" || e.source === "document_issue");
+  // Query ALL training entries from JSON & DB (do not filter out service/engineer entries)
+  const allCatalog = await loadTrainingCatalog();
+  const troubleshootEntries = allCatalog.filter((e) => e.source === "json" || e.source === "document_issue");
   const lowerMsg = text.toLowerCase();
 
   // Build a relevance-scored match against all troubleshooting entries
