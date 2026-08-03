@@ -472,6 +472,43 @@ export async function handleCustomerAgentMessage(
   const catalog = await loadRelevantCatalog(text, isEngineer ? "service" : isNewUser ? "new_user" : "customer");
   const catalogContext = formatCatalogForPrompt(catalog);
 
+  // ── Structured Complaint Matching from Training Catalog ───────────────────
+  const isComplaintQuery = /vibro|analyzer|adapter|not working|not on|led|vibration|voltage|fuse|battery|error|reading|printer|wifi|gsm|sample|air in milk/i.test(text);
+  if (isComplaintQuery && !isEngineer && !isNewUser) {
+    const matched = catalog.find((e) => {
+      const hay = `${e.title} ${e.tag} ${e.patterns.join(" ")}`.toLowerCase();
+      return e.patterns.some((p) => text.toLowerCase().includes(p.toLowerCase())) ||
+        (text.toLowerCase().includes("vibro") && hay.includes("vibro")) ||
+        (text.toLowerCase().includes("adapter") && hay.includes("adapter"));
+    });
+
+    if (matched && matched.content) {
+      meta.lastComplaint = matched.title;
+      await updateAgentSession(session.id, "AGENT_CHAT", meta);
+
+      let structuredText = `🔧 *Troubleshooting: ${matched.title}*\n\n${matched.content}\n\nDid this resolve your machine issue?`;
+
+      // Attach video if available
+      try {
+        const matchedVideos = await findVideosForQuery(`${text} ${matched.title}`, 2);
+        if (matchedVideos.length > 0) {
+          structuredText += formatVideoSuggestions(
+            matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
+            lang,
+          );
+        }
+      } catch (e) {
+        console.error("[whatsapp-agent] Video lookup error:", e);
+      }
+
+      return makeReply(structuredText, [
+        { id: "YES_RESOLVED", title: "✅ Yes, Resolved" },
+        { id: "BOOK_SERVICE", title: "🛠️ Register Complaint" },
+        { id: "talk_agent", title: "💬 Talk to us" },
+      ]);
+    }
+  }
+
   // Generate Groq completion
   let replyText = await aiReply(
     text,

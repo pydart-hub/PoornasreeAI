@@ -101,17 +101,32 @@ export async function findVideosForQuery(
     if (!normalizedQuery) return [];
 
     const scored = allVideos
-      .map((v) => ({ video: v, score: scoreVideoMatch(normalizedQuery, v.keywords) }))
+      .map((v) => ({ video: v, score: scoreVideoMatch(normalizedQuery, v.keywords || v.title) }))
       .filter((s) => s.score >= 1)
       .sort((a, b) => b.score - a.score);
 
-    return scored.slice(0, limit).map((s) => ({
-      id: s.video.id,
-      title: s.video.title,
-      description: s.video.description,
-      youtubeUrl: s.video.youtubeUrl,
-      keywords: s.video.keywords,
-    }));
+    if (scored.length > 0) {
+      return scored.slice(0, limit).map((s) => ({
+        id: s.video.id,
+        title: s.video.title,
+        description: s.video.description,
+        youtubeUrl: s.video.youtubeUrl,
+        keywords: s.video.keywords,
+      }));
+    }
+
+    // Fallback: If user asked for video/troubleshoot/vibro/analyzer, return default active videos
+    if (/video|vibro|analyzer|tutorial|troubleshoot|working|issue|problem|cleaning|hot sample/i.test(normalizedQuery)) {
+      return allVideos.slice(0, limit).map((v) => ({
+        id: v.id,
+        title: v.title,
+        description: v.description,
+        youtubeUrl: v.youtubeUrl,
+        keywords: v.keywords,
+      }));
+    }
+
+    return [];
   } catch (err) {
     console.error("[VideoSearch] error:", err);
     return [];
