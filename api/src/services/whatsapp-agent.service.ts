@@ -439,10 +439,19 @@ export async function handleCustomerAgentMessage(
     );
   }
 
-  // Language Detection & Stabilization
-  const detectedLang = detectLanguageStrict(text);
-  const lang = stabilizeLanguage(meta, detectedLang);
-  meta.language = lang;
+  // Explicit language request detection (e.g. "Talk in Malayalam", "Speak Hindi", "Tamil")
+  const lowerText = text.toLowerCase();
+  if (/malayalam|മലയാളം/i.test(lowerText)) meta.language = "ml";
+  else if (/hindi|हिंदी|हिन्दी/i.test(lowerText)) meta.language = "hi";
+  else if (/tamil|தமிழ்/i.test(lowerText)) meta.language = "ta";
+  else if (/telugu|తెలుగు/i.test(lowerText)) meta.language = "te";
+  else if (/kannada|കന്നഡ|ಕನ್ನಡ/i.test(lowerText)) meta.language = "kn";
+  else if (/bengali|বাংলা/i.test(lowerText)) meta.language = "bn";
+  else {
+    const detectedLang = detectLanguageStrict(text);
+    meta.language = stabilizeLanguage(meta, detectedLang);
+  }
+  const lang = meta.language;
 
   // Enrich Context
   const rawHistory = await loadRecentHistory(phoneNumber);
