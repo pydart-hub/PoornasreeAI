@@ -189,11 +189,13 @@ export async function loadTrainingCatalog(force = false): Promise<CatalogEntry[]
 export async function getCatalogForRole(role: CatalogRole): Promise<CatalogEntry[]> {
   const all = await loadTrainingCatalog();
   if (role === "service") {
-    return all.filter((e) => e.role === "service");
+    // Engineers get BOTH Engineer/Service training data AND Customer training data!
+    return all.filter((e) => e.role === "service" || e.role === "customer" || e.source === "company");
   }
   if (role === "new_user") {
     return all.filter((e) => e.role === "new_user" || e.source === "company");
   }
+  // Customers get ONLY Customer training data (no engineer/service PCB board replacement data)!
   return all.filter((e) => e.role === "customer" || e.source === "company");
 }
 

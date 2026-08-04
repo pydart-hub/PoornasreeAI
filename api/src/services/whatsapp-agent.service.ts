@@ -374,8 +374,12 @@ Active Support Tickets:\n${activeTickets}
 
 TRAINING DOCUMENTS & TROUBLESHOOTING GUIDES:\n${catalogContext.slice(0, 6000)}
 
-TROUBLESHOOTING INSTRUCTIONS (CRITICAL):
-- When a customer reports a machine issue (e.g. "Vibro not working", "Analyzer not on", "Low battery error"), you MUST provide the EXACT CHECK and ACTION steps from the training documents above.
+TROUBLESHOOTING & BOUNDARY INSTRUCTIONS (CRITICAL):
+- ${isEngineer
+    ? `SERVICE ENGINEER MODE: You are assisting a certified service engineer. Provide technical component replacement steps, PCB part numbers, transducer voltage test values, calibration details, and wiring schematics.`
+    : `STRICT CUSTOMER BOUNDARY RULE: You are assisting an end-user customer. Provide ONLY customer-level troubleshooting checks (power cord connection, fuse check, distilled water cleaning, charging). DO NOT give internal engineer PCB board replacement, IC soldering, or component schematic instructions to customers. If customer checks fail, prompt them to tap Register Complaint for a field engineer visit.`
+  }
+- When a user reports a machine issue (e.g. "Vibro not working", "Analyzer not on", "Low battery error"), you MUST provide the EXACT CHECK and ACTION steps from the training documents above.
 - Format troubleshooting as numbered steps: "Step 1: CHECK ... → If failed, ACTION: ..."
 - After listing ALL checks and actions, ask: "Did these steps resolve your issue?"
 - If the training documents contain a matching troubleshooting guide, use it EXACTLY. Do NOT make up your own steps.
@@ -411,6 +415,27 @@ REPLY FORMATTING (WhatsApp Friendly):
   }
 
   return `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you with your milk testing machine or service booking today?`;
+}
+
+/** Check if a WhatsApp phone number belongs to a registered service engineer */
+export async function isRegisteredEngineer(phoneNumber: string): Promise<boolean> {
+  const clean = phoneNumber.replace(/\D/g, "");
+  if (!clean) return false;
+  try {
+    const engineers = await prisma.user.findMany({
+      where: { role: "service_engineer" },
+      select: { whatsappNumber: true },
+    });
+    return engineers.some((e) => {
+      if (!e.whatsappNumber) return false;
+      const cleanDb = e.whatsappNumber.replace(/\D/g, "");
+      return cleanDb.length >= 10 && clean.length >= 10
+        ? cleanDb.slice(-10) === clean.slice(-10)
+        : cleanDb === clean;
+    });
+  } catch {
+    return false;
+  }
 }
 
 // ── Public Entry Point: Customer WhatsApp Agent ──────────────────────────────
@@ -498,17 +523,20 @@ export async function handleCustomerAgentMessage(
     meta.customerName = customerCtx.customerName;
   }
 
-  const isEngineer = /step|board|sensor|voltage|circuit|replace|calibrate|transducer|wiring/i.test(text);
+  const isSenderEngineer = await isRegisteredEngineer(phoneNumber);
+  const isTechnicalQuery = /circuit|pcb|soldering|transducer|wiring|pin voltage|board replace/i.test(text);
+  const isEngineer = isSenderEngineer || isTechnicalQuery;
   const isNewUser = /new user|first time|just bought|unbox|setting up|how to use/i.test(text);
 
   // Load relevant training document RAG
+  // Customers get ONLY Customer documents (CHATBOT_DATAS, customer-training.json, company-knowledge);
+  // Engineers get BOTH Customer AND Engineer documents (Engineers Training, training.json, etc.)
   const catalog = await loadRelevantCatalog(text, isEngineer ? "service" : isNewUser ? "new_user" : "customer");
   const catalogContext = formatCatalogForPrompt(catalog);
 
   // ── Structured Complaint Matching from Training Catalog ───────────────────
-  // Query ALL training entries from JSON & DB (do not filter out service/engineer entries)
-  const allCatalog = await loadTrainingCatalog();
-  const troubleshootEntries = allCatalog.filter((e) => e.source === "json" || e.source === "document_issue");
+  // Sourced strictly from role-filtered catalog (customers get customer solutions; engineers get both)
+  const troubleshootEntries = catalog.filter((e) => e.source === "json" || e.source === "document_issue");
   const lowerMsg = text.toLowerCase();
 
   // Build a relevance-scored match against all troubleshooting entries
