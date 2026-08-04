@@ -486,9 +486,12 @@ export async function handleCustomerAgentMessage(
     );
   }
 
-  // Explicit language request detection (e.g. "Talk in Malayalam", "Speak Hindi", "Tamil")
+  // Explicit language request detection (e.g. "Talk in English", "Malayalam", "Hindi", "Tamil")
   const lowerText = text.toLowerCase();
-  if (/\bmalayalam\b|മലയാളം/i.test(lowerText)) meta.language = "ml";
+  if (/\b(english|eng)\b/i.test(lowerText) || /in english|speak english|talk english|talk in english/i.test(lowerText)) {
+    meta.language = "en";
+  }
+  else if (/\bmalayalam\b|മലയാളം/i.test(lowerText)) meta.language = "ml";
   else if (/\bhindi\b|हिंदी|हिन्दी/i.test(lowerText)) meta.language = "hi";
   else if (/\btamil\b|தமிழ்/i.test(lowerText)) meta.language = "ta";
   else if (/\btelugu\b|తెలుగు/i.test(lowerText)) meta.language = "te";
