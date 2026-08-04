@@ -120,7 +120,13 @@
         "ANALYZER - T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK",
         "ANALYZER t2/temp.set error/sample not found/air in milk",
         "ANALYZER showing t2/temp.set error/sample not found/air in milk",
-        "ANALYZER t2/temp.set error/sample not found/air in milk problem"
+        "ANALYZER t2/temp.set error/sample not found/air in milk problem",
+        "T2 error",
+        "T2error",
+        "T2 temp set error",
+        "T2 temp error",
+        "Sample not found",
+        "Air in milk"
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR In MILK:\n1. Check: CHECK THE LEAKAGE/BLOCK Of THE SAMPLE SUCKING SECTIONS → CHECK THE SILICON TUBE BROKEN/BEND\n2. Check: CHECK THE L-PLUG PROPERLY INSERT → CHECK THE O-RING\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
@@ -136,7 +142,9 @@
         "ANALYZER - PLUNGE IN WATER/WATER IN SENSOR",
         "ANALYZER plunge in water/water in sensor",
         "My ANALYZER has plunge in water/water in sensor issue",
-        "Problem with ANALYZER: plunge in water/water in sensor"
+        "Problem with ANALYZER: plunge in water/water in sensor",
+        "Plunge in water",
+        "Water in sensor"
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — PLUNGE In WATER/WATER In SENSOR:\n1. Check: CHECK THE SAMPLE LIQUID PRESENTS In THE SENSOR TUBE → REMOVE THE SAMPLE LIQUID-MANULLY PLUNGE\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
@@ -152,7 +160,8 @@
         "ANALYZER - HOT SAMPLE ERROR",
         "ANALYZER hot sample error",
         "ANALYZER showing hot sample error",
-        "ANALYZER hot sample error problem"
+        "ANALYZER hot sample error problem",
+        "Hot sample"
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — HOT SAMPLE ERROR:\n1. Check: CHECK THE TEST SAMPLE TEMPERATURE BELOW 40 DEGREE → REPLACE THE SAMPLE\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
@@ -168,7 +177,9 @@
         "ANALYZER - PEN-DRIVE AND KEYBOARD NOT DETECTED",
         "ANALYZER pen-drive and keyboard not detected",
         "Why is my ANALYZER pen-drive and keyboard not detected?",
-        "My ANALYZER is pen-drive and keyboard not detected"
+        "My ANALYZER is pen-drive and keyboard not detected",
+        "Pen drive not detected",
+        "Keyboard not detected"
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — PEN-DRIVE AND KEYBOARD NOT DETECTED:\n1. CHECK THE USB SETTING Is CORRECT\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
@@ -184,7 +195,10 @@
         "ANALYZER - WIFI/GSM ERROR SHOWN",
         "ANALYZER wifi/gsm error shown",
         "ANALYZER showing wifi/gsm error shown",
-        "ANALYZER wifi/gsm error shown problem"
+        "ANALYZER wifi/gsm error shown problem",
+        "WiFi error",
+        "GSM error",
+        "Wifi gsm error"
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — WIFI/GSM ERROR SHOWN:\n1. Check: CHECK THE WIFI/GSM SETTINGS DETAILS → ENTER THE REQUIRED SETTINGS\n2. CHECK THE ANTENNA Is CONNECTED\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
@@ -200,7 +214,12 @@
         "ANALYZER - DATE AND TIME NOT SHOWN CORRECT",
         "ANALYZER date and time not shown correct",
         "Why is my ANALYZER date and time not shown correct?",
-        "My ANALYZER is date and time not shown correct"
+        "My ANALYZER is date and time not shown correct",
+        "Date and time error",
+        "Date time error",
+        "Date and time wrong",
+        "Date error",
+        "Clock error"
       ],
       "responses": [
         "Here's how to troubleshoot your ANALYZER — DATE AND TIME NOT SHOWN CORRECT:\n1. Check: CHECK THE CLOCK SETTINGS → ENTER THE CORRECT DATE AND TIME\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."

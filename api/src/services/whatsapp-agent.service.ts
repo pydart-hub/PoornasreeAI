@@ -560,27 +560,20 @@ export async function handleCustomerAgentMessage(
       if (hay.includes(word)) score += 2;
     }
 
-    // Boost common product/complaint keywords
-    if (lowerMsg.includes("vibro") && hay.includes("vibro")) score += 5;
-    if (lowerMsg.includes("not working") && hay.includes("not working")) score += 5;
-    if (lowerMsg.includes("not on") && (hay.includes("not on") || hay.includes("not working"))) score += 5;
-    if (lowerMsg.includes("led") && hay.includes("led")) score += 3;
-    if (lowerMsg.includes("vibration") && hay.includes("vibration")) score += 3;
-    if (lowerMsg.includes("adapter") && hay.includes("adapter")) score += 5;
-    if (lowerMsg.includes("analyzer") && hay.includes("analyzer")) score += 5;
-    if (lowerMsg.includes("cloud") && hay.includes("cloud")) score += 5;
-    if (lowerMsg.includes("error") && hay.includes("error")) score += 3;
-    if (lowerMsg.includes("battery") && hay.includes("battery")) score += 3;
-    if (lowerMsg.includes("fat") && hay.includes("fat")) score += 3;
-    if (lowerMsg.includes("reading") && hay.includes("reading")) score += 3;
-    if (lowerMsg.includes("printer") && hay.includes("printer")) score += 3;
-    if (lowerMsg.includes("wifi") && hay.includes("wifi")) score += 3;
-    if (lowerMsg.includes("gsm") && hay.includes("gsm")) score += 3;
-    if (lowerMsg.includes("sample") && hay.includes("sample")) score += 3;
-    if (lowerMsg.includes("hot") && hay.includes("hot")) score += 3;
-    if (lowerMsg.includes("display") && hay.includes("display")) score += 3;
-    if (lowerMsg.includes("fuse") && hay.includes("fuse")) score += 3;
-    if (lowerMsg.includes("power") && hay.includes("power")) score += 3;
+    // Boost specific complaint keywords
+    if (/date|time|clock/i.test(lowerMsg) && /date|time|clock/i.test(hay)) score += 12;
+    if (/t2|temp\.set|temp set/i.test(lowerMsg) && /t2|temp\.set|temp set/i.test(hay)) score += 12;
+    if (/vibro/i.test(lowerMsg) && /vibro/i.test(hay)) score += 5;
+    if (/not working/i.test(lowerMsg) && /not working/i.test(hay)) score += 5;
+    if (/not on/i.test(lowerMsg) && (/not on/i.test(hay) || /not working/i.test(hay))) score += 5;
+    if (/adapter/i.test(lowerMsg) && /adapter/i.test(hay)) score += 5;
+    if (/cloud|updation/i.test(lowerMsg) && /cloud|updation/i.test(hay)) score += 8;
+    if (/wifi|gsm/i.test(lowerMsg) && /wifi|gsm/i.test(hay)) score += 8;
+    if (/battery/i.test(lowerMsg) && /battery/i.test(hay)) score += 5;
+    if (/plunge|water in sensor/i.test(lowerMsg) && /plunge|water in sensor/i.test(hay)) score += 8;
+    if (/hot sample/i.test(lowerMsg) && /hot sample/i.test(hay)) score += 8;
+    if (/printer/i.test(lowerMsg) && /printer/i.test(hay)) score += 5;
+    if (/pendrive|keyboard/i.test(lowerMsg) && /pendrive|keyboard/i.test(hay)) score += 5;
 
     if (score > bestScore) {
       bestScore = score;
