@@ -27,6 +27,7 @@ import {
   groqAgentModel,
   isGroqConfigured,
 } from "./groq.service";
+import { classifyComplaint, prefilterCandidates } from "./complaint-classifier.service";
 import * as WhatsAppService from "./whatsapp.service";
 import { findDocumentIssue } from "./simulate.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
@@ -536,79 +537,43 @@ export async function handleCustomerAgentMessage(
   const catalog = prefilterCatalog(roleCatalog, text, 40);
   const catalogContext = formatCatalogForPrompt(catalog);
 
-  // ── Structured Complaint Matching from Training Catalog ───────────────────
-  // Sourced strictly from role-filtered catalog BEFORE prefilter truncation (so no complaint entries are missed)
+  // ── Structured Complaint Matching via Groq LLM Classifier ──────────────────
+  // Two-stage matching: fast keyword pre-filter → Groq semantic classifier.
+  // This correctly handles real customer phrasings like "mera machine nahi chalta",
+  // "display blank issue", "battery charging nahi ho raha", etc.
   const troubleshootEntries = roleCatalog.filter((e) => e.source === "json" || e.source === "document_issue");
-  const lowerMsg = text.toLowerCase();
+  if (troubleshootEntries.length > 0 && isGroqConfigured()) {
+    const candidates = prefilterCandidates(troubleshootEntries, text, 15);
 
-  // Build a relevance-scored match against all troubleshooting entries
-  let bestMatch: CatalogEntry | null = null;
-  let bestScore = 0;
+    if (candidates.length > 0) {
+      const { entry: classifiedEntry, confidence } = await classifyComplaint(text, candidates);
 
-  for (const entry of troubleshootEntries) {
-    let score = 0;
-    const hay = `${entry.title} ${entry.tag} ${entry.patterns.join(" ")} ${entry.content}`.toLowerCase();
+      if (classifiedEntry && confidence >= 50) {
+        meta.lastComplaint = classifiedEntry.title;
+        await updateAgentSession(session.id, "AGENT_CHAT", meta);
 
-    // Direct pattern match (highest weight)
-    for (const p of entry.patterns) {
-      if (p.length > 3 && lowerMsg.includes(p.toLowerCase())) score += 10;
-    }
+        let structuredText = `🔧 *Troubleshooting: ${classifiedEntry.title}*\n\n${classifiedEntry.content}`;
+        structuredText += `\n\n✅ Did these steps resolve your issue? If not, tap *Register Complaint* below and our field engineer will be assigned to you.`;
 
-    // Keyword overlap scoring
-    const msgWords = lowerMsg.split(/\s+/).filter((w) => w.length > 2);
-    for (const word of msgWords) {
-      if (hay.includes(word)) score += 2;
-    }
+        try {
+          const matchedVideos = await findVideosForQuery(`${text} ${classifiedEntry.title}`, 2);
+          if (matchedVideos.length > 0) {
+            structuredText += formatVideoSuggestions(
+              matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
+              lang,
+            );
+          }
+        } catch (e) {
+          console.error("[whatsapp-agent] Video lookup error:", e);
+        }
 
-    // Boost specific complaint keywords
-    if (/date|time|clock/i.test(lowerMsg) && /date|time|clock/i.test(hay)) score += 12;
-    if (/t2|temp\.set|temp set/i.test(lowerMsg) && /t2|temp\.set|temp set/i.test(hay)) score += 12;
-    if (/vibro/i.test(lowerMsg) && /vibro/i.test(hay)) score += 5;
-    if (/not working/i.test(lowerMsg) && /not working/i.test(hay)) score += 5;
-    if (/not on/i.test(lowerMsg) && (/not on/i.test(hay) || /not working/i.test(hay))) score += 5;
-    if (/adapter/i.test(lowerMsg) && /adapter/i.test(hay)) score += 5;
-    if (/cloud|updation/i.test(lowerMsg) && /cloud|updation/i.test(hay)) score += 8;
-    if (/wifi|gsm/i.test(lowerMsg) && /wifi|gsm/i.test(hay)) score += 8;
-    if (/battery/i.test(lowerMsg) && /battery/i.test(hay)) score += 5;
-    if (/plunge|water in sensor/i.test(lowerMsg) && /plunge|water in sensor/i.test(hay)) score += 8;
-    if (/hot sample/i.test(lowerMsg) && /hot sample/i.test(hay)) score += 8;
-    if (/printer/i.test(lowerMsg) && /printer/i.test(hay)) score += 5;
-    if (/pendrive|keyboard/i.test(lowerMsg) && /pendrive|keyboard/i.test(hay)) score += 5;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = entry;
-    }
-  }
-
-  // Only use structured match if score is significant (at least one keyword + one pattern)
-  if (bestMatch && bestScore >= 5) {
-    meta.lastComplaint = bestMatch.title;
-    await updateAgentSession(session.id, "AGENT_CHAT", meta);
-
-    let structuredText = `🔧 *Troubleshooting: ${bestMatch.title}*\n\n${bestMatch.content}`;
-
-    // Add "Did this resolve?" prompt
-    structuredText += `\n\n✅ Did these steps resolve your issue? If not, tap *Register Complaint* below and our field engineer will be assigned to you.`;
-
-    // Attach video if available
-    try {
-      const matchedVideos = await findVideosForQuery(`${text} ${bestMatch.title}`, 2);
-      if (matchedVideos.length > 0) {
-        structuredText += formatVideoSuggestions(
-          matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
-          lang,
-        );
+        return makeReply(structuredText, [
+          { id: "YES_RESOLVED", title: "✅ Yes, Resolved" },
+          { id: "BOOK_SERVICE", title: "🛠️ Register Complaint" },
+          { id: "talk_agent", title: "💬 Talk to us" },
+        ]);
       }
-    } catch (e) {
-      console.error("[whatsapp-agent] Video lookup error:", e);
     }
-
-    return makeReply(structuredText, [
-      { id: "YES_RESOLVED", title: "✅ Yes, Resolved" },
-      { id: "BOOK_SERVICE", title: "🛠️ Register Complaint" },
-      { id: "talk_agent", title: "💬 Talk to us" },
-    ]);
   }
 
   // Generate Groq completion
