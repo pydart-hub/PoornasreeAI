@@ -45,6 +45,7 @@ const LANG_CONTEXT_LIMIT = 6;
 
 type AgentMeta = {
   language?: string;
+  explicitLanguage?: boolean;
   customerName?: string;
   customerPhone?: string;
   agentMode?: boolean;
@@ -139,12 +140,13 @@ function detectLanguageStrict(text: string): string {
 }
 
 function stabilizeLanguage(meta: AgentMeta, detected: string): string {
-  if (detected && detected !== "en") return detected;
-  const sessionLang = meta.language;
-  if (sessionLang && sessionLang !== "en" && detected === "en") {
-    return "en";
+  if (meta.explicitLanguage || meta.language) {
+    if (detected && detected !== "en" && detected !== meta.language) {
+      return detected;
+    }
+    return meta.language || "en";
   }
-  return detected;
+  return detected || "en";
 }
 
 // ── DB & Chat Session helpers ───────────────────────────────────────────────
@@ -486,38 +488,44 @@ export async function handleCustomerAgentMessage(
     );
   }
 
-  // Explicit language request detection (e.g. "Talk in English", "Malayalam", "Hindi", "Tamil")
+  // ── Permanent Language Persistence & Explicit Switch Detection ──
   const lowerText = text.toLowerCase();
+  let requestedLang: string | null = null;
+
   if (/\b(english|eng)\b/i.test(lowerText) || /in english|speak english|talk english|talk in english/i.test(lowerText)) {
-    meta.language = "en";
+    requestedLang = "en";
+  } else if (/\bmalayalam\b|മലയാളം/i.test(lowerText) || /in malayalam|speak malayalam|talk in malayalam/i.test(lowerText)) {
+    requestedLang = "ml";
+  } else if (/\bhindi\b|हिंदी|हिन्दी/i.test(lowerText) || /in hindi|speak hindi|talk in hindi/i.test(lowerText)) {
+    requestedLang = "hi";
+  } else if (/\btamil\b|தமிழ்/i.test(lowerText) || /in tamil|speak tamil|talk in tamil/i.test(lowerText)) {
+    requestedLang = "ta";
+  } else if (/\btelugu\b|తెలుగు/i.test(lowerText) || /in telugu|speak telugu|talk in telugu/i.test(lowerText)) {
+    requestedLang = "te";
+  } else if (/\bkannada\b|കന്നഡ|ಕನ್ನಡ/i.test(lowerText) || /in kannada|speak kannada|talk in kannada/i.test(lowerText)) {
+    requestedLang = "kn";
+  } else if (/\bbengali\b|বাংলা/i.test(lowerText) || /in bengali|speak bengali|talk in bengali/i.test(lowerText)) {
+    requestedLang = "bn";
+  } else if (/\b(ente|enikk|aanu|alla|undo|avunnilla|ariyumo|cheyyumo|ivide|evidaya|onnum|enthaanu|ningal|njan|mashineentha|paalu)\b/i.test(lowerText)) {
+    requestedLang = "ml";
+  } else if (/\b(meri|mera|mere|kaise|chalu|nhi|nahin|kare|kaam|karo|batao|kya|kaise)\b/i.test(lowerText)) {
+    requestedLang = "hi";
+  } else if (/\b(enadhu|enaku|ennudaiya|theriyuma|irukku|panla|varala|pannunga)\b/i.test(lowerText)) {
+    requestedLang = "ta";
   }
-  else if (/\bmalayalam\b|മലയാളം/i.test(lowerText)) meta.language = "ml";
-  else if (/\bhindi\b|हिंदी|हिन्दी/i.test(lowerText)) meta.language = "hi";
-  else if (/\btamil\b|தமிழ்/i.test(lowerText)) meta.language = "ta";
-  else if (/\btelugu\b|తెలుగు/i.test(lowerText)) meta.language = "te";
-  else if (/\bkannada\b|ಕನ್ನಡ/i.test(lowerText)) meta.language = "kn";
-  else if (/\bbengali\b|বাংলা/i.test(lowerText)) meta.language = "bn";
-  // Detect Manglish (Malayalam in English)
-  else if (/\b(ente|enikk|aanu|alla|undo|avunnilla|ariyumo|cheyyumo|ivide|evidaya|onnum|enthaanu|ningal|njan|mashineentha|paalu)\b/i.test(lowerText)) {
-    meta.language = "ml";
-  }
-  // Detect Hinglish (Hindi in English)
-  else if (/\b(meri|mera|mere|kaise|chalu|nhi|nahin|kare|kaam|karo|batao|kya|kaise)\b/i.test(lowerText)) {
-    meta.language = "hi";
-  }
-  // Detect Tanglish (Tamil in English)
-  else if (/\b(enadhu|enaku|ennudaiya|theriyuma|irukku|panla|varala|pannunga)\b/i.test(lowerText)) {
-    meta.language = "ta";
-  }
-  else {
+
+  // Check if language needs to be updated permanently in DB
+  if (requestedLang) {
+    meta.language = requestedLang;
+    meta.explicitLanguage = true;
+    await updateAgentSession(session.id, session.state, meta);
+  } else if (!meta.language) {
     const detectedLang = detectLanguageStrict(text);
-    // Only override session language if confidently detected AND session not already established
-    if (meta.language && detectedLang === "en") {
-      // Keep existing session language if new message is ambiguous English
-    } else {
-      meta.language = stabilizeLanguage(meta, detectedLang);
-    }
+    meta.language = detectedLang || "en";
+    await updateAgentSession(session.id, session.state, meta);
   }
+  // Otherwise, meta.language remains PERMANENTLY saved in PostgreSQL DB across all turns!
+
   const lang = meta.language || "en";
 
   // Enrich Context
