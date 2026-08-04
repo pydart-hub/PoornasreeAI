@@ -53,6 +53,8 @@ type AgentMeta = {
   customerMachines?: string[];
   lastLangHints?: string[];
   lastComplaint?: string;
+  complaintSerial?: string;
+  complaintProblem?: string;
 };
 
 // ── Exported helpers ─────────────────────────────────────────────────────────
@@ -492,6 +494,16 @@ export async function handleCustomerAgentMessage(
     );
   }
 
+  if (upper === "TROUBLESHOOT" || upper === "1") {
+    return makeReply(
+      `🔧 *Poornasree Troubleshooting Assistant*\n\nPlease describe the issue you are experiencing with your machine (e.g. *Vibro not working*, *Analyzer not turning on*, *T2 error*, *Low battery*, *Hot sample error*).`,
+      [
+        { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+        { id: "talk_agent", title: "💬 Talk to us" },
+      ],
+    );
+  }
+
   if (upper === "BOOK_SERVICE" || upper === "BOOK SERVICE" || upper === "2") {
     await updateAgentSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
     return makeReply(
@@ -499,6 +511,58 @@ export async function handleCustomerAgentMessage(
       [
         { id: "SKIP", title: "Skip ⏭️" },
         { id: "MENU", title: "Menu 📋" },
+      ],
+    );
+  }
+
+  // ── Complaint Booking State Machine Interceptors ──
+  if (session.state === "COMPLAINT_ASK_SERIAL") {
+    const serial = upper === "SKIP" ? "Not Provided" : text;
+    meta.complaintSerial = serial;
+    await updateAgentSession(session.id, "COMPLAINT_ASK_ISSUE", meta);
+    return makeReply(
+      `Got it! 📝 Now, please describe the issue you are facing with your machine in a few words (e.g. Vibro low vibration, T2 error, Hot sample error).`,
+      [{ id: "MENU", title: "Menu 📋" }],
+    );
+  }
+
+  if (session.state === "COMPLAINT_ASK_ISSUE") {
+    meta.complaintProblem = text;
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const randHex = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const ticketNumber = `TKT-${dateStr}-${randHex}`;
+
+    try {
+      await prisma.ticket.create({
+        data: {
+          ticketNumber,
+          phoneNumber,
+          customerId: phoneNumber,
+          machineSerialNumber: meta.complaintSerial || "Not Provided",
+          problemDescription: text,
+          status: "OPEN",
+        },
+      });
+    } catch (err) {
+      console.error("[whatsapp-agent] Failed to create ticket:", err);
+    }
+
+    // Reset session state back to AGENT_CHAT
+    await updateAgentSession(session.id, "AGENT_CHAT", {
+      ...meta,
+      complaintSerial: undefined,
+      complaintProblem: undefined,
+    });
+
+    return makeReply(
+      `✅ *Service Complaint Registered Successfully!*\n\n` +
+        `📋 *Ticket Number:* ${ticketNumber}\n` +
+        `🔢 *Serial Number:* ${meta.complaintSerial || "Not Provided"}\n` +
+        `📝 *Problem Description:* ${text}\n\n` +
+        `Our field engineer team has been notified and will reach out to you shortly.`,
+      [
+        { id: "troubleshoot", title: "🔧 Troubleshoot" },
+        { id: "talk_agent", title: "💬 Talk to us" },
       ],
     );
   }
