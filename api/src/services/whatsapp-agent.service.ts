@@ -531,12 +531,14 @@ export async function handleCustomerAgentMessage(
   // Load relevant training document RAG
   // Customers get ONLY Customer documents (CHATBOT_DATAS, customer-training.json, company-knowledge);
   // Engineers get BOTH Customer AND Engineer documents (Engineers Training, training.json, etc.)
-  const catalog = await loadRelevantCatalog(text, isEngineer ? "service" : isNewUser ? "new_user" : "customer");
+  const targetRole: CatalogRole = isEngineer ? "service" : isNewUser ? "new_user" : "customer";
+  const roleCatalog = await getCatalogForRole(targetRole);
+  const catalog = prefilterCatalog(roleCatalog, text, 40);
   const catalogContext = formatCatalogForPrompt(catalog);
 
   // ── Structured Complaint Matching from Training Catalog ───────────────────
-  // Sourced strictly from role-filtered catalog (customers get customer solutions; engineers get both)
-  const troubleshootEntries = catalog.filter((e) => e.source === "json" || e.source === "document_issue");
+  // Sourced strictly from role-filtered catalog BEFORE prefilter truncation (so no complaint entries are missed)
+  const troubleshootEntries = roleCatalog.filter((e) => e.source === "json" || e.source === "document_issue");
   const lowerMsg = text.toLowerCase();
 
   // Build a relevance-scored match against all troubleshooting entries

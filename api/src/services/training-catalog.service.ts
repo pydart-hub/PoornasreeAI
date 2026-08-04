@@ -228,12 +228,21 @@ export function prefilterCatalog(
       for (const t of tokens) {
         if (hay.includes(t)) score += 1;
       }
-      // Boost common product keywords
-      if (/vibro/i.test(query) && /vibro/i.test(hay)) score += 2;
+      // Boost common product and complaint keywords
+      if (/vibro/i.test(query) && /vibro/i.test(hay)) score += 3;
       if (/analyzer|lactosure|lactogrand|ecod/i.test(query) && /analyzer|lactosure|lactogrand|ecod/i.test(hay)) {
-        score += 2;
+        score += 3;
       }
-      if (/adapter|charger|solar/i.test(query) && /adapter|charger|solar/i.test(hay)) score += 2;
+      if (/adapter|charger|solar/i.test(query) && /adapter|charger|solar/i.test(hay)) score += 3;
+      if (/hot sample|sample|temp|t2|air in milk|plunge|water/i.test(query) && /hot sample|sample|temp|t2|air in milk|plunge|water/i.test(hay)) {
+        score += 5;
+      }
+      if (/battery|fuse|power|voltage|led|display|screen/i.test(query) && /battery|fuse|power|voltage|led|display|screen/i.test(hay)) {
+        score += 5;
+      }
+      if (/cloud|wifi|gsm|sms|printer|scale|weighing|rate|chart/i.test(query) && /cloud|wifi|gsm|sms|printer|scale|weighing|rate|chart/i.test(hay)) {
+        score += 5;
+      }
       return { e, score };
     })
     .sort((a, b) => b.score - a.score);
