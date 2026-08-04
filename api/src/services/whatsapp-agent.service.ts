@@ -441,6 +441,21 @@ export async function isRegisteredEngineer(phoneNumber: string): Promise<boolean
   }
 }
 
+async function translateTroubleshooting(text: string, lang: string): Promise<string> {
+  if (!lang || lang === "en") return text;
+  const langName = LANG_CODE[lang] || lang;
+  try {
+    const prompt = `Translate the following machine troubleshooting guide into natural, fluent ${langName} for a WhatsApp message. Keep formatting, line breaks, check numbers (1, 2, 3), bold headings (*heading*), and emojis intact:\n\n${text}`;
+    const translated = await groqChat(
+      [{ role: "user", content: prompt }],
+      { model: groqFastModel(), temperature: 0.2, maxTokens: 600, timeoutMs: 15_000 }
+    );
+    return translated?.trim() || text;
+  } catch {
+    return text;
+  }
+}
+
 // ── Public Entry Point: Customer WhatsApp Agent ──────────────────────────────
 export async function handleCustomerAgentMessage(
   phoneNumber: string,
@@ -565,6 +580,10 @@ export async function handleCustomerAgentMessage(
 
         let structuredText = `🔧 *Troubleshooting: ${classifiedEntry.title}*\n\n${classifiedEntry.content}`;
         structuredText += `\n\n✅ Did these steps resolve your issue? If not, tap *Register Complaint* below and our field engineer will be assigned to you.`;
+
+        if (lang !== "en") {
+          structuredText = await translateTroubleshooting(structuredText, lang);
+        }
 
         try {
           const matchedVideos = await findVideosForQuery(`${text} ${classifiedEntry.title}`, 2);
