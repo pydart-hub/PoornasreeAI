@@ -349,10 +349,10 @@ PERSONA & HUMAN CONVERSATION RULES (CRITICAL):
 - Your name is ${botName}. Speak like a real human support team member — empathetic, concise, and natural.
 - NEVER sound like a rigid robot, automated bot, or canned menu system.
 - NEVER mention "AI", "LLM", "Prompt", "System Instructions", or "Training Catalog".
-- ${isFirstTurn 
-    ? `This is the FIRST message of the chat. Greet the customer warmly and introduce yourself as ${botName} from Poornasree Equipments.`
-    : `STRICT RULE FOR ONGOING CHAT: This is a CONTINUING conversation thread. DO NOT say "Hi", "Hello", "Namaste", or "I'm ${botName}". DO NOT re-introduce yourself. Jump STRAIGHT into answering the user's question directly without any greeting!`
-  }
+- ${isFirstTurn
+      ? `This is the FIRST message of the chat. Greet the customer warmly and introduce yourself as ${botName} from Poornasree Equipments.`
+      : `STRICT RULE FOR ONGOING CHAT: This is a CONTINUING conversation thread. DO NOT say "Hi", "Hello", "Namaste", or "I'm ${botName}". DO NOT re-introduce yourself. Jump STRAIGHT into answering the user's question directly without any greeting!`
+    }
 - IMPORTANT: Our WhatsApp system CAN and DOES automatically attach product photos, model images, brochures, and video tutorial links directly into the customer's WhatsApp chat. NEVER claim "I cannot display images". Reassure the user that you are sharing photos/links in chat.
 
 LANGUAGE RULE (STRICT):
@@ -381,9 +381,9 @@ TRAINING DOCUMENTS & TROUBLESHOOTING GUIDES:\n${catalogContext.slice(0, 6000)}
 
 TROUBLESHOOTING & BOUNDARY INSTRUCTIONS (CRITICAL):
 - ${isEngineer
-    ? `SERVICE ENGINEER MODE: You are assisting a certified service engineer. Provide technical component replacement steps, PCB part numbers, transducer voltage test values, calibration details, and wiring schematics.`
-    : `STRICT CUSTOMER BOUNDARY RULE: You are assisting an end-user customer. Provide ONLY customer-level troubleshooting checks (power cord connection, fuse check, distilled water cleaning, charging). DO NOT give internal engineer PCB board replacement, IC soldering, or component schematic instructions to customers. If customer checks fail, prompt them to tap Register Complaint for a field engineer visit.`
-  }
+      ? `SERVICE ENGINEER MODE: You are assisting a certified service engineer. Provide technical component replacement steps, PCB part numbers, transducer voltage test values, calibration details, and wiring schematics.`
+      : `STRICT CUSTOMER BOUNDARY RULE: You are assisting an end-user customer. Provide ONLY customer-level troubleshooting checks (power cord connection, fuse check, distilled water cleaning, charging). DO NOT give internal engineer PCB board replacement, IC soldering, or component schematic instructions to customers. If customer checks fail, prompt them to tap Register Complaint for a field engineer visit.`
+    }
 - When a user reports a machine issue (e.g. "Vibro not working", "Analyzer not on", "Low battery error"), you MUST provide the EXACT CHECK and ACTION steps from the training documents above.
 - Format troubleshooting as numbered steps: "Step 1: CHECK ... → If failed, ACTION: ..."
 - After listing ALL checks and actions, ask: "Did these steps resolve your issue?"
@@ -443,6 +443,28 @@ export async function isRegisteredEngineer(phoneNumber: string): Promise<boolean
   }
 }
 
+async function getOrCreateCustomerUser(phoneNumber: string, name?: string): Promise<string> {
+  const clean = phoneNumber.replace(/\D/g, "");
+  const existing = await prisma.user.findFirst({
+    where: {
+      whatsappNumber: { contains: clean.length >= 10 ? clean.slice(-10) : clean },
+    },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const newUser = await prisma.user.create({
+    data: {
+      email: `cust_${clean}_${Date.now()}@poornasree.ai`,
+      passwordHash: "NO_PASSWORD_WHATSAPP_CUSTOMER",
+      firstName: name || `Customer ${clean.slice(-4)}`,
+      whatsappNumber: phoneNumber,
+      role: "customer",
+    },
+  });
+  return newUser.id;
+}
+
 async function translateTroubleshooting(text: string, lang: string): Promise<string> {
   if (!lang || lang === "en") return text;
   const langName = LANG_CODE[lang] || lang;
@@ -480,6 +502,19 @@ export async function handleCustomerAgentMessage(
     agentMode: true,
   };
   const upper = text.toUpperCase().trim();
+
+  // ── Global restart commands → hand off to legacy FSM (fix Bug #1: MENU restart) ──
+  // The legacy FSM in simulate.service.ts has the proper button-driven main menu.
+  // Returning null here causes the dispatcher to fall through to the FSM restart path.
+  if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESTART") {
+    return null;
+  }
+
+  // ── SKIP only valid inside the complaint booking flow (COMPLAINT_ASK_SERIAL → COMPLAINT_ASK_ISSUE) ──
+  // Outside of that state, fall through to FSM so customer doesn't get confusing agent reply (fix Bug #2)
+  if (upper === "SKIP" && session.state !== "COMPLAINT_ASK_SERIAL") {
+    return null;
+  }
 
   // Handle shortcuts
   if (upper === "TALK_AGENT" || upper === "SPEAK TO SUPPORT" || upper === "4") {
@@ -533,11 +568,12 @@ export async function handleCustomerAgentMessage(
     const ticketNumber = `TKT-${dateStr}-${randHex}`;
 
     try {
+      const customerUserId = await getOrCreateCustomerUser(phoneNumber, meta.customerName);
       await prisma.ticket.create({
         data: {
           ticketNumber,
           phoneNumber,
-          customerId: phoneNumber,
+          customerId: customerUserId,
           machineSerialNumber: meta.complaintSerial || "Not Provided",
           problemDescription: text,
           status: "OPEN",
@@ -556,10 +592,10 @@ export async function handleCustomerAgentMessage(
 
     return makeReply(
       `✅ *Service Complaint Registered Successfully!*\n\n` +
-        `📋 *Ticket Number:* ${ticketNumber}\n` +
-        `🔢 *Serial Number:* ${meta.complaintSerial || "Not Provided"}\n` +
-        `📝 *Problem Description:* ${text}\n\n` +
-        `Our field engineer team has been notified and will reach out to you shortly.`,
+      `📋 *Ticket Number:* ${ticketNumber}\n` +
+      `🔢 *Serial Number:* ${meta.complaintSerial || "Not Provided"}\n` +
+      `📝 *Problem Description:* ${text}\n\n` +
+      `Our field engineer team has been notified and will reach out to you shortly.`,
       [
         { id: "troubleshoot", title: "🔧 Troubleshoot" },
         { id: "talk_agent", title: "💬 Talk to us" },

@@ -49,27 +49,27 @@ import {
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
-  customerName?:    string;
-  customerPhone?:   string;
-  serialNumber?:    string;
-  machineData?:     PasstestMachine | null;
-  manualName?:      string;
-  manualPlace?:     string;
-  manualPincode?:   string;
-  manualDistrict?:  string;
-  manualState?:     string;
-  manualAddress?:   string;
-  complaint?:       string;
-  pincodeDisplay?:  string;
+  customerName?: string;
+  customerPhone?: string;
+  serialNumber?: string;
+  machineData?: PasstestMachine | null;
+  manualName?: string;
+  manualPlace?: string;
+  manualPincode?: string;
+  manualDistrict?: string;
+  manualState?: string;
+  manualAddress?: string;
+  complaint?: string;
+  pincodeDisplay?: string;
   selectedProduct?: string;
   complaintSubcategory?: string;
   productCategory?: ProductCategory;
   feedbackTicketId?: string;
-  tsSessionId?:     string;
-  tsSerialPath?:    boolean;
-  tsSteps?:         string[];
-  tsCurrentStep?:   number;
-  language?:        Lang;
+  tsSessionId?: string;
+  tsSerialPath?: boolean;
+  tsSteps?: string[];
+  tsCurrentStep?: number;
+  language?: Lang;
   /** Set when name/pincode were loaded from a prior ticket — skip confirm on Book Service */
   skipEndCustomerConfirm?: boolean;
   customComplaintPath?: boolean;
@@ -1123,9 +1123,9 @@ async function handleGlobalBack(
         return makeReply(
           t("MACHINE_FOUND", lang, {
             customer: meta.machineData.customer || "N/A",
-            model:    meta.machineData.m_model  || "N/A",
-            serial:   meta.serialNumber || "N/A",
-            address:  [meta.machineData.Address1, meta.machineData.Address2].filter(Boolean).join(", ") || "N/A",
+            model: meta.machineData.m_model || "N/A",
+            serial: meta.serialNumber || "N/A",
+            address: [meta.machineData.Address1, meta.machineData.Address2].filter(Boolean).join(", ") || "N/A",
           }),
           [...getYesNoButtons(lang), getBackButton(lang)]
         );
@@ -1570,9 +1570,9 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
     return makeReply(
       t("MACHINE_FOUND", lang, {
         customer: machineData.customer || "N/A",
-        model:    machineData.m_model  || "N/A",
+        model: machineData.m_model || "N/A",
         serial,
-        address:  [machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A",
+        address: [machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A",
       }),
       getYesNoButtons(lang)
     );
@@ -1613,7 +1613,7 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
       productCategory === "lactogrand"
     ) {
       const analyzerComplaints = templates.filter(t => t.problemType.toLowerCase().includes("analyzer"));
-      
+
       if (!subCategory) {
         // Return 3 sub-categories instead of actual complaints
         return [
@@ -1626,15 +1626,15 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
       } else {
         // Filter analyzer complaints based on selected subCategory
         if (subCategory === "SUBCAT_POWER") {
-          filteredTemplates = analyzerComplaints.filter(t => 
+          filteredTemplates = analyzerComplaints.filter(t =>
             /not on|battery|t2|plunge|hot sample|output not present|external display|fat shown/i.test(t.title)
           );
         } else if (subCategory === "SUBCAT_DATA") {
-          filteredTemplates = analyzerComplaints.filter(t => 
+          filteredTemplates = analyzerComplaints.filter(t =>
             /pen-drive|wifi|date|sms|farmer|printer|cloud/i.test(t.title)
           );
         } else if (subCategory === "SUBCAT_SCALE") {
-          filteredTemplates = analyzerComplaints.filter(t => 
+          filteredTemplates = analyzerComplaints.filter(t =>
             /reading variation|weighing scale|rate not taken/i.test(t.title)
           );
         } else {
@@ -1686,7 +1686,7 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
       counter++;
     }
     seenTitles.add(uniqueTitle.toLowerCase());
-    
+
     return {
       id: `COMPLAINT_${t.id}`,
       title: uniqueTitle,
@@ -1870,10 +1870,10 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
   const listRows = await fetchComplaintListRows(lang, selectedProduct, undefined, meta.productCategory);
   const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
   const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
-  
+
   const updatedMeta = { ...meta, selectedProduct };
   await updateSession(sessionId, nextState, updatedMeta);
-  
+
   return makeReply(
     t("PRODUCT_SELECTED", lang, { product: selectedProduct }),
     undefined,
@@ -1885,7 +1885,7 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
 async function handleComplaintSubcategory(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   let subCategory = text.trim();
-  
+
   const isOther =
     subCategory === "COMPLAINT_OTHER" ||
     subCategory === "Other (type manually)" ||
@@ -1901,10 +1901,10 @@ async function handleComplaintSubcategory(sessionId: string, phoneNumber: string
 
   const updatedMeta = { ...meta, complaintSubcategory: subCategory };
   await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-  
+
   const productName = meta.selectedProduct || meta.machineData?.m_model;
   const listRows = await fetchComplaintListRows(lang, productName, subCategory, meta.productCategory);
-  
+
   return makeReply(
     lang === "hi" ? "कृपया अपनी विशिष्ट शिकायत चुनें:" : "Please select your specific complaint:",
     undefined,
@@ -1918,7 +1918,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   let complaintText = text.trim();
   let selectedTemplate: any = null;
 
-  const isOtherOption = 
+  const isOtherOption =
     complaintText === "COMPLAINT_OTHER" ||
     complaintText === "Other (type manually)" ||
     complaintText === "Describe your issue" ||
@@ -2308,11 +2308,11 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
     const listRows = await fetchComplaintListRows(lang, productName, undefined, meta.productCategory);
     const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
     const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
-    
+
     // Clear the previous complaint data but keep the product and machine data
     const updatedMeta: SessionMeta = { ...meta, complaint: undefined, complaintSubcategory: undefined, tsSteps: undefined, tsCurrentStep: undefined };
     await updateSession(sessionId, nextState, updatedMeta);
-    
+
     return makeReply(
       t_extra("NEXT_COMPLAINT_PROMPT", lang),
       undefined,
@@ -2389,10 +2389,10 @@ async function handleComplaintManualPincode(sessionId: string, _phoneNumber: str
 
   const updatedMeta: SessionMeta = {
     ...meta,
-    manualPincode:  digits,
-    manualPlace:    resolved.place,
+    manualPincode: digits,
+    manualPlace: resolved.place,
     manualDistrict: resolved.district,
-    manualState:    resolved.state,
+    manualState: resolved.state,
     pincodeDisplay: resolved.display,
   };
 
@@ -2405,7 +2405,7 @@ async function showManualPincodeConfirm(sessionId: string, meta: SessionMeta) {
   return makeReply(
     t("PINCODE_CONFIRM", lang, {
       location: pincodeLocationDisplay(meta),
-      pincode:  meta.manualPincode || "",
+      pincode: meta.manualPincode || "",
     }),
     getYesNoButtons(lang),
   );
@@ -2429,10 +2429,10 @@ async function handleComplaintManualPincodeConfirm(
   if (text === "2" || /^no/i.test(text)) {
     const clearedMeta: SessionMeta = {
       ...meta,
-      manualPincode:  undefined,
-      manualPlace:    undefined,
+      manualPincode: undefined,
+      manualPlace: undefined,
       manualDistrict: undefined,
-      manualState:    undefined,
+      manualState: undefined,
       pincodeDisplay: undefined,
     };
     await updateSession(sessionId, "COMPLAINT_MANUAL_PINCODE", clearedMeta);
@@ -2480,7 +2480,7 @@ async function loadSavedEndCustomer(phoneNumber: string): Promise<Partial<Sessio
   const ticket = await prisma.ticket.findFirst({
     where: {
       phoneNumber: { in: phoneLookupVariants(phoneNumber) },
-      pincodeId:   { not: null },
+      pincodeId: { not: null },
     },
     orderBy: { createdAt: "desc" },
     select: { issueDescription: true, customerAddress: true, pincode: true },
@@ -2499,14 +2499,14 @@ async function loadSavedEndCustomer(phoneNumber: string): Promise<Partial<Sessio
   const pc = ticket.pincode;
   const display = [pc.place, pc.district, pc.state].filter(Boolean).join(", ") || pc.code;
   return {
-    manualName:     name,
-    customerName:   name,
-    manualPincode:  pc.code,
-    manualPlace:    pc.place ?? undefined,
+    manualName: name,
+    customerName: name,
+    manualPincode: pc.code,
+    manualPlace: pc.place ?? undefined,
     manualDistrict: pc.district ?? undefined,
-    manualState:    pc.state ?? undefined,
+    manualState: pc.state ?? undefined,
     pincodeDisplay: display,
-    manualAddress:  savedAddress,
+    manualAddress: savedAddress,
   };
 }
 
@@ -2532,7 +2532,7 @@ async function showPasstestPincodeConfirm(sessionId: string, meta: SessionMeta) 
   return makeReply(
     t("PINCODE_CONFIRM", lang, {
       location: pincodeLocationDisplay(meta),
-      pincode:  meta.manualPincode || "",
+      pincode: meta.manualPincode || "",
     }),
     getYesNoButtons(lang),
   );
@@ -2561,10 +2561,10 @@ async function beginPasstestTicketBooking(sessionId: string, phoneNumber: string
       if (resolved && resolved.place) { // Only automatically resolve if pincode is valid and has a location
         workingMeta = {
           ...workingMeta,
-          manualPincode:  extracted,
-          manualPlace:    resolved.place,
+          manualPincode: extracted,
+          manualPlace: resolved.place,
           manualDistrict: resolved.district,
-          manualState:    resolved.state,
+          manualState: resolved.state,
           pincodeDisplay: resolved.display,
           skipEndCustomerConfirm: false, // Must confirm the automatically fetched pincode
         };
@@ -2624,10 +2624,10 @@ async function handlePasstestPincode(sessionId: string, meta: SessionMeta, text:
 
   const updatedMeta: SessionMeta = {
     ...meta,
-    manualPincode:  digits,
-    manualPlace:    resolved.place,
+    manualPincode: digits,
+    manualPlace: resolved.place,
     manualDistrict: resolved.district,
-    manualState:    resolved.state,
+    manualState: resolved.state,
     pincodeDisplay: resolved.display,
   };
 
@@ -2654,10 +2654,10 @@ async function handlePasstestPincodeConfirm(
   if (text === "2" || /^no/i.test(text)) {
     const clearedMeta: SessionMeta = {
       ...meta,
-      manualPincode:  undefined,
-      manualPlace:    undefined,
+      manualPincode: undefined,
+      manualPlace: undefined,
       manualDistrict: undefined,
-      manualState:    undefined,
+      manualState: undefined,
       pincodeDisplay: undefined,
     };
     await updateSession(sessionId, "PASSTEST_PINCODE", clearedMeta);
@@ -2690,7 +2690,7 @@ export async function findDocumentIssue(
     try {
       const embedding = await embedText(query);
       const results = await searchVectors(embedding, 5);
-      
+
       const bestWithTag = results.find(r => r.score >= 0.5 && r.payload?.tag);
       if (bestWithTag) {
         const tag = bestWithTag.payload.tag as string;
@@ -2784,7 +2784,7 @@ async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: 
     await prisma.ticket.update({
       where: { id: meta.feedbackTicketId },
       data: { feedbackRating: rating, feedbackSubmittedAt: new Date() },
-    }).catch(() => {});
+    }).catch(() => { });
   }
 
   await updateSession(sessionId, "FEEDBACK_SATISFIED", meta);
@@ -2807,7 +2807,7 @@ async function handleFeedbackSatisfied(sessionId: string, meta: SessionMeta, tex
     await prisma.ticket.update({
       where: { id: meta.feedbackTicketId },
       data: { feedbackComment: comment },
-    }).catch(() => {});
+    }).catch(() => { });
   }
 
   await updateSession(sessionId, "COMPLETED", {});
@@ -2862,37 +2862,46 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
   if (!pincodeRecord) {
     pincodeRecord = await prisma.pincode.create({
       data: {
-        code:     pincodeCode,
-        place:    meta.manualPlace    || null,
+        code: pincodeCode,
+        place: meta.manualPlace || null,
         district: meta.manualDistrict || null,
-        state:    meta.manualState    || null,
+        state: meta.manualState || null,
       },
     });
   } else if (meta.manualPlace || meta.manualDistrict || meta.manualState) {
     pincodeRecord = await prisma.pincode.update({
       where: { id: pincodeRecord.id },
       data: {
-        place:    meta.manualPlace    || pincodeRecord.place,
+        place: meta.manualPlace || pincodeRecord.place,
         district: meta.manualDistrict || pincodeRecord.district,
-        state:    meta.manualState    || pincodeRecord.state,
+        state: meta.manualState || pincodeRecord.state,
       },
     });
   }
   pincodeId = pincodeRecord.id;
 
   const ticket = await TicketService.createTicket({
-    customerId:          adminUser.id,
-    problemDescription:  `${productName ? productName + ": " : ""}${complaintText}`,
-    issueDescription:    buildEndCustomerIssueDescription(meta, dealerExtra),
-    machineName:         md.m_model || productName || undefined,
+    customerId: adminUser.id,
+    problemDescription: `${productName ? productName + ": " : ""}${complaintText}`,
+    issueDescription: buildEndCustomerIssueDescription(meta, dealerExtra),
+    machineName: md.m_model || productName || undefined,
     machineSerialNumber: serial,
     pincodeId,
     phoneNumber,
-    place:               meta.manualPlace,
-    district:            meta.manualDistrict,
-    state:               meta.manualState,
-    customerAddress:     meta.manualAddress!.trim(),
+    place: meta.manualPlace,
+    district: meta.manualDistrict,
+    state: meta.manualState,
+    customerAddress: meta.manualAddress!.trim(),
   });
+
+  // Auto-assign engineer by pincode (fix Bug #7: tickets stuck in OPEN).
+  if (pincodeId) {
+    try {
+      await TicketService.autoAssignEngineer(ticket.id, pincodeId);
+    } catch (err) {
+      console.error("[simulate] autoAssignEngineer failed:", err);
+    }
+  }
 
   if (ticket.ownerType === "DEALER" && ticket.ownerId) {
     io?.to(`dealer:${ticket.ownerId}`).emit("ticket:new", ticket);
@@ -2921,9 +2930,9 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
 
   return makeReply(
     t("TICKET_CONFIRMED", lang, {
-      ticket:   ticket.ticketNumber,
-      product:  productName || "N/A",
-      issue:    complaintText,
+      ticket: ticket.ticketNumber,
+      product: productName || "N/A",
+      issue: complaintText,
       location: pincodeLocationDisplay(meta),
     }) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
     [getRegisterAnotherComplaintButton(lang), getMenuButton(lang)]
@@ -2971,18 +2980,27 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
   }
 
   const ticket = await TicketService.createTicket({
-    customerId:          adminUser.id,
-    problemDescription:  `${productName ? productName + ": " : ""}${complaintText}`,
-    issueDescription:    buildEndCustomerIssueDescription(meta),
-    machineName:         productName || undefined,
+    customerId: adminUser.id,
+    problemDescription: `${productName ? productName + ": " : ""}${complaintText}`,
+    issueDescription: buildEndCustomerIssueDescription(meta),
+    machineName: productName || undefined,
     machineSerialNumber: meta.serialNumber || undefined,
     pincodeId,
     phoneNumber,
-    place:               meta.manualPlace,
-    district:            meta.manualDistrict,
-    state:               meta.manualState,
-    customerAddress:     meta.manualAddress!.trim(),
+    place: meta.manualPlace,
+    district: meta.manualDistrict,
+    state: meta.manualState,
+    customerAddress: meta.manualAddress!.trim(),
   });
+
+  // Auto-assign engineer by pincode (fix Bug #7: tickets stuck in OPEN).
+  if (pincodeId) {
+    try {
+      await TicketService.autoAssignEngineer(ticket.id, pincodeId);
+    } catch (err) {
+      console.error("[simulate] autoAssignEngineer failed:", err);
+    }
+  }
 
   io?.to("managers").emit("ticket:new", ticket);
 
@@ -3007,9 +3025,9 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
 
   return makeReply(
     t("TICKET_CONFIRMED", lang, {
-      ticket:   ticket.ticketNumber,
-      product:  productName || "N/A",
-      issue:    complaintText,
+      ticket: ticket.ticketNumber,
+      product: productName || "N/A",
+      issue: complaintText,
       location: [meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ") || meta.pincodeDisplay || "N/A",
     }) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
     [getRegisterAnotherComplaintButton(lang), getMenuButton(lang)]
@@ -3092,28 +3110,32 @@ async function handleChangeLanguage(sessionId: string, meta: SessionMeta, text: 
     t("WAITING_INPUT", lang),
     [
       getMenuButton(lang),
-      { id: "CHANGE_LANGUAGE", title: lang === "hi" ? "🌐 भाषा बदलें" : (
-        lang === "ta" ? "🌐 மொழியை மாற்றவும்" : (
-          lang === "kn" ? "🌐 ಭಾಷೆಯನ್ನು ಬದಲಾಯಿಸಿ" : (
-            lang === "mr" ? "🌐 भाषा बदला" : (
-              lang === "te" ? "🌐 भाषा మార్చండి" : (
-                lang === "bn" ? "🌐 ভাষা পরিবর্তন" : "🌐 Change Language"
+      {
+        id: "CHANGE_LANGUAGE", title: lang === "hi" ? "🌐 भाषा बदलें" : (
+          lang === "ta" ? "🌐 மொழியை மாற்றவும்" : (
+            lang === "kn" ? "🌐 ಭಾಷೆಯನ್ನು ಬದಲಾಯಿಸಿ" : (
+              lang === "mr" ? "🌐 भाषा बदला" : (
+                lang === "te" ? "🌐 भाषा మార్చండి" : (
+                  lang === "bn" ? "🌐 ভাষা পরিবর্তন" : "🌐 Change Language"
+                )
               )
             )
           )
         )
-      ) },
-      { id: "CLOSE", title: lang === "hi" ? "❌ बंद करें" : (
-        lang === "ta" ? "❌ மூடு" : (
-          lang === "kn" ? "❌ ಮುಚ್ಚಿ" : (
-            lang === "mr" ? "❌ बंद करा" : (
-              lang === "te" ? "❌ మూసివేయి" : (
-                lang === "bn" ? "❌ বন্ধ করুন" : "❌ Close"
+      },
+      {
+        id: "CLOSE", title: lang === "hi" ? "❌ बंद करें" : (
+          lang === "ta" ? "❌ மூடு" : (
+            lang === "kn" ? "❌ ಮುಚ್ಚಿ" : (
+              lang === "mr" ? "❌ बंद करा" : (
+                lang === "te" ? "❌ మూసివేయి" : (
+                  lang === "bn" ? "❌ বন্ধ করুন" : "❌ Close"
+                )
               )
             )
           )
         )
-      ) },
+      },
     ]
   );
 }
@@ -3232,16 +3254,16 @@ async function getOrCreateSession(phoneNumber: string) {
 async function updateSession(id: string, state: string, meta: SessionMeta) {
   return prisma.conversationSession.update({
     where: { id },
-    data:  { state, metadata: meta as object },
+    data: { state, metadata: meta as object },
   });
 }
 
 // ── History (kept for frontend) ───────────────────────────────────────────
 export async function getHistory(phoneNumber: string) {
   return prisma.simulateMessage.findMany({
-    where:   { phoneNumber },
+    where: { phoneNumber },
     orderBy: { createdAt: "asc" },
-    select:  { id: true, role: true, content: true, createdAt: true },
+    select: { id: true, role: true, content: true, createdAt: true },
   });
 }
 

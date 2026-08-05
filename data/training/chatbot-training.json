@@ -6,14 +6,16 @@
       "patterns": [
         "NOT WORKING (NOT ON LED)",
         "VIBRO - NOT WORKING (NOT ON LED)",
-        "VIBRO not working (not on led)",
-        "Why is my VIBRO not working (not on led)?",
-        "My VIBRO is not working (not on led)"
+        "Vibro not working",
+        "VIBRO not turning on",
+        "VIBRO LED is off",
+        "My VIBRO is not working",
+        "Vibro not powering on"
       ],
       "responses": [
-        "Here's how to troubleshoot your VIBRO — NOT WORKING (NOT On LED):\n1. Check: CHECK THE FUSE → REPLACE FUSE\n2. Check: CHECK THE POWER SUPPLY → REPLACE POWER SUPPLY\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "Here's what you can try for your VIBRO (not turning on, no LED):\n\n1. *Check the power switch* — make sure the switch on the back is ON and the power cord is firmly plugged into a working wall socket.\n\n2. *Check the fuse* — there's a small fuse holder near the power inlet. Open it (usually by twisting or sliding) and see if the thin wire inside is broken or blackened. If yes, the fuse has blown and needs to be replaced (our technician can do this).\n\n3. *Try a different power socket* — plug the VIBRO adapter into another wall socket to rule out a dead socket.\n\nIf none of these help, please tap *Register Complaint* below — our field engineer will visit and check the internal power supply. 🙏"
       ],
-      "title": "Not Working (No LED)",
+      "title": "Vibro — Not Turning On (No LED)",
       "description": "Vibro machine is not working or LED is off"
     },
     {
@@ -22,15 +24,16 @@
       "patterns": [
         "MACHINE CONTINIOUSLY VIBRATING",
         "VIBRO - MACHINE CONTINIOUSLY VIBRATING",
-        "VIBRO machine continiously vibrating",
-        "My VIBRO has machine continiously vibrating issue",
-        "Problem with VIBRO: machine continiously vibrating"
+        "Vibro continuously vibrating",
+        "Vibro keeps vibrating without stopping",
+        "Vibro won't stop vibrating",
+        "My VIBRO is continuously vibrating"
       ],
       "responses": [
-        "Here's how to troubleshoot your VIBRO — MACHINE CONTINIOUSLY VIBRATING:\n1. Check: CHECK THE TIMER POT. POSITION → ADJUST THE TIMER POT.\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your VIBRO keeps vibrating without stopping, here's what to check:\n\n1. *Check the timer knob* — at the bottom of the VIBRO there is a small timer dial. Make sure it is set to the correct time (not turned past the maximum position). Turn it back to a middle position and try again.\n\n2. *Reset the machine* — switch off the VIBRO from the back, wait 30 seconds, then switch it on again.\n\nIf the issue continues, please tap *Register Complaint* — our technician will inspect the timer circuit. 🙏"
       ],
-      "title": "Continuous Vibrating",
-      "description": "Machine is continuously vibrating"
+      "title": "Vibro — Continuous Vibrating",
+      "description": "Machine is continuously vibrating without stopping"
     },
     {
       "tag": "chatbot_vibro_low_vibration",
@@ -38,118 +41,110 @@
       "patterns": [
         "LOW VIBRATION",
         "VIBRO - LOW VIBRATION",
-        "VIBRO low vibration",
-        "My VIBRO has low vibration issue",
-        "Problem with VIBRO: low vibration"
+        "Vibro vibration is weak",
+        "Vibro low vibration",
+        "Vibro not shaking properly",
+        "My VIBRO has low vibration"
       ],
       "responses": [
-        "Here's how to troubleshoot your VIBRO — LOW VIBRATION:\n1. Check: CHECK THE FREQUENCY POT POSITION → ADJUST THE FREQUENCY POT.\n2. Check: CHECK THE SUPPLY ADAPTER-LED Is On → REPLACE POWER SUPPLY\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your VIBRO is producing weak vibration, try these checks:\n\n1. *Check the adapter LED* — look at the small LED on the power adapter (the wall plug). It should glow steadily when the VIBRO is ON. If the LED is dim, flickering, or off, the adapter is likely faulty and needs replacement.\n\n2. *Check the frequency knob* — at the bottom of the VIBRO there is a frequency adjustment dial. Try turning it slightly clockwise to increase vibration strength.\n\nIf vibration is still weak, please tap *Register Complaint* — our technician will check the internal vibrator coil. 🙏"
       ],
-      "title": "Low Vibration",
-      "description": "Vibration is too low"
+      "title": "Vibro — Low Vibration",
+      "description": "Vibration strength is too low"
     },
     {
       "tag": "chatbot_compact_adapter_adapter_output_voltage_is_nill",
       "role": "customer",
       "patterns": [
         "ADAPTER OUTPUT VOLTAGE IS NILL",
-        "COMPACT ADAPTER - ADAPTER OUTPUT VOLTAGE IS NILL",
-        "COMPACT ADAPTER adapter output voltage is nill",
-        "My COMPACT ADAPTER has adapter output voltage is nill issue",
-        "Problem with COMPACT ADAPTER: adapter output voltage is nill"
+        "Compact adapter not working",
+        "Adapter not powering machine",
+        "Adapter LED not glowing",
+        "Adapter output zero"
       ],
       "responses": [
-        "Here's how to troubleshoot your COMPACT ADAPTER — ADAPTER OUTPUT VOLTAGE Is NILL:\n1. Check: CHECK THE STATUS LED Is GLOWING → REPLACE ADAPTER\n2. Check: CHECK THE Ac CORD PIN AND POWER SWITCH Is On → REPLACE ADAPTER\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Compact Adapter seems to have no output, please try these steps:\n\n1. *Check the LED on the adapter* — there is a small status LED on the adapter body. If it is OFF, the adapter is not receiving power from the wall.\n\n2. *Check the wall socket* — try plugging the adapter into a different wall socket. Also make sure the switch on the wall socket is ON.\n\n3. *Check the AC cord* — make sure the cord going into the adapter is fully inserted at both ends.\n\nIf the LED still does not glow after these checks, the adapter is likely faulty and needs replacement. Please tap *Register Complaint*. 🙏"
       ],
-      "title": "No Output Voltage",
-      "description": "Adapter output voltage is nil"
+      "title": "Compact Adapter — No Output",
+      "description": "Compact Adapter not delivering power to the machine"
     },
     {
       "tag": "chatbot_charger_adapter_adapter_output_voltage_is_nill",
       "role": "customer",
       "patterns": [
-        "ADAPTER OUTPUT VOLTAGE IS NILL",
-        "CHARGER ADAPTER - ADAPTER OUTPUT VOLTAGE IS NILL",
-        "CHARGER ADAPTER adapter output voltage is nill",
-        "My CHARGER ADAPTER has adapter output voltage is nill issue",
-        "Problem with CHARGER ADAPTER: adapter output voltage is nill"
+        "CHARGER ADAPTER not working",
+        "Charger adapter output zero",
+        "Battery not charging",
+        "Charger LED off"
       ],
       "responses": [
-        "Here's how to troubleshoot your CHARGER ADAPTER — ADAPTER OUTPUT VOLTAGE Is NILL:\n1. Check: CHECK THE STATUS LED Is GLOWING → CHECK THE FUSE\n2. Check: CHECK THE Ac CORD PIN AND POWER SWITCH Is On → REPLACE ADAPTER\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Charger Adapter is not charging the machine, please try these:\n\n1. *Check the status LED on the adapter* — if it is OFF, the adapter is not receiving power.\n\n2. *Check the fuse inside the adapter* — some charger adapters have a small user-replaceable fuse near the power inlet. If you can see it is broken/blackened, replace it with one of the same rating.\n\n3. *Check the AC cord and wall switch* — make sure the cord is plugged in firmly at both ends and the wall switch is ON.\n\nIf the charger still does not work, please tap *Register Complaint* for an adapter replacement. 🙏"
       ],
-      "title": "No Output Voltage",
-      "description": "Adapter output voltage is nil"
+      "title": "Charger Adapter — No Output",
+      "description": "Charger Adapter not delivering power"
     },
     {
       "tag": "chatbot_analyzer_analyzer_not_on",
       "role": "customer",
       "patterns": [
         "ANALYZER NOT ON",
-        "ANALYZER - ANALYZER NOT ON",
-        "ANALYZER analyzer not on",
-        "Why is my ANALYZER analyzer not on?",
-        "My ANALYZER is analyzer not on"
+        "Analyzer not turning on",
+        "Analyzer is dead",
+        "No power to analyzer",
+        "Analyzer screen blank",
+        "My ANALYZER is not turning on"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — ANALYZER NOT On:\n1. Check: CHECK THE FUSE → REPLACE THE FUSE\n2. Check: CHECK THE ADAPTER → REPLACE THE ADAPTER\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Milk Analyzer is not turning on, please try these steps:\n\n1. *Check the wall socket* — make sure the analyzer's power cord is firmly plugged into a working wall socket, and the wall switch is ON.\n\n2. *Check the power switch on the analyzer* — there is a rocker switch on the back. Make sure it is in the ON position (I).\n\n3. *Check the fuse on the analyzer* — the analyzer has a small fuse near the power inlet. If the thin wire inside is broken or the glass is blackened, the fuse has blown. Our technician can replace it.\n\n4. *Check the adapter* — if your analyzer runs on an external adapter, make sure the adapter LED is glowing. If not, the adapter may be faulty.\n\nIf the analyzer still does not turn on, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Analyzer Not On",
-      "description": "Analyzer is not turning on"
+      "title": "Analyzer — Not Turning On",
+      "description": "Milk Analyzer is not powering on"
     },
     {
       "tag": "chatbot_analyzer_low_battery_error_shown",
       "role": "customer",
       "patterns": [
         "LOW BATTERY ERROR SHOWN",
-        "ANALYZER - LOW BATTERY ERROR SHOWN",
-        "ANALYZER low battery error shown",
-        "ANALYZER showing low battery error shown",
-        "ANALYZER low battery error shown problem"
+        "Low battery error on analyzer",
+        "Battery low message",
+        "Analyzer showing low battery"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — LOW BATTERY ERROR SHOWN:\n1. Check: CHECK THE ADAPTER OUTPUT → REPLACE THE ADAPTER\n2. Check: CHECK THE MACHINE FUSE → REPLACE THE FUSE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer is showing a Low Battery error:\n\n1. *Connect the charger* — plug the charger adapter into the analyzer and into the wall socket. Let it charge for at least 2-3 hours.\n\n2. *Check the charger adapter* — the small LED on the charger should glow when connected. If it does not, the charger may be faulty.\n\n3. *Check the analyzer fuse* — if the analyzer still shows low battery even after charging, its internal fuse may have blown.\n\nIf charging does not clear the error, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Low Battery Error",
-      "description": "Low battery error is shown"
+      "title": "Analyzer — Low Battery Error",
+      "description": "Analyzer showing low battery error message"
     },
     {
       "tag": "chatbot_analyzer_t2_temp_set_error_sample_not_found_air_in_milk",
       "role": "customer",
       "patterns": [
-        "T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK",
-        "ANALYZER - T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK",
-        "ANALYZER t2/temp.set error/sample not found/air in milk",
-        "ANALYZER showing t2/temp.set error/sample not found/air in milk",
-        "ANALYZER t2/temp.set error/sample not found/air in milk problem",
         "T2 error",
-        "T2error",
         "T2 temp set error",
-        "T2 temp error",
         "Sample not found",
-        "Air in milk"
+        "Air in milk",
+        "Air bubble in milk",
+        "T2 temp error"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR In MILK:\n1. Check: CHECK THE LEAKAGE/BLOCK Of THE SAMPLE SUCKING SECTIONS → CHECK THE SILICON TUBE BROKEN/BEND\n2. Check: CHECK THE L-PLUG PROPERLY INSERT → CHECK THE O-RING\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer shows T2 / Temperature Set / Sample Not Found / Air in Milk errors, please try these:\n\n1. *Check the milk sample* — make sure the milk is fresh, properly mixed, and at room temperature (not too hot, not too cold). Re-test with a fresh sample.\n\n2. *Check the small L-plug at the bottom of the sample tube* — make sure it is properly inserted and the rubber O-ring is in place (not torn or missing). The O-ring creates the suction seal.\n\n3. *Check the silicone tube* — look at the thin silicone tube going from the sample holder to the analyzer. Make sure it is not bent sharply, pinched, or cracked.\n\n4. *Clean the sample tube* — run the analyzer's cleaning cycle 2-3 times with warm distilled water.\n\nIf the error continues, please tap *Register Complaint* — our technician will inspect the pump and tubing. 🙏"
       ],
-      "title": "T2/Temp Set Error",
-      "description": "T2/Temp set error, sample not found, or air in milk"
+      "title": "Analyzer — T2 / Sample Error",
+      "description": "T2 / temperature / sample not found / air in milk"
     },
     {
       "tag": "chatbot_analyzer_plunge_in_water_water_in_sensor",
       "role": "customer",
       "patterns": [
-        "PLUNGE IN WATER/WATER IN SENSOR",
-        "ANALYZER - PLUNGE IN WATER/WATER IN SENSOR",
-        "ANALYZER plunge in water/water in sensor",
-        "My ANALYZER has plunge in water/water in sensor issue",
-        "Problem with ANALYZER: plunge in water/water in sensor",
+        "PLUNGE IN WATER",
+        "Water in sensor",
         "Plunge in water",
-        "Water in sensor"
+        "Sensor has water"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — PLUNGE In WATER/WATER In SENSOR:\n1. Check: CHECK THE SAMPLE LIQUID PRESENTS In THE SENSOR TUBE → REMOVE THE SAMPLE LIQUID-MANULLY PLUNGE\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer shows a 'Water in Sensor' or 'Plunge in Water' message:\n\n1. *Drain the sample liquid* — there is still milk or water sitting in the sensor tube. Run the analyzer's cleaning cycle 3-4 times with warm distilled water to flush it out.\n\n2. *Power cycle* — switch off the analyzer, wait 30 seconds, switch it back on, then run a water test.\n\nIf the message still appears, please tap *Register Complaint* — the sensor may need professional cleaning. 🙏"
       ],
-      "title": "Water In Sensor",
+      "title": "Analyzer — Water In Sensor",
       "description": "Plunge in water or water in sensor"
     },
     {
@@ -157,74 +152,62 @@
       "role": "customer",
       "patterns": [
         "HOT SAMPLE ERROR",
-        "ANALYZER - HOT SAMPLE ERROR",
-        "ANALYZER hot sample error",
-        "ANALYZER showing hot sample error",
-        "ANALYZER hot sample error problem",
+        "Hot sample error",
+        "Sample too hot",
         "Hot sample"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — HOT SAMPLE ERROR:\n1. Check: CHECK THE TEST SAMPLE TEMPERATURE BELOW 40 DEGREE → REPLACE THE SAMPLE\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer shows a Hot Sample Error, it means the milk you tested was warmer than 40°C:\n\n1. *Cool the milk sample* — bring the milk to room temperature (around 25-30°C). You can put the sample bottle in cool water for a few minutes.\n\n2. *Re-test with the cooled sample* — once cooled, run the test again.\n\nIf you keep seeing this error even with room-temperature milk, please tap *Register Complaint* — the temperature sensor may need calibration. 🙏"
       ],
-      "title": "Hot Sample Error",
+      "title": "Analyzer — Hot Sample Error",
       "description": "Hot sample error is shown"
     },
     {
       "tag": "chatbot_analyzer_pen_drive_and_keyboard_not_detected",
       "role": "customer",
       "patterns": [
-        "PEN-DRIVE AND KEYBOARD NOT DETECTED",
-        "ANALYZER - PEN-DRIVE AND KEYBOARD NOT DETECTED",
-        "ANALYZER pen-drive and keyboard not detected",
-        "Why is my ANALYZER pen-drive and keyboard not detected?",
-        "My ANALYZER is pen-drive and keyboard not detected",
+        "PEN-DRIVE NOT DETECTED",
+        "KEYBOARD NOT DETECTED",
+        "USB not working",
         "Pen drive not detected",
         "Keyboard not detected"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — PEN-DRIVE AND KEYBOARD NOT DETECTED:\n1. CHECK THE USB SETTING Is CORRECT\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer does not detect a USB pen-drive or keyboard:\n\n1. *Check the USB port* — unplug and re-plug the device firmly into the analyzer's USB port. Try a different USB port if your analyzer has more than one.\n\n2. *Try a different pen-drive or keyboard* — the device itself may be faulty. Try another one to confirm.\n\n3. *Format the pen-drive* — if you are using a pen-drive, make sure it is formatted as FAT32 (not NTFS or exFAT).\n\nIf the issue continues, please tap *Register Complaint*. 🙏"
       ],
-      "title": "USB/Keyboard Error",
+      "title": "Analyzer — USB / Keyboard Not Detected",
       "description": "Pen-drive and keyboard not detected"
     },
     {
       "tag": "chatbot_analyzer_wifi_gsm_error_shown",
       "role": "customer",
       "patterns": [
-        "WIFI/GSM ERROR SHOWN",
-        "ANALYZER - WIFI/GSM ERROR SHOWN",
-        "ANALYZER wifi/gsm error shown",
-        "ANALYZER showing wifi/gsm error shown",
-        "ANALYZER wifi/gsm error shown problem",
-        "WiFi error",
-        "GSM error",
-        "Wifi gsm error"
+        "WIFI ERROR",
+        "GSM ERROR",
+        "WiFi not connecting",
+        "GSM not connecting",
+        "No internet on analyzer"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — WIFI/GSM ERROR SHOWN:\n1. Check: CHECK THE WIFI/GSM SETTINGS DETAILS → ENTER THE REQUIRED SETTINGS\n2. CHECK THE ANTENNA Is CONNECTED\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer shows a WiFi / GSM Error:\n\n1. *Check the antenna* — make sure the small antenna on the back of the analyzer is firmly screwed on (do not over-tighten).\n\n2. *Check signal strength* — if you are in a low-signal area, the WiFi or GSM may not connect. Try moving the analyzer closer to a window or the WiFi router.\n\n3. *Re-enter WiFi / SIM details* — go to the analyzer's Settings → WiFi (or GSM), forget the current network, then re-enter the password or SIM PIN.\n\nIf it still cannot connect, please tap *Register Complaint*. 🙏"
       ],
-      "title": "WiFi/GSM Error",
+      "title": "Analyzer — WiFi / GSM Error",
       "description": "WiFi/GSM error is shown"
     },
     {
       "tag": "chatbot_analyzer_date_and_time_not_shown_correct",
       "role": "customer",
       "patterns": [
-        "DATE AND TIME NOT SHOWN CORRECT",
-        "ANALYZER - DATE AND TIME NOT SHOWN CORRECT",
-        "ANALYZER date and time not shown correct",
-        "Why is my ANALYZER date and time not shown correct?",
-        "My ANALYZER is date and time not shown correct",
-        "Date and time error",
-        "Date time error",
-        "Date and time wrong",
+        "DATE AND TIME WRONG",
+        "Clock error",
         "Date error",
-        "Clock error"
+        "Wrong time on analyzer",
+        "Date time error"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — DATE AND TIME NOT SHOWN CORRECT:\n1. Check: CHECK THE CLOCK SETTINGS → ENTER THE CORRECT DATE AND TIME\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer shows the wrong date or time:\n\n1. *Go to Settings → Date & Time* — manually enter the current date and time.\n\n2. *Enable auto-sync* — if your analyzer is connected to WiFi, turn ON 'Auto date & time' so it syncs from the internet.\n\nIf the clock keeps losing time, the internal battery may need replacement. Please tap *Register Complaint*. 🙏"
       ],
-      "title": "Date/Time Incorrect",
+      "title": "Analyzer — Wrong Date / Time",
       "description": "Date and time not shown correctly"
     },
     {
@@ -232,30 +215,29 @@
       "role": "customer",
       "patterns": [
         "COMPUTER OUTPUT NOT PRESENT",
-        "ANALYZER - COMPUTER OUTPUT NOT PRESENT",
-        "ANALYZER computer output not present",
-        "ANALYZER computer output not present issue"
+        "No output to PC",
+        "Computer not receiving data",
+        "PC output missing"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — COMPUTER OUTPUT NOT PRESENT:\n1. Check: CHECK THE DATAOUTPUT FORMAT Of THE ANALYZER SETTINGS → SET THE REQUIRED SETTINGS VALUES\n2. Check: CHECK THE MACHINE COMPUTER OUT To COMPUTER CABLE CONNECTIVITY → REPLACE THE COMPUTER OUT To COMPUTER CABLE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer is not sending output to a connected computer:\n\n1. *Check the data cable* — make sure the cable between the analyzer and the PC is firmly plugged in at both ends. Try a different cable if you have one.\n\n2. *Check the output settings* — go to Settings → Data Output on the analyzer and confirm the output format is set correctly (ask our support team for the right setting if you are unsure).\n\nIf the PC still receives no data, please tap *Register Complaint*. 🙏"
       ],
-      "title": "No Computer Output",
+      "title": "Analyzer — No Computer Output",
       "description": "Computer output not present"
     },
     {
       "tag": "chatbot_analyzer_external_display_not_showing_the_result",
       "role": "customer",
       "patterns": [
-        "EXTERNAL DISPLAY NOT SHOWING THE RESULT",
-        "ANALYZER - EXTERNAL DISPLAY NOT SHOWING THE RESULT",
-        "ANALYZER external display not showing the result",
-        "Why is my ANALYZER external display not showing the result?",
-        "My ANALYZER is external display not showing the result"
+        "EXTERNAL DISPLAY NOT SHOWING RESULT",
+        "External display blank",
+        "Display board not working",
+        "No result on display"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — EXTERNAL DISPLAY NOT SHOWING THE RESULT:\n1. Check: CHECK THE REQUIRED OUTPUT DATA FORMAT Is APPLIED → SET THE REQUIRED SETTINGS VALUES\n2. Check: CHECK THE ANALYSER To EXTERNAL DISPLAY DATA CABLE CONNECTIVITY → PROPERLY CONNECT Or REPLACE THE CABLE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your external display is not showing test results:\n\n1. *Check the data cable* — make sure the cable from the analyzer to the external display is firmly connected at both ends. Try a different cable if available.\n\n2. *Check the output format* — go to Settings → Data Output on the analyzer and confirm the format matches what the external display expects.\n\nIf the display is still blank, please tap *Register Complaint*. 🙏"
       ],
-      "title": "No External Display",
+      "title": "Analyzer — External Display Blank",
       "description": "External display not showing the result"
     },
     {
@@ -263,47 +245,42 @@
       "role": "customer",
       "patterns": [
         "FAT SHOWN IN WATER",
-        "ANALYZER - FAT SHOWN IN WATER",
-        "ANALYZER fat shown in water",
-        "ANALYZER showing fat shown in water",
-        "ANALYZER fat shown in water problem"
+        "Fat reading in water test",
+        "Water test shows fat"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — FAT SHOWN In WATER:\n1. Check: CHECK THE ANALYZER OTHER MILK SAMPLES TEST READINGS ARE 'OK' → If NOT Ok CHECK THE CALIBRATION DETAILS\n2. Check: CHECK THE SENSOR AND TUBE WELL CLEANED → To CLEAN THE SENSOR AND TUBE\n3. APPLY WATER ZERO OPERATION AND TEST AGAIN\n4. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer shows fat reading even when you run a water (zero) test, please try these steps:\n\n1. *Test with another milk sample first* — if the fat reading on a normal milk sample looks correct, the analyzer is probably working fine and just needs a proper zero calibration.\n\n2. *Clean the sensor and tubes* — run the cleaning cycle 3-4 times with warm distilled water to flush out any milk residue left in the sensor.\n\n3. *Run a water-zero test* — after cleaning, run a fresh water sample through the analyzer. The reading should come down to 0.0. (Our technician can guide you through the exact menu steps on the day of the visit.)\n\nIf fat still shows in the water test after cleaning, the sensor may need deep cleaning or recalibration. Please tap *Register Complaint*. 🙏"
       ],
-      "title": "Fat Shown In Water",
-      "description": "Fat shown in water"
+      "title": "Analyzer — Fat Shown In Water",
+      "description": "Fat reading appearing during water test"
     },
     {
       "tag": "chatbot_analyzer_reading_variation",
       "role": "customer",
       "patterns": [
         "READING VARIATION",
-        "ANALYZER - READING VARIATION",
-        "ANALYZER reading variation",
-        "My ANALYZER has reading variation issue",
-        "Problem with ANALYZER: reading variation"
+        "Inconsistent readings",
+        "Different readings same sample",
+        "Reading keeps changing"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — READING VARIATION:\n1. Check: CHECK THE LEAKAGE/BLOCK Of THE SAMPLE SUCKING SECTIONS → To CORRECT THE SAMPLE SUCKING SECTIONS\n2. CHECK THE SILICON TUBE BROKEN/BEND\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer gives different readings for the same milk sample:\n\n1. *Clean the sample tube* — run the cleaning cycle 3-4 times with warm distilled water. Old milk residue in the tube can cause inconsistent readings.\n\n2. *Check the silicone tube* — look at the thin silicone tube going to the sample holder. If it is bent, cracked, or loose, replace it.\n\n3. *Mix the sample well* — before testing, gently pour the milk between two clean containers 3-4 times to make sure it is fully mixed. Do not shake vigorously (this creates air bubbles).\n\nIf readings still vary, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Reading Variation",
-      "description": "Reading variation in the analyzer"
+      "title": "Analyzer — Reading Variation",
+      "description": "Different readings for the same sample"
     },
     {
       "tag": "chatbot_analyzer_sms_not_send_to_the_farmer",
       "role": "customer",
       "patterns": [
-        "SMS NOT SEND TO THE FARMER",
-        "ANALYZER - SMS NOT SEND TO THE FARMER",
-        "ANALYZER sms not send to the farmer",
-        "Why is my ANALYZER sms not send to the farmer?",
-        "My ANALYZER is sms not send to the farmer"
+        "SMS NOT SENT TO FARMER",
+        "Farmer SMS not received",
+        "SMS not going out"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — SMS NOT SEND To THE FARMER:\n1. Check: CHECK THE GSM/SIM MODULE CONNECTIVITY (INSERTED SIM DIRECTION ) AND CHECK THE SIM VALIDITY → CORRECT THE MODULE/SIM CONNECTIVITY AND EXTEND THE SIM VALIDITY\n2. Check: CHECK THE FARMER DETAILS ENTERED ARE CORRECT → PROPERLY ENTER THE FARMER DETAILS\n3. Check: CHECK THE ENTERED SMS ENABLE SETTINGS ARE CORRECT → ENTER THE CORRECT SETTINGS\n4. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If SMS results are not reaching the farmer's phone:\n\n1. *Check the SIM card* — open the analyzer's SIM slot (usually at the back). Make sure the SIM is inserted in the correct direction and is not loose. Also check that the SIM has active validity (not expired) and SMS plan balance.\n\n2. *Check farmer details* — go to the analyzer's farmer list and confirm the farmer's mobile number is entered correctly (with country code 91 if needed).\n\n3. *Check SMS settings* — go to Settings → SMS and confirm 'Enable SMS' is ON and the SMS centre number is set correctly.\n\nIf SMS still does not go out, please tap *Register Complaint*. 🙏"
       ],
-      "title": "SMS Not Sent",
+      "title": "Analyzer — SMS Not Sent",
       "description": "SMS not sent to the farmer"
     },
     {
@@ -311,31 +288,28 @@
       "role": "customer",
       "patterns": [
         "FARMER DETAILS NOT SHOWN",
-        "ANALYZER - FARMER DETAILS NOT SHOWN",
-        "ANALYZER farmer details not shown",
-        "Why is my ANALYZER farmer details not shown?",
-        "My ANALYZER is farmer details not shown"
+        "Farmer list empty",
+        "Farmer data missing"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — FARMER DETAILS NOT SHOWN:\n1. Check: CHECK THE FARMER DETAILS ARE ENTERED CORRECTLY → ENTER THE CORRECT DETAILS\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If farmer details are not showing on your Analyzer:\n\n1. *Check the farmer list* — go to the Farmers menu on the analyzer. Make sure you have actually added farmers to the list (with name, phone number, etc.).\n\n2. *Re-enter farmer details* — if the list is empty, add at least one farmer from the menu before running a test.\n\nIf the list still does not appear, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Farmer Details Missing",
-      "description": "Farmer details not shown"
+      "title": "Analyzer — Farmer Details Missing",
+      "description": "Farmer details not shown on analyzer"
     },
     {
       "tag": "chatbot_analyzer_printer_is_not_print",
       "role": "customer",
       "patterns": [
-        "PRINTER IS NOT PRINT",
-        "ANALYZER - PRINTER IS NOT PRINT",
-        "ANALYZER printer is not print",
-        "Why is my ANALYZER printer is not print?",
-        "My ANALYZER is printer is not print"
+        "PRINTER NOT PRINTING",
+        "Receipt not printing",
+        "Printer not working",
+        "No printout"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — PRINTER Is NOT PRINT:\n1. Check: CHECK THE PRINTER SETTINGS ENTERED CORRECTLY → ENTER THE CORRECT SETTINGS\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your Analyzer's printer is not printing receipts:\n\n1. *Check the printer paper* — open the printer cover and make sure paper is loaded correctly (the thermal side facing the print head) and there is enough paper left.\n\n2. *Check the printer settings* — go to Settings → Printer and confirm the printer is enabled.\n\n3. *Power cycle* — switch off the analyzer, wait 30 seconds, switch it back on, then try printing again.\n\nIf the printer still does not print, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Printer Not Printing",
+      "title": "Analyzer — Printer Not Printing",
       "description": "Printer is not printing"
     },
     {
@@ -343,48 +317,43 @@
       "role": "customer",
       "patterns": [
         "WEIGHING SCALE NOT WORKING",
-        "ANALYZER - WEIGHING SCALE NOT WORKING",
-        "ANALYZER weighing scale not working",
-        "Why is my ANALYZER weighing scale not working?",
-        "My ANALYZER is weighing scale not working"
+        "Scale not responding",
+        "Weight not showing"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — WEIGHING SCALE NOT WORKING:\n1. Check: CHECK THE REQUIRED SETTINGS Is APPLIED → SET THE REQUIRED SETTINGS VALUES\n2. Check: CHECK THE ANALYSER To WEIGHNING SCALE DATA CABLE CONNECTIVITY → PROPERLY CONNECT Or REPLACE THE CABLE\n3. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If your weighing scale is not working with the Analyzer:\n\n1. *Check the data cable* — make sure the cable between the analyzer and the weighing scale is firmly connected at both ends. Try a different cable if available.\n\n2. *Check the scale settings* — go to Settings → Weighing Scale on the analyzer and confirm the scale is enabled and the correct port/baud rate is selected.\n\nIf the scale is still not responding, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Scale Not Working",
-      "description": "Weighing scale not working"
+      "title": "Analyzer — Weighing Scale Not Working",
+      "description": "Weighing scale not working with analyzer"
     },
     {
       "tag": "chatbot_analyzer_rate_not_taken_from_the_chart_not_view",
       "role": "customer",
       "patterns": [
-        "RATE NOT TAKEN FROM THE CHART / NOT VIEW",
-        "ANALYZER - RATE NOT TAKEN FROM THE CHART / NOT VIEW",
-        "ANALYZER rate not taken from the chart / not view",
-        "My ANALYZER has rate not taken from the chart / not view issue",
-        "Problem with ANALYZER: rate not taken from the chart / not view"
+        "RATE NOT TAKEN FROM CHART",
+        "Rate chart not showing",
+        "Price not showing"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — RATE NOT TAKEN FROM THE CHART / NOT VIEW:\n1. Check: CHECK THE RATE CHART SETTINGS ENTERED PROPERLY → ENTER THE CORRECT SETTINGS\n2. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If the rate chart is not appearing on your Analyzer:\n\n1. *Check the rate chart settings* — go to Settings → Rate Chart and confirm you have entered the rates correctly (per fat %, per SNF %, etc.).\n\n2. *Re-enter the rate chart* — if the chart is empty, enter at least one rate entry and save.\n\nIf the rate is still not picked up, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Rate Chart Error",
+      "title": "Analyzer — Rate Chart Error",
       "description": "Rate not taken from the chart or not viewing"
     },
     {
       "tag": "chatbot_analyzer_tested_result_to_cloud_updation_error_shown",
       "role": "customer",
       "patterns": [
-        "TESTED RESULT TO CLOUD UPDATION ERROR SHOWN",
-        "ANALYZER - TESTED RESULT TO CLOUD UPDATION ERROR SHOWN",
-        "ANALYZER tested result to cloud updation error shown",
-        "ANALYZER showing tested result to cloud updation error shown",
-        "ANALYZER tested result to cloud updation error shown problem"
+        "CLOUD SYNC ERROR",
+        "Cloud upload error",
+        "Result not going to cloud",
+        "Cloud not updating"
       ],
       "responses": [
-        "Here's how to troubleshoot your ANALYZER — TESTED RESULT To CLOUD UPDATION ERROR SHOWN:\n1. Check: CHECK THE WIFI/GSM CONNECTIVITY → ENTER THE PROPER SETTINGS AND SET THE WIFI/GSM MODULE CONNECTIVITY\n2. Check: CHECK THE ENTERED THE CLOUD DETAILS ARE CORRECT → PROPER CLOUD ADDRESS AND DETAILS ARE ENTER\n3. Check: CHECK THE SAME MACHINE Id AND MODEL DETAILS ARE ENTERED In THE CLOUD APPLICATION-(MACHINE REGISTRATION) → ENTER THAT MACHINE Id AND MODEL In THE WEB APPLICATION\n4. If none of the above steps help, please contact Poornasree Customer Care for further assistance."
+        "If test results are not uploading to the cloud:\n\n1. *Check WiFi / GSM connectivity* — go to Settings → WiFi (or GSM) and confirm the analyzer is connected to the internet with a strong signal.\n\n2. *Check cloud details* — go to Settings → Cloud and confirm the cloud server address, username, and machine ID are entered correctly.\n\n3. *Confirm machine registration* — log into the cloud web app and confirm this analyzer's machine ID is registered against your account.\n\nIf cloud sync still fails, please tap *Register Complaint*. 🙏"
       ],
-      "title": "Cloud Sync Error",
-      "description": "Tested result to cloud updation error shown"
+      "title": "Analyzer — Cloud Sync Error",
+      "description": "Tested result to cloud upload error shown"
     }
   ]
 }
