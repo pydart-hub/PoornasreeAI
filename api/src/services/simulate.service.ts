@@ -74,6 +74,17 @@ type SessionMeta = {
   skipEndCustomerConfirm?: boolean;
   customComplaintPath?: boolean;
   videoSearchQuery?: string;
+  /** Registration flow (new customer first-time sign-up) */
+  regSerialNumber?: string;
+  regMachineData?: PasstestMachine | null;
+  regName?: string;
+  regAddress?: string;
+  regPincode?: string;
+  regPlace?: string;
+  regDistrict?: string;
+  regState?: string;
+  regGmapLink?: string;
+  regCustomerId?: string;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -98,6 +109,132 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया खालीलपैकी एक पर्याय निवडा 👇",
     te: "దయచేసి క్రింద ఉన్న ఎంపికను ఎంచుకోండి 👇",
     bn: "অনুগ্রহ করে নিচের একটি বিকল্প নির্বাচন করুন 👇",
+  },
+  REGISTER_WELCOME: {
+    en: "👋 *Welcome to Poornasree!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalised support.\n\nOr press *Skip* to continue without registering.",
+    hi: "👋 *पूर्णश्री में आपका स्वागत है!*\n\nहमारे पास अभी आपका विवरण नहीं है।\n\n📝 तेज़ सेवा और व्यक्तिगत सहायता के लिए *अभी पंजीकरण करें*।\n\nया पंजीकरण किए बिना जारी रखने के लिए *Skip* दबाएं।",
+    ta: "👋 *பூர்ணஸ்ரீ-க்கு வரவேற்கிறோம்!*\n\nஉங்கள் விவரங்கள் எங்களிடம் இன்னும் இல்லை.\n\n📝 வேகமான சேவை மற்றும் தனிப்பட்ட ஆதரவுக்கு *இப்போது பதிவு செய்யுங்கள்*.\n\nஅல்லது பதிவு செய்யாமல் தொடர *Skip* அழுத்தவும்.",
+    kn: "👋 *ಪೂರ್ಣಶ್ರೀಗೆ ಸುಸ್ವಾಗತ!*\n\nನಿಮ್ಮ ವಿವರಗಳು ಇನ್ನೂ ನಮ್ಮಲ್ಲಿ ಇಲ್ಲ.\n\n📝 ವೇಗದ ಸೇವೆ ಮತ್ತು ವೈಯಕ್ತಿಕ ಬೆಂಬಲಕ್ಕಾಗಿ *ಈಗಲೇ ನೋಂದಾಯಿಸಿ*.\n\nಅಥವಾ ನೋಂದಣಿ ಮಾಡದೆ ಮುಂದುವರಿಯಲು *Skip* ಒತ್ತಿರಿ.",
+    mr: "👋 *पूर्णश्रीमध्ये आपले स्वागत आहे!*\n\nआपले तपशील अद्याप आमच्याकडे नाहीत.\n\n📝 जलद सेवा आणि वैयक्तिकृत सहाय्यासाठी *आता नोंदणी करा*.\n\nकिंवा नोंदणी न करता पुढे जाण्यासाठी *Skip* दाबा.",
+    te: "👋 *పూర్ణశ్రీకి స్వాగతం!*\n\nమీ వివరాలు ఇంకా మా వద్ద లేవు.\n\n📝 వేగవంతమైన సేవ మరియు వ్యక్తిగతీకరించిన మద్దతు కోసం *ఇప్పుడే నమోదు చేయండి*.\n\nలేదా నమోదు చేయకుండా కొనసాగడానికి *Skip* నొక్కండి.",
+    bn: "👋 *পূর্ণশ্রীতে আপনাকে স্বাগতম!*\n\nআপনার বিবরণ এখনও আমাদের কাছে নেই।\n\n📝 দ্রুত পরিষেবা এবং ব্যক্তিগতকরণ সহায়তার জন্য *এখনই নিবন্ধন করুন*।\n\nঅথবা নিবন্ধন না করে চালিয়ে যেতে *Skip* টিপুন।",
+  },
+  REGISTER_BUTTON: {
+    en: "📝 Register Now",
+    hi: "📝 अभी पंजीकरण करें",
+    ta: "📝 இப்போது பதிவு செய்க",
+    kn: "📝 ಈಗಲೇ ನೋಂದಾಯಿಸಿ",
+    mr: "📝 आता नोंदणी करा",
+    te: "📝 ఇప్పుడే నమోదు చేయండి",
+    bn: "📝 এখনই নিবন্ধন করুন",
+  },
+  REGISTER_SERIAL_PROMPT: {
+    en: "📝 *Registration — Step 1 of 5*\n\n🔧 Please enter your machine *serial number*.\n\n_(You can find it on the machine label or warranty card)_\n\nIf you don't have one, press *Skip*.",
+    hi: "📝 *पंजीकरण — चरण 1/5*\n\n🔧 कृपया अपनी मशीन का *सीरियल नंबर* दर्ज करें।\n\n_(यह मशीन के लेबल या वारंटी कार्ड पर मिलता है)_\n\nयदि आपके पास नहीं है, तो *Skip* दबाएं।",
+    ta: "📝 *பதிவு — படி 1/5*\n\n🔧 உங்கள் இயந்திரத்தின் *வரிசை எண்ணை* உள்ளிடவும்.\n\n_(இயந்திர லேபிள் அல்லது உத்தரவாத அட்டையில் காணலாம்)_\n\nஉங்களிடம் இல்லையென்றால், *Skip* அழுத்தவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 1/5*\n\n🔧 ದಯವಿಟ್ಟು ನಿಮ್ಮ ಯಂತ್ರದ *ಸರಣಿ ಸಂಖ್ಯೆ* ನಮೂದಿಸಿ.\n\n_(ಯಂತ್ರದ ಲೇಬಲ್ ಅಥವಾ ವಾರಂಟಿ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಕಾಣಬಹುದು)_\n\nನಿಮ್ಮ ಬಳಿ ಇಲ್ಲದಿದ್ದರೆ, *Skip* ಒತ್ತಿರಿ.",
+    mr: "📝 *नोंदणी — टप्पा 1/5*\n\n🔧 कृपया आपल्या मशीनचा *अनुक्रमांक* प्रविष्ट करा.\n\n_(मशीनच्या लेबलवर किंवा वॉरंटी कार्डवर आढळू शकतो)_\n\nआपल्याकडे नसल्यास, *Skip* दाबा.",
+    te: "📝 *నమోదు — దశ 1/5*\n\n🔧 దయచేసి మీ యంత్రం *సీరియల్ నంబర్* నమోదు చేయండి.\n\n_(యంత్రం లేబుల్ లేదా వారంటీ కార్డులో కనుగొనవచ్చు)_\n\nమీ వద్ద లేకుంటే, *Skip* నొక్కండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 1/5*\n\n🔧 অনুগ্রহ করে আপনার মেশিনের *সিরিয়াল নম্বর* লিখুন।\n\n_(মেশিনের লেবেল বা ওয়ারেন্টি কার্ডে পাওয়া যেতে পারে)_\n\nআপনার কাছে না থাকলে, *Skip* টিপুন।",
+  },
+  REGISTER_SERIAL_NOT_FOUND: {
+    en: "❌ Serial number *{serial}* was not found in our records.\n\nPlease double-check and try again, or press *Skip* to continue without a serial number.",
+    hi: "❌ सीरियल नंबर *{serial}* हमारे रिकॉर्ड में नहीं मिला।\n\nकृपया दोबारा जांचें और पुनः प्रयास करें, या बिना सीरियल नंबर के जारी रखने के लिए *Skip* दबाएं।",
+    ta: "❌ வரிசை எண் *{serial}* எங்கள் பதிவுகளில் கிடைக்கவில்லை.\n\nமீண்டும் சரிபார்த்து முயற்சிக்கவும் அல்லது வரிசை எண் இல்லாமல் தொடர *Skip* அழுத்தவும்.",
+    kn: "❌ ಸರಣಿ ಸಂಖ್ಯೆ *{serial}* ನಮ್ಮ ದಾಖಲೆಗಳಲ್ಲಿ ಕಂಡುಬಂದಿಲ್ಲ.\n\nಮತ್ತೊಮ್ಮೆ ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಸರಣಿ ಸಂಖ್ಯೆ ಇಲ್ಲದೆ ಮುಂದುವರಿಯಲು *Skip* ಒತ್ತಿರಿ.",
+    mr: "❌ अनुक्रमांक *{serial}* आमच्या रेकॉर्डमध्ये सापडला नाही.\n\nकृपया पुन्हा तपासा आणि प्रयत्न करा, किंवा अनुक्रमांक नसताना पुढे जाण्यासाठी *Skip* दाबा.",
+    te: "❌ సీరియల్ నంబర్ *{serial}* మా రికార్డులలో దొరకలేదు.\n\nదయచేసి మళ్ళీ తనిఖీ చేసి ప్రయత్నించండి, లేదా సీరియల్ నంబర్ లేకుండా కొనసాగడానికి *Skip* నొక్కండి.",
+    bn: "❌ সিরিয়াল নম্বর *{serial}* আমাদের রেকর্ডে পাওয়া যায়নি।\n\nঅনুগ্রহ করে আবার পরীক্ষা করে চেষ্টা করুন, বা সিরিয়াল নম্বর ছাড়াই চালিয়ে যেতে *Skip* টিপুন।",
+  },
+  REGISTER_MACHINE_FOUND: {
+    en: "✅ *Machine Found!*\n\n👤 *Customer (Dealer):* {customer}\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n📦 *Product Code:* {productCode}\n📅 *Invoice Date:* {invoiceDate}\n🛡️ *Warranty:* {warranty} months\n\nWe will use these details for your registration.\n\nPress *Continue* to proceed.",
+    hi: "✅ *मशीन मिली!*\n\n👤 *ग्राहक (डीलर):* {customer}\n🔧 *मॉडल:* {model}\n🔢 *सीरियल:* {serial}\n📦 *उत्पाद कोड:* {productCode}\n📅 *चालान तिथि:* {invoiceDate}\n🛡️ *वारंटी:* {warranty} महीने\n\nहम आपके पंजीकरण के लिए इन विवरणों का उपयोग करेंगे।\n\nजारी रखने के लिए *Continue* दबाएं।",
+    ta: "✅ *இயந்திரம் கண்டுபிடிக்கப்பட்டது!*\n\n👤 *வாடிக்கையாளர் (டீலர்):* {customer}\n🔧 *மாதிரி:* {model}\n🔢 *வரிசை எண்:* {serial}\n📦 *பொருள் குறியீடு:* {productCode}\n📅 *விலைப்பட்டியல் தேதி:* {invoiceDate}\n🛡️ *உத்தரவாதம்:* {warranty} மாதங்கள்\n\nஉங்கள் பதிவுக்கு இந்த விவரங்கள் பயன்படுத்தப்படும்.\n\nதொடர *Continue* அழுத்தவும்.",
+    kn: "✅ *ಯಂತ್ರ ಸಿಕ್ಕಿದೆ!*\n\n👤 *ಗ್ರಾಹಕ (ಡೀಲರ್):* {customer}\n🔧 *ಮಾದರಿ:* {model}\n🔢 *ಸರಣಿ:* {serial}\n📦 *ಉತ್ಪನ್ನ ಕೋಡ್:* {productCode}\n📅 *ಸರಕುಪತ್ರಿಕೆ ದಿನಾಂಕ:* {invoiceDate}\n🛡️ *ವಾರಂಟಿ:* {warranty} ತಿಂಗಳುಗಳು\n\nನಿಮ್ಮ ನೋಂದಣಿಗಾಗಿ ಈ ವಿವರಗಳನ್ನು ಬಳಸುತ್ತೇವೆ.\n\nಮುಂದುವರಿಯಲು *Continue* ಒತ್ತಿರಿ.",
+    mr: "✅ *मशीन सापडली!*\n\n👤 *ग्राहक (डीलर):* {customer}\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n📦 *उत्पादन कोड:* {productCode}\n📅 *बीजक तारीख:* {invoiceDate}\n🛡️ *वॉरंटी:* {warranty} महिने\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
+    te: "✅ *యంత్రం దొరికింది!*\n\n👤 *కస్టమర్ (డీలర్):* {customer}\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n📦 *ఉత్పత్తి కోడ్:* {productCode}\n📅 *ఇన్‌వాయిస్ తేదీ:* {invoiceDate}\n🛡️ *వారంటీ:* {warranty} నెలలు\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
+    bn: "✅ *মেশিন পাওয়া গেছে!*\n\n👤 *গ্রাহক (ডিলার):* {customer}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n📦 *পণ্য কোড:* {productCode}\n📅 *চালান তারিখ:* {invoiceDate}\n🛡️ *ওয়ারেন্টি:* {warranty} মাস\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
+  },
+  REGISTER_CONTINUE_BUTTON: {
+    en: "✅ Continue",
+    hi: "✅ आगे बढ़ें",
+    ta: "✅ தொடரவும்",
+    kn: "✅ ಮುಂದುವರಿಸಿ",
+    mr: "✅ पुढे जा",
+    te: "✅ కొనసాగించు",
+    bn: "✅ চালিয়ে যান",
+  },
+  REGISTER_NAME_PROMPT: {
+    en: "📝 *Registration — Step 2 of 5*\n\n👤 Please enter your *full name*.",
+    hi: "📝 *पंजीकरण — चरण 2/5*\n\n👤 कृपया अपना *पूरा नाम* दर्ज करें।",
+    ta: "📝 *பதிவு — படி 2/5*\n\n👤 உங்கள் *முழு பெயரை* உள்ளிடவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 2/5*\n\n👤 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ಹೆಸರನ್ನು* ನಮೂದಿಸಿ.",
+    mr: "📝 *नोंदणी — टप्पा 2/5*\n\n👤 कृपया आपले *पूर्ण नाव* प्रविष्ट करा.",
+    te: "📝 *నమోదు — దశ 2/5*\n\n👤 దయచేసి మీ *పూర్తి పేరు* నమోదు చేయండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 2/5*\n\n👤 অনুগ্রহ করে আপনার *পূর্ণ নাম* লিখুন।",
+  },
+  REGISTER_ADDRESS_PROMPT: {
+    en: "📝 *Registration — Step 3 of 5*\n\n🏠 Please enter your *full address* (house no., street, landmark).\n\nExample: House 12, Main Road, near temple",
+    hi: "📝 *पंजीकरण — चरण 3/5*\n\n🏠 कृपया अपना *पूरा पता* दर्ज करें (मकान नं., सड़क, लैंडमार्क)।\n\nउदाहरण: मकान 12, मुख्य सड़क, मंदिर के पास",
+    ta: "📝 *பதிவு — படி 3/5*\n\n🏠 உங்கள் *முழு முகவரியை* உள்ளிடவும் (வீட்டு எண், தெரு, அடையாளம்).\n\nஉதாரணம்: வீடு 12, பிரதான சாலை, கோயிலுக்கு அருகில்",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 3/5*\n\n🏠 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ವಿಳಾಸ* ನಮೂದಿಸಿ (ಮನೆ ಸಂಖ್ಯೆ, ರಸ್ತೆ, ಹೆಗ್ಗುರುತು).\n\nಉದಾಹರಣೆ: ಮನೆ 12, ಮುಖ್ಯ ರಸ್ತೆ, ದೇವಸ್ಥಾನದ ಹತ್ತಿರ",
+    mr: "📝 *नोंदणी — टप्पा 3/5*\n\n🏠 कृपया आपला *पूर्ण पत्ता* प्रविष्ट करा (घर क्रमांक, रस्ता, खूण).\n\nउदाहरण: घर 12, मुख्य रस्ता, मंदिराजवळ",
+    te: "📝 *నమోదు — దశ 3/5*\n\n🏠 దయచేసి మీ *పూర్తి చిరునామా* నమోదు చేయండి (ఇంటి నంబర్, వీధి, ల్యాండ్‌మార్క్).\n\nఉదాహరణ: ఇల్లు 12, ప్రధాన రహదారి, గుడి దగ్గర",
+    bn: "📝 *নিবন্ধন — ধাপ 3/5*\n\n🏠 অনুগ্রহ করে আপনার *সম্পূর্ণ ঠিকানা* লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
+  },
+  REGISTER_PINCODE_PROMPT: {
+    en: "📝 *Registration — Step 4 of 5*\n\n📮 Please enter your *6-digit pincode*.",
+    hi: "📝 *पंजीकरण — चरण 4/5*\n\n📮 कृपया अपना *6 अंकों का पिनकोड* दर्ज करें।",
+    ta: "📝 *பதிவு — படி 4/5*\n\n📮 உங்கள் *6 இலக்க பின்கோடை* உள்ளிடவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 4/5*\n\n📮 ದಯವಿಟ್ಟು ನಿಮ್ಮ *6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್* ನಮೂದಿಸಿ.",
+    mr: "📝 *नोंदणी — टप्पा 4/5*\n\n📮 कृपया आपला *6 अंकी पिनकोड* प्रविष्ट करा.",
+    te: "📝 *నమోదు — దశ 4/5*\n\n📮 దయచేసి మీ *6 అంకెల పినకోడ్* నమోదు చేయండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 4/5*\n\n📮 অনুগ্রহ করে আপনার *৬-সংখ্যার পিনকোড* লিখুন।",
+  },
+  REGISTER_GMAP_PROMPT: {
+    en: "📝 *Registration — Step 5 of 5*\n\n📍 Please share your *Google Maps location link* so our technician can reach you easily.\n\nHow to get your link:\n1. Open Google Maps\n2. Long-press on your location\n3. Tap *Share* and copy the link\n\nExample: https://maps.google.com/?q=12.9716,77.5946\n\nOr press *Skip* if you don't have one.",
+    hi: "📝 *पंजीकरण — चरण 5/5*\n\n📍 कृपया अपना *Google Maps स्थान लिंक* साझा करें ताकि हमारा तकनीशियन आप तक आसानी से पहुंच सके।\n\nलिंक कैसे प्राप्त करें:\n1. Google Maps खोलें\n2. अपने स्थान पर देर तक दबाएं\n3. *शेयर* पर टैप करें और लिंक कॉपी करें\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nया *Skip* दबाएं।",
+    ta: "📝 *பதிவு — படி 5/5*\n\n📍 எங்கள் தொழில்நுட்பவியலாளர் உங்களை எளிதில் சென்றடைய உங்கள் *Google Maps இருப்பிட இணைப்பை* பகிரவும்.\n\nஇணைப்பை எப்படி பெறுவது:\n1. Google Maps திறக்கவும்\n2. உங்கள் இடத்தில் நீண்ட நேரம் அழுத்தவும்\n3. *பகிர்* என்பதைத் தட்டி இணைப்பை நகலெடுக்கவும்\n\nஉதாரணம்: https://maps.google.com/?q=12.9716,77.5946\n\nஅல்லது *Skip* அழுத்தவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 5/5*\n\n📍 ನಮ್ಮ ತಂತ್ರಜ್ಞರು ನಿಮ್ಮನ್ನು ಸುಲಭವಾಗಿ ತಲುಪಲು ನಿಮ್ಮ *Google Maps ಸ್ಥಳ ಲಿಂಕ್* ಹಂಚಿಕೊಳ್ಳಿ.\n\nಲಿಂಕ್ ಪಡೆಯುವ ವಿಧಾನ:\n1. Google Maps ತೆರೆಯಿರಿ\n2. ನಿಮ್ಮ ಸ್ಥಳದಲ್ಲಿ ಸ್ವಲ್ಪ ಸಮಯ ಒತ್ತಿರಿ\n3. *ಹಂಚಿಕೊಳ್ಳಿ* ಟ್ಯಾಪ್ ಮಾಡಿ ಮತ್ತು ಲಿಂಕ್ ನಕಲಿಸಿ\n\nಉದಾಹರಣೆ: https://maps.google.com/?q=12.9716,77.5946\n\nಅಥವಾ *Skip* ಒತ್ತಿರಿ.",
+    mr: "📝 *नोंदणी — टप्पा 5/5*\n\n📍 कृपया आमचे तंत्रज्ञ तुम्हाला सहजपणे भेटू शकतील असे आपले *Google Maps स्थान लिंक* शेअर करा.\n\nलिंक कसे मिळवायचे:\n1. Google Maps उघडा\n2. आपल्या स्थानावर दीर्घकाळ दाबा\n3. *शेअर* वर टॅप करा आणि लिंक कॉपी करा\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nकिंवा *Skip* दाबा.",
+    te: "📝 *నమోదు — దశ 5/5*\n\n📍 మీ సాంకేతిక నిపుణుడు మిమ్మల్ని సులభంగా చేరుకోవడానికి మీ *Google Maps స్థాన లింక్* పంచుకోండి.\n\nలింక్ పొందడం ఎలా:\n1. Google Maps తెరవండి\n2. మీ స్థానంపై ఎక్కువ సమయం నొక్కండి\n3. *షేర్* నొక్కి లింక్ కాపీ చేయండి\n\nఉదాహరణ: https://maps.google.com/?q=12.9716,77.5946\n\nలేదా *Skip* నొక్కండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 5/5*\n\n📍 আমাদের প্রযুক্তিবিদ যাতে সহজেই আপনার কাছে পৌঁছাতে পারেন তাই আপনার *Google Maps অবস্থান লিঙ্ক* শেয়ার করুন।\n\nলিঙ্ক পাওয়ার উপায়:\n1. Google Maps খুলুন\n2. আপনার অবস্থানে দীর্ঘক্ষণ চাপ দিন\n3. *শেয়ার* চাপুন এবং লিঙ্ক কপি করুন\n\nউদাহরণ: https://maps.google.com/?q=12.9716,77.5946\n\nঅথবা *Skip* টিপুন।",
+  },
+  REGISTER_SUCCESS: {
+    en: "🎉 *Registration Successful!*\n\nWelcome to the Poornasree family, {name}!\n\nYour details have been saved. Our team will be able to assist you faster from now on.\n\nWhat would you like to do?",
+    hi: "🎉 *पंजीकरण सफल!*\n\nपूर्णश्री परिवार में आपका स्वागत है, {name}!\n\nआपका विवरण सहेज लिया गया है। अब से हमारी टीम आपकी तेज़ी से सहायता कर सकेगी।\n\nआप क्या करना चाहेंगे?",
+    ta: "🎉 *பதிவு வெற்றிகரமாக!*\n\nபூர்ணஸ்ரீ குடும்பத்திற்கு வரவேற்கிறோம், {name}!\n\nஉங்கள் விவரங்கள் சேமிக்கப்பட்டன. இனி எங்கள் குழு உங்களுக்கு வேகமாக உதவ முடியும்.\n\nநீங்கள் என்ன செய்ய விரும்புகிறீர்கள்?",
+    kn: "🎉 *ನೋಂದಣಿ ಯಶಸ್ವಿ!*\n\nಪೂರ್ಣಶ್ರೀ ಕುಟುಂಬಕ್ಕೆ ಸುಸ್ವಾಗತ, {name}!\n\nನಿಮ್ಮ ವಿವರಗಳನ್ನು ಉಳಿಸಲಾಗಿದೆ. ಇನ್ನು ಮುಂದೆ ನಮ್ಮ ತಂಡ ನಿಮಗೆ ವೇಗವಾಗಿ ಸಹಾಯ ಮಾಡಬಹುದು.\n\nನೀವು ಏನು ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?",
+    mr: "🎉 *नोंदणी यशस्वी!*\n\nपूर्णश्री कुटुंबात आपले स्वागत आहे, {name}!\n\nआपले तपशील जतन केले आहेत. आता पुढे आमची टीम तुम्हाला जलद मदत करू शकेल.\n\nतुम्हाला काय करायचे आहे?",
+    te: "🎉 *నమోదు విజయవంతం!*\n\nపూర్ణశ్రీ కుటుంబానికి స్వాగతం, {name}!\n\nమీ వివరాలు సేవ్ చేయబడ్డాయి. ఇప్పటి నుండి మా బృందం మీకు వేగంగా సహాయం చేయగలదు.\n\nమీరు ఏమి చేయాలనుకుంటున్నారు?",
+    bn: "🎉 *নিবন্ধন সফল!*\n\nপূর্ণশ্রী পরিবারে স্বাগতম, {name}!\n\nআপনার বিবরণ সংরক্ষণ করা হয়েছে। এখন থেকে আমাদের দল আপনাকে দ্রুত সহায়তা করতে পারবে।\n\nআপনি কী করতে চান?",
+  },
+  REGISTER_INVALID_NAME: {
+    en: "⚠️ Please enter your full name (at least 2 characters).",
+    hi: "⚠️ कृपया अपना पूरा नाम दर्ज करें (कम से कम 2 अक्षर)।",
+    ta: "⚠️ உங்கள் முழு பெயரை உள்ளிடவும் (குறைந்தது 2 எழுத்துக்கள்).",
+    kn: "⚠️ ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ (ಕನಿಷ್ಠ 2 ಅಕ್ಷರಗಳು).",
+    mr: "⚠️ कृपया आपले पूर्ण नाव प्रविष्ट करा (किमान 2 अक्षरे).",
+    te: "⚠️ దయచేసి మీ పూర్తి పేరును నమోదు చేయండి (కనీసం 2 అక్షరాలు).",
+    bn: "⚠️ অনুগ্রহ করে আপনার পুরো নাম লিখুন (কমপক্ষে 2 অক্ষর)।",
+  },
+  REGISTER_INVALID_ADDRESS: {
+    en: "⚠️ Please enter your full address (at least 10 characters).",
+    hi: "⚠️ कृपया अपना पूरा पता दर्ज करें (कम से कम 10 अक्षर)।",
+    ta: "⚠️ உங்கள் முழு முகவரியை உள்ளிடவும் (குறைந்தது 10 எழுத்துக்கள்).",
+    kn: "⚠️ ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪೂರ್ಣ ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ (ಕನಿಷ್ಠ 10 ಅಕ್ಷರಗಳು).",
+    mr: "⚠️ कृपया आपला पूर्ण पत्ता प्रविष्ट करा (किमान 10 अक्षरे).",
+    te: "⚠️ దయచేసి మీ పూర్తి చిరునామాను నమోదు చేయండి (కనీసం 10 అక్షరాలు).",
+    bn: "⚠️ অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (কমপক্ষে 10 অক্ষর)।",
+  },
+  REGISTER_INVALID_GMAP: {
+    en: "⚠️ Please share a valid Google Maps link (starting with http:// or https://).\n\nOr press *Skip* if you don't have one.",
+    hi: "⚠️ कृपया एक वैध Google Maps लिंक साझा करें (http:// या https:// से शुरू)।\n\nया *Skip* दबाएं।",
+    ta: "⚠️ தயவுசெய்து சரியான Google Maps இணைப்பைப் பகிரவும் (http:// அல்லது https:// இல் தொடங்கும்).\n\nஅல்லது *Skip* அழுத்தவும்.",
+    kn: "⚠️ ದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ Google Maps ಲಿಂಕ್ ಹಂಚಿಕೊಳ್ಳಿ (http:// ಅಥವಾ https:// ನಿಂದ ಪ್ರಾರಂಭ).\n\nಅಥವಾ *Skip* ಒತ್ತಿರಿ.",
+    mr: "⚠️ कृपया वैध Google Maps लिंक शेअर करा (http:// किंवा https:// ने सुरू होणारे).\n\nकिंवा *Skip* दाबा.",
+    te: "⚠️ దయచేసి సరైన Google Maps లింక్ పంచుకోండి (http:// లేదా https:// తో ప్రారంభమయ్యేది).\n\nలేదా *Skip* నొక్కండి.",
+    bn: "⚠️ অনুগ্রহ করে একটি বৈধ Google Maps লিঙ্ক শেয়ার করুন (http:// বা https:// দিয়ে শুরু)।\n\nঅথবা *Skip* টিপুন।",
   },
   NOT_REGISTERED: {
     en: "📱 This mobile number is not registered with us.\n\nIf you are a Registered Customer, please provide your registered 10 digit mobile number.\n\nEg. 9633503333\n\nOr press *Skip* to Continue. 👇",
@@ -990,7 +1127,13 @@ export async function handleMessage(phoneNumber: string, message: string) {
     session.state === "PASSTEST_PINCODE_CONFIRM" ||
     session.state === "CHECK_STATUS" ||
     session.state === "CHANGE_LANGUAGE" ||
-    session.state === "ASK_PHONE";
+    session.state === "ASK_PHONE" ||
+    session.state === "REGISTER_PROMPT" ||
+    session.state === "REGISTER_SERIAL" ||
+    session.state === "REGISTER_NAME" ||
+    session.state === "REGISTER_ADDRESS" ||
+    session.state === "REGISTER_PINCODE" ||
+    session.state === "REGISTER_GMAP";
 
   if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
     try {
@@ -1053,7 +1196,13 @@ export async function handleMessage(phoneNumber: string, message: string) {
       session.state !== "ASK_PHONE" &&
       session.state !== "FEEDBACK_RATING" &&
       session.state !== "FEEDBACK_SATISFIED" &&
-      session.state !== "CHANGE_LANGUAGE"
+      session.state !== "CHANGE_LANGUAGE" &&
+      session.state !== "REGISTER_PROMPT" &&
+      session.state !== "REGISTER_SERIAL" &&
+      session.state !== "REGISTER_NAME" &&
+      session.state !== "REGISTER_ADDRESS" &&
+      session.state !== "REGISTER_PINCODE" &&
+      session.state !== "REGISTER_GMAP"
     ) {
       return handleGlobalBack(session, phoneNumber, meta);
     }
@@ -1205,7 +1354,40 @@ async function startGreeting(phoneNumber: string) {
   const existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (existingMeta.language ?? "en") as Lang;
 
-  // Check if this phone has raised a ticket before (normalize for lookup)
+  // 1. Return customer if a User record exists with role=customer for this phone
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+  const registeredUser = await prisma.user.findFirst({
+    where: {
+      role: "customer",
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true, whatsappNumber: true },
+  });
+
+  if (registeredUser) {
+    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || "Customer";
+    const meta: SessionMeta = {
+      customerName: displayName,
+      customerPhone: phoneNumber,
+      regCustomerId: registeredUser.id,
+      regName: displayName,
+      language: existingMeta.language,
+    };
+    await updateSession(session.id, "MAIN_MENU", meta);
+    return makeReply(
+      t("GREETING_HEADER", lang) +
+      t("WELCOME_BACK", lang, { name: displayName }) +
+      t("MAIN_MENU_MSG", lang),
+      undefined,
+      getMainMenuList(lang)
+    );
+  }
+
+  // 2. Returning customer — known from a prior ticket (legacy data)
   const ticketLookupPhone = normalizePhone(phoneNumber);
   const existingTicket = await prisma.ticket.findFirst({
     where: { phoneNumber: ticketLookupPhone },
@@ -1250,9 +1432,12 @@ async function startGreeting(phoneNumber: string) {
     );
   }
 
-  // Not registered — show branded greeting then ask for registered phone
-  await updateSession(session.id, "ASK_PHONE", { language: existingMeta.language });
-  return makeReply(t("GREETING_HEADER", lang) + t("NOT_REGISTERED", lang), [getSkipButton(lang)]);
+  // 3. New customer — offer registration with skip option
+  await updateSession(session.id, "REGISTER_PROMPT", { language: existingMeta.language });
+  return makeReply(
+    t("GREETING_HEADER", lang) + t("REGISTER_WELCOME", lang),
+    [{ id: "REGISTER", title: t("REGISTER_BUTTON", lang) }, getSkipButton(lang)]
+  );
 }
 
 // ── State router ──────────────────────────────────────────────────────────
@@ -1343,6 +1528,24 @@ async function routeState(
     case "CHANGE_LANGUAGE":
       return handleChangeLanguage(session.id, meta, text);
 
+    case "REGISTER_PROMPT":
+      return handleRegisterPrompt(session.id, phoneNumber, meta, text);
+
+    case "REGISTER_SERIAL":
+      return handleRegisterSerial(session.id, phoneNumber, meta, text);
+
+    case "REGISTER_NAME":
+      return handleRegisterName(session.id, phoneNumber, meta, text);
+
+    case "REGISTER_ADDRESS":
+      return handleRegisterAddress(session.id, phoneNumber, meta, text);
+
+    case "REGISTER_PINCODE":
+      return handleRegisterPincode(session.id, phoneNumber, meta, text);
+
+    case "REGISTER_GMAP":
+      return handleRegisterGmap(session.id, phoneNumber, meta, text);
+
     case "FEEDBACK_RATING":
       return handleFeedbackRating(session.id, meta, text);
 
@@ -1399,7 +1602,237 @@ async function handleAskPhone(sessionId: string, chatPhone: string, text: string
   return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
 }
 
-// ── MAIN_MENU ─────────────────────────────────────────────────────────────
+// ── Registration FSM ─────────────────────────────────────────────────────
+// States: REGISTER_PROMPT → REGISTER_SERIAL → REGISTER_NAME → REGISTER_ADDRESS
+//         → REGISTER_PINCODE → REGISTER_GMAP → (save User) → MAIN_MENU
+
+async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "REGISTER" || upper === "1") {
+    await updateSession(sessionId, "REGISTER_SERIAL", meta);
+    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
+
+  if (upper === "SKIP" || upper === "0") {
+    const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber };
+    await updateSession(sessionId, "MAIN_MENU", skipMeta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+
+  return makeReply(
+    t("REGISTER_WELCOME", lang),
+    [{ id: "REGISTER", title: t("REGISTER_BUTTON", lang) }, getSkipButton(lang)]
+  );
+}
+
+async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+  if (upper === "SKIP" || upper === "0") {
+    const cleared: SessionMeta = { ...meta, regSerialNumber: undefined, regMachineData: null };
+    await updateSession(sessionId, "REGISTER_NAME", cleared);
+    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+  }
+
+  const serial = text.trim();
+  if (serial.length < 3) {
+    return makeReply(t("SERIAL_INVALID", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
+
+  try {
+    const machine = await fetchMachineBySerial(serial);
+    if (machine) {
+      const updatedMeta: SessionMeta = {
+        ...meta,
+        regSerialNumber: machine.serial_no,
+        regMachineData: machine,
+        regPlace: machine.Address1 || undefined,
+      };
+      await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
+      return makeReply(
+        t("REGISTER_MACHINE_FOUND", lang, {
+          customer: machine.customer || "N/A",
+          model: machine.m_model || "N/A",
+          serial: machine.serial_no,
+          productCode: machine.product_code || "N/A",
+          invoiceDate: machine.invoice_date || "N/A",
+          warranty: String(machine.warranty_months || 0),
+        }),
+        [{ id: "CONTINUE", title: t("REGISTER_CONTINUE_BUTTON", lang) }, getBackButton(lang)]
+      );
+    }
+  } catch (err) {
+    console.error("[register] Machine lookup failed:", err);
+  }
+
+  await updateSession(sessionId, "REGISTER_NAME", meta);
+  return makeReply(
+    t("REGISTER_SERIAL_NOT_FOUND", lang, { serial }),
+    [{ id: "CONTINUE", title: t("REGISTER_CONTINUE_BUTTON", lang) }, getMenuButton(lang)]
+  );
+}
+
+async function handleRegisterName(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    await updateSession(sessionId, "REGISTER_SERIAL", meta);
+    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
+
+  const name = text.trim();
+  if (name.length < 2) {
+    return makeReply(t("REGISTER_INVALID_NAME", lang), [getBackButton(lang), getMenuButton(lang)]);
+  }
+
+  const updatedMeta: SessionMeta = { ...meta, regName: name };
+  await updateSession(sessionId, "REGISTER_ADDRESS", updatedMeta);
+  return makeReply(t("REGISTER_ADDRESS_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+}
+
+async function handleRegisterAddress(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    await updateSession(sessionId, "REGISTER_NAME", meta);
+    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+  }
+
+  const address = text.trim();
+  if (address.length < 10) {
+    return makeReply(t("REGISTER_INVALID_ADDRESS", lang), [getBackButton(lang), getMenuButton(lang)]);
+  }
+
+  const updatedMeta: SessionMeta = { ...meta, regAddress: address };
+  await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
+  return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+}
+
+async function handleRegisterPincode(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    await updateSession(sessionId, "REGISTER_ADDRESS", meta);
+    return makeReply(t("REGISTER_ADDRESS_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+  }
+
+  const digits = text.replace(/\D/g, "");
+  if (digits.length !== 6) {
+    return makeReply(t("INVALID_PINCODE", lang), [getBackButton(lang), getMenuButton(lang)]);
+  }
+
+  let place: string | undefined;
+  let district: string | undefined;
+  let state: string | undefined;
+  try {
+    const resolved = await fetchPlaceFromPincode(digits);
+    if (resolved) {
+      place = resolved.place;
+      district = resolved.district;
+      state = resolved.state;
+    }
+  } catch {
+    // proceed without resolved place
+  }
+
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    regPincode: digits,
+    regPlace: place,
+    regDistrict: district,
+    regState: state,
+  };
+  await updateSession(sessionId, "REGISTER_GMAP", updatedMeta);
+  return makeReply(t("REGISTER_GMAP_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+}
+
+async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+  if (upper === "SKIP" || upper === "0") {
+    await saveRegisteredCustomer(sessionId, phoneNumber, { ...meta, regGmapLink: undefined });
+    return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
+  }
+
+  const link = text.trim();
+  if (!link.startsWith("http://") && !link.startsWith("https://")) {
+    return makeReply(t("REGISTER_INVALID_GMAP", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
+
+  await saveRegisteredCustomer(sessionId, phoneNumber, { ...meta, regGmapLink: link });
+  return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
+}
+
+async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, meta: SessionMeta) {
+  const name = meta.regName || `Customer ${phoneNumber.slice(-4)}`;
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const customerId = meta.regCustomerId;
+
+  if (customerId) {
+    // Update existing user
+    await prisma.user.update({
+      where: { id: customerId },
+      data: {
+        firstName: name,
+        whatsappNumber: phoneNumber,
+      },
+    });
+  } else {
+    // Create new User with role=customer
+    const newUser = await prisma.user.create({
+      data: {
+        email: `cust_${cleanPhone}@poornasree.ai`,
+        passwordHash: "NO_PASSWORD_WHATSAPP_CUSTOMER",
+        firstName: name,
+        whatsappNumber: phoneNumber,
+        role: "customer",
+      },
+    });
+    meta.regCustomerId = newUser.id;
+  }
+
+  // Store registration data in session metadata
+  await updateSession(sessionId, "MAIN_MENU", meta);
+}
+
+async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: string, meta: SessionMeta, lang: Lang) {
+  const name = meta.regName || "Customer";
+  await updateSession(sessionId, "MAIN_MENU", meta);
+  return makeReply(
+    t("GREETING_HEADER", lang) +
+    t("REGISTER_SUCCESS", lang, { name }) +
+    t("MAIN_MENU_MSG", lang),
+    undefined,
+    getMainMenuList(lang)
+  );
+}
 async function handleMainMenu(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const choice = text.trim();

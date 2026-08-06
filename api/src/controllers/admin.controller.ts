@@ -161,6 +161,93 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
   }
 }
 
+// ── GET /api/admin/registered-customers ──────────────────────────────────
+export async function listRegisteredCustomers(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    // Fetch all users with role=customer
+    const customers = await prisma.user.findMany({
+      where: { role: "customer" },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+        whatsappNumber: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Fetch the latest conversation session per phone to get registration metadata
+    // (regSerialNumber, regMachineData, regPincode, regPlace, regDistrict, regState, regGmapLink)
+    const phoneNumbers = customers.map(c => c.whatsappNumber || "").filter(Boolean);
+
+    // Get latest session per phone
+    const sessions = await prisma.conversationSession.findMany({
+      where: {
+        phoneNumber: { in: phoneNumbers },
+        isRegistered: true,
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        phoneNumber: true,
+        isRegistered: true,
+        metadata: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Group by phoneNumber, keep the latest session per phone
+    const latestSessionByPhone = new Map<string, typeof sessions[0]>();
+    for (const s of sessions) {
+      if (!latestSessionByPhone.has(s.phoneNumber)) {
+        latestSessionByPhone.set(s.phoneNumber, s);
+      }
+    }
+
+    // Build enriched result
+    const result = customers.map(customer => {
+      const phone = customer.whatsappNumber || "";
+      const session = latestSessionByPhone.get(phone);
+      const meta: any = session?.metadata ? JSON.parse(JSON.stringify(session.metadata)) : {};
+
+      return {
+        id: customer.id,
+        name: [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Customer",
+        phone,
+        email: customer.email,
+        createdAt: customer.createdAt,
+        registeredAt: session?.createdAt ?? null,
+        updatedAt: session?.updatedAt ?? null,
+        serialNumber: meta.regSerialNumber || null,
+        machineModel: meta.regMachineData?.m_model || null,
+        machineCustomer: meta.regMachineData?.customer || null,
+        address: meta.regAddress || null,
+        pincode: meta.regPincode || null,
+        place: meta.regPlace || null,
+        district: meta.regDistrict || null,
+        state: meta.regState || null,
+        googleMapLink: meta.regGmapLink || null,
+        productCode: meta.regMachineData?.product_code || null,
+        invoiceDate: meta.regMachineData?.invoice_date || null,
+        warrantyMonths: meta.regMachineData?.warranty_months || null,
+      };
+    });
+
+    res.json({ customers: result, total: result.length });
+  } catch (err) {
+    console.error("listRegisteredCustomers error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 // ── DELETE /api/admin/users/:id ──────────────────────────────────────────
 export async function deleteUser(req: Request, res: Response): Promise<void> {
   try {

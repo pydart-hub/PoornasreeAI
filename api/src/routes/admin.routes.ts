@@ -18,6 +18,7 @@ import {
   importDealersAdmin,
   deleteAllDealersAdmin,
   clearTestCustomer,
+  listRegisteredCustomers,
 } from "../controllers/admin.controller";
 import {
   getAnalytics,
@@ -143,6 +144,9 @@ router.post("/users", createUser);
 
 // GET  /api/admin/users  —  list all users
 router.get("/users", listUsers);
+
+// GET  /api/admin/registered-customers  —  list customers registered via WhatsApp
+router.get("/registered-customers", listRegisteredCustomers);
 
 // PATCH /api/admin/users/:id  —  update a user
 router.patch("/users/:id", updateUser);

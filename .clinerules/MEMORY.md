@@ -58,3 +58,7 @@ With owner-types `MANAGER | DEALER` and parallel
 - `chatbotSettings.controller.ts` reads from `ChatbotSetting` (singleton `id="default"`)
 - AI/RAG models: `GROQ_MODEL_FAST=llama-3.1-8b-instant`, `GROQ_MODEL_AGENT=llama-3.3-70b-versatile`
 - Legacy models still in schema: `Conversation`, `Message`, `SupportRequest`, `SupportMessage`, `ConversationSession` — do not extend, only migrate off.
+- FSM session state is in-memory `Map` in `simulate.service.ts` — lost on API restart. Agent sessions use DB (`ConversationSession`).
+- `autoAssignEngineer()` in `ticket.service.ts` must be called after ticket creation — it does NOT run automatically. FSM ticket creation paths now call it explicitly.
+- WhatsApp global commands: `MENU`, `HI`, `HELLO`, `START`, `RESTART` → bypass agent, return `null` to dispatcher → FSM main menu. `SKIP` → bypass agent outside `COMPLAINT_ASK_SERIAL` state.
+- `chatbot-training.json` has customer-friendly responses (rewritten 2026-08-05). `customer-training.json` is the authoritative source; only keep unique intents in `chatbot-training.json`.

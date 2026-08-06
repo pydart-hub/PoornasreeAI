@@ -36,6 +36,7 @@ import {
   Ticket,
   Package,
   GraduationCap,
+  UserPlus,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -65,6 +66,7 @@ import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
 import EngineerTrainingVideosTab from "@/components/admin/EngineerTrainingVideosTab";
 import WhatsappAnalyticsPanel from "@/components/admin/WhatsappAnalyticsPanel";
+import RegisteredCustomersTab from "@/components/admin/RegisteredCustomersTab";
 
 // ─────────────────────────────────────────────
 // Types
@@ -125,7 +127,7 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products" | "whatsapp" | "trainingvideos">("documents");
+  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products" | "whatsapp" | "trainingvideos" | "registered-customers">("documents");
 
   // Users state
   const [users, setUsers] = useState<ApiUser[]>([]);
@@ -483,6 +485,7 @@ export default function AdminPage() {
               {([
                 { key: "documents", label: "Documents", icon: <FileText className="w-3.5 h-3.5" />, count: documents.length },
                 { key: "users",     label: "Users",     icon: <Users className="w-3.5 h-3.5" />,     count: users.length },
+                { key: "registered-customers", label: "Customers", icon: <UserPlus className="w-3.5 h-3.5" />, count: null },
                 { key: "videos",    label: "Videos",    icon: <Youtube className="w-3.5 h-3.5" />,   count: videos.length },
                 { key: "rdvideos",  label: "Eng. Videos", icon: <Film className="w-3.5 h-3.5" />,    count: null },
                 { key: "tickets",   label: "Tickets",   icon: <Ticket className="w-3.5 h-3.5" />,    count: null },
@@ -1488,6 +1491,9 @@ export default function AdminPage() {
 
           {/* ── Engineers Video Tab ── */}
           {activeTab === "rdvideos" && <RdVideosTab />}
+
+          {/* ── Registered Customers Tab ── */}
+          {activeTab === "registered-customers" && <RegisteredCustomersTab />}
 
           {/* ── Tickets Tab ── */}
           {activeTab === "tickets" && <TicketsTab />}
