@@ -507,10 +507,21 @@ export async function handleCustomerAgentMessage(
   };
   const upper = text.toUpperCase().trim();
 
-  // ── Global restart commands → hand off to legacy FSM (fix Bug #1: MENU restart) ──
-  // The legacy FSM in simulate.service.ts has the proper button-driven main menu.
-  // Returning null here causes the dispatcher to fall through to the FSM restart path.
+  // ── Global restart commands ──
+  // In AGENT_CHAT mode, show the agent menu (with Register button) instead of
+  // falling through to the legacy FSM which lacks a Register option.
+  // Outside agent mode, return null to let the FSM handle the restart.
   if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESTART") {
+    if (session.state === "AGENT_CHAT") {
+      return makeReply(
+        `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`,
+        [
+          { id: "register", title: "📝 Register Machine" },
+          { id: "troubleshoot", title: "🔧 Troubleshoot" },
+          { id: "book_service", title: "🛠️ Book Service" },
+        ],
+      );
+    }
     return null;
   }
 
