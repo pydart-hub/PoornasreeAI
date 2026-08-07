@@ -1106,6 +1106,8 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const inFeedback =
     session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED";
   const inLegacyTransactional =
+    session.state === "MAIN_MENU" ||
+    session.state === "VIEW_PRODUCTS" ||
     session.state === "COMPLAINT_ASK_SERIAL" ||
     session.state === "MACHINE_CONFIRM" ||
     session.state === "COMPLAINT_CATEGORY" ||
