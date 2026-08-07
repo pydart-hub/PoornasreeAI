@@ -377,6 +377,56 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return cleanDb === cleanFrom;
   });
 
+  // Handle location shares (native WhatsApp location button)
+  if (msg.type === "location") {
+    const location = msg.location as Record<string, unknown> | undefined;
+    const lat = location?.latitude;
+    const lng = location?.longitude;
+    if (typeof lat === "number" && typeof lng === "number") {
+      const locName = location?.name ? ` (${location.name})` : "";
+      const locAddr = location?.address ? `, ${location.address}` : "";
+      const locationText = `https://maps.google.com/?q=${lat},${lng}${locName}${locAddr}`;
+      if (engineer) {
+        await routeEngineerMessage(from, locationText, engineer);
+        return;
+      }
+      const allDealers = await prisma.user.findMany({
+        where: { role: "dealer" },
+        select: { id: true, firstName: true, whatsappNumber: true },
+      });
+      const dealer = allDealers.find(d => {
+        if (!d.whatsappNumber) return false;
+        const cleanDb = d.whatsappNumber.replace(/\D/g, "");
+        if (cleanDb.length >= 10 && cleanFrom.length >= 10) {
+          return cleanDb.slice(-10) === cleanFrom.slice(-10);
+        }
+        return cleanDb === cleanFrom;
+      });
+      if (dealer) {
+        await handleDealerWhatsAppMessage(from, locationText, dealer);
+        return;
+      }
+      let savedMessage = null;
+      savedMessage = await prisma.simulateMessage.create({
+        data: { phoneNumber: from, role: "user", content: `📍 ${locationText}` },
+      });
+      const { io } = await import("../lib/socket");
+      if (io) {
+        io.to("customer_support").emit("support-chat:message", { phoneNumber: from, message: savedMessage });
+      }
+      const session = await prisma.conversationSession.findFirst({
+        where: { phoneNumber: from },
+        orderBy: { updatedAt: "desc" },
+      });
+      if (session?.isBotPaused) return;
+      const result = await SimulateService.handleMessage(from, locationText);
+      await deliverBotReply(from, result);
+      return;
+    }
+    await WhatsAppService.sendMessage(from, "⚠️ Could not read your location. Please try again or type/paste a Google Maps link.");
+    return;
+  }
+
   // Handle image uploads
   if (msg.type === "image") {
     if (engineer) {

@@ -72,6 +72,7 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
     }
 
     const result = await SimulateService.handleMessage(phone, text);
+    console.log(`[simulate-CONTROLLER] result for ${phone} text="${text}":`, JSON.stringify({msg: result.message?.substring(0, 80), buttons: result.buttons?.length || 0}));
 
     const { io } = await import("../lib/socket");
 
