@@ -491,8 +491,12 @@ export async function handleCustomerAgentMessage(
 
   if (!text) {
     return makeReply(
-      `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. Please tell me what issue you are facing or what information you need.`,
-      [{ id: "troubleshoot", title: "🔧 Troubleshoot" }, { id: "book_service", title: "🛠️ Book Service" }],
+      `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`,
+      [
+        { id: "register", title: "📝 Register Machine" },
+        { id: "troubleshoot", title: "🔧 Troubleshoot" },
+        { id: "book_service", title: "🛠️ Book Service" },
+      ],
     );
   }
 
@@ -525,8 +529,17 @@ export async function handleCustomerAgentMessage(
     await updateAgentSession(session.id, "AGENT_CHAT", { ...meta, lastComplaint: undefined });
     return makeReply(
       `Great! 🎉 Glad the issue is resolved. If you face any other problems in the future, feel free to reach out anytime. We're always here to help!`,
-      [{ id: "troubleshoot", title: "🔧 Troubleshoot" }, { id: "book_service", title: "🛠️ Book Service" }],
+      [
+        { id: "register", title: "📝 Register Machine" },
+        { id: "troubleshoot", title: "🔧 Troubleshoot" },
+        { id: "book_service", title: "🛠️ Book Service" },
+      ],
     );
+  }
+
+  if (upper === "REGISTER" || upper === "REGISTER_MACHINE" || upper === "REGISTER NOW") {
+    // Hand off to FSM registration flow
+    return null;
   }
 
   if (upper === "TROUBLESHOOT" || upper === "1") {
