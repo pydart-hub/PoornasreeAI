@@ -1135,6 +1135,25 @@ export async function handleMessage(phoneNumber: string, message: string) {
     session.state === "REGISTER_PINCODE" ||
     session.state === "REGISTER_GMAP";
 
+  // Interactive button IDs bypass Groq so the FSM processes them directly
+  const fsmButtonIds = new Set([
+    "REGISTER", "SKIP", "MENU", "YES", "NO",
+    "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
+    "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
+    "YES_RESOLVED", "NOT_RESOLVED",
+  ]);
+  if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
+    // REGISTER button starts the registration flow directly when not already there
+    if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
+      await updateSession(session.id, "REGISTER_SERIAL", { language: meta.language });
+      return makeReply(
+        t("REGISTER_SERIAL_PROMPT", lang),
+        [getSkipButton(lang), getMenuButton(lang)]
+      );
+    }
+    return routeState(session, phoneNumber, text, meta);
+  }
+
   if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
     try {
       const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
