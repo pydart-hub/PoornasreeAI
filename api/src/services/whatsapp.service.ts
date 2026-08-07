@@ -129,8 +129,15 @@ export async function sendMessage(to: string, text: string): Promise<boolean> {
   return !!result?.messages?.[0]?.id;
 }
 
+/** WhatsApp interactive button action. Max 3 buttons total (incl. location). */
+export type WaButtonAction =
+  | { type: "reply"; reply: { id: string; title: string } }
+  | { type: "location" };
+
 /** WhatsApp interactive reply-button shape. Max 3 buttons, title max 20 chars. */
-export type WaButton = { id: string; title: string };
+export type WaButton =
+  | { id: string; title: string }
+  | { id: "__location__"; title: string; isLocation: true };
 
 /** Send an interactive button message via WhatsApp Cloud API. */
 export async function sendInteractiveButtons(
@@ -144,6 +151,16 @@ export async function sendInteractiveButtons(
   }
 
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
+
+  const actions: WaButtonAction[] = buttons.slice(0, 3).map((b) => {
+    if ("isLocation" in b && b.isLocation) {
+      return { type: "location" };
+    }
+    return {
+      type: "reply",
+      reply: { id: b.id, title: b.title.slice(0, 20) },
+    };
+  });
 
   try {
     const res = await fetch(url, {
@@ -159,12 +176,7 @@ export async function sendInteractiveButtons(
         interactive: {
           type: "button",
           body: { text: body },
-          action: {
-            buttons: buttons.slice(0, 3).map((b) => ({
-              type: "reply",
-              reply: { id: b.id, title: b.title.slice(0, 20) },
-            })),
-          },
+          action: { buttons: actions },
         },
       }),
     });
