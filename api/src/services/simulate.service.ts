@@ -1147,12 +1147,16 @@ export async function handleMessage(phoneNumber: string, message: string) {
     "YES_RESOLVED", "NOT_RESOLVED",
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
+    console.log(`[simulate-DEBUG] REGISTER handler! state=${session.state} phone=${phoneNumber}`);
     await updateSession(session.id, "REGISTER_SERIAL", { language: meta.language });
-    return makeReply(
+    const result = makeReply(
       t("REGISTER_SERIAL_PROMPT", lang),
       [getSkipButton(lang), getMenuButton(lang)]
     );
+    console.log(`[simulate-DEBUG] REGISTER result message=${result.message?.substring(0, 60)}`);
+    return result;
   }
+  console.log(`[simulate-DEBUG] upper=${upper} state=${session.state} inLegacy=${inLegacyTransactional} fsmBtn=${fsmButtonIds.has(upper)} — fell through REGISTER check`);
   if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
     return routeState(session, phoneNumber, text, meta);
   }
