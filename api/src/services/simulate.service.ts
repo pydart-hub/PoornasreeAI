@@ -3643,13 +3643,17 @@ function countMetaKeys(meta: any): number {
 // ── Session helpers ────────────────────────────────────────────────────────
 async function findBestSession(phoneNumber: string) {
   const digits = normalizePhone(phoneNumber);
+  const raw = phoneNumber.replace(/\D/g, "");
+  const plus91 = "+91" + digits;
+  const with91 = "91" + digits;
   const candidates = await prisma.conversationSession.findMany({
     where: {
       OR: [
         { phoneNumber },
-        { phoneNumber: "91" + digits },
-        { phoneNumber: "+91" + digits },
         { phoneNumber: digits },
+        { phoneNumber: raw },
+        { phoneNumber: with91 },
+        { phoneNumber: plus91 },
       ],
     },
     orderBy: { updatedAt: "desc" },

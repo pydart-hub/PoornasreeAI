@@ -91,7 +91,7 @@ async function refreshCache(): Promise<void> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalize(raw: any): PasstestMachine {
   return {
-    serial_no:       raw.serial_no       ?? raw.SerialNo      ?? "",
+    serial_no:       raw.serial_no       ?? raw.SerialNo      ?? raw.m_ser_no ?? "",
     m_model:         raw.m_model         ?? "",
     m_version:       raw.m_version       ?? "",
     m_build:         raw.m_build         ?? "",
