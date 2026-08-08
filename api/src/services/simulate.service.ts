@@ -129,13 +129,13 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "📝 এখনই নিবন্ধন করুন",
   },
   REGISTER_SERIAL_PROMPT: {
-    en: "📝 *Registration — Step 1 of 5*\n\n🔧 Please enter your machine *serial number*.\n\n_(You can find it on the machine label or warranty card)_\n\nIf you don't have one, press *Skip*.",
-    hi: "📝 *पंजीकरण — चरण 1/5*\n\n🔧 कृपया अपनी मशीन का *सीरियल नंबर* दर्ज करें।\n\n_(यह मशीन के लेबल या वारंटी कार्ड पर मिलता है)_\n\nयदि आपके पास नहीं है, तो *Skip* दबाएं।",
-    ta: "📝 *பதிவு — படி 1/5*\n\n🔧 உங்கள் இயந்திரத்தின் *வரிசை எண்ணை* உள்ளிடவும்.\n\n_(இயந்திர லேபிள் அல்லது உத்தரவாத அட்டையில் காணலாம்)_\n\nஉங்களிடம் இல்லையென்றால், *Skip* அழுத்தவும்.",
-    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 1/5*\n\n🔧 ದಯವಿಟ್ಟು ನಿಮ್ಮ ಯಂತ್ರದ *ಸರಣಿ ಸಂಖ್ಯೆ* ನಮೂದಿಸಿ.\n\n_(ಯಂತ್ರದ ಲೇಬಲ್ ಅಥವಾ ವಾರಂಟಿ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಕಾಣಬಹುದು)_\n\nನಿಮ್ಮ ಬಳಿ ಇಲ್ಲದಿದ್ದರೆ, *Skip* ಒತ್ತಿರಿ.",
+    en: "📝 *Registration — Step 1 of 4*\n\n🔧 Please enter your machine *serial number*.\n\n_(You can find it on the machine label or warranty card)_\n\nIf you don't have one, press *Skip*.",
+    hi: "📝 *पंजीकरण — चरण 1/4*\n\n🔧 कृपया अपनी मशीन का *सीरियल नंबर* दर्ज करें।\n\n_(यह मशीन के लेबल या वारंटी कार्ड पर मिलता है)_\n\nयदि आपके पास नहीं है, तो *Skip* दबाएं।",
+    ta: "📝 *பதிவு — படி 1/4*\n\n🔧 உங்கள் இயந்திரத்தின் *வரிசை எண்ணை* உள்ளிடவும்.\n\n_(இயந்திர லேபிள் அல்லது உத்தரவாத அட்டையில் காணலாம்)_\n\nஉங்களிடம் இல்லையென்றால், *Skip* அழுத்தவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 1/4*\n\n🔧 ದಯವಿಟ್ಟು ನಿಮ್ಮ ಯಂತ್ರದ *ಸರಣಿ ಸಂಖ್ಯೆ* ನಮೂದಿಸಿ.\n\n_(ಯಂತ್ರದ ಲೇಬಲ್ ಅಥವಾ ವಾರಂಟಿ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಕಾಣಬಹುದು)_\n\nನಿಮ್ಮ ಬಳಿ ಇಲ್ಲದಿದ್ದರೆ, *Skip* ಒತ್ತಿರಿ.",
     mr: "📝 *नोंदणी — टप्पा 1/5*\n\n🔧 कृपया आपल्या मशीनचा *अनुक्रमांक* प्रविष्ट करा.\n\n_(मशीनच्या लेबलवर किंवा वॉरंटी कार्डवर आढळू शकतो)_\n\nआपल्याकडे नसल्यास, *Skip* दाबा.",
-    te: "📝 *నమోదు — దశ 1/5*\n\n🔧 దయచేసి మీ యంత్రం *సీరియల్ నంబర్* నమోదు చేయండి.\n\n_(యంత్రం లేబుల్ లేదా వారంటీ కార్డులో కనుగొనవచ్చు)_\n\nమీ వద్ద లేకుంటే, *Skip* నొక్కండి.",
-    bn: "📝 *নিবন্ধন — ধাপ 1/5*\n\n🔧 অনুগ্রহ করে আপনার মেশিনের *সিরিয়াল নম্বর* লিখুন।\n\n_(মেশিনের লেবেল বা ওয়ারেন্টি কার্ডে পাওয়া যেতে পারে)_\n\nআপনার কাছে না থাকলে, *Skip* টিপুন।",
+    te: "📝 *నమోదు — దశ 1/4*\n\n🔧 దయచేసి మీ యంత్రం *సీరియల్ నంబర్* నమోదు చేయండి.\n\n_(యంత్రం లేబుల్ లేదా వారంటీ కార్డులో కనుగొనవచ్చు)_\n\nమీ వద్ద లేకుంటే, *Skip* నొక్కండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 1/4*\n\n🔧 অনুগ্রহ করে আপনার মেশিনের *সিরিয়াল নম্বর* লিখুন।\n\n_(মেশিনের লেবেল বা ওয়ারেন্টি কার্ডে পাওয়া যেতে পারে)_\n\nআপনার কাছে না থাকলে, *Skip* টিপুন।",
   },
   REGISTER_SERIAL_NOT_FOUND: {
     en: "❌ Serial number *{serial}* was not found in our records.\n\nPlease double-check and try again, or press *Skip* to continue without a serial number.",
@@ -165,40 +165,40 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "✅ চালিয়ে যান",
   },
   REGISTER_NAME_PROMPT: {
-    en: "📝 *Registration — Step 2 of 5*\n\n👤 Please enter your *full name*.",
-    hi: "📝 *पंजीकरण — चरण 2/5*\n\n👤 कृपया अपना *पूरा नाम* दर्ज करें।",
-    ta: "📝 *பதிவு — படி 2/5*\n\n👤 உங்கள் *முழு பெயரை* உள்ளிடவும்.",
-    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 2/5*\n\n👤 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ಹೆಸರನ್ನು* ನಮೂದಿಸಿ.",
+    en: "📝 *Registration — Step 2 of 4*\n\n👤 Please enter your *full name*.",
+    hi: "📝 *पंजीकरण — चरण 2/4*\n\n👤 कृपया अपना *पूरा नाम* दर्ज करें।",
+    ta: "📝 *பதிவு — படி 2/4*\n\n👤 உங்கள் *முழு பெயரை* உள்ளிடவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 2/4*\n\n👤 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ಹೆಸರನ್ನು* ನಮೂದಿಸಿ.",
     mr: "📝 *नोंदणी — टप्पा 2/5*\n\n👤 कृपया आपले *पूर्ण नाव* प्रविष्ट करा.",
-    te: "📝 *నమోదు — దశ 2/5*\n\n👤 దయచేసి మీ *పూర్తి పేరు* నమోదు చేయండి.",
-    bn: "📝 *নিবন্ধন — ধাপ 2/5*\n\n👤 অনুগ্রহ করে আপনার *পূর্ণ নাম* লিখুন।",
+    te: "📝 *నమోదు — దశ 2/4*\n\n👤 దయచేసి మీ *పూర్తి పేరు* నమోదు చేయండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 2/4*\n\n👤 অনুগ্রহ করে আপনার *পূর্ণ নাম* লিখুন।",
   },
   REGISTER_ADDRESS_PROMPT: {
-    en: "📝 *Registration — Step 3 of 5*\n\n🏠 Please enter your *full address* (house no., street, landmark).\n\nExample: House 12, Main Road, near temple",
-    hi: "📝 *पंजीकरण — चरण 3/5*\n\n🏠 कृपया अपना *पूरा पता* दर्ज करें (मकान नं., सड़क, लैंडमार्क)।\n\nउदाहरण: मकान 12, मुख्य सड़क, मंदिर के पास",
-    ta: "📝 *பதிவு — படி 3/5*\n\n🏠 உங்கள் *முழு முகவரியை* உள்ளிடவும் (வீட்டு எண், தெரு, அடையாளம்).\n\nஉதாரணம்: வீடு 12, பிரதான சாலை, கோயிலுக்கு அருகில்",
-    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 3/5*\n\n🏠 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ವಿಳಾಸ* ನಮೂದಿಸಿ (ಮನೆ ಸಂಖ್ಯೆ, ರಸ್ತೆ, ಹೆಗ್ಗುರುತು).\n\nಉದಾಹರಣೆ: ಮನೆ 12, ಮುಖ್ಯ ರಸ್ತೆ, ದೇವಸ್ಥಾನದ ಹತ್ತಿರ",
+    en: "📝 *Registration — Step 3 of 4*\n\n🏠 Please enter your *full address* (house no., street, landmark).\n\nExample: House 12, Main Road, near temple",
+    hi: "📝 *पंजीकरण — चरण 3/4*\n\n🏠 कृपया अपना *पूरा पता* दर्ज करें (मकान नं., सड़क, लैंडमार्क)।\n\nउदाहरण: मकान 12, मुख्य सड़क, मंदिर के पास",
+    ta: "📝 *பதிவு — படி 3/4*\n\n🏠 உங்கள் *முழு முகவரியை* உள்ளிடவும் (வீட்டு எண், தெரு, அடையாளம்).\n\nஉதாரணம்: வீடு 12, பிரதான சாலை, கோயிலுக்கு அருகில்",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 3/4*\n\n🏠 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ವಿಳಾಸ* ನಮೂದಿಸಿ (ಮನೆ ಸಂಖ್ಯೆ, ರಸ್ತೆ, ಹೆಗ್ಗುರುತು).\n\nಉದಾಹರಣೆ: ಮನೆ 12, ಮುಖ್ಯ ರಸ್ತೆ, ದೇವಸ್ಥಾನದ ಹತ್ತಿರ",
     mr: "📝 *नोंदणी — टप्पा 3/5*\n\n🏠 कृपया आपला *पूर्ण पत्ता* प्रविष्ट करा (घर क्रमांक, रस्ता, खूण).\n\nउदाहरण: घर 12, मुख्य रस्ता, मंदिराजवळ",
-    te: "📝 *నమోదు — దశ 3/5*\n\n🏠 దయచేసి మీ *పూర్తి చిరునామా* నమోదు చేయండి (ఇంటి నంబర్, వీధి, ల్యాండ్‌మార్క్).\n\nఉదాహరణ: ఇల్లు 12, ప్రధాన రహదారి, గుడి దగ్గర",
-    bn: "📝 *নিবন্ধন — ধাপ 3/5*\n\n🏠 অনুগ্রহ করে আপনার *সম্পূর্ণ ঠিকানা* লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
+    te: "📝 *నమోదు — దశ 3/4*\n\n🏠 దయచేసి మీ *పూర్తి చిరునామా* నమోదు చేయండి (ఇంటి నంబర్, వీధి, ల్యాండ్‌మార్క్).\n\nఉదాహరణ: ఇల్లు 12, ప్రధాన రహదారి, గుడి దగ్గర",
+    bn: "📝 *নিবন্ধন — ধাপ 3/4*\n\n🏠 অনুগ্রহ করে আপনার *সম্পূর্ণ ঠিকানা* লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
   },
   REGISTER_PINCODE_PROMPT: {
-    en: "📝 *Registration — Step 4 of 5*\n\n📮 Please enter your *6-digit pincode*.",
-    hi: "📝 *पंजीकरण — चरण 4/5*\n\n📮 कृपया अपना *6 अंकों का पिनकोड* दर्ज करें।",
-    ta: "📝 *பதிவு — படி 4/5*\n\n📮 உங்கள் *6 இலக்க பின்கோடை* உள்ளிடவும்.",
-    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 4/5*\n\n📮 ದಯವಿಟ್ಟು ನಿಮ್ಮ *6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್* ನಮೂದಿಸಿ.",
+    en: "📝 *Registration — Step 4 of 4*\n\n📮 Please enter your *6-digit pincode*.",
+    hi: "📝 *पंजीकरण — चरण 4/4*\n\n📮 कृपया अपना *6 अंकों का पिनकोड* दर्ज करें।",
+    ta: "📝 *பதிவு — படி 4/4*\n\n📮 உங்கள் *6 இலக்க பின்கோடை* உள்ளிடவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 4/4*\n\n📮 ದಯವಿಟ್ಟು ನಿಮ್ಮ *6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್* ನಮೂದಿಸಿ.",
     mr: "📝 *नोंदणी — टप्पा 4/5*\n\n📮 कृपया आपला *6 अंकी पिनकोड* प्रविष्ट करा.",
-    te: "📝 *నమోదు — దశ 4/5*\n\n📮 దయచేసి మీ *6 అంకెల పినకోడ్* నమోదు చేయండి.",
-    bn: "📝 *নিবন্ধন — ধাপ 4/5*\n\n📮 অনুগ্রহ করে আপনার *৬-সংখ্যার পিনকোড* লিখুন।",
+    te: "📝 *నమోదు — దశ 4/4*\n\n📮 దయచేసి మీ *6 అంకెల పినకోడ్* నమోదు చేయండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 4/4*\n\n📮 অনুগ্রহ করে আপনার *৬-সংখ্যার পিনকোড* লিখুন।",
   },
   REGISTER_GMAP_PROMPT: {
-    en: "📝 *Registration — Step 5 of 5*\n\n📍 Please share your *Google Maps location link* so our technician can reach you easily.\n\nHow to get your link:\n1. Open Google Maps\n2. Long-press on your location\n3. Tap *Share* and copy the link\n\nExample: https://maps.google.com/?q=12.9716,77.5946\n\nOr press *Skip* if you don't have one.",
-    hi: "📝 *पंजीकरण — चरण 5/5*\n\n📍 कृपया अपना *Google Maps स्थान लिंक* साझा करें ताकि हमारा तकनीशियन आप तक आसानी से पहुंच सके।\n\nलिंक कैसे प्राप्त करें:\n1. Google Maps खोलें\n2. अपने स्थान पर देर तक दबाएं\n3. *शेयर* पर टैप करें और लिंक कॉपी करें\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nया *Skip* दबाएं।",
-    ta: "📝 *பதிவு — படி 5/5*\n\n📍 எங்கள் தொழில்நுட்பவியலாளர் உங்களை எளிதில் சென்றடைய உங்கள் *Google Maps இருப்பிட இணைப்பை* பகிரவும்.\n\nஇணைப்பை எப்படி பெறுவது:\n1. Google Maps திறக்கவும்\n2. உங்கள் இடத்தில் நீண்ட நேரம் அழுத்தவும்\n3. *பகிர்* என்பதைத் தட்டி இணைப்பை நகலெடுக்கவும்\n\nஉதாரணம்: https://maps.google.com/?q=12.9716,77.5946\n\nஅல்லது *Skip* அழுத்தவும்.",
-    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 5/5*\n\n📍 ನಮ್ಮ ತಂತ್ರಜ್ಞರು ನಿಮ್ಮನ್ನು ಸುಲಭವಾಗಿ ತಲುಪಲು ನಿಮ್ಮ *Google Maps ಸ್ಥಳ ಲಿಂಕ್* ಹಂಚಿಕೊಳ್ಳಿ.\n\nಲಿಂಕ್ ಪಡೆಯುವ ವಿಧಾನ:\n1. Google Maps ತೆರೆಯಿರಿ\n2. ನಿಮ್ಮ ಸ್ಥಳದಲ್ಲಿ ಸ್ವಲ್ಪ ಸಮಯ ಒತ್ತಿರಿ\n3. *ಹಂಚಿಕೊಳ್ಳಿ* ಟ್ಯಾಪ್ ಮಾಡಿ ಮತ್ತು ಲಿಂಕ್ ನಕಲಿಸಿ\n\nಉದಾಹರಣೆ: https://maps.google.com/?q=12.9716,77.5946\n\nಅಥವಾ *Skip* ಒತ್ತಿರಿ.",
+    en: "📝 *Registration — Step 4 of 4*\n\n📍 Please share your *Google Maps location link* so our technician can reach you easily.\n\nHow to get your link:\n1. Open Google Maps\n2. Long-press on your location\n3. Tap *Share* and copy the link\n\nExample: https://maps.google.com/?q=12.9716,77.5946\n\nOr press *Skip* if you don't have one.",
+    hi: "📝 *पंजीकरण — चरण 4/4*\n\n📍 कृपया अपना *Google Maps स्थान लिंक* साझा करें ताकि हमारा तकनीशियन आप तक आसानी से पहुंच सके।\n\nलिंक कैसे प्राप्त करें:\n1. Google Maps खोलें\n2. अपने स्थान पर देर तक दबाएं\n3. *शेयर* पर टैप करें और लिंक कॉपी करें\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nया *Skip* दबाएं।",
+    ta: "📝 *பதிவு — படி 4/4*\n\n📍 எங்கள் தொழில்நுட்பவியலாளர் உங்களை எளிதில் சென்றடைய உங்கள் *Google Maps இருப்பிட இணைப்பை* பகிரவும்.\n\nஇணைப்பை எப்படி பெறுவது:\n1. Google Maps திறக்கவும்\n2. உங்கள் இடத்தில் நீண்ட நேரம் அழுத்தவும்\n3. *பகிர்* என்பதைத் தட்டி இணைப்பை நகலெடுக்கவும்\n\nஉதாரணம்: https://maps.google.com/?q=12.9716,77.5946\n\nஅல்லது *Skip* அழுத்தவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 4/4*\n\n📍 ನಮ್ಮ ತಂತ್ರಜ್ಞರು ನಿಮ್ಮನ್ನು ಸುಲಭವಾಗಿ ತಲುಪಲು ನಿಮ್ಮ *Google Maps ಸ್ಥಳ ಲಿಂಕ್* ಹಂಚಿಕೊಳ್ಳಿ.\n\nಲಿಂಕ್ ಪಡೆಯುವ ವಿಧಾನ:\n1. Google Maps ತೆರೆಯಿರಿ\n2. ನಿಮ್ಮ ಸ್ಥಳದಲ್ಲಿ ಸ್ವಲ್ಪ ಸಮಯ ಒತ್ತಿರಿ\n3. *ಹಂಚಿಕೊಳ್ಳಿ* ಟ್ಯಾಪ್ ಮಾಡಿ ಮತ್ತು ಲಿಂಕ್ ನಕಲಿಸಿ\n\nಉದಾಹರಣೆ: https://maps.google.com/?q=12.9716,77.5946\n\nಅಥವಾ *Skip* ಒತ್ತಿರಿ.",
     mr: "📝 *नोंदणी — टप्पा 5/5*\n\n📍 कृपया आमचे तंत्रज्ञ तुम्हाला सहजपणे भेटू शकतील असे आपले *Google Maps स्थान लिंक* शेअर करा.\n\nलिंक कसे मिळवायचे:\n1. Google Maps उघडा\n2. आपल्या स्थानावर दीर्घकाळ दाबा\n3. *शेअर* वर टॅप करा आणि लिंक कॉपी करा\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nकिंवा *Skip* दाबा.",
-    te: "📝 *నమోదు — దశ 5/5*\n\n📍 మీ సాంకేతిక నిపుణుడు మిమ్మల్ని సులభంగా చేరుకోవడానికి మీ *Google Maps స్థాన లింక్* పంచుకోండి.\n\nలింక్ పొందడం ఎలా:\n1. Google Maps తెరవండి\n2. మీ స్థానంపై ఎక్కువ సమయం నొక్కండి\n3. *షేర్* నొక్కి లింక్ కాపీ చేయండి\n\nఉదాహరణ: https://maps.google.com/?q=12.9716,77.5946\n\nలేదా *Skip* నొక్కండి.",
-    bn: "📝 *নিবন্ধন — ধাপ 5/5*\n\n📍 আমাদের প্রযুক্তিবিদ যাতে সহজেই আপনার কাছে পৌঁছাতে পারেন তাই আপনার *Google Maps অবস্থান লিঙ্ক* শেয়ার করুন।\n\nলিঙ্ক পাওয়ার উপায়:\n1. Google Maps খুলুন\n2. আপনার অবস্থানে দীর্ঘক্ষণ চাপ দিন\n3. *শেয়ার* চাপুন এবং লিঙ্ক কপি করুন\n\nউদাহরণ: https://maps.google.com/?q=12.9716,77.5946\n\nঅথবা *Skip* টিপুন।",
+    te: "📝 *నమోదు — దశ 4/4*\n\n📍 మీ సాంకేతిక నిపుణుడు మిమ్మల్ని సులభంగా చేరుకోవడానికి మీ *Google Maps స్థాన లింక్* పంచుకోండి.\n\nలింక్ పొందడం ఎలా:\n1. Google Maps తెరవండి\n2. మీ స్థానంపై ఎక్కువ సమయం నొక్కండి\n3. *షేర్* నొక్కి లింక్ కాపీ చేయండి\n\nఉదాహరణ: https://maps.google.com/?q=12.9716,77.5946\n\nలేదా *Skip* నొక్కండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 4/4*\n\n📍 আমাদের প্রযুক্তিবিদ যাতে সহজেই আপনার কাছে পৌঁছাতে পারেন তাই আপনার *Google Maps অবস্থান লিঙ্ক* শেয়ার করুন।\n\nলিঙ্ক পাওয়ার উপায়:\n1. Google Maps খুলুন\n2. আপনার অবস্থানে দীর্ঘক্ষণ চাপ দিন\n3. *শেয়ার* চাপুন এবং লিঙ্ক কপি করুন\n\nউদাহরণ: https://maps.google.com/?q=12.9716,77.5946\n\nঅথবা *Skip* টিপুন।",
   },
   REGISTER_SUCCESS: {
     en: "🎉 *Registration Successful!*\n\nWelcome to the Poornasree family, {name}!\n\nYour details have been saved. Our team will be able to assist you faster from now on.\n\nWhat would you like to do?",
@@ -1133,7 +1133,6 @@ export async function handleMessage(phoneNumber: string, message: string) {
     session.state === "REGISTER_PROMPT" ||
     session.state === "REGISTER_SERIAL" ||
     session.state === "REGISTER_NAME" ||
-    session.state === "REGISTER_ADDRESS" ||
     session.state === "REGISTER_PINCODE" ||
     session.state === "REGISTER_GMAP";
 
@@ -1559,9 +1558,6 @@ async function routeState(
     case "REGISTER_NAME":
       return handleRegisterName(session.id, phoneNumber, meta, text);
 
-    case "REGISTER_ADDRESS":
-      return handleRegisterAddress(session.id, phoneNumber, meta, text);
-
     case "REGISTER_PINCODE":
       return handleRegisterPincode(session.id, phoneNumber, meta, text);
 
@@ -1720,32 +1716,11 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
   }
 
   const updatedMeta: SessionMeta = { ...meta, regName: name };
-  await updateSession(sessionId, "REGISTER_ADDRESS", updatedMeta);
-  return makeReply(t("REGISTER_ADDRESS_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
-}
-
-async function handleRegisterAddress(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
-  const lang: Lang = (meta.language ?? "en") as Lang;
-  const upper = text.toUpperCase().trim();
-
-  if (upper === "MENU" || upper === "MAIN MENU") {
-    await updateSession(sessionId, "MAIN_MENU", meta);
-    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
-  }
-  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
-    await updateSession(sessionId, "REGISTER_NAME", meta);
-    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
-  }
-
-  const address = text.trim();
-  if (address.length < 10) {
-    return makeReply(t("REGISTER_INVALID_ADDRESS", lang), [getBackButton(lang), getMenuButton(lang)]);
-  }
-
-  const updatedMeta: SessionMeta = { ...meta, regAddress: address };
   await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
   return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
 }
+
+// REGISTER_ADDRESS step removed — flow is now Serial → Name → Pincode → Location
 
 async function handleRegisterPincode(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
@@ -1756,8 +1731,8 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
   if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
-    await updateSession(sessionId, "REGISTER_ADDRESS", meta);
-    return makeReply(t("REGISTER_ADDRESS_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+    await updateSession(sessionId, "REGISTER_NAME", meta);
+    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
   }
 
   const digits = text.replace(/\D/g, "");
