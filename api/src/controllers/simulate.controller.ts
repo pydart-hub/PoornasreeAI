@@ -60,7 +60,7 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Check if chatbot is paused
+    // Check if chatbot is paused (search across phone formats)
     const session = await prisma.conversationSession.findFirst({
       where: { phoneNumber: phone },
       orderBy: { updatedAt: "desc" },
