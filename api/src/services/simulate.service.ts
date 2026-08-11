@@ -1414,7 +1414,7 @@ async function startGreeting(phoneNumber: string) {
 
   await updateSession(session.id, "REGISTER_PROMPT", { language: existingMeta.language });
   return makeReply(
-    t("GREETING_HEADER", lang) + t("REGISTER_WELCOME", lang),
+    t("REGISTER_WELCOME", lang),
     [
       { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
       getSkipButton(lang),
