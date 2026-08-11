@@ -30,7 +30,7 @@ import {
 } from "./groq.service";
 import { classifyComplaint, prefilterCandidates } from "./complaint-classifier.service";
 import * as WhatsAppService from "./whatsapp.service";
-import { findDocumentIssue, getMainMenuList } from "./simulate.service";
+import { findDocumentIssue, getMainMenuList, getOrCreateSession, updateSession } from "./simulate.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -154,26 +154,7 @@ function stabilizeLanguage(meta: AgentMeta, detected: string): string {
 
 // ── DB & Chat Session helpers ───────────────────────────────────────────────
 async function getOrCreateAgentSession(phoneNumber: string) {
-  const existing = await prisma.conversationSession.findFirst({
-    where: { phoneNumber, state: { notIn: ["COMPLETED"] } },
-    orderBy: { updatedAt: "desc" },
-  });
-  if (existing) return existing;
-
-  const last = await prisma.conversationSession.findFirst({
-    where: { phoneNumber },
-    orderBy: { updatedAt: "desc" },
-  });
-
-  return prisma.conversationSession.create({
-    data: {
-      phoneNumber,
-      state: "AGENT_CHAT",
-      isBotPaused: last?.isBotPaused ?? false,
-      supportAgentId: last?.supportAgentId ?? null,
-      metadata: { agentMode: true },
-    },
-  });
+  return getOrCreateSession(phoneNumber);
 }
 
 async function updateAgentSession(
@@ -181,10 +162,7 @@ async function updateAgentSession(
   state: string,
   meta: AgentMeta,
 ): Promise<void> {
-  await prisma.conversationSession.update({
-    where: { id },
-    data: { state, metadata: meta as object },
-  });
+  await updateSession(id, state, meta as any);
 }
 
 async function loadRecentHistory(phoneNumber: string): Promise<string> {

@@ -3812,7 +3812,7 @@ async function findBestSession(phoneNumber: string) {
   return pool.sort((a, b) => countMetaKeys(b.metadata) - countMetaKeys(a.metadata))[0];
 }
 
-async function getOrCreateSession(phoneNumber: string) {
+export async function getOrCreateSession(phoneNumber: string) {
   const digits = normalizePhone(phoneNumber);
   const best = await findBestSession(phoneNumber);
 
@@ -3855,7 +3855,7 @@ async function getOrCreateSession(phoneNumber: string) {
   });
 }
 
-async function updateSession(id: string, state: string, meta: SessionMeta) {
+export async function updateSession(id: string, state: string, meta: SessionMeta) {
   return prisma.conversationSession.update({
     where: { id },
     data: { state, metadata: sanitizeForJson(meta) as object },
