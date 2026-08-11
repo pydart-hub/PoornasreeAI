@@ -516,7 +516,8 @@ export async function handleCustomerAgentMessage(
   const userLang = (meta.language || "en") as any;
 
   // ── SKIP handles skipping registration or returns main menu options list ──
-  if (upper === "SKIP" && session.state !== "COMPLAINT_ASK_SERIAL") {
+  const isSkipCmd = upper === "SKIP" || upper.includes("SKIP") || upper === "0" || text.includes("छोड़ें") || text.includes("தவிர்");
+  if (isSkipCmd && session.state !== "COMPLAINT_ASK_SERIAL") {
     meta.hasSkippedRegistration = true;
     await updateAgentSession(session.id, session.state, meta);
     const list = getMainMenuList(userLang);
