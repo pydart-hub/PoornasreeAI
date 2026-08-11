@@ -480,6 +480,33 @@ async function translateTroubleshooting(text: string, lang: string): Promise<str
   }
 }
 
+async function checkIsUserRegistered(phoneNumber: string): Promise<boolean> {
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.slice(-10);
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { whatsappNumber: { endsWith: last10 } },
+        { whatsappNumber: phoneNumber },
+      ],
+    },
+    select: { id: true },
+  });
+  if (user) return true;
+
+  const session = await prisma.conversationSession.findFirst({
+    where: {
+      OR: [
+        { phoneNumber: { endsWith: last10 } },
+        { phoneNumber: phoneNumber },
+      ],
+      isRegistered: true,
+    },
+    select: { id: true },
+  });
+  return !!session;
+}
+
 // ── Public Entry Point: Customer WhatsApp Agent ──────────────────────────────
 export async function handleCustomerAgentMessage(
   phoneNumber: string,
@@ -488,14 +515,28 @@ export async function handleCustomerAgentMessage(
   const text = message.trim();
   const supportSettings = await getWhatsAppSupportSettings();
   const botName = supportSettings.botName || "Hari";
+  const isRegistered = await checkIsUserRegistered(phoneNumber);
+
+  if (!isRegistered) {
+    const upperMsg = text.toUpperCase();
+    if (!text || upperMsg === "MENU" || upperMsg === "HI" || upperMsg === "HELLO" || upperMsg === "START" || upperMsg === "RESTART") {
+      return makeReply(
+        `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
+        [
+          { id: "REGISTER", title: "📝 Register Machine" },
+          { id: "SKIP", title: "⏭️ Skip for Now" },
+        ],
+      );
+    }
+  }
 
   if (!text) {
     return makeReply(
       `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`,
       [
-        { id: "register", title: "📝 Register Machine" },
         { id: "troubleshoot", title: "🔧 Troubleshoot" },
         { id: "book_service", title: "🛠️ Book Service" },
+        { id: "talk_agent", title: "💬 Talk to Support" },
       ],
     );
   }
@@ -508,17 +549,24 @@ export async function handleCustomerAgentMessage(
   const upper = text.toUpperCase().trim();
 
   // ── Global restart commands ──
-  // In AGENT_CHAT mode, show the agent menu (with Register button) instead of
-  // falling through to the legacy FSM which lacks a Register option.
-  // Outside agent mode, return null to let the FSM handle the restart.
   if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESTART") {
+    if (!isRegistered) {
+      return makeReply(
+        `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
+        [
+          { id: "REGISTER", title: "📝 Register Machine" },
+          { id: "SKIP", title: "⏭️ Skip for Now" },
+        ],
+      );
+    }
+
     if (session.state === "AGENT_CHAT") {
       return makeReply(
         `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`,
         [
-          { id: "register", title: "📝 Register Machine" },
           { id: "troubleshoot", title: "🔧 Troubleshoot" },
           { id: "book_service", title: "🛠️ Book Service" },
+          { id: "talk_agent", title: "💬 Talk to Support" },
         ],
       );
     }
@@ -526,7 +574,6 @@ export async function handleCustomerAgentMessage(
   }
 
   // ── SKIP only valid inside the complaint booking flow (COMPLAINT_ASK_SERIAL → COMPLAINT_ASK_ISSUE) ──
-  // Outside of that state, fall through to FSM so customer doesn't get confusing agent reply (fix Bug #2)
   if (upper === "SKIP" && session.state !== "COMPLAINT_ASK_SERIAL") {
     return null;
   }
@@ -541,9 +588,9 @@ export async function handleCustomerAgentMessage(
     return makeReply(
       `Great! 🎉 Glad the issue is resolved. If you face any other problems in the future, feel free to reach out anytime. We're always here to help!`,
       [
-        { id: "register", title: "📝 Register Machine" },
         { id: "troubleshoot", title: "🔧 Troubleshoot" },
         { id: "book_service", title: "🛠️ Book Service" },
+        { id: "talk_agent", title: "💬 Talk to Support" },
       ],
     );
   }
