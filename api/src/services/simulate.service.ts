@@ -532,6 +532,9 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   },
   TICKET_CONFIRMED: {
     en: "✅ 👷 *Your complaint has been registered!*\n\n🎫 *Ticket No: {ticket}*\n📦 Product: {product}\n📝 Issue: {issue}\n📍 Location: {location}\n\n*Our technician will reach out to you within 24–48 hours. Assuring you of the best services!* 😊",
+    hi: "✅ 👷 *आपकी शिकायत दर्ज हो गई है!*\n\n🎫 *टिकट नंबर: {ticket}*\n📦 उत्पाद: {product}\n📝 समस्या: {issue}\n📍 स्थान: {location}\n\n*हमारा तकनीशियन 24–48 घंटों के भीतर आपसे संपर्क करेगा। सर्वोत्तम सेवा का आश्वासन!* 😊",
+    ta: "✅ 👷 *உங்கள் புகார் பதிவு செய்யப்பட்டுள்ளது!*\n\n🎫 *டிக்கெட் எண்: {ticket}*\n📦 தயாரிப்பு: {product}\n📝 சிக்கல்: {issue}\n📍 இடம்: {location}\n\n*எங்கள் தொழில்நுட்பவியலாளர் 24–48 மணிநேரத்திற்குள் உங்களை தொடர்புகொள்வார்!* 😊",
+    kn: "✅ 👷 *ನಿಮ್ಮ ದೂರು ದಾಖಲಾಗಿದೆ!*\n\n🎫 *ಟಿಕೆಟ್ ಸಂಖ್ಯೆ: {ticket}*\n📦 ಉತ್ಪನ್ನ: {product}\n📝 ಸಮಸ್ಯೆ: {issue}\n📍 ಸ್ಥಳ: {location}\n\n*ನಮ್ಮ ತಂತ್ರಜ್ಞರು 24–48 ಗಂಟೆಗಳ ಒಳಗೆ ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸುತ್ತಾರೆ!* 😊",
     mr: "✅ 👷 *तुमची तक्रार नोंदवली गेली आहे!*\n\n🎫 *तिकीट क्रमांक: {ticket}*\n📦 उत्पादन: {product}\n📝 समस्या: {issue}\n📍 ठिकाण: {location}\n\n*आमचे तंत्रज्ञ 24–48 तासांत तुमच्याशी संपर्क साधतील!* 😊",
     te: "✅ 👷 *మీ ఫిర్యాదు నమోదు చేయబడింది!*\n\n🎫 *టికెట్ నంబర్: {ticket}*\n📦 ఉత్పత్తి: {product}\n📝 సమస్య: {issue}\n📍 స్థానం: {location}\n\n*మా సాంకేతిక నిపుణుడు 24–48 గంటల్లో మిమ్మల్ని సంప్రదిస్తారు!* 😊",
     bn: "✅ 👷 *আপনার অভিযোগ নিবন্ধিত হয়েছে!*\n\n🎫 *টিকিট নম্বর: {ticket}*\n📦 পণ্য: {product}\n📝 সমস্যা: {issue}\n📍 অবস্থান: {location}\n\n*আমাদের প্রযুক্তিবিদ 24-48 ঘন্টার মধ্যে আপনার সাথে যোগাযোগ করবেন!* 😊",
