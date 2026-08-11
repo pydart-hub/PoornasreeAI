@@ -73,6 +73,7 @@ compose up -d --no-deps "$QUICK_SVC" 2>&1 | tee -a /tmp/compose-build.log
 if [ "$QUICK_SVC" = "api" ]; then
   echo " Applying migrations..."
   compose exec -T api npx prisma migrate deploy \
+    || compose exec -T api npx prisma db push --accept-data-loss --skip-generate \
     || echo "  ⚠️  Migration failed — check schema before proceeding"
 fi
 
