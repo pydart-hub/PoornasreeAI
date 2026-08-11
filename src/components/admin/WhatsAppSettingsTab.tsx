@@ -32,6 +32,9 @@ interface SupportSettings {
   supportEmail: string | null;
   supportHours: string | null;
   supportNote: string | null;
+  welcomeGreeting: string | null;
+  afterHoursGreeting: string | null;
+  supportHandoffGreeting: string | null;
 }
 
 interface WaQuickButtonConfig {
@@ -149,6 +152,10 @@ export default function WhatsAppSettingsTab() {
         supportEmail: s.supportEmail ?? "support@poornasree.com",
         supportHours: s.supportHours ?? "Mon–Sat, 9 AM – 6 PM IST",
         supportNote: s.supportNote ?? "",
+        // Greetings: DB wins over localStorage — this is the source of truth
+        welcomeGreeting: s.welcomeGreeting ?? DEFAULT_WELCOME,
+        afterHoursGreeting: s.afterHoursGreeting ?? DEFAULT_AFTER_HOURS,
+        supportHandoffGreeting: s.supportHandoffGreeting ?? DEFAULT_HANDOFF,
       }));
     } catch {
       setError("Failed to load settings from server");
@@ -194,6 +201,9 @@ export default function WhatsAppSettingsTab() {
           supportEmail: form.supportEmail.trim() || null,
           supportHours: form.supportHours.trim() || null,
           supportNote: form.supportNote.trim() || null,
+          welcomeGreeting: form.welcomeGreeting.trim() || null,
+          afterHoursGreeting: form.afterHoursGreeting.trim() || null,
+          supportHandoffGreeting: form.supportHandoffGreeting.trim() || null,
         }),
       });
 

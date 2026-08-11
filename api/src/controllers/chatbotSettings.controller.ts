@@ -13,7 +13,10 @@ export async function getChatbotSettings(_req: Request, res: Response): Promise<
 
 // PATCH /api/admin/chatbot-settings
 export async function updateChatbotSettings(req: Request, res: Response): Promise<void> {
-  const { botName, supportPhone, supportEmail, supportHours, supportNote } = req.body ?? {};
+  const {
+    botName, supportPhone, supportEmail, supportHours, supportNote,
+    welcomeGreeting, afterHoursGreeting, supportHandoffGreeting,
+  } = req.body ?? {};
   try {
     const settings = await updateWhatsAppSupportSettings({
       ...(botName !== undefined && { botName: String(botName) }),
@@ -21,6 +24,9 @@ export async function updateChatbotSettings(req: Request, res: Response): Promis
       ...(supportEmail !== undefined && { supportEmail: supportEmail == null ? null : String(supportEmail) }),
       ...(supportHours !== undefined && { supportHours: supportHours == null ? null : String(supportHours) }),
       ...(supportNote !== undefined && { supportNote: supportNote == null ? null : String(supportNote) }),
+      ...(welcomeGreeting !== undefined && { welcomeGreeting: welcomeGreeting == null ? null : String(welcomeGreeting) }),
+      ...(afterHoursGreeting !== undefined && { afterHoursGreeting: afterHoursGreeting == null ? null : String(afterHoursGreeting) }),
+      ...(supportHandoffGreeting !== undefined && { supportHandoffGreeting: supportHandoffGreeting == null ? null : String(supportHandoffGreeting) }),
     });
     clearTrainingCatalogCache();
     res.json({ settings });

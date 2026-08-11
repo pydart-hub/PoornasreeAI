@@ -5,6 +5,7 @@
 
 import prisma from "../lib/prisma";
 import {
+  formatGreeting,
   formatSupportContactBlock,
   getWhatsAppSupportSettings,
 } from "./chatbotSettings.service";
@@ -531,8 +532,11 @@ export async function handleCustomerAgentMessage(
   }
 
   if (!text) {
+    const welcomeMsg = supportSettings.welcomeGreeting
+      ? formatGreeting(supportSettings.welcomeGreeting, supportSettings)
+      : `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`;
     return makeReply(
-      `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`,
+      welcomeMsg,
       [
         { id: "troubleshoot", title: "🔧 Troubleshoot" },
         { id: "book_service", title: "🛠️ Book Service" },
@@ -561,8 +565,11 @@ export async function handleCustomerAgentMessage(
     }
 
     if (session.state === "AGENT_CHAT") {
+      const welcomeMsg = supportSettings.welcomeGreeting
+        ? formatGreeting(supportSettings.welcomeGreeting, supportSettings)
+        : `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`;
       return makeReply(
-        `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`,
+        welcomeMsg,
         [
           { id: "troubleshoot", title: "🔧 Troubleshoot" },
           { id: "book_service", title: "🛠️ Book Service" },

@@ -381,13 +381,16 @@ model ConversationSession {
 
 // ── WhatsApp chatbot settings (singleton: id = "default") ─────────────────
 model ChatbotSetting {
-  id           String   @id @default("default")
-  botName      String   @default("Hari")
-  supportPhone String   @default("+91 94009 61291")
-  supportEmail String?
-  supportHours String?
-  supportNote  String?  @db.Text
-  updatedAt    DateTime @updatedAt
+  id                     String   @id @default("default")
+  botName                String   @default("Hari")
+  supportPhone           String   @default("+91 94009 61291")
+  supportEmail           String?
+  supportHours           String?
+  supportNote            String?  @db.Text
+  welcomeGreeting        String?  @db.Text
+  afterHoursGreeting     String?  @db.Text
+  supportHandoffGreeting String?  @db.Text
+  updatedAt              DateTime @updatedAt
 }
 
 // ── System settings (super-admin configurable keys) ───────────────────────
