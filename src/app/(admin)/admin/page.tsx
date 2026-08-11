@@ -3,119 +3,76 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  MessageSquare,
-  FileText,
-  LogOut,
-  Upload,
-  Trash2,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Menu,
-  Users,
-  FileUp,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  File,
-  Clock,
-  Search,
-  Shield,
-  UserX,
-  RefreshCw,
   BarChart2,
-  TrendingUp,
-  Activity,
-  AlertTriangle,
-  Youtube,
-  Plus,
-  Pencil,
-  X,
-  Download,
-  Film,
   Ticket,
   Package,
+  Youtube,
   GraduationCap,
-  UserPlus,
+  FileText,
+  Film,
+  Users,
+  MessageSquare,
+  LayoutDashboard,
+  LifeBuoy,
+  UserCheck,
+  Palette,
+  Bot,
+  AlertCircle,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Avatar, Badge, LoadingScreen, ResponsiveSidebar, SidebarBrand } from "@/components/ui";
+import { LoadingScreen } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
+import type { ApiUser, ApiDocument, ApiVideo } from "@/components/admin/types";
+
+import AdminLayout from "@/components/admin/AdminLayout";
+import SubNav, { type SubNavItem } from "@/components/admin/SubNav";
+
+import DashboardTab from "@/components/admin/DashboardTab";
+import DocumentsTab from "@/components/admin/DocumentsTab";
+import UsersTab from "@/components/admin/UsersTab";
+import VideosTab from "@/components/admin/VideosTab";
+import AnalyticsTab from "@/components/admin/AnalyticsTab";
+
 import RdVideosTab from "@/components/admin/RdVideosTab";
 import TicketsTab from "@/components/admin/TicketsTab";
 import ProductsTab from "@/components/admin/ProductsTab";
 import WhatsAppSettingsTab from "@/components/admin/WhatsAppSettingsTab";
-
-import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
-import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
-import EngineerTrainingVideosTab from "@/components/admin/EngineerTrainingVideosTab";
 import WhatsappAnalyticsPanel from "@/components/admin/WhatsappAnalyticsPanel";
 import RegisteredCustomersTab from "@/components/admin/RegisteredCustomersTab";
+import TestCustomerPanel from "@/components/admin/TestCustomerPanel";
+import BrandingTab from "@/components/admin/BrandingTab";
+import TroubleshootingTemplatesTab from "@/components/admin/TroubleshootingTemplatesTab";
+import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
-interface ApiUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName?: string;
-  role: string;
-  createdAt: string;
-  _count: { conversations: number };
-}
-
-interface ApiDocument {
-  id: string;
-  title: string;
-  filePath: string;
-  createdAt: string;
-  uploadedBy: string;
-  chunkCount: number;
-  documentType: "service" | "customer";
-  status: "trained" | "pending";
-}
-
-interface ApiVideo {
-  id: string;
-  title: string;
-  description?: string | null;
-  youtubeUrl: string;
-  keywords: string;
-  createdAt: string;
-}
+import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
 
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
 function getRoleBadge(role: string) {
-  const map: Record<string, { label: string; variant: "info" | "success" | "warning" | "accent" | "default" }> = {
-    admin:    { label: "Administrator",    variant: "default" },
-    service:  { label: "Service Engineer", variant: "info" },
-    sales:    { label: "Sales",            variant: "success" },
-    customer: { label: "Customer",         variant: "accent" },
-    customer_support: { label: "Customer Support", variant: "warning" },
+  const map: Record<string, { label: string; variant: string }> = {
+    admin:            { label: "Administrator",     variant: "default" },
+    service:          { label: "Service Engineer",  variant: "info" },
+    sales:            { label: "Sales",             variant: "success" },
+    customer:         { label: "Customer",          variant: "accent" },
+    customer_support: { label: "Customer Support",  variant: "warning" },
   };
-  return map[role] ?? { label: role, variant: "default" as const };
+  return map[role] ?? { label: role, variant: "default" };
 }
 
+// ─────────────────────────────────────────────
+// Core Navigation Union Types
+// ─────────────────────────────────────────────
+type MainTab = "dashboard" | "whatsapp" | "training" | "users" | "support" | "analytics";
 
+type WhatsAppSubTab = "settings" | "analytics" | "customers";
+type TrainingSubTab = "documents" | "videos" | "rdvideos" | "troubleshooting";
+type UsersSubTab = "system-users";
+type SupportSubTab = "tickets" | "complaints" | "products";
+type AnalyticsSubTab = "analytics" | "branding" | "test-panel";
+
+const VALID_MAIN_TABS: MainTab[] = ["dashboard", "whatsapp", "training", "users", "support", "analytics"];
 
 // ─────────────────────────────────────────────
 // Component
@@ -127,15 +84,90 @@ export default function AdminPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<"documents" | "users" | "analytics" | "videos" | "rdvideos" | "tickets" | "products" | "whatsapp" | "trainingvideos" | "registered-customers">("documents");
+  const [activeTab, setActiveTabState] = useState<MainTab>("dashboard");
 
-  // Users state
+  // Inner sub-tabs state
+  const [whatsAppSubTab, setWhatsAppSubTabState] = useState<WhatsAppSubTab>("settings");
+  const [trainingSubTab, setTrainingSubTabState] = useState<TrainingSubTab>("documents");
+  const [usersSubTab, setUsersSubTabState] = useState<UsersSubTab>("system-users");
+  const [supportSubTab, setSupportSubTabState] = useState<SupportSubTab>("tickets");
+  const [analyticsSubTab, setAnalyticsSubTabState] = useState<AnalyticsSubTab>("analytics");
+
+  // Synchronize state with URL parameters & browser history (pushState / popstate)
+  const syncUrlState = useCallback((tab: MainTab, subTab?: string) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", tab);
+    if (subTab) {
+      params.set("subTab", subTab);
+    } else {
+      params.delete("subTab");
+    }
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    if (window.location.search !== `?${params.toString()}`) {
+      window.history.pushState({ tab, subTab }, "", newUrl);
+    }
+  }, []);
+
+  const handleTabChange = useCallback((newTab: MainTab) => {
+    setActiveTabState(newTab);
+    let sub: string | undefined = undefined;
+    if (newTab === "whatsapp") sub = whatsAppSubTab;
+    if (newTab === "training") sub = trainingSubTab;
+    if (newTab === "users") sub = usersSubTab;
+    if (newTab === "support") sub = supportSubTab;
+    if (newTab === "analytics") sub = analyticsSubTab;
+    syncUrlState(newTab, sub);
+  }, [whatsAppSubTab, trainingSubTab, usersSubTab, supportSubTab, analyticsSubTab, syncUrlState]);
+
+  const handleSubTabChange = useCallback((tab: MainTab, subTab: string) => {
+    if (tab === "whatsapp") setWhatsAppSubTabState(subTab as WhatsAppSubTab);
+    if (tab === "training") setTrainingSubTabState(subTab as TrainingSubTab);
+    if (tab === "users") setUsersSubTabState(subTab as UsersSubTab);
+    if (tab === "support") setSupportSubTabState(subTab as SupportSubTab);
+    if (tab === "analytics") setAnalyticsSubTabState(subTab as AnalyticsSubTab);
+    syncUrlState(tab, subTab);
+  }, [syncUrlState]);
+
+  // ── Listen for Browser Back & Forward Buttons (Popstate) & Mount URL ──
+  useEffect(() => {
+    const parseAndApplyUrlState = () => {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab") as MainTab;
+      const subTabParam = params.get("subTab");
+
+      if (tabParam && VALID_MAIN_TABS.includes(tabParam)) {
+        setActiveTabState(tabParam);
+        if (subTabParam) {
+          if (tabParam === "whatsapp") setWhatsAppSubTabState(subTabParam as WhatsAppSubTab);
+          if (tabParam === "training") setTrainingSubTabState(subTabParam as TrainingSubTab);
+          if (tabParam === "users") setUsersSubTabState(subTabParam as UsersSubTab);
+          if (tabParam === "support") setSupportSubTabState(subTabParam as SupportSubTab);
+          if (tabParam === "analytics") setAnalyticsSubTabState(subTabParam as AnalyticsSubTab);
+        }
+      }
+    };
+
+    // Apply URL params on page mount
+    parseAndApplyUrlState();
+
+    // Listen for browser Back/Forward navigation
+    const onPopState = () => {
+      parseAndApplyUrlState();
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // Users
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
-  // Documents state
+  // Documents
   const [documents, setDocuments] = useState<ApiDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -145,55 +177,23 @@ export default function AdminPage() {
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [uploadDocType, setUploadDocType] = useState<"service" | "customer">("service");
 
-  // Videos state
+  // Videos
   const [videos, setVideos] = useState<ApiVideo[]>([]);
   const [videosLoading, setVideosLoading] = useState(false);
-  const [videoForm, setVideoForm] = useState<{ title: string; description: string; youtubeUrl: string; keywords: string }>({ title: "", description: "", youtubeUrl: "", keywords: "" });
+  const [videoForm, setVideoForm] = useState({ title: "", description: "", youtubeUrl: "", keywords: "" });
   const [videoFormError, setVideoFormError] = useState("");
   const [savingVideo, setSavingVideo] = useState(false);
   const [editingVideo, setEditingVideo] = useState<ApiVideo | null>(null);
   const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
 
-  // Analytics state
+  // Analytics
   const [analyticsView, setAnalyticsView] = useState<"overview" | "customer" | "service" | "whatsapp">("overview");
-  const [analytics, setAnalytics] = useState<{
-    totalConversations: number;
-    totalSupportRequests: number;
-    escalationRate: number;
-    aiResolutionRate: number;
-    resolvedCount: number;
-    pendingCount: number;
-    activeCount: number;
-    topMachines: { name: string; count: number }[];
-    recentIssues: { id: string; problem: string; status: string; customer: { firstName: string; lastName: string | null }; createdAt: string }[];
-  } | null>(null);
+  const [analytics, setAnalytics] = useState<Record<string, unknown> | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [timeline, setTimeline] = useState<{ date: string; conversations: number; support: number }[]>([]);
-
-  // Customer analytics state
-  const [customerAnalytics, setCustomerAnalytics] = useState<{
-    totalConversations: number;
-    totalSupportRequests: number;
-    resolvedCount: number;
-    pendingCount: number;
-    activeCount: number;
-    topComplaints: { keyword: string; count: number }[];
-    topQuestions: { keyword: string; count: number }[];
-    recentIssues: { id: string; problem: string; status: string; customer: { firstName: string; lastName: string | null } }[];
-    timeline: { date: string; conversations: number; support: number }[];
-  } | null>(null);
+  const [timeline, setTimeline] = useState<Record<string, unknown>[]>([]);
+  const [customerAnalytics, setCustomerAnalytics] = useState<Record<string, unknown> | null>(null);
   const [customerAnalyticsLoading, setCustomerAnalyticsLoading] = useState(false);
-
-  // Service analytics state
-  const [serviceAnalytics, setServiceAnalytics] = useState<{
-    totalConversations: number;
-    topMachines: { name: string; count: number }[];
-    topTopics: { keyword: string; count: number }[];
-    resolvedCount: number;
-    pendingCount: number;
-    activeCount: number;
-    timeline: { date: string; conversations: number }[];
-  } | null>(null);
+  const [serviceAnalytics, setServiceAnalytics] = useState<Record<string, unknown> | null>(null);
   const [serviceAnalyticsLoading, setServiceAnalyticsLoading] = useState(false);
   const [waAnalyticsReload, setWaAnalyticsReload] = useState(0);
 
@@ -202,13 +202,13 @@ export default function AdminPage() {
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
 
-  // ── Auth guard ───────────────────────────────
+  // ── Auth guard ──────────────────────────────
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
     if (!isLoading && user && user.role !== "admin") router.replace("/login");
   }, [user, isLoading, router]);
 
-  // ── Fetch users ──────────────────────────────
+  // ── Fetch functions ─────────────────────────
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
@@ -220,7 +220,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // ── Fetch documents ───────────────────────────
   const fetchDocuments = useCallback(async () => {
     setDocsLoading(true);
     try {
@@ -232,7 +231,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // ── Fetch analytics ───────────────────────────
   const fetchAnalytics = useCallback(async () => {
     setAnalyticsLoading(true);
     try {
@@ -249,7 +247,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // ── Fetch customer analytics ──────────────────
   const fetchCustomerAnalytics = useCallback(async () => {
     setCustomerAnalyticsLoading(true);
     try {
@@ -261,7 +258,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // ── Fetch service analytics ───────────────────
   const fetchServiceAnalytics = useCallback(async () => {
     setServiceAnalyticsLoading(true);
     try {
@@ -273,7 +269,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // ── Fetch videos ──────────────────────────────
   const fetchVideos = useCallback(async () => {
     setVideosLoading(true);
     try {
@@ -285,6 +280,7 @@ export default function AdminPage() {
     }
   }, []);
 
+  // ── Initial data load ──────────────────────
   useEffect(() => {
     if (user?.role === "admin") {
       fetchUsers();
@@ -293,14 +289,12 @@ export default function AdminPage() {
     }
   }, [user, fetchUsers, fetchDocuments, fetchVideos]);
 
-  // Fetch analytics when tab becomes active
   useEffect(() => {
     if (activeTab === "analytics" && user?.role === "admin" && !analytics && !analyticsLoading) {
       fetchAnalytics();
     }
   }, [activeTab, user, analytics, analyticsLoading, fetchAnalytics]);
 
-  // Fetch view-specific analytics when switching views
   useEffect(() => {
     if (activeTab !== "analytics" || user?.role !== "admin") return;
     if (analyticsView === "customer" && !customerAnalytics && !customerAnalyticsLoading) {
@@ -311,7 +305,7 @@ export default function AdminPage() {
     }
   }, [analyticsView, activeTab, user, customerAnalytics, customerAnalyticsLoading, serviceAnalytics, serviceAnalyticsLoading, fetchCustomerAnalytics, fetchServiceAnalytics]);
 
-  // ── Video CRUD ───────────────────────────────
+  // ── Video CRUD ─────────────────────────────
   const handleSaveVideo = useCallback(async () => {
     setVideoFormError("");
     const { title, youtubeUrl, keywords } = videoForm;
@@ -322,9 +316,8 @@ export default function AdminPage() {
     setSavingVideo(true);
     try {
       const url = editingVideo ? `/api/admin/videos/${editingVideo.id}` : "/api/admin/videos";
-      const method = editingVideo ? "PATCH" : "POST";
       const res = await fetch(url, {
-        method,
+        method: editingVideo ? "PATCH" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(videoForm),
@@ -363,7 +356,7 @@ export default function AdminPage() {
     }
   }, [editingVideo, cancelEditVideo]);
 
-  // ── Upload PDF ───────────────────────────────
+  // ── Upload PDF ─────────────────────────────
   const handleFiles = useCallback(async (files: FileList | File[]) => {
     setUploading(true);
     setUploadMessage(null);
@@ -381,65 +374,43 @@ export default function AdminPage() {
           credentials: "include",
           body: formData,
         });
-        if (res.ok) {
-          successCount++;
-        } else {
-          errorCount++;
-          const body = await res.json().catch(() => ({}));
-          console.error("[upload] HTTP", res.status, body);
-        }
-      } catch (uploadErr) {
-        errorCount++;
-        console.error("[upload] network error", uploadErr);
-      }
+        if (res.ok) successCount++;
+        else { errorCount++; const body = await res.json().catch(() => ({})); console.error("[upload] HTTP", res.status, body); }
+      } catch (uploadErr) { errorCount++; console.error("[upload] network error", uploadErr); }
     }
 
-    try {
-      await fetchDocuments();
-    } finally {
-      setUploading(false);
-    }
+    try { await fetchDocuments(); } finally { setUploading(false); }
 
-    if (successCount > 0 && errorCount === 0) {
-      setUploadMessage({ text: `${successCount} document(s) uploaded and trained successfully!`, type: "success" });
-    } else if (successCount > 0) {
-      setUploadMessage({ text: `${successCount} uploaded, ${errorCount} failed.`, type: "error" });
-    } else {
-      setUploadMessage({ text: "Upload failed. Please check the file and try again.", type: "error" });
-    }
+    if (successCount > 0 && errorCount === 0) setUploadMessage({ text: `${successCount} document(s) uploaded and trained successfully!`, type: "success" });
+    else if (successCount > 0) setUploadMessage({ text: `${successCount} uploaded, ${errorCount} failed.`, type: "error" });
+    else setUploadMessage({ text: "Upload failed. Please check the file and try again.", type: "error" });
     setTimeout(() => setUploadMessage(null), 5000);
   }, [fetchDocuments, uploadDocType]);
 
-  // ── Delete document ──────────────────────────
+  // ── Delete document ────────────────────────
   const handleDeleteDoc = useCallback(async (id: string) => {
     setDeletingDocId(id);
     try {
-      await fetch(`/api/admin/documents/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      await fetch(`/api/admin/documents/${id}`, { method: "DELETE", credentials: "include" });
       setDocuments((prev) => prev.filter((d) => d.id !== id));
     } finally {
       setDeletingDocId(null);
     }
   }, []);
 
-  // ── Delete user ──────────────────────────────
+  // ── Delete user ────────────────────────────
   const handleDeleteUser = useCallback(async (id: string) => {
     if (!confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
     setDeletingUserId(id);
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE", credentials: "include" });
       if (res.ok) setUsers((prev) => prev.filter((u) => u.id !== id));
     } finally {
       setDeletingUserId(null);
     }
   }, []);
 
-  // ── Drag & drop ──────────────────────────────
+  // ── Drag & drop ────────────────────────────
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
   const handleDragLeave = () => setDragOver(false);
   const handleDrop = (e: React.DragEvent) => {
@@ -448,1067 +419,250 @@ export default function AdminPage() {
     if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
   };
 
-  // ── Filter users ─────────────────────────────
-  const filteredUsers = users.filter((u) => {
-    if (!userSearch) return true;
-    const q = userSearch.toLowerCase();
-    return (
-      u.firstName.toLowerCase().includes(q) ||
-      (u.lastName ?? "").toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q)
-    );
-  });
+  // ── SubNav Configurations ──────────────────
+  const whatsappNavItems: SubNavItem<WhatsAppSubTab>[] = [
+    { key: "settings", label: "WhatsApp Persona & API", icon: MessageSquare },
+    { key: "analytics", label: "WhatsApp Analytics & Activity", icon: BarChart2 },
+    { key: "customers", label: "WhatsApp Registered Customers", icon: UserCheck },
+  ];
 
-  const trainedCount = documents.filter((d) => d.status === "trained").length;
+  const trainingNavItems: SubNavItem<TrainingSubTab>[] = [
+    { key: "documents", label: "Training Documents", icon: FileText, count: documents.length },
+    { key: "videos", label: "Customer Videos", icon: Youtube, count: videos.length },
+    { key: "rdvideos", label: "Engineer & R&D Videos", icon: Film },
+    { key: "troubleshooting", label: "Templates & Guides", icon: GraduationCap },
+  ];
 
+  const usersNavItems: SubNavItem<UsersSubTab>[] = [
+    { key: "system-users", label: "System Users", icon: Users, count: users.length },
+  ];
+
+  const supportNavItems: SubNavItem<SupportSubTab>[] = [
+    { key: "tickets", label: "Support Tickets", icon: Ticket },
+    { key: "complaints", label: "Manual Complaints", icon: AlertCircle },
+    { key: "products", label: "Products Catalog", icon: Package },
+  ];
+
+  const settingsNavItems: SubNavItem<AnalyticsSubTab>[] = [
+    { key: "analytics", label: "AI Analytics", icon: BarChart2 },
+    { key: "branding", label: "Branding Settings", icon: Palette },
+    { key: "test-panel", label: "Test Customer Panel", icon: Bot },
+  ];
+
+  // ── Consolidated Sidebar Nav Sections ──────
+  const navSections = [
+    {
+      label: "Overview",
+      items: [
+        { key: "dashboard" as MainTab, label: "Dashboard", icon: LayoutDashboard, count: null },
+      ],
+    },
+    {
+      label: "Modules",
+      items: [
+        { key: "whatsapp" as MainTab, label: "WhatsApp Hub", icon: MessageSquare, count: null },
+        { key: "training" as MainTab, label: "Knowledge & Training", icon: GraduationCap, count: documents.length + videos.length },
+        { key: "users" as MainTab, label: "System Users", icon: Users, count: users.length },
+        { key: "support" as MainTab, label: "Support & Operations", icon: LifeBuoy, count: null },
+        { key: "analytics" as MainTab, label: "Analytics & Settings", icon: BarChart2, count: null },
+      ],
+    },
+  ];
+
+  // ── Render ─────────────────────────────────
   if (isLoading) return <LoadingScreen message="Loading admin panel..." />;
   if (!user) return null;
 
+  const handleLogout = () => { logout(); router.replace("/login"); };
+
   return (
-    <div className="h-[100dvh] flex overflow-hidden">
+    <AdminLayout
+      sidebarOpen={sidebarOpen}
+      onToggleSidebar={() => setSidebarOpen((v) => !v)}
+      onLogout={handleLogout}
+      navSections={navSections}
+      activeTab={activeTab}
+      onTabChange={(tab) => handleTabChange(tab as MainTab)}
+      pageTitle="Admin Panel"
+    >
+      {/* ── 1. Dashboard ── */}
+      {activeTab === "dashboard" && (
+        <DashboardTab
+          documents={documents}
+          users={users}
+          onNavigateUsers={() => handleTabChange("users")}
+          onNavigateTab={(tab, subTab) => {
+            handleTabChange(tab as MainTab);
+            if (subTab) handleSubTabChange(tab as MainTab, subTab);
+          }}
+        />
+      )}
 
-      {/* ── Sidebar ── */}
-      <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260} miniWidth={68}>
-        <div className="flex flex-col h-full bg-gradient-to-b from-primary-900 via-primary-800 to-primary-900">
+      {/* ── 2. WhatsApp Hub ── */}
+      {activeTab === "whatsapp" && (
+        <div className="space-y-6">
+          <SubNav<WhatsAppSubTab>
+            title="WhatsApp Integration & Customer Portal"
+            subtitle="Configure WhatsApp API credentials, AI persona prompts, view live analytics & message activity, and inspect registered customers."
+            items={whatsappNavItems}
+            activeTab={whatsAppSubTab}
+            onTabChange={(sub) => handleSubTabChange("whatsapp", sub)}
+          />
 
-          <SidebarBrand title="Admin Panel" compact className="border-white/10" showText={sidebarOpen} />
-
-          <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-            <a href="/admin" className={cn("flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium bg-white/15 text-white", !sidebarOpen && "justify-center")}>
-              <LayoutDashboard className="w-5 h-5 shrink-0 opacity-70" />
-              {sidebarOpen && <span>Overview</span>}
-            </a>
-
-            <div className="pt-3 pb-1 px-1">
-              {sidebarOpen && <p className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2 px-2">Manage</p>}
-              {([
-                { key: "documents", label: "Documents", icon: <FileText className="w-3.5 h-3.5" />, count: documents.length },
-                { key: "users",     label: "Users",     icon: <Users className="w-3.5 h-3.5" />,     count: users.length },
-                { key: "registered-customers", label: "Customers", icon: <UserPlus className="w-3.5 h-3.5" />, count: null },
-                { key: "videos",    label: "Videos",    icon: <Youtube className="w-3.5 h-3.5" />,   count: videos.length },
-                { key: "rdvideos",  label: "Eng. Videos", icon: <Film className="w-3.5 h-3.5" />,    count: null },
-                { key: "tickets",   label: "Tickets",   icon: <Ticket className="w-3.5 h-3.5" />,    count: null },
-                { key: "products",  label: "Products",  icon: <Package className="w-3.5 h-3.5" />,   count: null },
-                { key: "whatsapp",  label: "WhatsApp",  icon: <MessageSquare className="w-3.5 h-3.5" />, count: null },
-                { key: "analytics", label: "Analytics", icon: <BarChart2 className="w-3.5 h-3.5" />, count: null },
-                { key: "trainingvideos", label: "Training Videos", icon: <GraduationCap className="w-3.5 h-3.5" />, count: null },
-              ] as const).map(({ key, label, icon, count }) => (
-                <button key={key} onClick={() => key === "users" ? router.push("/admin/users") : setActiveTab(key as typeof activeTab)}
-                  className={cn("w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                    activeTab === key ? "bg-white/20 text-white font-semibold" : "text-white/60 hover:text-white hover:bg-white/10",
-                    !sidebarOpen && "justify-center"
-                  )}>
-                  <div className="shrink-0">{icon}</div>
-                  {sidebarOpen && (
-                    <>
-                      <span>{label}</span>
-                      {count !== null && (
-                        <span className={cn("ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full",
-                          activeTab === key ? "bg-white/20 text-white" : "bg-white/10 text-white/60"
-                        )}>{count}</span>
-                      )}
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-          </nav>
-
-          <div className="shrink-0 border-t border-white/10 px-3 py-3 space-y-2">
-            <div className={cn("flex items-center gap-2 rounded-xl", sidebarOpen ? "px-2 py-2" : "justify-center py-1")}>
-              <Avatar name={`${user.firstName} ${user.lastName ?? ""}`} size="sm" status="online" />
-              {sidebarOpen && (
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-white truncate">{user.firstName} {user.lastName ?? ""}</p>
-                  <p className="text-[10px] text-white/50 truncate">{user.email}</p>
-                </div>
-              )}
-            </div>
-            <button onClick={() => { logout(); router.replace("/login"); }}
-              className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors", !sidebarOpen && "justify-center")}>
-              <LogOut className="w-5 h-5 flex-shrink-0" />
-              {sidebarOpen && <span>Sign out</span>}
-            </button>
-          </div>
+          {whatsAppSubTab === "settings" && <WhatsAppSettingsTab />}
+          {whatsAppSubTab === "analytics" && <WhatsappAnalyticsPanel />}
+          {whatsAppSubTab === "customers" && <RegisteredCustomersTab />}
         </div>
-      </ResponsiveSidebar>
+      )}
 
-      {/* Excel Editor Modal for Documents */}
+      {/* ── 3. Knowledge & Training ── */}
+      {activeTab === "training" && (
+        <div className="space-y-6">
+          <SubNav<TrainingSubTab>
+            title="Knowledge Base & Training Center"
+            subtitle="Manage AI training documents, video tutorials, R&D guides, and troubleshooting templates."
+            items={trainingNavItems}
+            activeTab={trainingSubTab}
+            onTabChange={(sub) => handleSubTabChange("training", sub)}
+          />
+
+          {trainingSubTab === "documents" && (
+            <DocumentsTab
+              documents={documents}
+              docsLoading={docsLoading}
+              onFetchDocuments={fetchDocuments}
+              onHandleFiles={handleFiles}
+              onHandleDeleteDoc={handleDeleteDoc}
+              onHandleDragOver={handleDragOver}
+              onHandleDragLeave={handleDragLeave}
+              onHandleDrop={handleDrop}
+              uploadDocType={uploadDocType}
+              onSetUploadDocType={setUploadDocType}
+              uploading={uploading}
+              uploadMessage={uploadMessage}
+              deletingDocId={deletingDocId}
+              editingDocId={editingDocId}
+              onSetEditingDocId={setEditingDocId}
+              fileInputRef={fileInputRef}
+              dragOver={dragOver}
+              getRoleBadge={getRoleBadge}
+              currentUser={user}
+            />
+          )}
+
+          {trainingSubTab === "videos" && (
+            <VideosTab
+              videos={videos}
+              videosLoading={videosLoading}
+              onFetchVideos={fetchVideos}
+              onSaveVideo={handleSaveVideo}
+              onStartEditVideo={startEditVideo}
+              onCancelEditVideo={cancelEditVideo}
+              onDeleteVideo={handleDeleteVideo}
+              videoForm={videoForm}
+              onSetVideoForm={setVideoForm}
+              videoFormError={videoFormError}
+              editingVideo={editingVideo}
+              savingVideo={savingVideo}
+              deletingVideoId={deletingVideoId}
+            />
+          )}
+
+          {trainingSubTab === "rdvideos" && <RdVideosTab />}
+          {trainingSubTab === "troubleshooting" && <TroubleshootingTemplatesTab />}
+        </div>
+      )}
+
+      {/* ── 4. Users & Accounts ── */}
+      {activeTab === "users" && (
+        <div className="space-y-6">
+          <SubNav<UsersSubTab>
+            title="Users & Access Directory"
+            subtitle="Manage administrator accounts, service engineers, sales reps, and support staff."
+            items={usersNavItems}
+            activeTab={usersSubTab}
+            onTabChange={(sub) => handleSubTabChange("users", sub)}
+          />
+
+          {usersSubTab === "system-users" && (
+            <UsersTab
+              users={users}
+              usersLoading={usersLoading}
+              userSearch={userSearch}
+              onSetUserSearch={setUserSearch}
+              onFetchUsers={fetchUsers}
+              onCreateUser={() => router.push("/admin/users")}
+              onDeleteUser={handleDeleteUser}
+              deletingUserId={deletingUserId}
+              currentUserId={user.id}
+              getRoleBadge={getRoleBadge}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── 5. Support & Operations ── */}
+      {activeTab === "support" && (
+        <div className="space-y-6">
+          <SubNav<SupportSubTab>
+            title="Support & Field Operations"
+            subtitle="Track support tickets, review manual complaints, and manage the products catalog."
+            items={supportNavItems}
+            activeTab={supportSubTab}
+            onTabChange={(sub) => handleSubTabChange("support", sub)}
+          />
+
+          {supportSubTab === "tickets" && <TicketsTab />}
+          {supportSubTab === "complaints" && <ManualComplaintsTab />}
+          {supportSubTab === "products" && <ProductsTab />}
+        </div>
+      )}
+
+      {/* ── 6. Analytics & Settings ── */}
+      {activeTab === "analytics" && (
+        <div className="space-y-6">
+          <SubNav<AnalyticsSubTab>
+            title="Analytics & System Configuration"
+            subtitle="View AI performance metrics, customize branding, and test customer AI chat flows."
+            items={settingsNavItems}
+            activeTab={analyticsSubTab}
+            onTabChange={(sub) => handleSubTabChange("analytics", sub)}
+          />
+
+          {analyticsSubTab === "analytics" && (
+            <AnalyticsTab
+              analyticsView={analyticsView}
+              analytics={analytics as any}
+              analyticsLoading={analyticsLoading}
+              timeline={timeline as any}
+              customerAnalytics={customerAnalytics as any}
+              customerAnalyticsLoading={customerAnalyticsLoading}
+              serviceAnalytics={serviceAnalytics as any}
+              serviceAnalyticsLoading={serviceAnalyticsLoading}
+              waAnalyticsReload={waAnalyticsReload}
+              onSetAnalyticsView={setAnalyticsView}
+              onFetchAnalytics={fetchAnalytics}
+              onFetchCustomerAnalytics={fetchCustomerAnalytics}
+              onFetchServiceAnalytics={fetchServiceAnalytics}
+              onSetAnalytics={setAnalytics as any}
+              onSetCustomerAnalytics={setCustomerAnalytics as any}
+              onSetServiceAnalytics={setServiceAnalytics as any}
+              onSetWaAnalyticsReload={setWaAnalyticsReload}
+            />
+          )}
+
+          {analyticsSubTab === "branding" && <BrandingTab />}
+          {analyticsSubTab === "test-panel" && <TestCustomerPanel />}
+        </div>
+      )}
+
+      {/* Excel Editor Modal */}
       {editingDocId && (
         <ExcelEditorModal
           documentId={editingDocId}
           onClose={() => setEditingDocId(null)}
         />
       )}
-
-      {/* ── Main ── */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-slate-100">
-
-        <main className="flex-1 overflow-y-auto scrollbar-thin">
-          {/* ── Gradient Header Banner ── */}
-          <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
-          {/* Top row */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen((v) => !v)}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
-                {sidebarOpen ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeftOpen className="w-5 h-5" />}
-              </button>
-              <div>
-                <h1 className="text-base font-bold text-white leading-tight">Admin Panel</h1>
-                <p className="text-xs text-white/50">{user.firstName} {user.lastName}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button onClick={() => { logout(); router.replace("/login"); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-2.5">
-            <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
-              <div className="flex items-start justify-between">
-                <p className="text-3xl font-black text-white">{documents.length}</p>
-                <FileText className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
-              </div>
-              <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Documents</p>
-            </div>
-            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", trainedCount > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
-              <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", trainedCount > 0 ? "text-emerald-200" : "text-white/50")}>{trainedCount}</p>
-                <CheckCircle2 className={cn("w-5 h-5 mt-1", trainedCount > 0 ? "text-emerald-300 opacity-70" : "text-white/20")} />
-              </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", trainedCount > 0 ? "text-emerald-200" : "text-white/40")}>Trained</p>
-            </div>
-            <button onClick={() => router.push("/admin/users")} className={cn("rounded-2xl px-4 py-3.5 border shadow-inner text-left transition-all hover:scale-[1.02] hover:brightness-110", users.length > 0 ? "bg-primary-500/30 border-primary-300/40" : "bg-white/10 border-white/20")}>
-              <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", users.length > 0 ? "text-primary-200" : "text-white/50")}>{users.length}</p>
-                <Users className={cn("w-5 h-5 mt-1", users.length > 0 ? "text-primary-300 opacity-70" : "text-white/20")} />
-              </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", users.length > 0 ? "text-primary-200" : "text-white/40")}>Manage Users</p>
-            </button>
-            <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
-              <div className="flex items-start justify-between">
-                <p className="text-3xl font-black text-white">{users.reduce((s, u) => s + (u._count?.conversations ?? 0), 0)}</p>
-                <MessageSquare className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
-              </div>
-              <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Conversations</p>
-            </div>
-          </div>
-        </div>
-
-          <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto space-y-4">
-
-          {/* Tab switcher removed as it is now integrated exclusively into the permanent mini-rail sidebar */}
-
-          {/* ── Documents Tab ── */}
-          {activeTab === "documents" && (
-            <section className="space-y-6">
-
-              {/* Document type selector */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-content dark:text-content-dark">Upload for:</span>
-                <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary">
-                  {(["service", "customer"] as const).map((dt) => (
-                    <button
-                      key={dt}
-                      type="button"
-                      onClick={() => setUploadDocType(dt)}
-                      className={cn(
-                        "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                        uploadDocType === dt
-                          ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
-                          : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
-                      )}
-                    >
-                      {dt === "service" ? "🔧 Service" : "👤 Customer"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Upload area */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={cn(
-                  "relative cursor-pointer rounded-2xl border-2 border-dashed p-8 sm:p-12 text-center transition-all",
-                  dragOver
-                    ? "border-primary bg-primary/5 dark:bg-primary-400/5 scale-[1.01]"
-                    : "border-line dark:border-line-dark hover:border-primary/50 dark:hover:border-primary-400/50 hover:bg-surface-hover dark:hover:bg-surface-dark-hover"
-                )}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.json,.csv,.txt,.docx,.xlsx"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => e.target.files && handleFiles(e.target.files)}
-                />
-                <div className="flex flex-col items-center gap-3">
-                  {uploading ? (
-                    <>
-                      <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                      <p className="text-sm font-medium text-content dark:text-content-dark">Uploading & embedding document…</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="p-4 rounded-2xl bg-primary/10 dark:bg-primary-400/10">
-                        <Upload className="w-8 h-8 text-primary dark:text-primary-300" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-content dark:text-content-dark">
-                          Click to upload or drag & drop files here
-                        </p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
-                          PDF, JSON, CSV, TXT, DOCX · max 50 MB
-                        </p>
-                      </div>
-                      <p className="text-xs text-primary dark:text-primary-300 font-medium">
-                        Documents are automatically embedded for AI chat responses
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Upload feedback */}
-              {uploadMessage && (
-                <div className={cn(
-                  "flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium",
-                  uploadMessage.type === "success"
-                    ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20"
-                    : "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-500/20"
-                )}>
-                  {uploadMessage.type === "success"
-                    ? <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    : <AlertCircle className="w-4 h-4 shrink-0" />}
-                  {uploadMessage.text}
-                </div>
-              )}
-
-              {/* Documents list */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-bold text-content dark:text-content-dark">
-                    Uploaded Documents ({documents.length})
-                  </h2>
-                  <button
-                    onClick={fetchDocuments}
-                    className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-                    title="Refresh"
-                  >
-                    <RefreshCw className={cn("w-4 h-4", docsLoading && "animate-spin")} />
-                  </button>
-                </div>
-
-                {docsLoading && documents.length === 0 ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
-                  </div>
-                ) : documents.length === 0 ? (
-                  <div className="text-center py-12 rounded-2xl border border-dashed border-line dark:border-line-dark">
-                    <File className="w-10 h-10 text-content-secondary dark:text-content-dark-secondary mx-auto mb-3 opacity-40" />
-                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No documents uploaded yet</p>
-                    <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">
-                      Upload PDFs above to train the AI
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-                    {documents.map((doc, i) => (
-                      <div
-                        key={doc.id}
-                        className={cn(
-                          "flex items-center gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors",
-                          i < documents.length - 1 && "border-b border-line dark:border-line-dark"
-                        )}
-                      >
-                        <span className="text-2xl shrink-0">📄</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-content dark:text-content-dark truncate">{doc.title}</p>
-                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                            <span className="text-xs text-content-secondary dark:text-content-dark-secondary flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                            </span>
-                            <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                              by {doc.uploadedBy}
-                            </span>
-                            {doc.chunkCount > 0 && (
-                              <span className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                                {doc.chunkCount} chunks
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
-                            doc.documentType === "service"
-                              ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                              : "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
-                          )}>
-                            {doc.documentType === "service" ? "🔧 Service" : "👤 Customer"}
-                          </span>
-                          <Badge
-                            variant={doc.status === "trained" ? "success" : "warning"}
-                            dot
-                            size="sm"
-                          >
-                            {doc.status === "trained" ? "Trained" : "Pending"}
-                          </Badge>
-                          {(doc.filePath && (doc.filePath.endsWith(".xlsx") || doc.filePath.endsWith(".xls"))) && (
-                            <button
-                              onClick={() => setEditingDocId(doc.id)}
-                              className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 dark:hover:bg-primary-900/30 transition-colors"
-                              title="Live Edit Excel"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteDoc(doc.id)}
-                            disabled={deletingDocId === doc.id}
-                            className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
-                            title="Delete document"
-                          >
-                            {deletingDocId === doc.id
-                              ? <Loader2 className="w-4 h-4 animate-spin" />
-                              : <Trash2 className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Added: Troubleshooting Templates & Manual Complaints */}
-              <div className="pt-8 space-y-8">
-                                <ManualComplaintsTab />
-              </div>
-            </section>
-          )}
-
-          {/* ── Users Tab ── */}
-          {activeTab === "users" && (
-            <section className="space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="text-base font-bold text-content dark:text-content-dark">
-                  All Users ({users.length})
-                </h2>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-secondary dark:text-content-dark-secondary" />
-                    <input
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      placeholder="Search users…"
-                      className="h-9 pl-9 pr-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"
-                    />
-                  </div>
-                  <button
-                    onClick={fetchUsers}
-                    className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-                    title="Refresh"
-                  >
-                    <RefreshCw className={cn("w-4 h-4", usersLoading && "animate-spin")} />
-                  </button>
-                  <button
-                    onClick={() => router.push("/admin/users")}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Create User
-                  </button>
-                </div>
-              </div>
-
-              {usersLoading && users.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-                  {/* Table header */}
-                  <div className="hidden sm:grid sm:grid-cols-[1fr_1.5fr_1fr_80px_44px] gap-4 px-5 py-3 border-b border-line dark:border-line-dark bg-surface-tertiary dark:bg-surface-dark-tertiary">
-                    {["User", "Email", "Role", "Chats", ""].map((h) => (
-                      <span key={h} className="text-xs font-semibold uppercase tracking-wider text-content-secondary dark:text-content-dark-secondary">
-                        {h}
-                      </span>
-                    ))}
-                  </div>
-
-                  {filteredUsers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <UserX className="w-8 h-8 mx-auto mb-2 text-content-secondary dark:text-content-dark-secondary opacity-40" />
-                      <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No users found</p>
-                    </div>
-                  ) : (
-                    filteredUsers.map((u, i) => {
-                      const badge = getRoleBadge(u.role);
-                      const isSelf = u.id === user.id;
-                      return (
-                        <div
-                          key={u.id}
-                          className={cn(
-                            "flex flex-col sm:grid sm:grid-cols-[1fr_1.5fr_1fr_80px_44px] gap-2 sm:gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors",
-                            i < filteredUsers.length - 1 && "border-b border-line dark:border-line-dark"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar name={`${u.firstName} ${u.lastName ?? ""}`} size="sm" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-content dark:text-content-dark truncate">
-                                {u.firstName} {u.lastName ?? ""}
-                                {isSelf && <span className="ml-1.5 text-xs text-primary dark:text-primary-300">(you)</span>}
-                              </p>
-                              <p className="text-xs text-content-secondary dark:text-content-dark-secondary">
-                                {new Date(u.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center">
-                            <p className="text-sm text-content-secondary dark:text-content-dark-secondary truncate">{u.email}</p>
-                          </div>
-                          <div className="flex items-center">
-                            <Badge variant={badge.variant} size="sm">{badge.label}</Badge>
-                          </div>
-                          <div className="flex items-center">
-                            <span className="text-sm text-content-secondary dark:text-content-dark-secondary">
-                              {u._count.conversations}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-end">
-                            {!isSelf && (
-                              <button
-                                onClick={() => handleDeleteUser(u.id)}
-                                disabled={deletingUserId === u.id}
-                                className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
-                                title="Delete user"
-                              >
-                                {deletingUserId === u.id
-                                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                                  : <Trash2 className="w-4 h-4" />}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* ── Videos Tab ── */}
-          {activeTab === "videos" && (
-            <section className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-content dark:text-content-dark">
-                  Video Recommendations ({videos.length})
-                </h2>
-                <button
-                  onClick={fetchVideos}
-                  className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-                  title="Refresh"
-                >
-                  <RefreshCw className={cn("w-4 h-4", videosLoading && "animate-spin")} />
-                </button>
-              </div>
-
-              <p className="text-sm text-content-secondary dark:text-content-dark-secondary -mt-4">
-                Add YouTube videos here. They will be automatically shown to users in chat when their question matches the keywords you provide.
-              </p>
-
-              {/* Add / Edit form */}
-              <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card p-5 space-y-4">
-                <h3 className="text-sm font-semibold text-content dark:text-content-dark">
-                  {editingVideo ? "Edit Video" : "Add New Video"}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Title *</label>
-                    <input
-                      value={videoForm.title}
-                      onChange={(e) => setVideoForm((f) => ({ ...f, title: e.target.value }))}
-                      placeholder="e.g. How to calibrate VIBRO milk analyzer"
-                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">YouTube URL *</label>
-                    <input
-                      value={videoForm.youtubeUrl}
-                      onChange={(e) => setVideoForm((f) => ({ ...f, youtubeUrl: e.target.value }))}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Keywords * <span className="font-normal">(comma-separated)</span></label>
-                    <input
-                      value={videoForm.keywords}
-                      onChange={(e) => setVideoForm((f) => ({ ...f, keywords: e.target.value }))}
-                      placeholder="e.g. vibro,calibration,fat,snf,milk"
-                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary">Description <span className="font-normal">(optional)</span></label>
-                    <input
-                      value={videoForm.description}
-                      onChange={(e) => setVideoForm((f) => ({ ...f, description: e.target.value }))}
-                      placeholder="Short description shown under the title"
-                      className="w-full h-9 px-3 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm text-content dark:text-content-dark placeholder:text-content-secondary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                </div>
-
-                {videoFormError && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    {videoFormError}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleSaveVideo}
-                    disabled={savingVideo}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-700 text-white text-sm font-medium transition-colors disabled:opacity-60"
-                  >
-                    {savingVideo ? <Loader2 className="w-4 h-4 animate-spin" /> : editingVideo ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                    {editingVideo ? "Save Changes" : "Add Video"}
-                  </button>
-                  {editingVideo && (
-                    <button
-                      onClick={cancelEditVideo}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-line dark:border-line-dark text-sm text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Video list */}
-              {videosLoading && videos.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
-                </div>
-              ) : videos.length === 0 ? (
-                <div className="text-center py-12 rounded-2xl border border-dashed border-line dark:border-line-dark">
-                  <Youtube className="w-10 h-10 text-content-secondary dark:text-content-dark-secondary mx-auto mb-3 opacity-40" />
-                  <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No videos added yet</p>
-                  <p className="text-xs text-content-secondary dark:text-content-dark-secondary mt-1">Add YouTube videos above — they will appear in chat responses</p>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-                  {videos.map((v, i) => {
-                    const videoId = (() => {
-                      try {
-                        const u = new URL(v.youtubeUrl);
-                        if (u.hostname === "youtu.be") return u.pathname.slice(1);
-                        return u.searchParams.get("v") ?? "";
-                      } catch { return ""; }
-                    })();
-                    const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
-                    return (
-                      <div
-                        key={v.id}
-                        className={cn(
-                          "flex items-center gap-4 px-5 py-4 hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors",
-                          i < videos.length - 1 && "border-b border-line dark:border-line-dark"
-                        )}
-                      >
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={v.title} className="w-20 h-14 object-cover rounded-xl shrink-0 bg-surface-tertiary dark:bg-surface-dark-tertiary" />
-                        ) : (
-                          <div className="w-20 h-14 rounded-xl shrink-0 bg-red-50 dark:bg-red-500/10 flex items-center justify-center">
-                            <Youtube className="w-6 h-6 text-red-400" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-content dark:text-content-dark truncate">{v.title}</p>
-                          {v.description && (
-                            <p className="text-xs text-content-secondary dark:text-content-dark-secondary truncate mt-0.5">{v.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {v.keywords.split(",").filter(Boolean).map((kw) => (
-                              <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 dark:bg-primary-400/10 text-primary dark:text-primary-300 font-medium">
-                                {kw.trim()}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          <a
-                            href={v.youtubeUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                            title="Open on YouTube"
-                          >
-                            <Youtube className="w-4 h-4" />
-                          </a>
-                          <button
-                            onClick={() => startEditVideo(v)}
-                            className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 dark:hover:bg-primary-400/10 transition-colors"
-                            title="Edit video"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteVideo(v.id)}
-                            disabled={deletingVideoId === v.id}
-                            className="p-1.5 rounded-lg text-content-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
-                            title="Delete video"
-                          >
-                            {deletingVideoId === v.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* ── Analytics Tab ── */}
-          {activeTab === "analytics" && (
-            <section className="space-y-6">
-
-              {/* Header row */}
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-base font-bold text-content dark:text-content-dark">Analytics</h2>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <a href="/api/admin/export/chats" download className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors">
-                    <Download className="w-3.5 h-3.5" />Chats CSV
-                  </a>
-                  <a href="/api/admin/export/support" download className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors">
-                    <Download className="w-3.5 h-3.5" />Support CSV
-                  </a>
-                  <button
-                    onClick={() => {
-                      if (analyticsView === "overview") { setAnalytics(null); fetchAnalytics(); }
-                      else if (analyticsView === "customer") { setCustomerAnalytics(null); fetchCustomerAnalytics(); }
-                      else if (analyticsView === "whatsapp") { setWaAnalyticsReload((n) => n + 1); }
-                      else { setServiceAnalytics(null); fetchServiceAnalytics(); }
-                    }}
-                    className="p-1.5 rounded-lg text-content-secondary hover:text-content dark:text-content-dark-secondary dark:hover:text-content-dark hover:bg-surface-hover dark:hover:bg-surface-dark-hover transition-colors"
-                    title="Refresh"
-                  >
-                    <RefreshCw className={cn("w-4 h-4", (analyticsLoading || customerAnalyticsLoading || serviceAnalyticsLoading) && "animate-spin")} />
-                  </button>
-                </div>
-              </div>
-
-              {/* View selector sub-nav */}
-              <div className="flex gap-1 p-1 rounded-xl bg-surface-tertiary dark:bg-surface-dark-tertiary w-fit">
-                {([
-                  { key: "overview"  as const, label: "Overview",  icon: <BarChart2 className="w-3.5 h-3.5" /> },
-                  { key: "customer"  as const, label: "Customer",  icon: <span className="text-sm">👤</span> },
-                  { key: "service"   as const, label: "Service",   icon: <span className="text-sm">🔧</span> },
-                  { key: "whatsapp"  as const, label: "WhatsApp",  icon: <MessageSquare className="w-3.5 h-3.5" /> },
-                ]).map(({ key, label, icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => setAnalyticsView(key)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                      analyticsView === key
-                        ? "bg-white dark:bg-surface-dark-card text-content dark:text-content-dark shadow-sm"
-                        : "text-content-secondary dark:text-content-dark-secondary hover:text-content dark:hover:text-content-dark"
-                    )}
-                  >
-                    {icon}{label}
-                  </button>
-                ))}
-              </div>
-
-              {/* ─── Overview View ─── */}
-              {analyticsView === "overview" && (
-                analyticsLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
-                  </div>
-                ) : !analytics ? (
-                  <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
-                    <BarChart2 className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-40" />
-                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No analytics data available</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 mb-2"><MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.totalConversations}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Total Conversations</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 mb-2"><AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.totalSupportRequests}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Support Escalations</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 mb-2"><TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.escalationRate}%</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Escalation Rate</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2"><Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{analytics.aiResolutionRate}%</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">AI Resolution Rate</p>
-                      </div>
-                    </div>
-                    {timeline.length > 0 && (
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Activity — Last 30 Days</h3>
-                        <ResponsiveContainer width="100%" height={220}>
-                          <LineChart data={timeline} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} />
-                            <XAxis dataKey="date" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} tickFormatter={(v: string) => v.slice(5)} interval={Math.floor(timeline.length / 6)} />
-                            <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                            <Legend formatter={(v: string) => v === "conversations" ? "Conversations" : "Support Tickets"} wrapperStyle={{ fontSize: 11 }} />
-                            <Line type="monotone" dataKey="conversations" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                            <Line type="monotone" dataKey="support"       stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {analytics.topMachines.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                          <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Top Reported Machines</h3>
-                          <ResponsiveContainer width="100%" height={200}>
-                            <BarChart data={analytics.topMachines} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} horizontal={false} />
-                              <XAxis type="number" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.7 }} width={90} />
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Support Request Status</h3>
-                        {(analytics.pendingCount + analytics.activeCount + analytics.resolvedCount) === 0 ? (
-                          <div className="flex items-center justify-center h-[200px] text-sm text-content-secondary dark:text-content-dark-secondary">No support requests yet</div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height={200}>
-                            <PieChart>
-                              <Pie data={[{ name: "Pending", value: analytics.pendingCount }, { name: "Active", value: analytics.activeCount }, { name: "Resolved", value: analytics.resolvedCount }]} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                                <Cell fill="#f59e0b" /><Cell fill="#3b82f6" /><Cell fill="#10b981" />
-                              </Pie>
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Legend wrapperStyle={{ fontSize: 11 }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        )}
-                      </div>
-                    </div>
-                    {analytics.recentIssues.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Recent Issues</h3>
-                        <div className="rounded-2xl border border-line dark:border-line-dark bg-surface-card dark:bg-surface-dark-card overflow-hidden">
-                          {analytics.recentIssues.map((issue, i) => (
-                            <div key={issue.id} className={cn("px-4 py-3", i < analytics.recentIssues.length - 1 && "border-b border-line dark:border-line-dark")}>
-                              <p className="text-sm text-content dark:text-content-dark truncate">{issue.problem}</p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-xs text-content-secondary dark:text-content-dark-secondary">{issue.customer.firstName} {issue.customer.lastName ?? ""}</span>
-                                <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded-full", issue.status === "resolved" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : issue.status === "active" ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400")}>{issue.status}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )
-              )}
-
-              {/* ─── Customer Analytics View ─── */}
-              {analyticsView === "customer" && (
-                customerAnalyticsLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
-                  </div>
-                ) : !customerAnalytics ? (
-                  <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
-                    <BarChart2 className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-40" />
-                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No customer analytics data yet</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* KPI Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-primary-50 dark:bg-primary-500/10 mb-2"><MessageSquare className="w-5 h-5 text-primary-600 dark:text-primary-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{customerAnalytics.totalConversations}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Customer Conversations</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 mb-2"><AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{customerAnalytics.totalSupportRequests}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Support Escalations</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2"><Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">
-                          {customerAnalytics.totalConversations > 0
-                            ? Math.round(((customerAnalytics.totalConversations - customerAnalytics.totalSupportRequests) / customerAnalytics.totalConversations) * 100)
-                            : 100}%
-                        </p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">AI Resolution Rate</p>
-                      </div>
-                    </div>
-
-                    {/* Timeline */}
-                    {customerAnalytics.timeline.length > 0 && (
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Customer Activity — Last 30 Days</h3>
-                        <ResponsiveContainer width="100%" height={200}>
-                          <LineChart data={customerAnalytics.timeline} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} />
-                            <XAxis dataKey="date" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} tickFormatter={(v: string) => v.slice(5)} interval={Math.floor(customerAnalytics.timeline.length / 6)} />
-                            <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                            <Legend formatter={(v: string) => v === "conversations" ? "Conversations" : "Support Tickets"} wrapperStyle={{ fontSize: 11 }} />
-                            <Line type="monotone" dataKey="conversations" stroke="#8b5cf6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                            <Line type="monotone" dataKey="support"       stroke="#f59e0b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-
-                    {/* Most Reported Complaints + Most Asked Questions */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {customerAnalytics.topComplaints.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                          <div className="flex items-center gap-2 mb-4">
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            <h3 className="text-sm font-semibold text-content dark:text-content-dark">Most Reported Complaints</h3>
-                          </div>
-                          <ResponsiveContainer width="100%" height={240}>
-                            <BarChart data={customerAnalytics.topComplaints} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} horizontal={false} />
-                              <XAxis type="number" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                              <YAxis type="category" dataKey="keyword" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.7 }} width={85} />
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                      {customerAnalytics.topQuestions.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                          <div className="flex items-center gap-2 mb-4">
-                            <MessageSquare className="w-4 h-4 text-primary-500" />
-                            <h3 className="text-sm font-semibold text-content dark:text-content-dark">Most Asked (Keywords)</h3>
-                          </div>
-                          <ResponsiveContainer width="100%" height={240}>
-                            <BarChart data={customerAnalytics.topQuestions} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} horizontal={false} />
-                              <XAxis type="number" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                              <YAxis type="category" dataKey="keyword" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.7 }} width={85} />
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Support Status + Recent Issues */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Support Request Status</h3>
-                        {(customerAnalytics.pendingCount + customerAnalytics.activeCount + customerAnalytics.resolvedCount) === 0 ? (
-                          <div className="flex items-center justify-center h-[200px] text-sm text-content-secondary dark:text-content-dark-secondary">No support requests yet</div>
-                        ) : (
-                          <ResponsiveContainer width="100%" height={200}>
-                            <PieChart>
-                              <Pie data={[{ name: "Pending", value: customerAnalytics.pendingCount }, { name: "Active", value: customerAnalytics.activeCount }, { name: "Resolved", value: customerAnalytics.resolvedCount }]} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                                <Cell fill="#f59e0b" /><Cell fill="#3b82f6" /><Cell fill="#10b981" />
-                              </Pie>
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Legend wrapperStyle={{ fontSize: 11 }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        )}
-                      </div>
-                      {customerAnalytics.recentIssues.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                          <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-3">Recent Customer Issues</h3>
-                          <div className="space-y-2 overflow-y-auto max-h-[210px] pr-1 scrollbar-thin">
-                            {customerAnalytics.recentIssues.map((issue) => (
-                              <div key={issue.id} className="px-3 py-2 rounded-xl bg-surface-hover dark:bg-surface-dark-hover">
-                                <p className="text-xs text-content dark:text-content-dark truncate">{issue.problem}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-xs text-content-secondary dark:text-content-dark-secondary">{issue.customer.firstName} {issue.customer.lastName ?? ""}</span>
-                                  <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded-full", issue.status === "resolved" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : issue.status === "active" ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400")}>{issue.status}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )
-              )}
-
-              {/* ─── Service Analytics View ─── */}
-              {analyticsView === "service" && (
-                serviceAnalyticsLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-6 h-6 animate-spin text-content-secondary dark:text-content-dark-secondary" />
-                  </div>
-                ) : !serviceAnalytics ? (
-                  <div className="text-center py-16 rounded-2xl border border-dashed border-line dark:border-line-dark">
-                    <BarChart2 className="w-10 h-10 mx-auto mb-3 text-content-secondary dark:text-content-dark-secondary opacity-40" />
-                    <p className="text-sm text-content-secondary dark:text-content-dark-secondary">No service analytics data yet</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* KPI Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 mb-2"><MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{serviceAnalytics.totalConversations}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Service Conversations</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 mb-2"><Activity className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{serviceAnalytics.resolvedCount}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Resolved Tickets</p>
-                      </div>
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <div className="inline-flex p-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 mb-2"><AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" /></div>
-                        <p className="text-xl font-bold text-content dark:text-content-dark">{serviceAnalytics.pendingCount + serviceAnalytics.activeCount}</p>
-                        <p className="text-xs text-content-secondary dark:text-content-dark-secondary">Open Tickets</p>
-                      </div>
-                    </div>
-
-                    {/* Timeline */}
-                    {serviceAnalytics.timeline.length > 0 && (
-                      <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                        <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Service Activity — Last 30 Days</h3>
-                        <ResponsiveContainer width="100%" height={200}>
-                          <LineChart data={serviceAnalytics.timeline} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} />
-                            <XAxis dataKey="date" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} tickFormatter={(v: string) => v.slice(5)} interval={Math.floor(serviceAnalytics.timeline.length / 6)} />
-                            <YAxis tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                            <Legend formatter={() => "Conversations"} wrapperStyle={{ fontSize: 11 }} />
-                            <Line type="monotone" dataKey="conversations" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-
-                    {/* Most Looked-Up Topics + Top Reported Machines */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      {serviceAnalytics.topTopics.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                          <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp className="w-4 h-4 text-blue-500" />
-                            <h3 className="text-sm font-semibold text-content dark:text-content-dark">Most Looked-Up Topics</h3>
-                          </div>
-                          <ResponsiveContainer width="100%" height={240}>
-                            <BarChart data={serviceAnalytics.topTopics} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} horizontal={false} />
-                              <XAxis type="number" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                              <YAxis type="category" dataKey="keyword" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.7 }} width={85} />
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                      {serviceAnalytics.topMachines.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark">
-                          <div className="flex items-center gap-2 mb-4">
-                            <AlertTriangle className="w-4 h-4 text-rose-500" />
-                            <h3 className="text-sm font-semibold text-content dark:text-content-dark">Top Reported Machines</h3>
-                          </div>
-                          <ResponsiveContainer width="100%" height={240}>
-                            <BarChart data={serviceAnalytics.topMachines} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.08} horizontal={false} />
-                              <XAxis type="number" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.5 }} allowDecimals={false} />
-                              <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.7 }} width={85} />
-                              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                              <Bar dataKey="count" fill="#f43f5e" radius={[0, 4, 4, 0]} />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Support Status Pie */}
-                    <div className="p-4 rounded-2xl bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark max-w-sm">
-                      <h3 className="text-sm font-semibold text-content dark:text-content-dark mb-4">Support Ticket Status</h3>
-                      {(serviceAnalytics.pendingCount + serviceAnalytics.activeCount + serviceAnalytics.resolvedCount) === 0 ? (
-                        <div className="flex items-center justify-center h-[200px] text-sm text-content-secondary dark:text-content-dark-secondary">No tickets yet</div>
-                      ) : (
-                        <ResponsiveContainer width="100%" height={200}>
-                          <PieChart>
-                            <Pie data={[{ name: "Pending", value: serviceAnalytics.pendingCount }, { name: "Active", value: serviceAnalytics.activeCount }, { name: "Resolved", value: serviceAnalytics.resolvedCount }]} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
-                              <Cell fill="#f59e0b" /><Cell fill="#3b82f6" /><Cell fill="#10b981" />
-                            </Pie>
-                            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                            <Legend wrapperStyle={{ fontSize: 11 }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      )}
-                    </div>
-                  </>
-                )
-              )}
-
-              {analyticsView === "whatsapp" && (
-                <WhatsappAnalyticsPanel reloadToken={waAnalyticsReload} />
-              )}
-
-            </section>
-          )}
-
-          {/* ── Engineers Video Tab ── */}
-          {activeTab === "rdvideos" && <RdVideosTab />}
-
-          {/* ── Registered Customers Tab ── */}
-          {activeTab === "registered-customers" && <RegisteredCustomersTab />}
-
-          {/* ── Tickets Tab ── */}
-          {activeTab === "tickets" && <TicketsTab />}
-
-          {/* ── Products Tab ── */}
-          {activeTab === "products" && <ProductsTab />}
-
-          {activeTab === "whatsapp" && <WhatsAppSettingsTab />}
-
-          {/* ── Training Videos Tab ── */}
-          {activeTab === "trainingvideos" && <EngineerTrainingVideosTab />}
-
-        </div>
-      </main>
-      </div>
-    </div>
+    </AdminLayout>
   );
 }

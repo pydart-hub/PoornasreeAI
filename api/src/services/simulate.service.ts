@@ -23,6 +23,7 @@ import prisma from "../lib/prisma";
 import { fetchPlaceFromPincode, extractPincodeFromAddress } from "../lib/pincode";
 import * as TicketService from "./ticket.service";
 import { fetchMachineBySerial, type PasstestMachine } from "./machine.service";
+import { resolveDealerFromPasstestCustomer } from "./dealerMatch.service";
 import { embedText, searchVectors } from "./vector.service";
 import { translateText } from "./translate.service";
 
@@ -85,6 +86,7 @@ type SessionMeta = {
   regState?: string;
   regGmapLink?: string;
   regCustomerId?: string;
+  regIsDealerMachine?: boolean;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -154,6 +156,15 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ *मशीन सापडली!*\n\n👤 *ग्राहक (डीलर):* {customer}\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n📦 *उत्पादन कोड:* {productCode}\n📅 *बीजक तारीख:* {invoiceDate}\n🛡️ *वॉरंटी:* {warranty} महिने\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
     te: "✅ *యంత్రం దొరికింది!*\n\n👤 *కస్టమర్ (డీలర్):* {customer}\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n📦 *ఉత్పత్తి కోడ్:* {productCode}\n📅 *ఇన్‌వాయిస్ తేదీ:* {invoiceDate}\n🛡️ *వారంటీ:* {warranty} నెలలు\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
     bn: "✅ *মেশিন পাওয়া গেছে!*\n\n👤 *গ্রাহক (ডিলার):* {customer}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n📦 *পণ্য কোড:* {productCode}\n📅 *চালান তারিখ:* {invoiceDate}\n🛡️ *ওয়ারেন্টি:* {warranty} মাস\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
+  },
+  REGISTER_MACHINE_FOUND_DEALER: {
+    en: "✅ *Machine Found!*\n\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n🛡️ *Warranty:* {warranty} months\n\nWe will use these details for your registration.\n\nPress *Continue* to proceed.",
+    hi: "✅ *मशीन मिली!*\n\n🔧 *मॉडल:* {model}\n🔢 *सीरियल:* {serial}\n🛡️ *वारंटी:* {warranty} महीने\n\nहम आपके पंजीकरण के लिए इन विवरणों का उपयोग करेंगे।\n\nजारी रखने के लिए *Continue* दबाएं।",
+    ta: "✅ *இயந்திரம் கண்டுபிடிக்கப்பட்டது!*\n\n🔧 *மாதிரி:* {model}\n🔢 *வரிசை எண்:* {serial}\n🛡️ *உத்தரவாதம்:* {warranty} மாதங்கள்\n\nஉங்கள் பதிவுக்கு இந்த விவரங்கள் பயன்படுத்தப்படும்.\n\nதொடர *Continue* அழுத்தவும்.",
+    kn: "✅ *ಯಂತ್ರ ಸಿಕ್ಕಿದೆ!*\n\n🔧 *ಮಾದರಿ:* {model}\n🔢 *ಸರಣಿ:* {serial}\n🛡️ *ವಾರಂಟಿ:* {warranty} ತಿಂಗಳುಗಳು\n\nನಿಮ್ಮ ನೋಂದಣಿಗಾಗಿ ಈ ವಿವರಗಳನ್ನು ಬಳಸುತ್ತೇವೆ.\n\nಮುಂದುವರಿಯಲು *Continue* ಒತ್ತಿರಿ.",
+    mr: "✅ *मशीन सापडली!*\n\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n🛡️ *वॉरंटी:* {warranty} महिने\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
+    te: "✅ *యంత్రం దొరికింది!*\n\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n🛡️ *వారంటీ:* {warranty} నెలలు\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
+    bn: "✅ *মেশিন পাওয়া গেছে!*\n\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n🛡️ *ওয়ারেন্টি:* {warranty} মাস\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
   },
   REGISTER_CONTINUE_BUTTON: {
     en: "✅ Continue",
@@ -1201,12 +1212,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
       }
     }
     if (session.state !== "GREETING" && session.state !== "ASK_PHONE") {
-      await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(
-        t("GREETING_HEADER", lang) + t("MAIN_MENU_MSG", lang),
-        undefined,
-        getMainMenuList(lang)
-      );
+      return startGreeting(phoneNumber);
     }
     return startGreeting(phoneNumber);
   }
@@ -1374,7 +1380,6 @@ async function startGreeting(phoneNumber: string) {
   const existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (existingMeta.language ?? "en") as Lang;
 
-  // 1. Return customer if a User record exists with role=customer for this phone
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
   const registeredUser = await prisma.user.findFirst({
@@ -1407,56 +1412,13 @@ async function startGreeting(phoneNumber: string) {
     );
   }
 
-  // 2. Returning customer — known from a prior ticket (legacy data)
-  const ticketLookupPhone = normalizePhone(phoneNumber);
-  const existingTicket = await prisma.ticket.findFirst({
-    where: { phoneNumber: ticketLookupPhone },
-    orderBy: { createdAt: "desc" },
-    select: {
-      machineCustomer: true,
-      phoneNumber: true,
-      issueDescription: true,
-      pincode: { select: { place: true, code: true } },
-    },
-  });
-
-  if (existingTicket) {
-    let name = existingTicket.machineCustomer;
-    if (!name && existingTicket.issueDescription) {
-      const nameMatch =
-        existingTicket.issueDescription.match(/End customer:\s*([^,]+)/i) ??
-        existingTicket.issueDescription.match(/Service contact:\s*([^,]+)/i);
-      if (nameMatch && nameMatch[1]) {
-        name = nameMatch[1].trim();
-      }
-    }
-    const displayName = name || "Customer";
-    const meta: SessionMeta = { customerName: displayName, customerPhone: phoneNumber, language: existingMeta.language };
-    await updateSession(session.id, "MAIN_MENU", meta);
-    return makeReply(
-      t("GREETING_HEADER", lang) +
-      t("WELCOME_BACK", lang, { name: displayName }) +
-      t("MAIN_MENU_MSG", lang),
-      undefined,
-      getMainMenuList(lang)
-    );
-  }
-
-  if (existingMeta.customerPhone) {
-    await updateSession(session.id, "MAIN_MENU", existingMeta);
-    return makeReply(
-      t("GREETING_HEADER", lang) +
-      t("MAIN_MENU_MSG", lang),
-      undefined,
-      getMainMenuList(lang)
-    );
-  }
-
-  // 3. New customer — offer registration with skip option
   await updateSession(session.id, "REGISTER_PROMPT", { language: existingMeta.language });
   return makeReply(
     t("GREETING_HEADER", lang) + t("REGISTER_WELCOME", lang),
-    [{ id: "REGISTER", title: t("REGISTER_BUTTON", lang) }, getSkipButton(lang)]
+    [
+      { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+      getSkipButton(lang),
+    ]
   );
 }
 
@@ -1627,6 +1589,12 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    const menuMeta: SessionMeta = { ...meta, customerPhone: meta.customerPhone || phoneNumber };
+    await updateSession(sessionId, "MAIN_MENU", menuMeta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+
   if (upper === "REGISTER" || upper === "1") {
     await updateSession(sessionId, "REGISTER_SERIAL", meta);
     return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
@@ -1666,15 +1634,25 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
   try {
     const machine = await fetchMachineBySerial(serial);
     if (machine) {
+      let isDealerMachine = false;
+      if (machine.customer) {
+        const dealerId = await resolveDealerFromPasstestCustomer(machine.customer);
+        if (dealerId) isDealerMachine = true;
+      }
+
       const updatedMeta: SessionMeta = {
         ...meta,
         regSerialNumber: machine.serial_no,
         regMachineData: machine,
+        regIsDealerMachine: isDealerMachine,
         regPlace: machine.Address1 || undefined,
       };
       await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
+
+      const templateKey = isDealerMachine ? "REGISTER_MACHINE_FOUND_DEALER" : "REGISTER_MACHINE_FOUND";
+
       return makeReply(
-        t("REGISTER_MACHINE_FOUND", lang, {
+        t(templateKey, lang, {
           customer: machine.customer || "N/A",
           model: machine.m_model || "N/A",
           serial: machine.serial_no,

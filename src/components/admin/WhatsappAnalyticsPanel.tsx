@@ -87,9 +87,9 @@ function chartLabel(groupBy: WhatsappGroupBy, u: WhatsappUserRow): string {
 }
 
 function buildFilterOptions(users: WhatsappUserRow[]) {
-  const states = [
-    ...new Set(users.map((u) => u.state).filter((s) => s && s !== "Unknown")),
-  ].sort((a, b) => a.localeCompare(b));
+  const states = Array.from(
+    new Set(users.map((u) => u.state).filter((s) => s && s !== "Unknown")),
+  ).sort((a, b) => a.localeCompare(b));
   const districtKeys = new Set<string>();
   const districts: { district: string; state: string; label: string }[] = [];
   for (const u of users) {
@@ -726,7 +726,7 @@ export default function WhatsappAnalyticsPanel({ reloadToken = 0 }: { reloadToke
                     const row = payload?.[0]?.payload as { name?: string } | undefined;
                     return row?.name ?? _label;
                   }}
-                  formatter={(value: number) => [`${value} users`, "Count"]}
+                  formatter={(value: any) => [`${value} users`, "Count"]}
                 />
                 <Line
                   type="monotone"

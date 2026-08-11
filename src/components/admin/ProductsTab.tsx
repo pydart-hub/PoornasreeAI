@@ -198,13 +198,21 @@ export default function ProductsTab() {
     reader.readAsDataURL(file);
   };
 
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
+
   const filtered = sortByCategory(
-    products.filter(
-      p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.detail ?? "").toLowerCase().includes(search.toLowerCase()) ||
-        getCategoryLabel(p.category).toLowerCase().includes(search.toLowerCase()),
-    ),
+    products.filter(p => {
+      if (selectedCategoryFilter !== "all" && p.category !== selectedCategoryFilter) {
+        return false;
+      }
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.detail ?? "").toLowerCase().includes(q) ||
+        getCategoryLabel(p.category).toLowerCase().includes(q)
+      );
+    }),
   );
 
   const grouped = PRODUCT_CATEGORY_KEYS.map(key => ({
@@ -298,19 +306,47 @@ export default function ProductsTab() {
   return (
     <section className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-content dark:text-content-dark flex items-center gap-2">
-          <Package className="w-5 h-5" /> Products ({products.length})
-        </h2>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-content-secondary" />
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm w-64"
-          />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" /> Products Catalog
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              {filtered.length} of {products.length}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Equipment, milk analyzers, and DPUs available for customer reference.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Category Filter */}
+          <select
+            value={selectedCategoryFilter}
+            onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+            className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none"
+          >
+            <option value="all">All Categories</option>
+            {PRODUCT_CATEGORY_KEYS.map((key) => (
+              <option key={key} value={key}>
+                {PRODUCT_CATEGORIES[key].label}
+              </option>
+            ))}
+          </select>
+
+          {/* Search Box */}
+          <div className="relative w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
         </div>
       </div>
 
