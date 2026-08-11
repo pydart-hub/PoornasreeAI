@@ -88,6 +88,7 @@ type SessionMeta = {
   regGmapLink?: string;
   regCustomerId?: string;
   regIsDealerMachine?: boolean;
+  hasSkippedRegistration?: boolean;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -1600,7 +1601,7 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
   }
 
   if (upper === "SKIP" || upper === "0") {
-    const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber };
+    const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
     await updateSession(sessionId, "MAIN_MENU", skipMeta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
