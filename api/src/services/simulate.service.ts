@@ -1702,10 +1702,10 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
     console.error("[register] Machine lookup failed:", err);
   }
 
-  await updateSession(sessionId, "REGISTER_NAME", meta);
+  await updateSession(sessionId, "REGISTER_SERIAL", meta);
   return makeReply(
     t("REGISTER_SERIAL_NOT_FOUND", lang, { serial }),
-    [{ id: "CONTINUE", title: t("REGISTER_CONTINUE_BUTTON", lang) }, getMenuButton(lang)]
+    [getSkipButton(lang), getMenuButton(lang)]
   );
 }
 
