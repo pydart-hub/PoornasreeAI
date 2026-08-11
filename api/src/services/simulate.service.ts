@@ -1721,6 +1721,12 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
     await updateSession(sessionId, "REGISTER_SERIAL", meta);
     return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
+  if (upper === "SKIP" || upper === "0") {
+    const defaultName = meta.regName || `Customer ${phoneNumber.slice(-4)}`;
+    const updatedMeta: SessionMeta = { ...meta, regName: defaultName };
+    await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
+    return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
 
   const name = text.trim();
   if (name.length < 2 || upper === "CONTINUE") {
@@ -1729,7 +1735,7 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
 
   const updatedMeta: SessionMeta = { ...meta, regName: name };
   await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
-  return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+  return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
 }
 
 // REGISTER_ADDRESS step removed — flow is now Serial → Name → Pincode → Location
@@ -1746,6 +1752,18 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     await updateSession(sessionId, "REGISTER_NAME", meta);
     return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
   }
+  if (upper === "SKIP" || upper === "0") {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      regPincode: undefined,
+    };
+    if (updatedMeta.regGmapLink) {
+      await saveRegisteredCustomer(sessionId, phoneNumber, updatedMeta);
+      return showMainMenuAfterRegistration(sessionId, phoneNumber, updatedMeta, lang);
+    }
+    await updateSession(sessionId, "REGISTER_GMAP", updatedMeta);
+    return makeReply(t("REGISTER_GMAP_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
 
   // Check if customer sent a location attachment or Google Maps link at pincode step
   const loc = extractGmapLink(text);
@@ -1758,13 +1776,13 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
     return makeReply(
       `📍 Location received!\n${loc.mapLink}\n\n` + t("REGISTER_PINCODE_PROMPT", lang),
-      [getBackButton(lang), getMenuButton(lang)]
+      [getSkipButton(lang), getMenuButton(lang)]
     );
   }
 
   const digits = text.replace(/\D/g, "");
   if (digits.length !== 6) {
-    return makeReply(t("INVALID_PINCODE", lang), [getBackButton(lang), getMenuButton(lang)]);
+    return makeReply(t("INVALID_PINCODE", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
 
   let place: string | undefined;
@@ -1806,9 +1824,38 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    await updateSession(sessionId, "REGISTER_PINCODE", meta);
+    return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  }
   if (upper === "SKIP" || upper === "0") {
     await saveRegisteredCustomer(sessionId, phoneNumber, { ...meta, regGmapLink: undefined });
     return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
+  }
+
+  // Handle 6-digit pincode sent at location step
+  const digits = text.replace(/\D/g, "");
+  if (digits.length === 6 && !extractGmapLink(text)) {
+    let place: string | undefined;
+    let district: string | undefined;
+    let state: string | undefined;
+    try {
+      const resolved = await fetchPlaceFromPincode(digits);
+      if (resolved) {
+        place = resolved.place;
+        district = resolved.district;
+        state = resolved.state;
+      }
+    } catch {}
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      regPincode: digits,
+      regPlace: place || meta.regPlace,
+      regDistrict: district || meta.regDistrict,
+      regState: state || meta.regState,
+    };
+    await saveRegisteredCustomer(sessionId, phoneNumber, updatedMeta);
+    return showMainMenuAfterRegistration(sessionId, phoneNumber, updatedMeta, lang);
   }
 
   const loc = extractGmapLink(text);
