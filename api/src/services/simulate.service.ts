@@ -1169,11 +1169,10 @@ export async function handleMessage(phoneNumber: string, message: string) {
   }
 
   if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
-
     try {
       const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
       if (agentReply) {
-        return makeReply(agentReply.message, agentReply.buttons, undefined, undefined, agentReply.followUpMessage);
+        return makeReply(agentReply.message, agentReply.buttons, agentReply.list, undefined, agentReply.followUpMessage);
       }
       // null → agent requested FSM handoff (e.g. BOOK_SERVICE → serial prompt)
       const refreshed = await getOrCreateSession(phoneNumber);
