@@ -149,22 +149,24 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "❌ সিরিয়াল নম্বর *{serial}* আমাদের রেকর্ডে পাওয়া যায়নি।\n\nঅনুগ্রহ করে আবার পরীক্ষা করে চেষ্টা করুন, বা সিরিয়াল নম্বর ছাড়াই চালিয়ে যেতে *Skip* টিপুন।",
   },
   REGISTER_MACHINE_FOUND: {
-    en: "✅ *Machine Found!*\n\n👤 *Customer (Dealer):* {customer}\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n📦 *Product Code:* {productCode}\n📅 *Invoice Date:* {invoiceDate}\n🛡️ *Warranty:* {warranty} months\n\nWe will use these details for your registration.\n\nPress *Continue* to proceed.",
-    hi: "✅ *मशीन मिली!*\n\n👤 *ग्राहक (डीलर):* {customer}\n🔧 *मॉडल:* {model}\n🔢 *सीरियल:* {serial}\n📦 *उत्पाद कोड:* {productCode}\n📅 *चालान तिथि:* {invoiceDate}\n🛡️ *वारंटी:* {warranty} महीने\n\nहम आपके पंजीकरण के लिए इन विवरणों का उपयोग करेंगे।\n\nजारी रखने के लिए *Continue* दबाएं।",
-    ta: "✅ *இயந்திரம் கண்டுபிடிக்கப்பட்டது!*\n\n👤 *வாடிக்கையாளர் (டீலர்):* {customer}\n🔧 *மாதிரி:* {model}\n🔢 *வரிசை எண்:* {serial}\n📦 *பொருள் குறியீடு:* {productCode}\n📅 *விலைப்பட்டியல் தேதி:* {invoiceDate}\n🛡️ *உத்தரவாதம்:* {warranty} மாதங்கள்\n\nஉங்கள் பதிவுக்கு இந்த விவரங்கள் பயன்படுத்தப்படும்.\n\nதொடர *Continue* அழுத்தவும்.",
-    kn: "✅ *ಯಂತ್ರ ಸಿಕ್ಕಿದೆ!*\n\n👤 *ಗ್ರಾಹಕ (ಡೀಲರ್):* {customer}\n🔧 *ಮಾದರಿ:* {model}\n🔢 *ಸರಣಿ:* {serial}\n📦 *ಉತ್ಪನ್ನ ಕೋಡ್:* {productCode}\n📅 *ಸರಕುಪತ್ರಿಕೆ ದಿನಾಂಕ:* {invoiceDate}\n🛡️ *ವಾರಂಟಿ:* {warranty} ತಿಂಗಳುಗಳು\n\nನಿಮ್ಮ ನೋಂದಣಿಗಾಗಿ ಈ ವಿವರಗಳನ್ನು ಬಳಸುತ್ತೇವೆ.\n\nಮುಂದುವರಿಯಲು *Continue* ಒತ್ತಿರಿ.",
-    mr: "✅ *मशीन सापडली!*\n\n👤 *ग्राहक (डीलर):* {customer}\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n📦 *उत्पादन कोड:* {productCode}\n📅 *बीजक तारीख:* {invoiceDate}\n🛡️ *वॉरंटी:* {warranty} महिने\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
-    te: "✅ *యంత్రం దొరికింది!*\n\n👤 *కస్టమర్ (డీలర్):* {customer}\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n📦 *ఉత్పత్తి కోడ్:* {productCode}\n📅 *ఇన్‌వాయిస్ తేదీ:* {invoiceDate}\n🛡️ *వారంటీ:* {warranty} నెలలు\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
-    bn: "✅ *মেশিন পাওয়া গেছে!*\n\n👤 *গ্রাহক (ডিলার):* {customer}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n📦 *পণ্য কোড:* {productCode}\n📅 *চালান তারিখ:* {invoiceDate}\n🛡️ *ওয়ারেন্টি:* {warranty} মাস\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
+    // Non-dealer machine: show model + serial only (no warranty)
+    en: "✅ *Machine Found!*\n\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n\nWe will use these details for your registration.\n\nPress *Continue* to proceed.",
+    hi: "✅ *मशीन मिली!*\n\n🔧 *मॉडल:* {model}\n🔢 *सीरियल:* {serial}\n\nहम आपके पंजीकरण के लिए इन विवरणों का उपयोग करेंगे।\n\nजारी रखने के लिए *Continue* दबाएं।",
+    ta: "✅ *இயந்திரம் கண்டுபிடிக்கப்பட்டது!*\n\n🔧 *மாதிரி:* {model}\n🔢 *வரிசை எண்:* {serial}\n\nஉங்கள் பதிவுக்கு இந்த விவரங்கள் பயன்படுத்தப்படும்.\n\nதொடர *Continue* அழுத்தவும்.",
+    kn: "✅ *ಯಂತ್ರ ಸಿಕ್ಕಿದೆ!*\n\n🔧 *ಮಾದರಿ:* {model}\n🔢 *ಸರಣಿ:* {serial}\n\nನಿಮ್ಮ ನೋಂದಣಿಗಾಗಿ ಈ ವಿವರಗಳನ್ನು ಬಳಸುತ್ತೇವೆ.\n\nಮುಂದುವರಿಯಲು *Continue* ಒತ್ತಿರಿ.",
+    mr: "✅ *मशीन सापडली!*\n\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
+    te: "✅ *యంత్రం దొరికింది!*\n\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
+    bn: "✅ *মেশিন পাওয়া গেছে!*\n\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
   },
   REGISTER_MACHINE_FOUND_DEALER: {
-    en: "✅ *Machine Found!*\n\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n🛡️ *Warranty:* {warranty} months\n\nWe will use these details for your registration.\n\nPress *Continue* to proceed.",
-    hi: "✅ *मशीन मिली!*\n\n🔧 *मॉडल:* {model}\n🔢 *सीरियल:* {serial}\n🛡️ *वारंटी:* {warranty} महीने\n\nहम आपके पंजीकरण के लिए इन विवरणों का उपयोग करेंगे।\n\nजारी रखने के लिए *Continue* दबाएं।",
-    ta: "✅ *இயந்திரம் கண்டுபிடிக்கப்பட்டது!*\n\n🔧 *மாதிரி:* {model}\n🔢 *வரிசை எண்:* {serial}\n🛡️ *உத்தரவாதம்:* {warranty} மாதங்கள்\n\nஉங்கள் பதிவுக்கு இந்த விவரங்கள் பயன்படுத்தப்படும்.\n\nதொடர *Continue* அழுத்தவும்.",
-    kn: "✅ *ಯಂತ್ರ ಸಿಕ್ಕಿದೆ!*\n\n🔧 *ಮಾದರಿ:* {model}\n🔢 *ಸರಣಿ:* {serial}\n🛡️ *ವಾರಂಟಿ:* {warranty} ತಿಂಗಳುಗಳು\n\nನಿಮ್ಮ ನೋಂದಣಿಗಾಗಿ ಈ ವಿವರಗಳನ್ನು ಬಳಸುತ್ತೇವೆ.\n\nಮುಂದುವರಿಯಲು *Continue* ಒತ್ತಿರಿ.",
-    mr: "✅ *मशीन सापडली!*\n\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n🛡️ *वॉरंटी:* {warranty} महिने\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
-    te: "✅ *యంత్రం దొరికింది!*\n\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n🛡️ *వారంటీ:* {warranty} నెలలు\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
-    bn: "✅ *মেশিন পাওয়া গেছে!*\n\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n🛡️ *ওয়ারেন্টি:* {warranty} মাস\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
+    // Dealer machine: show dealer name, model, serial — hide warranty/invoice/product code
+    en: "✅ *Machine Found!*\n\n🏪 *Dealer:* {dealerName}\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n\nWe will use these details for your registration.\n\nPress *Continue* to proceed.",
+    hi: "✅ *मशीन मिली!*\n\n🏪 *डीलर:* {dealerName}\n🔧 *मॉडल:* {model}\n🔢 *सीरियल:* {serial}\n\nहम आपके पंजीकरण के लिए इन विवरणों का उपयोग करेंगे।\n\nजारी रखने के लिए *Continue* दबाएं।",
+    ta: "✅ *இயந்திரம் கண்டுபிடிக்கப்பட்டது!*\n\n🏪 *டீலர்:* {dealerName}\n🔧 *மாதிரி:* {model}\n🔢 *வரிசை எண்:* {serial}\n\nஉங்கள் பதிவுக்கு இந்த விவரங்கள் பயன்படுத்தப்படும்.\n\nதொடர *Continue* அழுத்தவும்.",
+    kn: "✅ *ಯಂತ್ರ ಸಿಕ್ಕಿದೆ!*\n\n🏪 *ಡೀಲರ್:* {dealerName}\n🔧 *ಮಾದರಿ:* {model}\n🔢 *ಸರಣಿ:* {serial}\n\nನಿಮ್ಮ ನೋಂದಣಿಗಾಗಿ ಈ ವಿವರಗಳನ್ನು ಬಳಸುತ್ತೇವೆ.\n\nಮುಂದುವರಿಯಲು *Continue* ಒತ್ತಿರಿ.",
+    mr: "✅ *मशीन सापडली!*\n\n🏪 *डीलर:* {dealerName}\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
+    te: "✅ *యంత్రం దొరికింది!*\n\n🏪 *డీలర్:* {dealerName}\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
+    bn: "✅ *মেশিন পাওয়া গেছে!*\n\n🏪 *ডিলার:* {dealerName}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
   },
   REGISTER_CONTINUE_BUTTON: {
     en: "✅ Continue",
@@ -1635,9 +1637,20 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
     const machine = await fetchMachineBySerial(serial);
     if (machine) {
       let isDealerMachine = false;
+      let dealerDisplayName = "";
       if (machine.customer) {
         const dealerId = await resolveDealerFromPasstestCustomer(machine.customer);
-        if (dealerId) isDealerMachine = true;
+        if (dealerId) {
+          isDealerMachine = true;
+          // Fetch the dealer's display name to show in the message
+          const dealerUser = await prisma.user.findUnique({
+            where: { id: dealerId },
+            select: { firstName: true, lastName: true },
+          });
+          if (dealerUser) {
+            dealerDisplayName = [dealerUser.firstName, dealerUser.lastName].filter(Boolean).join(" ");
+          }
+        }
       }
 
       const updatedMeta: SessionMeta = {
@@ -1653,12 +1666,9 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
 
       return makeReply(
         t(templateKey, lang, {
-          customer: machine.customer || "N/A",
+          dealerName: dealerDisplayName || machine.customer || "N/A",
           model: machine.m_model || "N/A",
           serial: machine.serial_no,
-          productCode: machine.product_code || "N/A",
-          invoiceDate: machine.invoice_date || "N/A",
-          warranty: String(machine.warranty_months || 0),
         }),
         [{ id: "CONTINUE", title: t("REGISTER_CONTINUE_BUTTON", lang) }, getBackButton(lang)]
       );
