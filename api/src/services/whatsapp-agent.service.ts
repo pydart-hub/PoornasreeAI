@@ -512,6 +512,7 @@ export async function handleCustomerAgentMessage(
       [
         { id: "REGISTER", title: "📝 Register Machine" },
         { id: "SKIP", title: "⏭️ Skip for Now" },
+        { id: "SELECT_LANG", title: "🌐 Select Language" },
       ],
     );
   }
