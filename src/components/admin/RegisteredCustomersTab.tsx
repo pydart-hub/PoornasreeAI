@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Compass,
   Download,
   ExternalLink,
   Loader2,
@@ -357,22 +358,38 @@ export default function RegisteredCustomersTab() {
                       {c.machineModel || "—"}
                     </td>
                     <td className="px-4 py-3 text-content dark:text-content-dark">
-                      <div className="flex items-start gap-1.5 max-w-xs">
-                        <MapPin className="w-3 h-3 opacity-60 mt-0.5 flex-shrink-0" />
-                        <div className="text-xs">
-                          {c.address ? (
-                            <>
-                              <div className="line-clamp-2">{c.address}</div>
-                              {(c.place || c.district || c.state) && (
-                                <div className="text-content-secondary dark:text-content-dark-secondary mt-0.5">
-                                  {[c.place, c.district, c.state].filter(Boolean).join(", ")}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-content-secondary dark:text-content-dark-secondary">—</span>
-                          )}
+                      <div className="flex flex-col gap-1 max-w-xs">
+                        <div className="flex items-start gap-1.5 text-xs font-medium text-content dark:text-content-dark">
+                          <MapPin className="w-3.5 h-3.5 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                          <span>
+                            {c.address && !c.address.startsWith("http")
+                              ? c.address
+                              : [c.place, c.district, c.state].filter(Boolean).join(", ") || "Location set"}
+                          </span>
                         </div>
+                        {c.googleMapLink ? (
+                          <a
+                            href={c.googleMapLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/80 transition-all w-fit shadow-xs"
+                            title="Open Google Maps and Navigate"
+                          >
+                            <Compass className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
+                            <span>Open Map 📍</span>
+                            <ExternalLink className="w-3 h-3 opacity-70 flex-shrink-0" />
+                          </a>
+                        ) : (c.place || c.district || c.state || c.pincode) ? (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([c.address, c.place, c.district, c.state, c.pincode, "India"].filter(Boolean).join(", "))}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-50 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 transition-colors w-fit"
+                          >
+                            <span>Open Map</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-content dark:text-content-dark font-mono text-xs">
@@ -647,10 +664,10 @@ function CustomerDetailModal({
             </section>
           )}
 
-          {/* Address */}
+          {/* Address & Navigation */}
           <section>
             <h4 className="text-sm font-semibold text-content-secondary dark:text-content-dark-secondary uppercase tracking-wide mb-3">
-              Service Address
+              Service Address & Navigation
             </h4>
             <div className="space-y-3 text-sm">
               <Field label="Full Address" value={customer.address || "—"} />
@@ -660,22 +677,32 @@ function CustomerDetailModal({
                 <Field label="District" value={customer.district || "—"} />
               </div>
               <Field label="State" value={customer.state || "—"} />
-              {customer.googleMapLink && (
-                <Field
-                  label="Google Maps"
-                  value={
-                    <a
-                      href={customer.googleMapLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1 break-all"
-                    >
-                      {customer.googleMapLink}
-                      <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                    </a>
-                  }
-                />
-              )}
+
+              <div className="pt-2">
+                {customer.googleMapLink ? (
+                  <a
+                    href={customer.googleMapLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg w-fit"
+                  >
+                    <Compass className="w-4 h-4" />
+                    Open Google Maps Navigation 📍
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
+                ) : (customer.place || customer.district || customer.state || customer.pincode) ? (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([customer.address, customer.place, customer.district, customer.state, customer.pincode, "India"].filter(Boolean).join(", "))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-sm transition-all shadow-md w-fit"
+                  >
+                    <Compass className="w-4 h-4" />
+                    Navigate on Google Maps 🗺️
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
+                ) : null}
+              </div>
             </div>
           </section>
         </div>

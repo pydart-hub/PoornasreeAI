@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Phone } from "lucide-react";
+import { ChevronDown, ChevronUp, Compass, ExternalLink, Phone } from "lucide-react";
 import type { ServiceTicket } from "./types";
 import { parseTicketDescription, resolveTicketCustomerName } from "./utils";
 
@@ -73,7 +73,7 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
               {addressOpen ? "Hide Address" : "Show Address"}
             </button>
             {addressOpen && (
-              <div className="mt-1.5 text-xs text-content-secondary dark:text-content-dark-secondary space-y-0.5 pl-4 border-l-2 border-line dark:border-line-dark">
+              <div className="mt-1.5 text-xs text-content-secondary dark:text-content-dark-secondary space-y-1 pl-4 border-l-2 border-line dark:border-line-dark">
                 {(ticket.customerAddress || chatAddress) && (
                   <p className="font-medium text-content dark:text-content-dark">📍 {ticket.customerAddress || chatAddress}</p>
                 )}
@@ -85,6 +85,26 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
                 {!ticket.machineAddress1 && !ticket.machineAddress2 && !ticket.pincode && (issueMeta.location || descMeta.location) && (
                   <p>{issueMeta.location || descMeta.location}</p>
                 )}
+                {(() => {
+                  const gmapMatch = (ticket.customerAddress || ticket.issueDescription || ticket.problemDescription || "").match(/(https?:\/\/[^\s]+maps[^\s]+|https?:\/\/maps\.google[^\s]+|https?:\/\/goo\.gl[^\s]+)/i);
+                  const gmapUrl = gmapMatch ? gmapMatch[0] : null;
+                  const searchQuery = [ticket.customerAddress, ticket.machineAddress1, ticket.pincode?.place, ticket.pincode?.district, ticket.pincode?.state, ticket.pincode?.code, "India"].filter(Boolean).join(", ");
+                  const targetUrl = gmapUrl || (searchQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}` : null);
+                  
+                  if (!targetUrl) return null;
+                  return (
+                    <a
+                      href={targetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-md hover:bg-emerald-200 transition-colors w-fit mt-1 shadow-xs"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
+                      <span>Open Map 📍</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-70 flex-shrink-0" />
+                    </a>
+                  );
+                })()}
               </div>
             )}
           </div>
