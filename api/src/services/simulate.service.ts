@@ -1706,8 +1706,8 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
-  // CANCEL exits registration entirely → Groq chat + view options
-  if (upper === "CANCEL" || upper.includes("CANCEL")) {
+  // CANCEL or SKIP exits registration entirely → Groq chat + view options
+  if (upper === "CANCEL" || upper.includes("CANCEL") || upper === "SKIP" || upper === "0") {
     return cancelRegistrationToMainMenu(sessionId, meta, lang);
   }
 
