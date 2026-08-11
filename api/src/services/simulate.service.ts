@@ -532,9 +532,6 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   },
   TICKET_CONFIRMED: {
     en: "✅ 👷 *Your complaint has been registered!*\n\n🎫 *Ticket No: {ticket}*\n📦 Product: {product}\n📝 Issue: {issue}\n📍 Location: {location}\n\n*Our technician will reach out to you within 24–48 hours. Assuring you of the best services!* 😊",
-    hi: "✅ 👷 *आपकी शिकायत दर्ज हो गई है!*\n\n🎫 *टिकट नंबर: {ticket}*\n📦 उत्पाद: {product}\n📝 समस्या: {issue}\n📍 स्थान: {location}\n\n*हमारा तकनीशियन 24–48 घंटों के भीतर आपसे संपर्क करेगा। सर्वोत्तम सेवा का आश्वासन!* 😊",
-    ta: "✅ 👷 *உங்கள் புகார் பதிவு செய்யப்பட்டுள்ளது!*\n\n🎫 *டிக்கெட் எண்: {ticket}*\n📦 தயாரிப்பு: {product}\n📝 சிக்கல்: {issue}\n📍 இடம்: {location}\n\n*எங்கள் தொழில்நுட்பவியலாளர் 24–48 மணிநேரத்திற்குள் உங்களை தொடர்புகொள்வார்!* 😊",
-    kn: "✅ 👷 *ನಿಮ್ಮ ದೂರು ದಾಖಲಾಗಿದೆ!*\n\n🎫 *ಟಿಕೆಟ್ ಸಂಖ್ಯೆ: {ticket}*\n📦 ಉತ್ಪನ್ನ: {product}\n📝 ಸಮಸ್ಯೆ: {issue}\n📍 ಸ್ಥಳ: {location}\n\n*ನಮ್ಮ ತಂತ್ರಜ್ಞರು 24–48 ಗಂಟೆಗಳ ಒಳಗೆ ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸುತ್ತಾರೆ!* 😊",
     mr: "✅ 👷 *तुमची तक्रार नोंदवली गेली आहे!*\n\n🎫 *तिकीट क्रमांक: {ticket}*\n📦 उत्पादन: {product}\n📝 समस्या: {issue}\n📍 ठिकाण: {location}\n\n*आमचे तंत्रज्ञ 24–48 तासांत तुमच्याशी संपर्क साधतील!* 😊",
     te: "✅ 👷 *మీ ఫిర్యాదు నమోదు చేయబడింది!*\n\n🎫 *టికెట్ నంబర్: {ticket}*\n📦 ఉత్పత్తి: {product}\n📝 సమస్య: {issue}\n📍 స్థానం: {location}\n\n*మా సాంకేతిక నిపుణుడు 24–48 గంటల్లో మిమ్మల్ని సంప్రదిస్తారు!* 😊",
     bn: "✅ 👷 *আপনার অভিযোগ নিবন্ধিত হয়েছে!*\n\n🎫 *টিকিট নম্বর: {ticket}*\n📦 পণ্য: {product}\n📝 সমস্যা: {issue}\n📍 অবস্থান: {location}\n\n*আমাদের প্রযুক্তিবিদ 24-48 ঘন্টার মধ্যে আপনার সাথে যোগাযোগ করবেন!* 😊",
@@ -696,6 +693,46 @@ function t(key: string, lang: Lang = "en", vars: Record<string, string> = {}): s
 // ── Language-aware button / list helpers ──────────────────────────────────
 function getSkipButton(lang: Lang): ReplyButton {
   return { id: "SKIP", title: lang === "hi" ? "छोड़ें ⏭️" : "Skip ⏭️" };
+}
+
+function getCancelButton(lang: Lang): ReplyButton {
+  const titles: Record<Lang, string> = {
+    en: "Cancel ❌",
+    hi: "रद्द करें ❌",
+    ta: "ரத்து செய் ❌",
+    kn: "ರದ್ದುಮಾಡಿ ❌",
+    mr: "रद्द करा ❌",
+    te: "రద్దు చేయండి ❌",
+    bn: "বাতিল করুন ❌",
+  };
+  return { id: "CANCEL", title: titles[lang] ?? "Cancel ❌" };
+}
+
+async function cancelRegistrationToMainMenu(
+  sessionId: string,
+  meta: SessionMeta,
+  lang: Lang
+) {
+  const cancelMeta: SessionMeta = { ...meta, hasSkippedRegistration: true };
+  await updateSession(sessionId, "MAIN_MENU", cancelMeta);
+  return makeReply(
+    "💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬",
+    undefined,
+    getMainMenuList(lang)
+  );
+}
+
+function getLangSelectButton(lang: Lang): ReplyButton {
+  const titles: Record<Lang, string> = {
+    en: "🌐 Select Language",
+    hi: "🌐 भाषा चुनें",
+    ta: "🌐 மொழி தேர்வு",
+    kn: "🌐 ಭಾಷೆ ಆಯ್ಕೆ",
+    mr: "🌐 भाषा निवडा",
+    te: "🌐 భాష మార్చండి",
+    bn: "🌐 ভাষা বাছুন",
+  };
+  return { id: "SELECT_LANG", title: titles[lang] ?? "🌐 Select Language" };
 }
 
 function getMenuButton(lang: Lang): ReplyButton {
@@ -1152,7 +1189,8 @@ export async function handleMessage(phoneNumber: string, message: string) {
   // Interactive button IDs bypass Groq so the FSM processes them directly.
   const fsmButtonIds = new Set([
     "1", "2", "3", "4", "5",
-    "REGISTER", "SKIP", "MENU", "MAIN MENU", "YES", "NO",
+    "REGISTER", "SKIP", "CANCEL", "SELECT_LANG", "MENU", "MAIN MENU", "YES", "NO",
+    "LANG_EN", "LANG_HI", "LANG_TA", "LANG_KN", "LANG_MR", "LANG_TE", "LANG_BN",
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
     "YES_RESOLVED", "NOT_RESOLVED",
@@ -1162,7 +1200,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
     await updateSession(session.id, "REGISTER_SERIAL", { language: meta.language });
     return makeReply(
       t("REGISTER_SERIAL_PROMPT", lang),
-      [getSkipButton(lang), getMenuButton(lang)]
+      [getCancelButton(lang), getMenuButton(lang)]
     );
   }
   if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
@@ -1418,6 +1456,7 @@ async function startGreeting(phoneNumber: string) {
     [
       { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
       getSkipButton(lang),
+      getLangSelectButton(lang),
     ]
   );
 }
@@ -1595,9 +1634,36 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
 
+  // Language selection from the welcome screen — save and re-show welcome in chosen language
+  const langMap: Record<string, Lang> = {
+    LANG_EN: "en", EN: "en", ENGLISH: "en",
+    LANG_HI: "hi", HINDI: "hi",
+    LANG_TA: "ta", TAMIL: "ta",
+    LANG_KN: "kn", KANNADA: "kn",
+    LANG_MR: "mr", MARATHI: "mr",
+    LANG_TE: "te", TELUGU: "te",
+    LANG_BN: "bn", BENGALI: "bn",
+  };
+  if (upper === "SELECT_LANG" || upper === "CHANGE_LANGUAGE" || upper === "CHANGE_LANG") {
+    return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
+  }
+  if (langMap[upper]) {
+    const newLang = langMap[upper];
+    const newMeta: SessionMeta = { ...meta, language: newLang };
+    await updateSession(sessionId, "REGISTER_PROMPT", newMeta);
+    return makeReply(
+      t("REGISTER_WELCOME", newLang),
+      [
+        { id: "REGISTER", title: t("REGISTER_BUTTON", newLang) },
+        getSkipButton(newLang),
+        getLangSelectButton(newLang),
+      ]
+    );
+  }
+
   if (upper === "REGISTER" || upper === "1") {
     await updateSession(sessionId, "REGISTER_SERIAL", meta);
-    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
 
   if (upper === "SKIP" || upper === "0") {
@@ -1606,9 +1672,26 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
 
+  // Any free-form text → treat as a question, route to Groq AI + show menu
+  if (isGroqChatbotEnabled()) {
+    // Mark as effectively skipped so session stays in Groq chat mode
+    const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
+    await updateSession(sessionId, "MAIN_MENU", skipMeta);
+    try {
+      const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
+      if (agentReply) {
+        return makeReply(agentReply.message, agentReply.buttons, agentReply.list, undefined, agentReply.followUpMessage);
+      }
+    } catch (err) {
+      console.error("[simulate] Groq agent failed in REGISTER_PROMPT fallback:", err);
+    }
+  }
+
+  // Groq disabled or failed — show menu directly
   return makeReply(
-    t("REGISTER_WELCOME", lang),
-    [{ id: "REGISTER", title: t("REGISTER_BUTTON", lang) }, getSkipButton(lang)]
+    "💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬",
+    undefined,
+    getMainMenuList(lang)
   );
 }
 
@@ -1620,15 +1703,14 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
-  if (upper === "SKIP" || upper === "0") {
-    const cleared: SessionMeta = { ...meta, regSerialNumber: undefined, regMachineData: null };
-    await updateSession(sessionId, "REGISTER_NAME", cleared);
-    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
+  // CANCEL exits registration entirely → Groq chat + view options
+  if (upper === "CANCEL" || upper.includes("CANCEL")) {
+    return cancelRegistrationToMainMenu(sessionId, meta, lang);
   }
 
   const serial = text.trim();
   if (serial.length < 3) {
-    return makeReply(t("SERIAL_INVALID", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return makeReply(t("SERIAL_INVALID", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
 
   try {
@@ -1678,7 +1760,7 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
   await updateSession(sessionId, "REGISTER_SERIAL", meta);
   return makeReply(
     t("REGISTER_SERIAL_NOT_FOUND", lang, { serial }),
-    [getSkipButton(lang), getMenuButton(lang)]
+    [getCancelButton(lang), getMenuButton(lang)]
   );
 }
 
@@ -1692,13 +1774,11 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
   }
   if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
     await updateSession(sessionId, "REGISTER_SERIAL", meta);
-    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
-  if (upper === "SKIP" || upper === "0") {
-    const defaultName = meta.regName || `Customer ${phoneNumber.slice(-4)}`;
-    const updatedMeta: SessionMeta = { ...meta, regName: defaultName };
-    await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
-    return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  // CANCEL exits registration entirely → Groq chat + view options
+  if (upper === "CANCEL" || upper.includes("CANCEL")) {
+    return cancelRegistrationToMainMenu(sessionId, meta, lang);
   }
 
   const name = text.trim();
@@ -1708,7 +1788,7 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
 
   const updatedMeta: SessionMeta = { ...meta, regName: name };
   await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
-  return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getCancelButton(lang), getMenuButton(lang)]);
 }
 
 // REGISTER_ADDRESS step removed — flow is now Serial → Name → Pincode → Location
@@ -1725,17 +1805,9 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     await updateSession(sessionId, "REGISTER_NAME", meta);
     return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
   }
-  if (upper === "SKIP" || upper === "0") {
-    const updatedMeta: SessionMeta = {
-      ...meta,
-      regPincode: undefined,
-    };
-    if (updatedMeta.regGmapLink) {
-      await saveRegisteredCustomer(sessionId, phoneNumber, updatedMeta);
-      return showMainMenuAfterRegistration(sessionId, phoneNumber, updatedMeta, lang);
-    }
-    await updateSession(sessionId, "REGISTER_GMAP", updatedMeta);
-    return makeReply(t("REGISTER_GMAP_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  // CANCEL exits registration entirely → Groq chat + view options
+  if (upper === "CANCEL" || upper.includes("CANCEL")) {
+    return cancelRegistrationToMainMenu(sessionId, meta, lang);
   }
 
   // Check if customer sent a location attachment or Google Maps link at pincode step
@@ -1749,13 +1821,13 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
     return makeReply(
       `📍 Location received!\n${loc.mapLink}\n\n` + t("REGISTER_PINCODE_PROMPT", lang),
-      [getSkipButton(lang), getMenuButton(lang)]
+      [getCancelButton(lang), getMenuButton(lang)]
     );
   }
 
   const digits = text.replace(/\D/g, "");
   if (digits.length !== 6) {
-    return makeReply(t("INVALID_PINCODE", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return makeReply(t("INVALID_PINCODE", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
 
   let place: string | undefined;
@@ -1786,7 +1858,7 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
   }
 
   await updateSession(sessionId, "REGISTER_GMAP", updatedMeta);
-  return makeReply(t("REGISTER_GMAP_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+  return makeReply(t("REGISTER_GMAP_PROMPT", lang), [getCancelButton(lang), getMenuButton(lang)]);
 }
 
 async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
@@ -1799,11 +1871,11 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
   }
   if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
     await updateSession(sessionId, "REGISTER_PINCODE", meta);
-    return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
-  if (upper === "SKIP" || upper === "0") {
-    await saveRegisteredCustomer(sessionId, phoneNumber, { ...meta, regGmapLink: undefined });
-    return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
+  // CANCEL exits registration entirely → Groq chat + view options
+  if (upper === "CANCEL" || upper.includes("CANCEL")) {
+    return cancelRegistrationToMainMenu(sessionId, meta, lang);
   }
 
   // Handle 6-digit pincode sent at location step
@@ -1833,7 +1905,7 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
 
   const loc = extractGmapLink(text);
   if (!loc || !loc.mapLink) {
-    return makeReply(t("REGISTER_INVALID_GMAP", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return makeReply(t("REGISTER_INVALID_GMAP", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
 
   const updatedMeta: SessionMeta = {
