@@ -1183,10 +1183,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
       },
       select: { id: true },
     });
-    const isRegisteredSession = registeredUser ? true : await prisma.conversationSession.findFirst({
-      where: { OR: [{ phoneNumber: { endsWith: last10 } }, { phoneNumber }], isRegistered: true },
-      select: { id: true },
-    }).then(s => !!s);
+    const isRegisteredSession = !!registeredUser;
 
     if (!isRegisteredSession) {
       // Unregistered: only allow Register/Skip — no Groq chat bypass

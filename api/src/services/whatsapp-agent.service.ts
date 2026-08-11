@@ -483,29 +483,18 @@ async function translateTroubleshooting(text: string, lang: string): Promise<str
 
 async function checkIsUserRegistered(phoneNumber: string): Promise<boolean> {
   const cleanPhone = phoneNumber.replace(/\D/g, "");
-  const last10 = cleanPhone.slice(-10);
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
   const user = await prisma.user.findFirst({
     where: {
+      role: "customer",
       OR: [
-        { whatsappNumber: { endsWith: last10 } },
+        { whatsappNumber: { contains: last10 } },
         { whatsappNumber: phoneNumber },
       ],
     },
     select: { id: true },
   });
-  if (user) return true;
-
-  const session = await prisma.conversationSession.findFirst({
-    where: {
-      OR: [
-        { phoneNumber: { endsWith: last10 } },
-        { phoneNumber: phoneNumber },
-      ],
-      isRegistered: true,
-    },
-    select: { id: true },
-  });
-  return !!session;
+  return !!user;
 }
 
 // ── Public Entry Point: Customer WhatsApp Agent ──────────────────────────────

@@ -322,6 +322,20 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       // Delete R&D videos uploaded by this user
       await tx.rdVideo.deleteMany({ where: { uploadedById: id } });
 
+      // Clear any WhatsApp conversation session associated with this user's phone number
+      if (user.whatsappNumber) {
+        const cleanPhone = user.whatsappNumber.replace(/\D/g, "");
+        const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+        await tx.conversationSession.deleteMany({
+          where: {
+            OR: [
+              { phoneNumber: user.whatsappNumber },
+              { phoneNumber: { contains: last10 } },
+            ],
+          },
+        });
+      }
+
       // Delete the user — conversations, messages, customerRequests, and
       // their nested records cascade via existing onDelete: Cascade directives.
       await tx.user.delete({ where: { id } });
