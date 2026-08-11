@@ -60,8 +60,7 @@ type AgentMeta = {
 
 // ── Exported helpers ─────────────────────────────────────────────────────────
 export function isGroqChatbotEnabled(): boolean {
-  if (!isGroqConfigured()) return false;
-  return runtime.chatbotMode() === "groq";
+  return isGroqConfigured();
 }
 
 function makeReply(

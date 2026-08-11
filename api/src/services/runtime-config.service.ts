@@ -507,7 +507,7 @@ export const runtime = {
     const n = parseInt(cfg("GROQ_MAX_TOKENS_REPLY") || "600", 10);
     return Number.isFinite(n) && n > 0 ? n : 600;
   },
-  chatbotMode: () => (cfg("CHATBOT_MODE") === "groq" ? "groq" : "legacy_fsm") as "groq" | "legacy_fsm",
+  chatbotMode: () => (cfg("CHATBOT_MODE") === "legacy_fsm" ? "legacy_fsm" : "groq") as "groq" | "legacy_fsm",
   waPhoneNumberId: () => cfg("WA_PHONE_NUMBER_ID"),
   waAccessToken: () => cfg("WA_ACCESS_TOKEN"),
   waVerifyToken: () => cfg("WA_VERIFY_TOKEN"),
