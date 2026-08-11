@@ -1804,7 +1804,7 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
 async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, meta: SessionMeta) {
   const name = meta.regName || `Customer ${phoneNumber.slice(-4)}`;
   const cleanPhone = phoneNumber.replace(/\D/g, "");
-  const customerId = meta.regCustomerId;
+  let customerId = meta.regCustomerId;
 
   if (customerId) {
     // Update existing user
@@ -1826,19 +1826,38 @@ async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, me
         role: "customer",
       },
     });
-    meta.regCustomerId = newUser.id;
+    customerId = newUser.id;
+    meta.regCustomerId = customerId;
   }
 
-  // Store registration data in session metadata
-  await updateSession(sessionId, "MAIN_MENU", meta);
+  // Mark session as registered AND persist all registration metadata
+  await prisma.conversationSession.update({
+    where: { id: sessionId },
+    data: {
+      isRegistered: true,
+      metadata: {
+        ...((meta as any) ?? {}),
+        regName: name,
+        regCustomerId: customerId,
+        regSerialNumber: meta.regSerialNumber ?? null,
+        regMachineData: meta.regMachineData ?? null,
+        regPincode: meta.regPincode ?? null,
+        regPlace: meta.regPlace ?? null,
+        regDistrict: meta.regDistrict ?? null,
+        regState: meta.regState ?? null,
+        regGmapLink: meta.regGmapLink ?? null,
+        regIsDealerMachine: meta.regIsDealerMachine ?? false,
+      },
+    },
+  });
 }
 
 async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: string, meta: SessionMeta, lang: Lang) {
   const name = meta.regName || "Customer";
   await updateSession(sessionId, "MAIN_MENU", meta);
   return makeReply(
-    t("GREETING_HEADER", lang) +
     t("REGISTER_SUCCESS", lang, { name }) +
+    "\n\n" +
     t("MAIN_MENU_MSG", lang),
     undefined,
     getMainMenuList(lang)

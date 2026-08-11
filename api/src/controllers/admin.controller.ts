@@ -187,13 +187,12 @@ export async function listRegisteredCustomers(req: Request, res: Response): Prom
     // (regSerialNumber, regMachineData, regPincode, regPlace, regDistrict, regState, regGmapLink)
     const phoneNumbers = customers.map(c => c.whatsappNumber || "").filter(Boolean);
 
-    // Get latest session per phone
+    // Get latest session per phone (all sessions — isRegistered may not be set for old records)
     const sessions = await prisma.conversationSession.findMany({
       where: {
         phoneNumber: { in: phoneNumbers },
-        isRegistered: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
       select: {
         id: true,
         phoneNumber: true,
