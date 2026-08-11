@@ -800,7 +800,7 @@ function getLangSelectButton(lang: Lang): ReplyButton {
     mr: "🌐 भाषा निवडा",
     te: "🌐 భాష మార్చండి",
     bn: "🌐 ভাষা বাছুন",
-    ml: "🌐 ভাষা বাছুন",
+    ml: "🌐 ഭാഷ തിരഞ്ഞെടുക്കുക",
   };
   return { id: "SELECT_LANG", title: titles[lang] ?? "🌐 Select Language" };
 }
