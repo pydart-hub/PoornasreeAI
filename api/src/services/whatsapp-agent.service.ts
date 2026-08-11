@@ -519,10 +519,13 @@ export async function handleCustomerAgentMessage(
   const isRegistered = await checkIsUserRegistered(phoneNumber);
 
   if (!isRegistered) {
-    const upperMsg = text.toUpperCase();
-    if (!text || upperMsg === "MENU" || upperMsg === "HI" || upperMsg === "HELLO" || upperMsg === "START" || upperMsg === "RESTART") {
+    // Unregistered users: gated in simulate.service.ts, but guard here too for direct calls
+    if (!text) {
+      const welcomeMsg = supportSettings.welcomeGreeting
+        ? formatGreeting(supportSettings.welcomeGreeting, supportSettings)
+        : `👋 *Welcome to Poornasree!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* or press *Skip* to continue.`;
       return makeReply(
-        `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
+        welcomeMsg,
         [
           { id: "REGISTER", title: "📝 Register Machine" },
           { id: "SKIP", title: "⏭️ Skip for Now" },
@@ -554,16 +557,7 @@ export async function handleCustomerAgentMessage(
 
   // ── Global restart commands ──
   if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESTART") {
-    if (!isRegistered) {
-      return makeReply(
-        `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
-        [
-          { id: "REGISTER", title: "📝 Register Machine" },
-          { id: "SKIP", title: "⏭️ Skip for Now" },
-        ],
-      );
-    }
-
+    // For registered users: show the welcome menu
     if (session.state === "AGENT_CHAT") {
       const welcomeMsg = supportSettings.welcomeGreeting
         ? formatGreeting(supportSettings.welcomeGreeting, supportSettings)

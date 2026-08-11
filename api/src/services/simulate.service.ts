@@ -1170,6 +1170,35 @@ export async function handleMessage(phoneNumber: string, message: string) {
   }
 
   if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
+    // Hard gate: unregistered users must register before chatting
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+    const registeredUser = await prisma.user.findFirst({
+      where: {
+        role: "customer",
+        OR: [
+          { whatsappNumber: { contains: last10 } },
+          { whatsappNumber: phoneNumber },
+        ],
+      },
+      select: { id: true },
+    });
+    const isRegisteredSession = registeredUser ? true : await prisma.conversationSession.findFirst({
+      where: { OR: [{ phoneNumber: { endsWith: last10 } }, { phoneNumber }], isRegistered: true },
+      select: { id: true },
+    }).then(s => !!s);
+
+    if (!isRegisteredSession) {
+      // Unregistered: only allow Register/Skip — no Groq chat bypass
+      return makeReply(
+        t("REGISTER_WELCOME", lang),
+        [
+          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+          getSkipButton(lang),
+        ]
+      );
+    }
+
     try {
       const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
       if (agentReply) {
@@ -1212,9 +1241,6 @@ export async function handleMessage(phoneNumber: string, message: string) {
       } catch (err) {
         console.error("[simulate] Groq agent MENU failed:", err);
       }
-    }
-    if (session.state !== "GREETING" && session.state !== "ASK_PHONE") {
-      return startGreeting(phoneNumber);
     }
     return startGreeting(phoneNumber);
   }
@@ -1405,9 +1431,10 @@ async function startGreeting(phoneNumber: string) {
       language: existingMeta.language,
     };
     await updateSession(session.id, "MAIN_MENU", meta);
+    // Show welcome back WITHOUT the duplicate GREETING_HEADER prefix
     return makeReply(
-      t("GREETING_HEADER", lang) +
       t("WELCOME_BACK", lang, { name: displayName }) +
+      "\n\n" +
       t("MAIN_MENU_MSG", lang),
       undefined,
       getMainMenuList(lang)
