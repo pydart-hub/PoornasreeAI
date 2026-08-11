@@ -30,7 +30,7 @@ import {
 } from "./groq.service";
 import { classifyComplaint, prefilterCandidates } from "./complaint-classifier.service";
 import * as WhatsAppService from "./whatsapp.service";
-import { findDocumentIssue } from "./simulate.service";
+import { findDocumentIssue, getMainMenuList } from "./simulate.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -38,6 +38,7 @@ export type AgentReplyButton = { id: string; title: string };
 export type AgentReply = {
   message: string;
   buttons?: AgentReplyButton[];
+  list?: { buttonText: string; rows: any[] };
   followUpMessage?: string;
 };
 
@@ -556,9 +557,15 @@ export async function handleCustomerAgentMessage(
     return null;
   }
 
-  // ── SKIP only valid inside the complaint booking flow (COMPLAINT_ASK_SERIAL → COMPLAINT_ASK_ISSUE) ──
+  const userLang = (meta.language || "en") as any;
+
+  // ── SKIP handles skipping registration or returns main menu options list ──
   if (upper === "SKIP" && session.state !== "COMPLAINT_ASK_SERIAL") {
-    return null;
+    const list = getMainMenuList(userLang);
+    return {
+      message: `💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬\n\nPlease select an option below 👇`,
+      list: list as any,
+    };
   }
 
   // Handle shortcuts

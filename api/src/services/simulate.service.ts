@@ -963,7 +963,7 @@ function getNoButton(lang: Lang): ReplyButton {
   return { id: "NO", title: EXTRA_TRANSLATIONS.NO_BUTTON[lang] || EXTRA_TRANSLATIONS.NO_BUTTON.en };
 }
 
-function getMainMenuList(lang: Lang): ReplyList {
+export function getMainMenuList(lang: Lang): ReplyList {
   const titles: Record<string, Record<Lang, string>> = {
     view_products: {
       en: "View Our Products",
