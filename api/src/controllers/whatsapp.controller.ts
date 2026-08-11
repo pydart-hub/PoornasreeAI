@@ -743,9 +743,19 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
   }
 
   if (result.list?.rows?.length) {
-    await WhatsAppService.sendInteractiveList(to, result.message, result.list.buttonText, result.list.rows);
+    try {
+      await WhatsAppService.sendInteractiveList(to, result.message, result.list.buttonText, result.list.rows);
+    } catch (err) {
+      console.error("[whatsapp] sendInteractiveList failed — falling back to plain text:", err);
+      await WhatsAppService.sendMessage(to, result.message);
+    }
   } else if (result.buttons?.length) {
-    await WhatsAppService.sendInteractiveButtons(to, result.message, result.buttons);
+    try {
+      await WhatsAppService.sendInteractiveButtons(to, result.message, result.buttons);
+    } catch (err) {
+      console.error("[whatsapp] sendInteractiveButtons failed — falling back to plain text:", err);
+      await WhatsAppService.sendMessage(to, result.message);
+    }
   } else {
     await WhatsAppService.sendMessage(to, result.message);
   }

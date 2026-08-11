@@ -206,7 +206,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "📝 *নিবন্ধন — ধাপ 3/4*\n\n📮 অনুগ্রহ করে আপনার *৬-সংখ্যার পিনকোড* লিখুন।",
   },
   REGISTER_GMAP_PROMPT: {
-    en: "📝 *Registration — Step 4 of 4*\n\n📍 Please share your *Google Maps location link* so our technician can reach you easily.\n\nHow to get your link:\n1. Open Google Maps\n2. Long-press on your location\n3. Tap *Share* and copy the link\n\nExample: https://maps.google.com/?q=12.9716,77.5946\n\nOr press *Skip* if you don't have one.",
+    en: "📝 *Registration — Step 4 of 4*\n\n📍 Please share your location using the WhatsApp location button (📎/➕ ➔ Location) or paste your *Google Maps location link* so our technician can reach you easily.\n\nWays to send:\n1️⃣ Tap 📎 or ➕ ➔ *Location* ➔ *Send your current location*\n2️⃣ Or copy & paste a Google Maps link (e.g. https://maps.google.com/?q=10.0154,76.3125)\n\nOr press *Skip* if you don't have one.",
     hi: "📝 *पंजीकरण — चरण 3/4*\n\n📍 कृपया अपना *Google Maps स्थान लिंक* साझा करें ताकि हमारा तकनीशियन आप तक आसानी से पहुंच सके।\n\nलिंक कैसे प्राप्त करें:\n1. Google Maps खोलें\n2. अपने स्थान पर देर तक दबाएं\n3. *शेयर* पर टैप करें और लिंक कॉपी करें\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nया *Skip* दबाएं।",
     ta: "📝 *பதிவு — படி 3/4*\n\n📍 எங்கள் தொழில்நுட்பவியலாளர் உங்களை எளிதில் சென்றடைய உங்கள் *Google Maps இருப்பிட இணைப்பை* பகிரவும்.\n\nஇணைப்பை எப்படி பெறுவது:\n1. Google Maps திறக்கவும்\n2. உங்கள் இடத்தில் நீண்ட நேரம் அழுத்தவும்\n3. *பகிர்* என்பதைத் தட்டி இணைப்பை நகலெடுக்கவும்\n\nஉதாரணம்: https://maps.google.com/?q=12.9716,77.5946\n\nஅல்லது *Skip* அழுத்தவும்.",
     kn: "📝 *ನೋಂದಣಿ — ಹಂತ 3/4*\n\n📍 ನಮ್ಮ ತಂತ್ರಜ್ಞರು ನಿಮ್ಮನ್ನು ಸುಲಭವಾಗಿ ತಲುಪಲು ನಿಮ್ಮ *Google Maps ಸ್ಥಳ ಲಿಂಕ್* ಹಂಚಿಕೊಳ್ಳಿ.\n\nಲಿಂಕ್ ಪಡೆಯುವ ವಿಧಾನ:\n1. Google Maps ತೆರೆಯಿರಿ\n2. ನಿಮ್ಮ ಸ್ಥಳದಲ್ಲಿ ಸ್ವಲ್ಪ ಸಮಯ ಒತ್ತಿರಿ\n3. *ಹಂಚಿಕೊಳ್ಳಿ* ಟ್ಯಾಪ್ ಮಾಡಿ ಮತ್ತು ಲಿಂಕ್ ನಕಲಿಸಿ\n\nಉದಾಹರಣೆ: https://maps.google.com/?q=12.9716,77.5946\n\nಅಥವಾ *Skip* ಒತ್ತಿರಿ.",
@@ -1829,6 +1829,7 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
 async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, meta: SessionMeta) {
   const name = meta.regName || `Customer ${phoneNumber.slice(-4)}`;
   const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
   let customerId = meta.regCustomerId;
 
   if (customerId) {
@@ -1841,39 +1842,64 @@ async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, me
       },
     });
   } else {
-    // Create new User with role=customer
-    const newUser = await prisma.user.create({
-      data: {
-        email: `cust_${cleanPhone}@poornasree.ai`,
-        passwordHash: "NO_PASSWORD_WHATSAPP_CUSTOMER",
-        firstName: name,
-        whatsappNumber: phoneNumber,
-        role: "customer",
+    // Check if user already exists with matching whatsappNumber or email
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { whatsappNumber: phoneNumber },
+          { whatsappNumber: { contains: last10 } },
+          { email: `cust_${cleanPhone}@poornasree.ai` },
+        ],
       },
     });
-    customerId = newUser.id;
+
+    if (existingUser) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          firstName: name,
+          whatsappNumber: phoneNumber,
+        },
+      });
+      customerId = existingUser.id;
+    } else {
+      const newUser = await prisma.user.create({
+        data: {
+          email: `cust_${cleanPhone}@poornasree.ai`,
+          passwordHash: "NO_PASSWORD_WHATSAPP_CUSTOMER",
+          firstName: name,
+          whatsappNumber: phoneNumber,
+          role: "customer",
+        },
+      });
+      customerId = newUser.id;
+    }
     meta.regCustomerId = customerId;
   }
+
+  meta.regName = name;
+
+  const mergedMeta = sanitizeForJson({
+    ...((meta as any) ?? {}),
+    regName: name,
+    regCustomerId: customerId,
+    regSerialNumber: meta.regSerialNumber ?? null,
+    regMachineData: meta.regMachineData ?? null,
+    regPincode: meta.regPincode ?? null,
+    regPlace: meta.regPlace ?? null,
+    regDistrict: meta.regDistrict ?? null,
+    regState: meta.regState ?? null,
+    regGmapLink: meta.regGmapLink ?? null,
+    regAddress: meta.regAddress || meta.manualAddress || null,
+    regIsDealerMachine: meta.regIsDealerMachine ?? false,
+  });
 
   // Mark session as registered AND persist all registration metadata
   await prisma.conversationSession.update({
     where: { id: sessionId },
     data: {
       isRegistered: true,
-      metadata: {
-        ...((meta as any) ?? {}),
-        regName: name,
-        regCustomerId: customerId,
-        regSerialNumber: meta.regSerialNumber ?? null,
-        regMachineData: meta.regMachineData ?? null,
-        regPincode: meta.regPincode ?? null,
-        regPlace: meta.regPlace ?? null,
-        regDistrict: meta.regDistrict ?? null,
-        regState: meta.regState ?? null,
-        regGmapLink: meta.regGmapLink ?? null,
-        regAddress: meta.regAddress || meta.manualAddress || null,
-        regIsDealerMachine: meta.regIsDealerMachine ?? false,
-      },
+      metadata: mergedMeta as object,
     },
   });
 }
@@ -3011,6 +3037,26 @@ async function loadSavedEndCustomer(phoneNumber: string): Promise<Partial<Sessio
   };
 }
 
+export function sanitizeForJson<T>(obj: T): T {
+  if (typeof obj === "string") {
+    const str = obj as string;
+    return (typeof (str as any).toWellFormed === "function"
+      ? (str as any).toWellFormed()
+      : str.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")) as unknown as T;
+  }
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForJson) as unknown as T;
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = sanitizeForJson(value);
+  }
+  return result as T;
+}
+
 export function extractGmapLink(text: string): { mapLink?: string; addressText?: string } | null {
   if (!text) return null;
   let clean = text.trim();
@@ -3792,7 +3838,7 @@ async function getOrCreateSession(phoneNumber: string) {
 async function updateSession(id: string, state: string, meta: SessionMeta) {
   return prisma.conversationSession.update({
     where: { id },
-    data: { state, metadata: meta as object },
+    data: { state, metadata: sanitizeForJson(meta) as object },
   });
 }
 
