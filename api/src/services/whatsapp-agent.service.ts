@@ -507,14 +507,27 @@ export async function handleCustomerAgentMessage(
 
   // ── Prompt unregistered users unless they have explicitly tapped SKIP ──
   if (!isRegistered && !meta.hasSkippedRegistration) {
-    return makeReply(
-      `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
-      [
-        { id: "REGISTER", title: "📝 Register Machine" },
-        { id: "SKIP", title: "⏭️ Skip for Now" },
-        { id: "SELECT_LANG", title: "🌐 Select Language" },
-      ],
-    );
+    // Detect if this is a greeting/first contact vs a meaningful question
+    const greetings = new Set(["HI", "HELLO", "HEY", "NAMASTE", "HAI", "HELO", "HIII", "HIIII", "NAMSTE", "NAMASKAR"]);
+    const isGreeting = !text || upper.length <= 4 || greetings.has(upper);
+
+    if (!isGreeting) {
+      // User typed a real question — treat as implicit skip, answer directly
+      meta.hasSkippedRegistration = true;
+      await updateAgentSession(session.id, "MAIN_MENU", meta);
+      // fall through to Groq answer below
+    } else {
+      // First contact — show registration prompt and set state so FSM can route buttons
+      await updateAgentSession(session.id, "REGISTER_PROMPT", meta);
+      return makeReply(
+        `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
+        [
+          { id: "REGISTER", title: "📝 Register Machine" },
+          { id: "SKIP", title: "⏭️ Skip for Now" },
+          { id: "SELECT_LANG", title: "🌐 Select Language" },
+        ],
+      );
+    }
   }
 
   if (!text) {
