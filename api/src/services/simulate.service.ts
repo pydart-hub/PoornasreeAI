@@ -2013,18 +2013,19 @@ async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: str
 async function handleMainMenu(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const choice = text.trim();
+  const upperChoice = choice.toUpperCase();
 
-  if (choice === "1") {
+  if (choice === "1" || upperChoice === "VIEW_PRODUCTS" || upperChoice === "PRODUCTS") {
     return showProducts(sessionId, meta);
   }
-  if (choice === "2") {
+  if (choice === "2" || upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT" || upperChoice.includes("COMPLAINT REG")) {
     await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", meta);
     return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
-  if (choice === "3") {
+  if (choice === "3" || upperChoice === "COMPLAINT_STATUS" || upperChoice === "TICKETS" || upperChoice.includes("STATUS")) {
     return showTicketStatus(sessionId, phoneNumber, meta);
   }
-  if (choice === "4") {
+  if (choice === "4" || upperChoice === "SPEAK_SUPPORT" || upperChoice === "SUPPORT" || upperChoice === "TALK_AGENT" || upperChoice.includes("SPEAK TO SUPPORT")) {
     await updateSession(sessionId, "COMPLETED", meta);
     const support = await getWhatsAppSupportSettings();
     const contact = formatSupportContactBlock(support);
@@ -2060,7 +2061,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
 
     return makeReply(t("SPEAK_TO_SUPPORT", lang, { contact }), [getMenuButton(lang)]);
   }
-  if (choice === "5") {
+  if (choice === "5" || upperChoice === "CHANGE_LANG" || upperChoice === "CHANGE_LANGUAGE" || upperChoice === "LANGUAGE") {
     await updateSession(sessionId, "CHANGE_LANGUAGE", meta);
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
