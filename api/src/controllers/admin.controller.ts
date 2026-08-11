@@ -183,38 +183,49 @@ export async function listRegisteredCustomers(req: Request, res: Response): Prom
       orderBy: { createdAt: "desc" },
     });
 
-    // Fetch the latest conversation session per phone to get registration metadata
-    // (regSerialNumber, regMachineData, regPincode, regPlace, regDistrict, regState, regGmapLink)
-    const phoneNumbers = customers.map(c => c.whatsappNumber || "").filter(Boolean);
+    // Extract 10-digit phone suffixes to match sessions regardless of country code prefix (e.g. 91 / +91)
+    const cleanPhones = customers
+      .map(c => (c.whatsappNumber || "").replace(/\D/g, ""))
+      .filter(Boolean);
+    const last10List = Array.from(new Set(cleanPhones.map(p => (p.length >= 10 ? p.slice(-10) : p))));
 
-    // Get latest session per phone (all sessions — isRegistered may not be set for old records)
-    const sessions = await prisma.conversationSession.findMany({
-      where: {
-        phoneNumber: { in: phoneNumbers },
-      },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        phoneNumber: true,
-        isRegistered: true,
-        metadata: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    // Fetch conversation sessions matching any customer phone or last-10-digits
+    const sessions = last10List.length > 0
+      ? await prisma.conversationSession.findMany({
+          where: {
+            OR: [
+              { phoneNumber: { in: cleanPhones } },
+              ...last10List.map(l10 => ({ phoneNumber: { contains: l10 } })),
+            ],
+          },
+          orderBy: { updatedAt: "desc" },
+          select: {
+            id: true,
+            phoneNumber: true,
+            isRegistered: true,
+            metadata: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })
+      : [];
 
-    // Group by phoneNumber, keep the latest session per phone
-    const latestSessionByPhone = new Map<string, typeof sessions[0]>();
+    // Group by 10-digit phone suffix, keeping the most recently updated session
+    const latestSessionByLast10 = new Map<string, typeof sessions[0]>();
     for (const s of sessions) {
-      if (!latestSessionByPhone.has(s.phoneNumber)) {
-        latestSessionByPhone.set(s.phoneNumber, s);
+      const sClean = s.phoneNumber.replace(/\D/g, "");
+      const sLast10 = sClean.length >= 10 ? sClean.slice(-10) : sClean;
+      if (sLast10 && !latestSessionByLast10.has(sLast10)) {
+        latestSessionByLast10.set(sLast10, s);
       }
     }
 
     // Build enriched result
     const result = customers.map(customer => {
       const phone = customer.whatsappNumber || "";
-      const session = latestSessionByPhone.get(phone);
+      const cClean = phone.replace(/\D/g, "");
+      const cLast10 = cClean.length >= 10 ? cClean.slice(-10) : cClean;
+      const session = latestSessionByLast10.get(cLast10);
       const meta: any = session?.metadata ? JSON.parse(JSON.stringify(session.metadata)) : {};
 
       return {
@@ -223,8 +234,8 @@ export async function listRegisteredCustomers(req: Request, res: Response): Prom
         phone,
         email: customer.email,
         createdAt: customer.createdAt,
-        registeredAt: session?.createdAt ?? null,
-        updatedAt: session?.updatedAt ?? null,
+        registeredAt: session?.createdAt ?? customer.createdAt,
+        updatedAt: session?.updatedAt ?? customer.createdAt,
         serialNumber: meta.regSerialNumber || null,
         machineModel: meta.regMachineData?.m_model || null,
         machineCustomer: meta.regMachineData?.customer || null,
