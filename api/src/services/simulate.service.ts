@@ -1196,7 +1196,6 @@ export async function handleMessage(phoneNumber: string, message: string) {
     "LANG_EN", "LANG_HI", "LANG_TA", "LANG_KN", "LANG_MR", "LANG_TE", "LANG_BN",
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
-    "YES_RESOLVED", "NOT_RESOLVED",
     "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG"
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {

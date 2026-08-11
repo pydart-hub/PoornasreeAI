@@ -240,6 +240,53 @@ async function main() {
     console.log(`  + Product "${p.name}" — created`);
   }
 
+  // ── Seed video resources for WhatsApp AI recommendations ──────────────
+  console.log("\nSeeding video resources...\n");
+
+  const SEED_VIDEOS = [
+    {
+      title: "Vibro Ultrasonic Stirrer Operating, Vibration & Cleaning Guide",
+      description: "Official Poornasree video guide for Vibro Stirrer setup, cleaning, and resolving low/continuous vibration issues.",
+      youtubeUrl: "https://youtu.be/4GH45wgoW0Y",
+      keywords: "vibro, vibration, stirrer, cleaning, maintenance, led, power, not working, continuous vibration, low vibration",
+    },
+    {
+      title: "Milk Analyzer T2 Error & Temperature Calibration Guide",
+      description: "Step-by-step resolution for T2 Error, Temperature Set, Air in Milk, and Sample Not Found errors on LactoSure Analyzers.",
+      youtubeUrl: "https://youtu.be/4GH45wgoW0Y",
+      keywords: "analyzer, t2, error, temperature, sample, air, milk, calibration, t2 error, sample not found",
+    },
+    {
+      title: "LactoSure ECO Daily Cleaning & Maintenance Tutorial",
+      description: "Learn how to perform daily cleaning with daily cleaner solution to prevent sensor blockage and maintain FAT/SNF accuracy.",
+      youtubeUrl: "https://youtu.be/4GH45wgoW0Y",
+      keywords: "lactosure, eco, cleaning, daily, maintenance, cleaning solution, wash, sensor, blockage",
+    },
+    {
+      title: "FAT & SNF Testing & Accuracy Calibration Guide",
+      description: "Guide to recalibrating your LactoSure Milk Analyzer when FAT or SNF readings show variation or low values.",
+      youtubeUrl: "https://youtu.be/4GH45wgoW0Y",
+      keywords: "fat, snf, testing, accuracy, reading, wrong, calibration, low fat, snf low, variation",
+    },
+    {
+      title: "Milk Analyzer Power & Battery Replacement Guide",
+      description: "Troubleshooting power adapter, internal battery charging, LED indicator lights, and display power issues.",
+      youtubeUrl: "https://youtu.be/4GH45wgoW0Y",
+      keywords: "power, battery, charging, display, blank, led, switch, charger, no power, battery drain",
+    },
+  ];
+
+  for (const v of SEED_VIDEOS) {
+    const existing = await prisma.videoResource.findFirst({ where: { title: v.title } });
+    if (existing) {
+      await prisma.videoResource.update({ where: { id: existing.id }, data: v });
+      console.log(`  ✓ Video "${v.title}" — updated`);
+    } else {
+      await prisma.videoResource.create({ data: v });
+      console.log(`  + Video "${v.title}" — created`);
+    }
+  }
+
   console.log("\nAll seeding complete!");
 }
 
