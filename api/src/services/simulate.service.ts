@@ -1120,7 +1120,6 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const inFeedback =
     session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED";
   const inLegacyTransactional =
-    session.state === "MAIN_MENU" ||
     session.state === "VIEW_PRODUCTS" ||
     session.state === "COMPLAINT_ASK_SERIAL" ||
     session.state === "MACHINE_CONFIRM" ||
@@ -1151,13 +1150,13 @@ export async function handleMessage(phoneNumber: string, message: string) {
     session.state === "REGISTER_GMAP";
 
   // Interactive button IDs bypass Groq so the FSM processes them directly.
-  // REGISTER is special — it must work even from MAIN_MENU, so check it
-  // before the legacy-transactional guard.
   const fsmButtonIds = new Set([
-    "REGISTER", "SKIP", "MENU", "YES", "NO",
+    "1", "2", "3", "4", "5",
+    "REGISTER", "SKIP", "MENU", "MAIN MENU", "YES", "NO",
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
     "YES_RESOLVED", "NOT_RESOLVED",
+    "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG"
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
     await updateSession(session.id, "REGISTER_SERIAL", { language: meta.language });
