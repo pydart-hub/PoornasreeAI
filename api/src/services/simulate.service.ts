@@ -105,13 +105,13 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     bn: "🙏 *পূর্ণশ্রী ইকুইপমেন্টসে আপনাকে স্বাগতম!*\nআপনার বিশ্বস্ত পরিষেবা অংশীদার 🔧\n--------------------\n\n",
   },
   MAIN_MENU_MSG: {
-    en: "Please select an option below 👇",
-    hi: "कृपया नीचे एक विकल्प चुनें 👇",
-    ta: "தயவுசெய்து கீழே ஒரு விருப்பத்தைத் தேர்ந்தெடுக்கவும் 👇",
-    kn: "ದಯವಿಟ್ಟು ಕೆಳಗಿನ ಆಯ್ಕೆಯನ್ನು ಆರಿಸಿ 👇",
-    mr: "कृपया खालीलपैकी एक पर्याय निवडा 👇",
-    te: "దయచేసి క్రింద ఉన్న ఎంపికను ఎంచుకోండి 👇",
-    bn: "অনুগ্রহ করে নিচের একটি বিকল্প নির্বাচন করুন 👇",
+    en: "💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬\n\nPlease select an option below 👇",
+    hi: "💡 आप नीचे मेनू से एक विकल्प चुन सकते हैं, या मुझसे कुछ भी पूछने के लिए सीधा प्रश्न टाइप कर सकते हैं! 💬\n\nकृपया नीचे एक विकल्प चुनें 👇",
+    ta: "💡 கீழே உள்ள மெனுவிலிருந்து ஒரு விருப்பத்தைத் தேர்ந்தெடுக்கலாம் அல்லது என்னிடம் எதையும் கேட்க எந்தக் கேள்வியையும் நேரடியாகத் தட்டச்சு செய்யலாம்! 💬\n\nதயவுசெய்து கீழே ஒரு விருப்பத்தைத் தேர்ந்தெடுக்கவும் 👇",
+    kn: "💡 ನೀವು ಕೆಳಗಿನ ಮೆನುವಿನಿಂದ ಆಯ್ಕೆಯನ್ನು ಆರಿಸಿಕೊಳ್ಳಬಹುದು, ಅಥವಾ ನನ್ನನ್ನು ಏನನ್ನಾದರೂ ಕೇಳಲು ನೇರವಾಗಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಯನ್ನು ಟೈಪ್ ಮಾಡಬಹುದು! 💬\n\nದಯವಿಟ್ಟು ಕೆಳಗಿನ ಆಯ್ಕೆಯನ್ನು ಆರಿಸಿ 👇",
+    mr: "💡 तुम्ही खालील मेनूमधून एक पर्याय निवडू शकता किंवा मला काहीही विचारण्यासाठी थेट प्रश्न टाईप करू शकता! 💬\n\nकृपया खालीलपैकी एक पर्याय निवडा 👇",
+    te: "💡 మీరు క్రింది మెనూ నుండి ఒక ఎంపికను ఎంచుకోవచ్చు, లేదా నన్ను ఏమైనా అడగడానికి నేరుగా ప్రశ్న టైప్ చేయవచ్చు! 💬\n\nదయచేసి క్రింద ఉన్న ఎంపికను ఎంచుకోండి 👇",
+    bn: "💡 আপনি নিচের মেনু থেকে একটি বিকল্প নির্বাচন করতে পারেন, অথবা আমাকে যেকোনো প্রশ্ন সরাসরি টাইপ করে জিজ্ঞাসা করতে পারেন! 💬\n\nঅনুগ্রহ করে নিচের একটি বিকল্প নির্বাচন করুন 👇",
   },
   REGISTER_WELCOME: {
     en: "👋 *Welcome to Poornasree!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalised support.\n\nOr press *Skip* to continue without registering.",
@@ -1171,31 +1171,6 @@ export async function handleMessage(phoneNumber: string, message: string) {
   }
 
   if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
-    // Hard gate: unregistered users must register before chatting
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
-    const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
-    const registeredUser = await prisma.user.findFirst({
-      where: {
-        role: "customer",
-        OR: [
-          { whatsappNumber: { contains: last10 } },
-          { whatsappNumber: phoneNumber },
-        ],
-      },
-      select: { id: true },
-    });
-    const isRegisteredSession = !!registeredUser;
-
-    if (!isRegisteredSession) {
-      // Unregistered: only allow Register/Skip — no Groq chat bypass
-      return makeReply(
-        t("REGISTER_WELCOME", lang),
-        [
-          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
-          getSkipButton(lang),
-        ]
-      );
-    }
 
     try {
       const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
