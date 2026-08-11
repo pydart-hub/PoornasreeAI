@@ -1143,7 +1143,6 @@ export async function handleMessage(phoneNumber: string, message: string) {
     session.state === "CHECK_STATUS" ||
     session.state === "CHANGE_LANGUAGE" ||
     session.state === "ASK_PHONE" ||
-    session.state === "REGISTER_PROMPT" ||
     session.state === "REGISTER_SERIAL" ||
     session.state === "REGISTER_NAME" ||
     session.state === "REGISTER_PINCODE" ||
