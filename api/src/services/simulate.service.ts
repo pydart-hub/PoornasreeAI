@@ -92,7 +92,7 @@ type SessionMeta = {
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
-type Lang = "en" | "hi" | "ta" | "kn" | "mr" | "te" | "bn";
+type Lang = "en" | "hi" | "ta" | "kn" | "mr" | "te" | "bn" | "ml";
 
 // ── Bilingual translations (English / हिंदी) ──────────────────────────────
 const TRANSLATIONS: Record<string, Record<Lang, string>> = {
@@ -104,6 +104,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🙏 *पूर्णश्री इक्विपमेंट्समध्ये आपले स्वागत आहे!*\nआपला विश्वासू सेवा भागीदार 🔧\n--------------------\n\n",
     te: "🙏 *పూర్ణశ్రీ ఎక్విప్‌మెంట్స్‌కు స్వాగతం!*\nమీ నమ్మకమైన సేవా భాగస్వామి 🔧\n--------------------\n\n",
     bn: "🙏 *পূর্ণশ্রী ইকুইপমেন্টসে আপনাকে স্বাগতম!*\nআপনার বিশ্বস্ত পরিষেবা অংশীদার 🔧\n--------------------\n\n",
+    ml: "🙏 *പൂർണ്ണശ്രീ ഇക്വിപ്മെന്റ്സിലേക്ക് സ്വാഗതം!*\nനിങ്ങളുടെ വിശ്വസ്ത സേവന പങ്കാളി 🔧\n--------------------\n\n",
   },
   MAIN_MENU_MSG: {
     en: "💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬\n\nPlease select an option below 👇",
@@ -113,6 +114,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "💡 तुम्ही खालील मेनूमधून एक पर्याय निवडू शकता किंवा मला काहीही विचारण्यासाठी थेट प्रश्न टाईप करू शकता! 💬\n\nकृपया खालीलपैकी एक पर्याय निवडा 👇",
     te: "💡 మీరు క్రింది మెనూ నుండి ఒక ఎంపికను ఎంచుకోవచ్చు, లేదా నన్ను ఏమైనా అడగడానికి నేరుగా ప్రశ్న టైప్ చేయవచ్చు! 💬\n\nదయచేసి క్రింద ఉన్న ఎంపికను ఎంచుకోండి 👇",
     bn: "💡 আপনি নিচের মেনু থেকে একটি বিকল্প নির্বাচন করতে পারেন, অথবা আমাকে যেকোনো প্রশ্ন সরাসরি টাইপ করে জিজ্ঞাসা করতে পারেন! 💬\n\nঅনুগ্রহ করে নিচের একটি বিকল্প নির্বাচন করুন 👇",
+    ml: "💡 താഴെയുള്ള മെനുവിൽ നിന്ന് ഒരു ഓപ്ഷൻ തിരഞ്ഞെടുക്കാം, അല്ലെങ്കിൽ എന്നോട് നേരിട്ട് സംശയങ്ങൾ ചോദിക്കാം! 💬\n\nദയവായി താഴെ ഒരു ഓപ്ഷൻ തിരഞ്ഞെടുക്കുക 👇",
   },
   REGISTER_WELCOME: {
     en: "👋 *Welcome to Poornasree!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalised support.\n\nOr press *Skip* to continue without registering.",
@@ -122,6 +124,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "👋 *पूर्णश्रीमध्ये आपले स्वागत आहे!*\n\nआपले तपशील अद्याप आमच्याकडे नाहीत.\n\n📝 जलद सेवा आणि वैयक्तिकृत सहाय्यासाठी *आता नोंदणी करा*.\n\nकिंवा नोंदणी न करता पुढे जाण्यासाठी *Skip* दाबा.",
     te: "👋 *పూర్ణశ్రీకి స్వాగతం!*\n\nమీ వివరాలు ఇంకా మా వద్ద లేవు.\n\n📝 వేగవంతమైన సేవ మరియు వ్యక్తిగతీకరించిన మద్దతు కోసం *ఇప్పుడే నమోదు చేయండి*.\n\nలేదా నమోదు చేయకుండా కొనసాగడానికి *Skip* నొక్కండి.",
     bn: "👋 *পূর্ণশ্রীতে আপনাকে স্বাগতম!*\n\nআপনার বিবরণ এখনও আমাদের কাছে নেই।\n\n📝 দ্রুত পরিষেবা এবং ব্যক্তিগতকরণ সহায়তার জন্য *এখনই নিবন্ধন করুন*।\n\nঅথবা নিবন্ধন না করে চালিয়ে যেতে *Skip* টিপুন।",
+    ml: "👋 *പൂർണ്ണശ്രീയിലേക്ക് സ്വാഗതം!*\n\nനിങ്ങളുടെ വിവരങ്ങൾ ഇതുവരെ രജിസ്റ്റർ ചെയ്തിട്ടില്ല.\n\n📝 വേഗത്തിലുള്ള സേവനത്തിനും പിന്തുണയ്ക്കും *ഇപ്പോൾ രജിസ്റ്റർ ചെയ്യുക*.\n\nഅല്ലെങ്കിൽ രജിസ്റ്റർ ചെയ്യാതെ തുടരാൻ *Skip* അമർത്തുക.",
   },
   REGISTER_BUTTON: {
     en: "📝 Register Now",
@@ -131,6 +134,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 आता नोंदणी करा",
     te: "📝 ఇప్పుడే నమోదు చేయండి",
     bn: "📝 এখনই নিবন্ধন করুন",
+    ml: "📝 ഇപ്പോൾ രജിസ്റ്റർ ചെയ്യുക",
   },
   REGISTER_SERIAL_PROMPT: {
     en: "📝 *Registration — Step 1 of 4*\n\n🔧 Please enter your machine *serial number*.\n\n_(You can find it on the machine label or warranty card)_\n\nIf you don't have one, press *Skip*.",
@@ -140,6 +144,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *नोंदणी — टप्पा 1/5*\n\n🔧 कृपया आपल्या मशीनचा *अनुक्रमांक* प्रविष्ट करा.\n\n_(मशीनच्या लेबलवर किंवा वॉरंटी कार्डवर आढळू शकतो)_\n\nआपल्याकडे नसल्यास, *Skip* दाबा.",
     te: "📝 *నమోదు — దశ 1/4*\n\n🔧 దయచేసి మీ యంత్రం *సీరియల్ నంబర్* నమోదు చేయండి.\n\n_(యంత్రం లేబుల్ లేదా వారంటీ కార్డులో కనుగొనవచ్చు)_\n\nమీ వద్ద లేకుంటే, *Skip* నొక్కండి.",
     bn: "📝 *নিবন্ধন — ধাপ 1/4*\n\n🔧 অনুগ্রহ করে আপনার মেশিনের *সিরিয়াল নম্বর* লিখুন।\n\n_(মেশিনের লেবেল বা ওয়ারেন্টি কার্ডে পাওয়া যেতে পারে)_\n\nআপনার কাছে না থাকলে, *Skip* টিপুন।",
+    ml: "🔧 ദയവായി നിങ്ങളുടെ മെഷീൻ *സീരിയൽ നമ്പർ* നൽകുക (ഉദാഹരണത്തിന് ECO-2024-8841):",
   },
   REGISTER_SERIAL_NOT_FOUND: {
     en: "❌ Serial number *{serial}* was not found in our records.\n\nPlease double-check and try again, or press *Skip* to continue without a serial number.",
@@ -149,6 +154,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "❌ अनुक्रमांक *{serial}* आमच्या रेकॉर्डमध्ये सापडला नाही.\n\nकृपया पुन्हा तपासा आणि प्रयत्न करा, किंवा अनुक्रमांक नसताना पुढे जाण्यासाठी *Skip* दाबा.",
     te: "❌ సీరియల్ నంబర్ *{serial}* మా రికార్డులలో దొరకలేదు.\n\nదయచేసి మళ్ళీ తనిఖీ చేసి ప్రయత్నించండి, లేదా సీరియల్ నంబర్ లేకుండా కొనసాగడానికి *Skip* నొక్కండి.",
     bn: "❌ সিরিয়াল নম্বর *{serial}* আমাদের রেকর্ডে পাওয়া যায়নি।\n\nঅনুগ্রহ করে আবার পরীক্ষা করে চেষ্টা করুন, বা সিরিয়াল নম্বর ছাড়াই চালিয়ে যেতে *Skip* টিপুন।",
+    ml: "❌ সিরিয়াল নম্বর *{serial}* আমাদের রেকর্ডে পাওয়া যায়নি।\n\nঅনুগ্রহ করে আবার পরীক্ষা করে চেষ্টা করুন, বা সিরিয়াল নম্বর ছাড়াই চালিয়ে যেতে *Skip* টিপুন।",
   },
   REGISTER_MACHINE_FOUND: {
     // Non-dealer machine: show model + serial only (no warranty)
@@ -159,6 +165,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ *मशीन सापडली!*\n\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
     te: "✅ *యంత్రం దొరికింది!*\n\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
     bn: "✅ *মেশিন পাওয়া গেছে!*\n\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
+    ml: "✅ *মেশিন পাওয়া গেছে!*\n\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
   },
   REGISTER_MACHINE_FOUND_DEALER: {
     // Dealer machine: show dealer name, model, serial — hide warranty/invoice/product code
@@ -169,6 +176,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ *मशीन सापडली!*\n\n🏪 *डीलर:* {dealerName}\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n\nआपल्या नोंदणीसाठी हे तपशील वापरले जातील.\n\nपुढे जाण्यासाठी *Continue* दाबा.",
     te: "✅ *యంత్రం దొరికింది!*\n\n🏪 *డీలర్:* {dealerName}\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n\nమీ నమోదు కోసం ఈ వివరాలను ఉపయోగిస్తాము.\n\nకొనసాగడానికి *Continue* నొక్కండి.",
     bn: "✅ *মেশিন পাওয়া গেছে!*\n\n🏪 *ডিলার:* {dealerName}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
+    ml: "✅ *মেশিন পাওয়া গেছে!*\n\n🏪 *ডিলার:* {dealerName}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n\nআপনার নিবন্ধনের জন্য এই বিবরণ ব্যবহার করা হবে।\n\nচালিয়ে যেতে *Continue* টিপুন।",
   },
   REGISTER_CONTINUE_BUTTON: {
     en: "✅ Continue",
@@ -178,6 +186,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ पुढे जा",
     te: "✅ కొనసాగించు",
     bn: "✅ চালিয়ে যান",
+    ml: "✅ চালিয়ে যান",
   },
   REGISTER_NAME_PROMPT: {
     en: "📝 *Registration — Step 2 of 4*\n\n👤 Please enter your *full name*.",
@@ -187,6 +196,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *नोंदणी — टप्पा 2/5*\n\n👤 कृपया आपले *पूर्ण नाव* प्रविष्ट करा.",
     te: "📝 *నమోదు — దశ 2/4*\n\n👤 దయచేసి మీ *పూర్తి పేరు* నమోదు చేయండి.",
     bn: "📝 *নিবন্ধন — ধাপ 2/4*\n\n👤 অনুগ্রহ করে আপনার *পূর্ণ নাম* লিখুন।",
+    ml: "📝 *രജിസ്ട്രേഷൻ — ഘട്ടം 2/4*\n\n👤 ദയവായി നിങ്ങളുടെ *പൂർണ്ണമായ പേര്* ടൈപ്പ് ചെയ്യുക.",
   },
   REGISTER_ADDRESS_PROMPT: {
     en: "📝 *Registration — Step 3 of 4*\n\n🏠 Please enter your *full address* (house no., street, landmark).\n\nExample: House 12, Main Road, near temple",
@@ -196,6 +206,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *नोंदणी — टप्पा 3/5*\n\n🏠 कृपया आपला *पूर्ण पत्ता* प्रविष्ट करा (घर क्रमांक, रस्ता, खूण).\n\nउदाहरण: घर 12, मुख्य रस्ता, मंदिराजवळ",
     te: "📝 *నమోదు — దశ 4/4*\n\n🏠 దయచేసి మీ *పూర్తి చిరునామా* నమోదు చేయండి (ఇంటి నంబర్, వీధి, ల్యాండ్‌మార్క్).\n\nఉదాహరణ: ఇల్లు 12, ప్రధాన రహదారి, గుడి దగ్గర",
     bn: "📝 *নিবন্ধন — ধাপ 4/4*\n\n🏠 অনুগ্রহ করে আপনার *সম্পূর্ণ ঠিকানা* লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
+    ml: "📝 *নিবন্ধন — ধাপ 4/4*\n\n🏠 অনুগ্রহ করে আপনার *সম্পূর্ণ ঠিকানা* লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
   },
   REGISTER_PINCODE_PROMPT: {
     en: "📝 *Registration — Step 3 of 4*\n\n📮 Please enter your *6-digit pincode*.",
@@ -205,6 +216,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *नोंदणी — टप्पा 3/4*\n\n📮 कृपया आपला *6 अंकी पिनकोड* प्रविष्ट करा.",
     te: "📝 *నమోదు — దశ 3/4*\n\n📮 దయచేసి మీ *6 అంకెల పినకోడ్* నమోదు చేయండి.",
     bn: "📝 *নিবন্ধন — ধাপ 3/4*\n\n📮 অনুগ্রহ করে আপনার *৬-সংখ্যার পিনকোড* লিখুন।",
+    ml: "📝 *രജിസ്ട്രേഷൻ — ഘട്ടം 3/4*\n\n📍 ദയവായി നിങ്ങളുടെ *6 അക്ക പിൻകോഡ്* നൽകുക (ഉദാഹരണത്തിന് 682304).",
   },
   REGISTER_GMAP_PROMPT: {
     en: "📝 *Registration — Step 4 of 4*\n\n📍 Please share your location using the WhatsApp location button (📎/➕ ➔ Location) or paste your *Google Maps location link* so our technician can reach you easily.\n\nWays to send:\n1️⃣ Tap 📎 or ➕ ➔ *Location* ➔ *Send your current location*\n2️⃣ Or copy & paste a Google Maps link (e.g. https://maps.google.com/?q=10.0154,76.3125)\n\nOr press *Skip* if you don't have one.",
@@ -214,6 +226,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *नोंदणी — टप्पा 4/4*\n\n📍 कृपया आमचे तंत्रज्ञ तुम्हाला सहजपणे भेटू शकतील असे आपले *Google Maps स्थान लिंक* शेअर करा.\n\nलिंक कसे मिळवायचे:\n1. Google Maps उघडा\n2. आपल्या स्थानावर दीर्घकाळ दाबा\n3. *शेअर* वर टॅप करा आणि लिंक कॉपी करा\n\nउदाहरण: https://maps.google.com/?q=12.9716,77.5946\n\nकिंवा *Skip* दाबा.",
     te: "📝 *నమోదు — దశ 3/4*\n\n📍 మీ సాంకేతిక నిపుణుడు మిమ్మల్ని సులభంగా చేరుకోవడానికి మీ *Google Maps స్థాన లింక్* పంచుకోండి.\n\nలింక్ పొందడం ఎలా:\n1. Google Maps తెరవండి\n2. మీ స్థానంపై ఎక్కువ సమయం నొక్కండి\n3. *షేర్* నొక్కి లింక్ కాపీ చేయండి\n\nఉదాహరణ: https://maps.google.com/?q=12.9716,77.5946\n\nలేదా *Skip* నొక్కండి.",
     bn: "📝 *নিবন্ধন — ধাপ 3/4*\n\n📍 আমাদের প্রযুক্তিবিদ যাতে সহজেই আপনার কাছে পৌঁছাতে পারেন তাই আপনার *Google Maps অবস্থান লিঙ্ক* শেয়ার করুন।\n\nলিঙ্ক পাওয়ার উপায়:\n1. Google Maps খুলুন\n2. আপনার অবস্থানে দীর্ঘক্ষণ চাপ দিন\n3. *শেয়ার* চাপুন এবং লিঙ্ক কপি করুন\n\nউদাহরণ: https://maps.google.com/?q=12.9716,77.5946\n\nঅথবা *Skip* টিপুন।",
+    ml: "📝 *নিবন্ধন — ধাপ 3/4*\n\n📍 আমাদের প্রযুক্তিবিদ যাতে সহজেই আপনার কাছে পৌঁছাতে পারেন তাই আপনার *Google Maps অবস্থান লিঙ্ক* শেয়ার করুন।\n\nলিঙ্ক পাওয়ার উপায়:\n1. Google Maps খুলুন\n2. আপনার অবস্থানে দীর্ঘক্ষণ চাপ দিন\n3. *শেয়ার* চাপুন এবং লিঙ্ক কপি করুন\n\nউদাহরণ: https://maps.google.com/?q=12.9716,77.5946\n\nঅথবা *Skip* টিপুন।",
   },
   REGISTER_SUCCESS: {
     en: "🎉 *Registration Successful!*\n\nWelcome to the Poornasree family, {name}!\n\nYour details have been saved. Our team will be able to assist you faster from now on.\n\nWhat would you like to do?",
@@ -223,6 +236,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🎉 *नोंदणी यशस्वी!*\n\nपूर्णश्री कुटुंबात आपले स्वागत आहे, {name}!\n\nआपले तपशील जतन केले आहेत. आता पुढे आमची टीम तुम्हाला जलद मदत करू शकेल.\n\nतुम्हाला काय करायचे आहे?",
     te: "🎉 *నమోదు విజయవంతం!*\n\nపూర్ణశ్రీ కుటుంబానికి స్వాగతం, {name}!\n\nమీ వివరాలు సేవ్ చేయబడ్డాయి. ఇప్పటి నుండి మా బృందం మీకు వేగంగా సహాయం చేయగలదు.\n\nమీరు ఏమి చేయాలనుకుంటున్నారు?",
     bn: "🎉 *নিবন্ধন সফল!*\n\nপূর্ণশ্রী পরিবারে স্বাগতম, {name}!\n\nআপনার বিবরণ সংরক্ষণ করা হয়েছে। এখন থেকে আমাদের দল আপনাকে দ্রুত সহায়তা করতে পারবে।\n\nআপনি কী করতে চান?",
+    ml: "🎉 *নিবন্ধন সফল!*\n\nপূর্ণশ্রী পরিবারে স্বাগতম, {name}!\n\nআপনার বিবরণ সংরক্ষণ করা হয়েছে। এখন থেকে আমাদের দল আপনাকে দ্রুত সহায়তা করতে পারবে।\n\nআপনি কী করতে চান?",
   },
   REGISTER_INVALID_NAME: {
     en: "⚠️ Please enter your full name (at least 2 characters).",
@@ -232,6 +246,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "⚠️ कृपया आपले पूर्ण नाव प्रविष्ट करा (किमान 2 अक्षरे).",
     te: "⚠️ దయచేసి మీ పూర్తి పేరును నమోదు చేయండి (కనీసం 2 అక్షరాలు).",
     bn: "⚠️ অনুগ্রহ করে আপনার পুরো নাম লিখুন (কমপক্ষে 2 অক্ষর)।",
+    ml: "⚠️ অনুগ্রহ করে আপনার পুরো নাম লিখুন (কমপক্ষে 2 অক্ষর)।",
   },
   REGISTER_INVALID_ADDRESS: {
     en: "⚠️ Please enter your full address (at least 10 characters).",
@@ -241,6 +256,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "⚠️ कृपया आपला पूर्ण पत्ता प्रविष्ट करा (किमान 10 अक्षरे).",
     te: "⚠️ దయచేసి మీ పూర్తి చిరునామాను నమోదు చేయండి (కనీసం 10 అక్షరాలు).",
     bn: "⚠️ অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (কমপক্ষে 10 অক্ষর)।",
+    ml: "⚠️ অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (কমপক্ষে 10 অক্ষর)।",
   },
   REGISTER_INVALID_GMAP: {
     en: "⚠️ Please share a valid Google Maps link (starting with http:// or https://).\n\nOr press *Skip* if you don't have one.",
@@ -250,6 +266,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "⚠️ कृपया वैध Google Maps लिंक शेअर करा (http:// किंवा https:// ने सुरू होणारे).\n\nकिंवा *Skip* दाबा.",
     te: "⚠️ దయచేసి సరైన Google Maps లింక్ పంచుకోండి (http:// లేదా https:// తో ప్రారంభమయ్యేది).\n\nలేదా *Skip* నొక్కండి.",
     bn: "⚠️ অনুগ্রহ করে একটি বৈধ Google Maps লিঙ্ক শেয়ার করুন (http:// বা https:// দিয়ে শুরু)।\n\nঅথবা *Skip* টিপুন।",
+    ml: "⚠️ অনুগ্রহ করে একটি বৈধ Google Maps লিঙ্ক শেয়ার করুন (http:// বা https:// দিয়ে শুরু)।\n\nঅথবা *Skip* টিপুন।",
   },
   NOT_REGISTERED: {
     en: "📱 This mobile number is not registered with us.\n\nIf you are a Registered Customer, please provide your registered 10 digit mobile number.\n\nEg. 9633503333\n\nOr press *Skip* to Continue. 👇",
@@ -259,6 +276,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📱 हा मोबाईल नंबर आमच्याकडे नोंदणीकृत नाही.\n\nजर आपण नोंदणीकृत ग्राहक असाल, तर कृपया आपला नोंदणीकृत 10 अंकी मोबाईल नंबर द्या.\n\nउदा. 9633503333\n\nकिंवा पुढे जाण्यासाठी *Skip* दाबा. 👇",
     te: "📱 ఈ మొబైల్ నంబర్ మా వద్ద నమోదు చేయబడలేదు.\n\nమీరు నమోదిత కస్టమర్ అయితే, దయచేసి మీ నమోదిత 10 అంకెల మొబైల్ నంబర్‌ను అందించండి.\n\nఉదాహరణ: 9633503333\n\nలేదా కొనసాగించడానికి *Skip* నొక్కండి. 👇",
     bn: "📱 এই মোবাইল নম্বরটি আমাদের কাছে নিবন্ধিত নয়।\n\nআপনি যদি একজন নিবন্ধিত গ্রাহক হন তবে অনুগ্রহ করে আপনার নিবন্ধিত ১০ অঙ্কের মোবাইল নম্বর প্রদান করুন।\n\nউদাঃ 9633503333\n\nঅথবা চালিয়ে যেতে *Skip* টিপুন। 👇",
+    ml: "📱 এই মোবাইল নম্বরটি আমাদের কাছে নিবন্ধিত নয়।\n\nআপনি যদি একজন নিবন্ধিত গ্রাহক হন তবে অনুগ্রহ করে আপনার নিবন্ধিত ১০ অঙ্কের মোবাইল নম্বর প্রদান করুন।\n\nউদাঃ 9633503333\n\nঅথবা চালিয়ে যেতে *Skip* টিপুন। 👇",
   },
   WELCOME_BACK: {
     en: "Welcome back, *{name}*! 👋\n\n",
@@ -268,6 +286,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "पुन्हा स्वागत आहे, *{name}*! 👋\n\n",
     te: "మళ్ళీ స్వాగతం, *{name}*! 👋\n\n",
     bn: "ফিরে আসার জন্য স্বাগতম, *{name}*! 👋\n\n",
+    ml: "👋 വീണ്ടും സ്വാഗതം, *{name}*! പൂർണ്ണശ്രീ സപ്പോർട്ടിലേക്ക് ബന്ധപ്പെട്ടതിന് നന്ദി. 🔧",
   },
   PHONE_FOUND: {
     en: "✅ Found! Welcome back, {name}! 👋\n\n",
@@ -277,6 +296,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ सापडले! पुन्हा स्वागत आहे, {name}! 👋\n\n",
     te: "✅ కనుగొనబడింది! మళ్ళీ స్వాగతం, {name}! 👋\n\n",
     bn: "✅ পাওয়া গেছে! ফিরে আসার জন্য স্বাগতম, {name}! 👋\n\n",
+    ml: "✅ পাওয়া গেছে! ফিরে আসার জন্য স্বাগতম, {name}! 👋\n\n",
   },
   PHONE_NOT_FOUND: {
     en: "❌ No records found for this number.\n\nPlease try another number or press *Skip* to continue as a new customer.",
@@ -286,6 +306,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "❌ या क्रमांकासाठी कोणतेही रेकॉर्ड सापडले नाही.\n\nकृपया दुसरा क्रमांक वापरून पहा किंवा नवीन ग्राहक म्हणून पुढे जाण्यासाठी *Skip* दाबा.",
     te: "❌ ఈ నంబర్ కోసం ఎటువంటి రికార్డులు కనుగొనబడలేదు.\n\nదయచేసి వేరే నంబర్‌ను ప్రయత్నించండి లేదా కొత్త కస్టమర్‌గా కొనసాగడానికి *Skip* నొక్కండి.",
     bn: "❌ এই নম্বরের জন্য কোনও রেকর্ড পাওয়া যায়নি।\n\nঅনুগ্রহ করে অন্য একটি নম্বর চেষ্টা করুন বা নতুন গ্রাহক হিসাবে চালিয়ে যেতে *Skip* টিপুন।",
+    ml: "❌ এই নম্বরের জন্য কোনও রেকর্ড পাওয়া যায়নি।\n\nঅনুগ্রহ করে অন্য একটি নম্বর চেষ্টা করুন বা নতুন গ্রাহক হিসাবে চালিয়ে যেতে *Skip* টিপুন।",
   },
   INVALID_PHONE: {
     en: "⚠️ Please enter a valid 10-digit mobile number.\n\nEg. 9633503333\n\nOr press Skip to continue as a new customer.",
@@ -295,6 +316,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "⚠️ कृपया एक वैध 10 अंकी मोबाईल नंबर प्रविष्ट करा.\n\nउदा. 9633503333\n\nकिंवा नवीन ग्राहक म्हणून पुढे जाण्यासाठी Skip दाबा.",
     te: "⚠️ దయచేసి సరైన 10 అంకెల మొబైల్ నంబర్‌ను నమోదు చేయండి.\n\nఉదాహరణ: 9633503333\n\nలేదా కొత్త కస్టమర్‌గా కొనసాగడానికి Skip నొక్కండి.",
     bn: "⚠️ অনুগ্রহ করে একটি বৈধ ১০ অঙ্কের মোবাইল নম্বর লিখুন।\n\nউদাঃ 9633503333\n\nঅথবা নতুন গ্রাহক হিসাবে চালিয়ে যেতে Skip টিপুন।",
+    ml: "⚠️ অনুগ্রহ করে একটি বৈধ ১০ অঙ্কের মোবাইল নম্বর লিখুন।\n\nউদাঃ 9633503333\n\nঅথবা নতুন গ্রাহক হিসাবে চালিয়ে যেতে Skip টিপুন।",
   },
   SERIAL_PROMPT: {
     en: "🔧 *Complaint Registration*\n\nPlease enter your machine serial number.\n\n_(You can find it on the machine label or warranty card)_",
@@ -304,6 +326,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🔧 *तक्रार नोंदणी*\n\nकृपया आपल्या मशीनचा अनुक्रमांक प्रविष्ट करा.\n\n_(हा मशीनच्या लेबलवर किंवा वॉरंटी कार्डवर आढळू शकतो)_",
     te: "🔧 *ఫిర్యాదు నమోదు*\n\nదయచేసి మీ యంత్రం యొక్క సీరియల్ నంబర్‌ను నమోదు చేయండి.\n\n_(దీన్ని మెషిన్ లేబుల్ లేదా వారంటీ కార్డులో కనుగొనవచ్చు)_",
     bn: "🔧 *অভিযোগ নিবন্ধন*\n\nঅনুগ্রহ করে আপনার মেশিনের সিরিয়াল নম্বর লিখুন।\n\n_(এটি মেশিনের লেবেল বা ওয়ারেন্টি কার্ডে পাওয়া যেতে পারে)_",
+    ml: "🔧 ദയവായി നിങ്ങളുടെ മെഷീൻ *സീരിയൽ നമ്പർ* നൽകുക (ഉദാഹരണത്തിന് ECO-2024-8841):",
   },
   SERIAL_INVALID: {
     en: "Please enter a valid serial number or press Skip to continue:",
@@ -313,6 +336,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया एक वैध अनुक्रमांक प्रविष्ट करा किंवा पुढे जाण्यासाठी Skip दाबा:",
     te: "దయచేసి సరైన సీరియల్ నంబర్‌ను నమోదు చేయండి లేదా కొనసాగించడానికి Skip నొక్కండి:",
     bn: "অনুগ্রহ করে একটি বৈধ সিরিয়াল নম্বর লিখুন বা চালিয়ে যেতে Skip টিপুন:",
+    ml: "❌ ദയവായി സാധുവായ സീരിയൽ നമ്പർ നൽകുക (കുറഞ്ഞത് 3 അക്ഷരങ്ങൾ).",
   },
   SERIAL_NOT_FOUND: {
     en: "❌ Serial number *{serial}* not found in our system.\n\nPlease check and try again, or press *Skip* to continue without serial number.",
@@ -322,6 +346,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "❌ अनुक्रमांक *{serial}* आमच्या सिस्टीममध्ये सापडला नाही.\n\nकृपया तपासा आणि पुन्हा प्रयत्न करा, किंवा अनुक्रमांक नसताना पुढे जाण्यासाठी *Skip* दाबा.",
     te: "❌ సీరియల్ నంబర్ *{serial}* మా సిస్టమ్‌లో కనుగొనబడలేదు.\n\nదయచేసి తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి లేదా సీరియల్ నంబర్ లేకుండా కొనసాగడానికి *Skip* నొక్కండి.",
     bn: "❌ সিরিয়াল নম্বর *{serial}* আমাদের সিস্টেমে পাওয়া যায়নি।\n\nঅনুগ্রহ করে পরীক্ষা করে আবার চেষ্টা করুন, বা সিরিয়াল নম্বর ছাড়াই চালিয়ে যেতে *Skip* টিপুন।",
+    ml: "❌ সিরিয়াল নম্বর *{serial}* আমাদের সিস্টেমে পাওয়া যায়নি।\n\nঅনুগ্রহ করে পরীক্ষা করে আবার চেষ্টা করুন, বা সিরিয়াল নম্বর ছাড়াই চালিয়ে যেতে *Skip* টিপুন।",
   },
   MACHINE_FOUND: {
     en: "✅ *Machine Verified*\n\n👤 *Customer:* {customer}\n🔧 *Model:* {model}\n🔢 *Serial:* {serial}\n📍 *Address:* {address}\n\nPlease confirm.",
@@ -331,6 +356,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ *मशीन सत्यापित*\n\n👤 *ग्राहक:* {customer}\n🔧 *मॉडेल:* {model}\n🔢 *अनुक्रमांक:* {serial}\n📍 *पत्ता:* {address}\n\nकृपया पुष्टी करा.",
     te: "✅ *యంత్రం ధృవీకరించబడింది*\n\n👤 *కస్టమర్:* {customer}\n🔧 *మోడల్:* {model}\n🔢 *సీరియల్:* {serial}\n📍 *చిరునామా:* {address}\n\nదయచేసి ధృవీకరించండి.",
     bn: "✅ *মেশিন যাচাই করা হয়েছে*\n\n👤 *গ্রাহক:* {customer}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n📍 *ঠিকানা:* {address}\n\nঅনুগ্রহ করে নিশ্চিত করুন।",
+    ml: "✅ *মেশিন যাচাই করা হয়েছে*\n\n👤 *গ্রাহক:* {customer}\n🔧 *মডেল:* {model}\n🔢 *সিরিয়াল:* {serial}\n📍 *ঠিকানা:* {address}\n\nঅনুগ্রহ করে নিশ্চিত করুন।",
   },
   SELECT_VALID: {
     en: "Please select an option:",
@@ -340,6 +366,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया एक पर्याय निवडा:",
     te: "దయచేసి ఒక ఎంపికను ఎంచుకోండి:",
     bn: "অনুগ্রহ করে একটি বিকল্প নির্বাচন করুন:",
+    ml: "অনুগ্রহ করে একটি বিকল্প নির্বাচন করুন:",
   },
   DESCRIBE_COMPLAINT: {
     en: "📝 *Describe your complaint:*\n\nPlease explain the issue you are facing with your machine.\n\nExample: _LED blinking, not heating, display not working_",
@@ -349,6 +376,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *तुमच्या तक्रारीचे वर्णन करा:*\n\nतुमच्या मशीनमध्ये येणारी समस्या कृपया सांगा.\n\nउदाहरण: _LED लुकलुकत आहे, गरम होत नाही, डिस्प्ले काम करत नाही_",
     te: "📝 *మీ ఫిర్యాదును వివరించండి:*\n\nమీ యంత్రంలో మీరు ఎదుర్కొంటున్న సమస్యను దయచేసి వివరించండి.\n\nఉదాహరణ: _LED మెరుస్తుంది, వేడి చేయడం లేదు, డిస్ప్లే పని చేయడం లేదు_",
     bn: "📝 *আপনার অভিযোগ বর্ণনা করুন:*\n\nআপনার মেশিনে আপনি যে সমস্যার সম্মুখীন হচ্ছেন তা অনুগ্রহ করে ব্যাখ্যা করুন।\n\nউদাহরণ: _LED জ্বলজ্বল করছে, গরম হচ্ছে না, ডিসপ্লে কাজ করছে না_",
+    ml: "📝 *আপনার অভিযোগ বর্ণনা করুন:*\n\nআপনার মেশিনে আপনি যে সমস্যার সম্মুখীন হচ্ছেন তা অনুগ্রহ করে ব্যাখ্যা করুন।\n\nউদাহরণ: _LED জ্বলজ্বল করছে, গরম হচ্ছে না, ডিসপ্লে কাজ করছে না_",
   },
   DESCRIBE_SHORT: {
     en: "Please describe your issue in at least a few words:",
@@ -358,6 +386,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया तुमची समस्या काही शब्दांत सांगा:",
     te: "దయచేసి మీ సమస్యను కనీసం కొన్ని మాటల్లో వివరించండి:",
     bn: "অনুগ্রহ করে আপনার সমস্যাটি অন্তত কয়েকটি শব্দে বর্ণনা করুন:",
+    ml: "অনুগ্রহ করে আপনার সমস্যাটি অন্তত কয়েকটি শব্দে বর্ণনা করুন:",
   },
   PRODUCT_SELECTED: {
     en: "✅ *Product:* {product}\n\n📝 *Describe your complaint:*\n\nPlease explain the issue you are facing.\n\nExample: _LED blinking, not heating, display not working_",
@@ -367,6 +396,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ *उत्पादन:* {product}\n\n📝 *तुमच्या तक्रारीचे वर्णन करा:*\n\nतुम्हाला भेडसावणारी समस्या कृपया सांगा.\n\nउदाहरण: _LED लुकलुकत आहे, गरम होत नाही, डिस्प्ले काम करत नाही_",
     te: "✅ *ఉత్పత్తి:* {product}\n\n📝 *మీ ఫిర్యాదును వివరించండి:*\n\nమీరు ఎదుర్కొంటున్న సమస్యను దయచేసి వివరించండి.\n\nఉదాహరణ: _LED మెరుస్తుంది, వేడి చేయడం లేదు, డిస్ప్లే పని చేయడం లేదు_",
     bn: "✅ *পণ্য:* {product}\n\n📝 *আপনার অভিযোগ বর্ণনা করুন:*\n\nআপনি যে সমস্যার সম্মুখীন হচ্ছেন তা অনুগ্রহ করে ব্যাখ্যা করুন।\n\nউদাহরণ: _LED জ্বলজ্বল করছে, গরম হচ্ছে না, ডিসপ্লে কাজ করছে না_",
+    ml: "✅ *পণ্য:* {product}\n\n📝 *আপনার অভিযোগ বর্ণনা করুন:*\n\nআপনি যে সমস্যার সম্মুখীন হচ্ছেন তা অনুগ্রহ করে ব্যাখ্যা করুন।\n\nউদাহরণ: _LED জ্বলজ্বল করছে, গরম হচ্ছে না, ডিসপ্লে কাজ করছে না_",
   },
   SELECT_CATEGORY: {
     en: "📂 *Select product category:*",
@@ -376,6 +406,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📂 *उत्पादन श्रेणी निवडा:*",
     te: "📂 *ఉత్పత్తి వర్గాన్ని ఎంచుకోండి:*",
     bn: "📂 *পণ্যের বিভাগ নির্বাচন করুন:*",
+    ml: "📂 *পণ্যের বিভাগ নির্বাচন করুন:*",
   },
   SELECT_PRODUCT: {
     en: "📦 *Select your product:*",
@@ -385,6 +416,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📦 *तुमचे उत्पादन निवडा:*",
     te: "📦 *మీ ఉత్పత్తిని ఎంచుకోండి:*",
     bn: "📦 *আপনার পণ্য নির্বাচন করুন:*",
+    ml: "📦 *আপনার পণ্য নির্বাচন করুন:*",
   },
   SELECT_VALID_PRODUCT: {
     en: "Please select a valid product:",
@@ -394,6 +426,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया एक वैध उत्पादन निवडा:",
     te: "దయచేసి సరైన ఉత్పత్తిని ఎంచుకోండి:",
     bn: "অনুগ্রহ করে একটি বৈধ পণ্য নির্বাচন করুন:",
+    ml: "অনুগ্রহ করে একটি বৈধ পণ্য নির্বাচন করুন:",
   },
   NO_STEPS: {
     en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.\n\nWould you like to book a service visit? Our technician will come to your location.",
@@ -403,6 +436,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *तक्रार नोंदवली:* {complaint}\n\n😔 या समस्येसाठी कोणतेही निवारण चरण सापडले नाहीत.\n\nतुम्ही सेवा भेट बुक करू इच्छिता का? आमचे तंत्रज्ञ तुमच्या ठिकाणी येतील.",
     te: "📝 *ఫిర్యాదు నమోదు చేయబడింది:* {complaint}\n\n😔 ఈ సమస్య కోసం పరిష్కార దశలు కనుగొనబడలేదు.\n\nమీరు సేవా సందర్శనను బుక్ చేయాలనుకుంటున్నారా? మా సాంకేతిక నిపుణుడు మీ స్థానానికి వస్తాడు.",
     bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন।",
+    ml: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন।",
   },
   NO_STEPS_BASE: {
     en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.",
@@ -412,6 +446,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📝 *तक्रार नोंदवली:* {complaint}\n\n😔 या समस्येसाठी कोणतेही निवारण चरण सापडले नाहीत.",
     te: "📝 *ఫిర్యాదు నమోదు చేయబడింది:* {complaint}\n\n😔 ఈ సమస్య కోసం పరిష్కార దశలు కనుగొనబడలేదు.",
     bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।",
+    ml: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।",
   },
   STEPS_FOUND: {
     en: "🔧 *Troubleshooting Steps:*\n\n{steps}\n\nWere you able to resolve the issue?",
@@ -421,6 +456,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🔧 *समस्या निवारण चरण:*\n\n{steps}\n\nतुम्ही समस्या सोडवू शकलात का?",
     te: "🔧 *ట్రబుల్షూటింగ్ దశలు:*\n\n{steps}\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
     bn: "🔧 *সমস্যা সমাধানের পদক্ষেপ:*\n\n{steps}\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
+    ml: "🔧 *সমস্যা সমাধানের পদক্ষেপ:*\n\n{steps}\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
   },
   ISSUE_RESOLVED: {
     en: "🎉 *Issue Resolved!*\n\nWe're glad the troubleshooting helped! 😊\n\nThank you for choosing Poornasree Support. 🙏",
@@ -430,6 +466,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🎉 *समस्या सुटली!*\n\nआम्हाला आनंद आहे की समस्या निवारणाने मदत केली! 😊\n\nपूर्णश्री सपोर्ट निवडल्याबद्दल धन्यवाद. 🙏",
     te: "🎉 *సమస్య పరిష్కరించబడింది!*\n\nట్రబుల్షూటింగ్ సహాయపడినందుకు మేము సంతోషిస్తున్నాము! 😊\n\nపూర్ణశ్రీ మద్దతును ఎంచుకున్నందుకు ధన్యవాదాలు. 🙏",
     bn: "🎉 *সমস্যা সমাধান হয়েছে!*\n\nআমরা খুশি যে সমস্যা সমাধানটি সাহায্য করেছে! 😊\n\nপূর্ণশ্রী সাপোর্ট বেছে নেওয়ার জন্য ধন্যবাদ। 🙏",
+    ml: "🎉 *সমস্যা সমাধান হয়েছে!*\n\nআমরা খুশি যে সমস্যা সমাধানটি সাহায্য করেছে! 😊\n\nপূর্ণশ্রী সাপোর্ট বেছে নেওয়ার জন্য ধন্যবাদ। 🙏",
   },
   ALL_STEPS_DONE: {
     en: "✅ All troubleshooting steps have been completed but the issue is not resolved.\n\nWould you like to book a service visit? Our technician will assist you on-site. 🔧",
@@ -439,6 +476,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ सर्व समस्या निवारण चरण पूर्ण झाले आहेत परंतु समस्या सुटली नाही.\n\nतुम्ही सेवा भेट बुक करू इच्छिता का? आमचे तंत्रज्ञ तुम्हाला मदत करतील. 🔧",
     te: "✅ అన్ని ట్రబుల్షూటింగ్ దశలు పూర్తయ్యాయి కానీ సమస్య పరిష్కరించబడలేదు.\n\nమీరు సేవా సందర్శనను బుక్ చేయాలనుకుంటున్నారా? మా సాంకేతిక నిపుణుడు మీకు సహాయం చేస్తారు. 🔧",
     bn: "✅ সমস্ত সমস্যা সমাধানের পদক্ষেপ সম্পন্ন হয়েছে তবে সমস্যাটির সমাধান হয়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনাকে সহায়তা করবেন। 🔧",
+    ml: "✅ সমস্ত সমস্যা সমাধানের পদক্ষেপ সম্পন্ন হয়েছে তবে সমস্যাটির সমাধান হয়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনাকে সহায়তা করবেন। 🔧",
   },
   ASK_BOOK_SERVICE: {
     en: "😔 Sorry the troubleshooting didn't help.\n\nWould you like to book a service visit? Our technician will come to your location. 🔧",
@@ -448,6 +486,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "😔 क्षमस्व, समस्या निवारणाने मदत केली नाही.\n\nतुम्ही सेवा भेट बुक करू इच्छिता का? आमचे तंत्रज्ञ तुमच्या ठिकाणी येतील. 🔧",
     te: "😔 క్షమించండి ట్రబుల్షూటింగ్ సహాయపడలేదు.\n\nమీరు సేవా సందర్శనను బుక్ చేయాలనుకుంటున్నారా? మా సాంకేతిక నిపుణుడు మీ స్థానానికి వస్తాడు. 🔧",
     bn: "😔 দুঃখিত, সমস্যা সমাধানটি সাহায্য করেনি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন। 🔧",
+    ml: "😔 দুঃখিত, সমস্যা সমাধানটি সাহায্য করেনি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন। 🔧",
   },
   STEP_DISPLAY: {
     en: "🔍 *Step {current} of {total}:*\n--------------------\n✓ {step}\n--------------------\n\nWere you able to resolve the issue?",
@@ -457,6 +496,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🔍 *चरण {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nतुम्ही समस्या सोडवू शकलात का?",
     te: "🔍 *దశ {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
     bn: "🔍 *ধাপ {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
+    ml: "🔍 *ধাপ {current}/{total}:*\n--------------------\n✓ {step}\n--------------------\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
   },
   ENTER_NAME: {
     en: "Please enter your full name.",
@@ -466,6 +506,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया आपले पूर्ण नाव प्रविष्ट करा.",
     te: "దయచేసి మీ పూర్తి పేరును నమోదు చేయండి.",
     bn: "অনুগ্রহ করে আপনার পুরো নাম লিখুন।",
+    ml: "অনুগ্রহ করে আপনার পুরো নাম লিখুন।",
   },
   SHORT_NAME: {
     en: "Please enter your full name (minimum 2 characters).",
@@ -475,6 +516,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया आपले पूर्ण नाव प्रविष्ट करा (किमान 2 अक्षरे).",
     te: "దయచేసి మీ పూర్తి పేరును నమోదు చేయండి (కనీసం 2 అక్షరాలు).",
     bn: "অনুগ্রহ করে আপনার পুরো নাম লিখুন (কমপক্ষে 2 অক্ষর)।",
+    ml: "অনুগ্রহ করে আপনার পুরো নাম লিখুন (কমপক্ষে 2 অক্ষর)।",
   },
   ENTER_PINCODE: {
     en: "Please enter your area pincode (6 digits).",
@@ -484,6 +526,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया आपल्या क्षेत्राचा पिनकोड प्रविष्ट करा (6 अंक).",
     te: "దయచేసి మీ ప్రాంత పినకోడ్‌ను నమోదు చేయండి (6 అంకెలు).",
     bn: "অনুগ্রহ করে আপনার এলাকার পিনকোড লিখুন (6 সংখ্যা)।",
+    ml: "অনুগ্রহ করে আপনার এলাকার পিনকোড লিখুন (6 সংখ্যা)।",
   },
   INVALID_PINCODE: {
     en: "Please enter a valid 6-digit pincode.",
@@ -493,6 +536,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया एक वैध 6 अंकी पिनकोड प्रविष्ट करा.",
     te: "దయచేసి సరైన 6 అంకెల పినకోడ్‌ను నమోదు చేయండి.",
     bn: "অনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন।",
+    ml: "অনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন।",
   },
   PINCODE_NOT_FOUND: {
     en: "❌ Pincode *{pincode}* does not exist in our records.\n\nPlease enter a valid 6-digit pincode:",
@@ -502,6 +546,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "❌ पिनकोड *{pincode}* आमच्या रेकॉर्डमध्ये अस्तित्वात नाही.\n\nकृपया एक वैध 6 अंकी पिनकोड प्रविष्ट करा:",
     te: "❌ పినకోడ్ *{pincode}* మా రికార్డులలో లేదు.\n\nదయచేసి సరైన 6 అంకెల పినకోడ్‌ను నమోదు చేయండి:",
     bn: "❌ পিনকোড *{pincode}* আমাদের রেকর্ডে নেই।\n\nঅনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন:",
+    ml: "❌ পিনকোড *{pincode}* আমাদের রেকর্ডে নেই।\n\nঅনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন:",
   },
   PINCODE_CONFIRM: {
     en: "📍 *We found your area:*\n{location}\n📮 *Pincode:* {pincode}\n\nIs this your service area?",
@@ -511,6 +556,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📍 *आम्हाला तुमचे क्षेत्र सापडले:*\n{location}\n📮 *पिनकोड:* {pincode}\n\nहे तुमचे सेवा क्षेत्र आहे का?",
     te: "📍 *మేము మీ ప్రాంతాన్ని కనుగొన్నాము:*\n{location}\n📮 *పినకోడ్:* {pincode}\n\nఇది మీ సేవా ప్రాంతమా?",
     bn: "📍 *আমরা আপনার এলাকা খুঁজে পেয়েছি:*\n{location}\n📮 *পিনকোড:* {pincode}\n\nএটি কি আপনার পরিষেবা এলাকা?",
+    ml: "📍 *আমরা আপনার এলাকা খুঁজে পেয়েছি:*\n{location}\n📮 *পিনকোড:* {pincode}\n\nএটি কি আপনার পরিষেবা এলাকা?",
   },
   ENTER_ADDRESS: {
     en: "Please enter your full address (house no., street, landmark).\n\nExample: House 12, Main Road, near temple",
@@ -520,6 +566,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया आपला पूर्ण पत्ता प्रविष्ट करा (घर क्रमांक, रस्ता, खूण).\n\nउदाहरण: घर 12, मुख्य रस्ता, मंदिराजवळ",
     te: "దయచేసి మీ పూర్తి చిరునామాను నమోదు చేయండి (ఇంటి నంబర్, వీధి, ల్యాండ్‌మార్క్).\n\nఉదాహరణ: ఇల్లు 12, ప్రధాన రహదారి, గుడి దగ్గర",
     bn: "অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
+    ml: "অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (বাড়ির নম্বর, রাস্তা, ল্যান্ডমার্ক)।\n\nউদাহরণ: বাড়ি 12, প্রধান রাস্তা, মন্দিরের কাছে",
   },
   SHORT_ADDRESS: {
     en: "Please enter your full address (at least 10 characters).",
@@ -529,6 +576,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया आपला पूर्ण पत्ता प्रविष्ट करा (किमान 10 अक्षरे).",
     te: "దయచేసి మీ పూర్తి చిరునామాను నమోదు చేయండి (కనీసం 10 అక్షరాలు).",
     bn: "অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (কমপক্ষে 10 অক্ষর)।",
+    ml: "অনুগ্রহ করে আপনার সম্পূর্ণ ঠিকানা লিখুন (কমপক্ষে 10 অক্ষর)।",
   },
   TICKET_CONFIRMED: {
     en: "✅ 👷 *Your complaint has been registered!*\n\n🎫 *Ticket No: {ticket}*\n📦 Product: {product}\n📝 Issue: {issue}\n📍 Location: {location}\n\n*Our technician will reach out to you within 24–48 hours. Assuring you of the best services!* 😊",
@@ -538,6 +586,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ 👷 *तुमची तक्रार नोंदवली गेली आहे!*\n\n🎫 *तिकीट क्रमांक: {ticket}*\n📦 उत्पादन: {product}\n📝 समस्या: {issue}\n📍 ठिकाण: {location}\n\n*आमचे तंत्रज्ञ 24–48 तासांत तुमच्याशी संपर्क साधतील!* 😊",
     te: "✅ 👷 *మీ ఫిర్యాదు నమోదు చేయబడింది!*\n\n🎫 *టికెట్ నంబర్: {ticket}*\n📦 ఉత్పత్తి: {product}\n📝 సమస్య: {issue}\n📍 స్థానం: {location}\n\n*మా సాంకేతిక నిపుణుడు 24–48 గంటల్లో మిమ్మల్ని సంప్రదిస్తారు!* 😊",
     bn: "✅ 👷 *আপনার অভিযোগ নিবন্ধিত হয়েছে!*\n\n🎫 *টিকিট নম্বর: {ticket}*\n📦 পণ্য: {product}\n📝 সমস্যা: {issue}\n📍 অবস্থান: {location}\n\n*আমাদের প্রযুক্তিবিদ 24-48 ঘন্টার মধ্যে আপনার সাথে যোগাযোগ করবেন!* 😊",
+    ml: "✅ 👷 *আপনার অভিযোগ নিবন্ধিত হয়েছে!*\n\n🎫 *টিকিট নম্বর: {ticket}*\n📦 পণ্য: {product}\n📝 সমস্যা: {issue}\n📍 অবস্থান: {location}\n\n*আমাদের প্রযুক্তিবিদ 24-48 ঘন্টার মধ্যে আপনার সাথে যোগাযোগ করবেন!* 😊",
   },
   SESSION_CLOSED: {
     en: "👋 Session closed. Thank you for contacting Poornasree Support!\n\nReply anything to start again.",
@@ -547,6 +596,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "👋 सत्र बंद झाले. पूर्णश्री सपोर्टशी संपर्क साधल्याबद्दल धन्यवाद!\n\nपुन्हा सुरू करण्यासाठी काहीही रिप्लाय द्या.",
     te: "👋 సెషన్ ముగిసింది. పూర్ణశ్రీ మద్దతును సంప్రదించినందుకు ధన్యవాదాలు!\n\nమళ్ళీ ప్రారంభించడానికి ఏదైనా ప్రత్యుత్తరం ఇవ్వండి.",
     bn: "👋 সেশন বন্ধ হয়েছে। পূর্ণশ্রী সাপোর্টে যোগাযোগ করার জন্য ধন্যবাদ!\n\nআবার শুরু করতে কিছু উত্তর দিন।",
+    ml: "👋 সেশন বন্ধ হয়েছে। পূর্ণশ্রী সাপোর্টে যোগাযোগ করার জন্য ধন্যবাদ!\n\nআবার শুরু করতে কিছু উত্তর দিন।",
   },
   VALID_OPTION: {
     en: "Please select a valid option from the menu below 👇",
@@ -556,6 +606,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया खालील मेनूमधून एक वैध पर्याय निवडा 👇",
     te: "దయచేసి క్రింది మెను నుండి సరైన ఎంపికను ఎంచుకోండి 👇",
     bn: "অনুগ্রহ করে নিচের মেনু থেকে একটি বৈধ বিকল্প নির্বাচন করুন 👇",
+    ml: "ദയവായി താഴെയുള്ള മെനുവിൽ നിന്ന് ശരിയായ ഒരു ഓപ്ഷൻ തിരഞ്ഞെടുക്കുക 👇",
   },
   SPEAK_TO_SUPPORT: {
     en: "📞 *Speak to Support*\n\n{contact}\n\nPlease wait, we are finding you the best support... Our support team will reach out to you shortly.",
@@ -565,6 +616,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📞 *सपोर्ट टीमशी बोला*\n\n{contact}\n\nकृपया प्रतीक्षा करा, आम्ही तुमच्यासाठी सर्वोत्तम सपोर्ट शोधत आहोत... आमची सपोर्ट टीम लवकरच तुमच्याशी संपर्क साधेल.",
     te: "📞 *మద్దతు బృందంతో మాట్లాడండి*\n\n{contact}\n\nదయచేసి వేచి ఉండండి, మేము మీకు ఉత్తమ మద్దతును కనుగొంటున్నాము... మా మద్దతు బృందం త్వరలో మిమ్మల్ని సంప్రదిస్తుంది.",
     bn: "📞 *সাপোর্ট টিমের সাথে কথা বলুন*\n\n{contact}\n\nঅনুগ্রহ করে অপেক্ষা করুন, আমরা আপনার জন্য সেরা সহায়তা খুঁজছি... আমাদের সাপোর্ট টিম শীঘ্রই আপনার সাথে যোগাযোগ করবে।",
+    ml: "📞 *সাপোর্ট টিমের সাথে কথা বলুন*\n\n{contact}\n\nঅনুগ্রহ করে অপেক্ষা করুন, আমরা আপনার জন্য সেরা সহায়তা খুঁজছি... আমাদের সাপোর্ট টিম শীঘ্রই আপনার সাথে যোগাযোগ করবে।",
   },
   LANG_SELECT: {
     en: "🌐 *Select your preferred language:*\n\nChoose your language to continue 👇",
@@ -574,6 +626,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🌐 *तुमची पसंतीची भाषा निवडा:*\n\nपुढे जाण्यासाठी तुमची भाषा निवडा 👇",
     te: "🌐 *మీకు ఇష్టమైన భాషను ఎంచుకోండి:*\n\nకొనసాగించడానికి మీ భాషను ఎంచుకోండి 👇",
     bn: "🌐 *আপনার পছন্দের ভাষা নির্বাচন করুন:*\n\nচালিয়ে যেতে আপনার ভাষা চয়ন করুন 👇",
+    ml: "🌐 *നിങ്ങൾക്ക് ഇഷ്ടമുള്ള ഭാഷ തിരഞ്ഞെടുക്കുക:*\n\nതുടരാൻ ഭാഷ തിരഞ്ഞെടുക്കുക 👇",
   },
   LANG_CHANGED_EN: {
     en: "✅ Language set to *English*.",
@@ -583,6 +636,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ भाषा *English* वर सेट केली.",
     te: "✅ భాష *English* గా సెట్ చేయబడింది.",
     bn: "✅ ভাষা *English* সেট করা হয়েছে।",
+    ml: "✅ ভাষা *English* সেট করা হয়েছে।",
   },
   LANG_CHANGED_HI: {
     en: "✅ भाषा *हिंदी* में बदली गई।",
@@ -592,6 +646,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ भाषा *हिंदी* मध्ये बदलली.",
     te: "✅ భాష *हिंदी* కి మార్చబడింది.",
     bn: "✅ ভাষা *हिंदी* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ভাষা *हिंदी* তে পরিবর্তিত হয়েছে।",
   },
   LANG_CHANGED_TA: {
     en: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
@@ -601,6 +656,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
     te: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
     bn: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
+    ml: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
   },
   LANG_CHANGED_KN: {
     en: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
@@ -610,6 +666,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
     te: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
     bn: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    ml: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
   },
   LANG_CHANGED_MR: {
     en: "✅ भाषा *मराठी* मध्ये बदलली.",
@@ -619,6 +676,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ भाषा *मराठी* मध्ये बदलली.",
     te: "✅ भाषा *मराठी* मध्ये बदलली.",
     bn: "✅ भाषा *मराठी* मध्ये बदलली.",
+    ml: "✅ भाषा *मराठी* मध्ये बदलली.",
   },
   LANG_CHANGED_TE: {
     en: "✅ భాష *తెలుగు* కి మార్చబడింది.",
@@ -628,6 +686,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ భాష *తెలుగు* కి మార్చబడింది.",
     te: "✅ భాష *తెలుగు* కి మార్చబడింది.",
     bn: "✅ భాష *తెలుగు* కి మార్చబడింది.",
+    ml: "✅ భాష *తెలుగు* కి మార్చబడింది.",
   },
   LANG_CHANGED_BN: {
     en: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে।",
@@ -637,6 +696,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে。",
     te: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে。",
     bn: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে।",
   },
   WAITING_INPUT: {
     en: "⏳ *We are waiting for your input.* 🤔\n\n🔙 To go back to Main Menu, please click *Main Menu* button.\n\n💬 To change your preferred language, please click *Change Language* Button.\n\n🔚 To end the conversation, please click *Close* Button. 👇",
@@ -646,6 +706,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "⏳ *आम्ही तुमच्या उत्तराची वाट पाहत आहोत.* 🤔\n\n🔙 मुख्य मेनूवर जाण्यासाठी *मुख्य मेनू* बटण दाबा.\n\n💬 भाषा बदलण्यासाठी *भाषा बदला* बटण दाबा.\n\n🔚 संभाषण संपवण्यासाठी *बंद करा* बटण दाबा. 👇",
     te: "⏳ *మేము మీ సమాధానం కోసం వేచి ఉన్నాము.* 🤔\n\n🔙 ప్రధాన మెనుకి వెళ్ళడానికి *ప్రధాన మెను* బటన్ నొక్కండి.\n\n💬 భాషను మార్చడానికి *భాష మార్చండి* బటన్ నొక్కండి.\n\n🔚 సంభాషణను ముగించడానికి *మూసివేయి* బటన్ నొక్కండి. 👇",
     bn: "⏳ *আমরা আপনার উত্তরের জন্য অপেক্ষা করছি।* 🤔\n\n🔙 প্রধান মেনুতে ফিরে যেতে *প্রধান মেনু* বোতাম টিপুন।\n\n💬 ভাষা পরিবর্তন করতে *ভাষা পরিবর্তন করুন* বোতাম টিপুন।\n\n🔚 কথোপকথন শেষ করতে *বন্ধ করুন* বোতাম টিপুন। 👇",
+    ml: "⏳ *আমরা আপনার উত্তরের জন্য অপেক্ষা করছি।* 🤔\n\n🔙 প্রধান মেনুতে ফিরে যেতে *প্রধান মেনু* বোতাম টিপুন।\n\n💬 ভাষা পরিবর্তন করতে *ভাষা পরিবর্তন করুন* বোতাম টিপুন।\n\n🔚 কথোপকথন শেষ করতে *বন্ধ করুন* বোতাম টিপুন। 👇",
   },
   NO_TICKETS: {
     en: "📋 No tickets found for your number.",
@@ -655,6 +716,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📋 तुमच्या नंबरसाठी कोणतीही तिकिटे सापडली नाहीत.",
     te: "📋 మీ నంబర్ కోసం ఎటువంటి టిక్కెట్లు కనుగొనబడలేదు.",
     bn: "📋 আপনার নম্বরের জন্য কোনও টিকিট পাওয়া যায়নি।",
+    ml: "📋 আপনার নম্বরের জন্য কোনও টিকিট পাওয়া যায়নি।",
   },
   SERVICE_UNAVAILABLE: {
     en: "Service temporarily unavailable. Please try again later.",
@@ -664,6 +726,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "सेवा तात्पुरती अनुपलब्ध आहे. कृपया नंतर पुन्हा प्रयत्न करा.",
     te: "సేవ తాత్కాలికంగా అందుబాటులో లేదు. దయచేసి తర్వాత మళ్ళీ ప్రయత్నించండి.",
     bn: "পরিষেবা সাময়িকভাবে অনুপলব্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।",
+    ml: "পরিষেবা সাময়িকভাবে অনুপলব্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।",
   },
   ASK_VIDEO_TUTORIAL: {
     en: "📺 We have a tutorial video on how to fix this issue.\n\nWould you like to watch it?",
@@ -673,6 +736,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "📺 ही समस्या कशी सोडवायची याचा ट्यूटोरियल व्हिडिओ आमच्याकडे आहे.\n\nतुम्हाला तो पाहायला आवडेल का?",
     te: "📺 ఈ సమస్యను ఎలా పరిష్కరించాలో ట్యుటోరియల్ వీడియో మా వద్ద ఉంది.\n\nమీరు దానిని చూడాలనుకుంటున్నారా?",
     bn: "📺 এই সমস্যাটি কীভাবে ঠিক করবেন তার একটি টিউটোরিয়াল ভিডিও আমাদের কাছে রয়েছে।\n\nআপনি কি এটি দেখতে চান?",
+    ml: "📺 এই সমস্যাটি কীভাবে ঠিক করবেন তার একটি টিউটোরিয়াল ভিডিও আমাদের কাছে রয়েছে।\n\nআপনি কি এটি দেখতে চান?",
   },
   ASK_VIDEO_HELPED: {
     en: "Did the video help resolve the issue?",
@@ -682,6 +746,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "व्हिडिओमुळे समस्या सोडवण्यास मदत झाली का?",
     te: "వీడియో సమస్యను పరిష్కరించడంలో సహాయపడిందా?",
     bn: "ভিডিওটি কি সমস্যা সমাধানে সাহায্য করেছে?",
+    ml: "ভিডিওটি কি সমস্যা সমাধানে সাহায্য করেছে?",
   },
 };
 
@@ -707,6 +772,7 @@ function getCancelButton(lang: Lang): ReplyButton {
     mr: "रद्द करा ❌",
     te: "రద్దు చేయండి ❌",
     bn: "বাতিল করুন ❌",
+    ml: "বাতিল করুন ❌",
   };
   return { id: "CANCEL", title: titles[lang] ?? "Cancel ❌" };
 }
@@ -734,6 +800,7 @@ function getLangSelectButton(lang: Lang): ReplyButton {
     mr: "🌐 भाषा निवडा",
     te: "🌐 భాష మార్చండి",
     bn: "🌐 ভাষা বাছুন",
+    ml: "🌐 ভাষা বাছুন",
   };
   return { id: "SELECT_LANG", title: titles[lang] ?? "🌐 Select Language" };
 }
@@ -792,6 +859,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "⚠️ असे दिसते की आपण मागील संदेशातील पर्याय निवडला आहे.\n\nकृपया खालीलपैकी एक पर्याय निवडा किंवा मुख्य मेनूवर जा:",
     te: "⚠️ మీరు మునుపటి సందేశం నుండి ఒక ఎంపికను ఎంచుకున్నట్లు కనిపిస్తోంది.\n\nదయచేసి క్రింద ఉన్న ఎంపికలలో ఒకదాన్ని ఎంచుకోండి లేదా ప్రధాన మెనుకి తిరిగి వెళ్లండి:",
     bn: "⚠️ মনে হচ্ছে আপনি পূর্ববর্তী বার্তার একটি বিকল্প নির্বাচন করেছেন।\n\nঅনুগ্রহ করে নীচের সঠিক বিকল্পটি নির্বাচন করুন বা প্রধান মেনুতে ফিরে যান:",
+    ml: "⚠️ মনে হচ্ছে আপনি পূর্ববর্তী বার্তার একটি বিকল্প নির্বাচন করেছেন।\n\nঅনুগ্রহ করে নীচের সঠিক বিকল্পটি নির্বাচন করুন বা প্রধান মেনুতে ফিরে যান:",
   },
   GO_BACK_TITLE: {
     en: "🔙 Go Back",
@@ -801,6 +869,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "🔙 मागे जा",
     te: "🔙 వెనుకకు వెళ్ళు",
     bn: "🔙 ফিরে যান",
+    ml: "🔙 ফিরে যান",
   },
   GO_BACK_DESC: {
     en: "Return to previous step",
@@ -810,6 +879,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "मागील पायरीवर जा",
     te: "మునుపటి దశకు తిరిగి వెళ్లండి",
     bn: "পূর্ববর্তী ধাপে ফিরে যান",
+    ml: "পূর্ববর্তী ধাপে ফিরে যান",
   },
   REGISTER_ANOTHER_COMPLAINT_BUTTON: {
     en: "Register Another Complaint 📝",
@@ -819,6 +889,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "दूसरी तक्रार नोंदवा 📝",
     te: "మరొక ఫిర్యాదును నమోదు చేయండి 📝",
     bn: "অন্য একটি অভিযোগ নথিভুক্ত করুন 📝",
+    ml: "অন্য একটি অভিযোগ নথিভুক্ত করুন 📝",
   },
   NEXT_COMPLAINT_PROMPT: {
     en: "Please select your next complaint:",
@@ -828,6 +899,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया आपली पुढील तक्रार निवडा:",
     te: "దయచేసి మీ తదుపరి ఫిర్యాదును ఎంచుకోండి:",
     bn: "অনুগ্রহ করে আপনার পরবর্তী অভিযোগটি নির্বাচন করুন:",
+    ml: "অনুগ্রহ করে আপনার পরবর্তী অভিযোগটি নির্বাচন করুন:",
   },
   THANK_YOU: {
     en: "Thank you! Have a great day.",
@@ -837,6 +909,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "धन्यवाद! आपला दिवस चांगला जावो.",
     te: "ధన్యవాదాలు! మీ రోజు బాగుండాలి.",
     bn: "ধন্যবাদ! আপনার দিনটি শুভ হোক।",
+    ml: "ধন্যবাদ! আপনার দিনটি শুভ হোক।",
   },
   DO_YOU_HAVE_ANOTHER: {
     en: "Do you have another complaint for this machine?",
@@ -846,6 +919,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "या मशीनसाठी आपल्याकडे दुसरी तक्रार आहे का?",
     te: "ఈ మెషిన్ కోసం మీకు మరొక ఫిర్యాదు ఉందా?",
     bn: "আপনার কি এই মেশিনের জন্য অন্য কোনও অভিযোগ আছে?",
+    ml: "আপনার কি এই মেশিনের জন্য অন্য কোনও অভিযোগ আছে?",
   },
   SELECT_NEXT_COMPLAINT_BUTTON: {
     en: "Select Complaint 📝",
@@ -855,6 +929,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "तक्रार निवडा 📝",
     te: "ఫిర్యాదును ఎంచుకోండి 📝",
     bn: "অভিযোগ নির্বাচন করুন 📝",
+    ml: "অভিযোগ নির্বাচন করুন 📝",
   },
   SELECT_CATEGORY_BUTTON: {
     en: "Select Category 📝",
@@ -864,6 +939,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "श्रेणी निवडा 📝",
     te: "వర్గాన్ని ఎంచుకోండి 📝",
     bn: "বিভাগ নির্বাচন করুন 📝",
+    ml: "বিভাগ নির্বাচন করুন 📝",
   },
   YES_ANOTHER_ISSUE: {
     en: "Yes, Another Issue 📝",
@@ -873,6 +949,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "होय, दुसरी समस्या 📝",
     te: "అవును, మరొక समस्या 📝",
     bn: "হ্যাঁ, অন্য সমস্যা 📝",
+    ml: "হ্যাঁ, অন্য সমস্যা 📝",
   },
   NO_BUTTON: {
     en: "No ❌",
@@ -882,6 +959,7 @@ const EXTRA_TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "नाही ❌",
     te: "లేదు ❌",
     bn: "না ❌",
+    ml: "না ❌",
   }
 };
 
@@ -903,6 +981,7 @@ function getLangList(lang: Lang): ReplyList {
     mr: "भाषा निवडा 🌐",
     te: "భాషను ఎంచుకోండి 🌐",
     bn: "ভাষা নির্বাচন করুন 🌐",
+    ml: "ভাষা নির্বাচন করুন 🌐",
   };
   return {
     buttonText: buttonTexts[lang] || buttonTexts.en,
@@ -910,6 +989,7 @@ function getLangList(lang: Lang): ReplyList {
       { id: "LANG_EN", title: "🇬🇧 English" },
       { id: "LANG_HI", title: "🇮🇳 हिंदी (Hindi)" },
       { id: "LANG_TA", title: "🇮🇳 தமிழ் (Tamil)" },
+      { id: "LANG_ML", title: "🇮🇳 മലയാളം (Malayalam)" },
       { id: "LANG_KN", title: "🇮🇳 ಕನ್ನಡ (Kannada)" },
       { id: "LANG_MR", title: "🇮🇳 मराठी (Marathi)" },
       { id: "LANG_TE", title: "🇮🇳 తెలుగు (Telugu)" },
@@ -927,6 +1007,7 @@ function getYesResolvedButton(lang: Lang): ReplyButton {
     mr: "होय, सुटली ✅",
     te: "అవును, పరిష్కరించబడింది ✅",
     bn: "হ্যাঁ, সমাধান হয়েছে ✅",
+    ml: "হ্যাঁ, সমাধান হয়েছে ✅",
   };
   return { id: "YES", title: labels[lang] || labels.en };
 }
@@ -940,6 +1021,7 @@ function getNotResolvedButton(lang: Lang): ReplyButton {
     mr: "नाही, सुटली नाही ❌",
     te: "లేదు, పరిష్కరించబడలేదు ❌",
     bn: "না, সমাধান হয়নি ❌",
+    ml: "না, সমাধান হয়নি ❌",
   };
   return { id: "NOT_RESOLVED", title: labels[lang] || labels.en };
 }
@@ -953,6 +1035,7 @@ function getBookServiceButton(lang: Lang): ReplyButton {
     mr: "सेवा बुक करा 🔧",
     te: "సేవ బుక్ చేయండి 🔧",
     bn: "পরিষেবা বুক করুন 🔧",
+    ml: "পরিষেবা বুক করুন 🔧",
   };
   return { id: "BOOK_SERVICE", title: labels[lang] || labels.en };
 }
@@ -966,6 +1049,7 @@ function getNextStepButton(lang: Lang): ReplyButton {
     mr: "नाही, पुढचे पाऊल ➡️",
     te: "లేదు, తదుపరి దశ ➡️",
     bn: "না, পরবর্তী ধাপ ➡️",
+    ml: "না, পরবর্তী ধাপ ➡️",
   };
   return { id: "NEXT_STEP", title: labels[lang] || labels.en };
 }
@@ -979,6 +1063,7 @@ function getShowVideoButton(lang: Lang): ReplyButton {
     mr: "होय, व्हिडिओ दाखवा 📹",
     te: "అవును, వీడియో చూపించు 📹",
     bn: "হ্যাঁ, видео দেখান 📹",
+    ml: "হ্যাঁ, видео দেখান 📹",
   };
   return { id: "YES", title: labels[lang] || labels.en };
 }
@@ -992,6 +1077,7 @@ function getNoBookServiceButton(lang: Lang): ReplyButton {
     mr: "नाही, सेवा बुक करा 🔧",
     te: "లేదు, సేవ బుక్ చేయండి 🔧",
     bn: "না, পরিষেবা বুক করুন 🔧",
+    ml: "না, পরিষেবা বুক করুন 🔧",
   };
   return { id: "NO", title: labels[lang] || labels.en };
 }
@@ -1014,6 +1100,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "आमची उत्पादने पहा",
       te: "मा ఉత్పత్తులను చూడండి",
       bn: "আমাদের পণ্য দেখুন",
+    ml: "আমাদের পণ্য দেখুন",
     },
     complaint_reg: {
       en: "Complaint Registration",
@@ -1023,6 +1110,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "तक्रार नोंदणी",
       te: "ఫిర్యాదు నమోదు",
       bn: "অভিযোগ নিবন্ধন",
+    ml: "অভিযোগ নিবন্ধন",
     },
     complaint_status: {
       en: "Complaint Status",
@@ -1032,6 +1120,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "तक्रारीची स्थिती",
       te: "ఫిర్యాదు స్థితి",
       bn: "অভিযোগের স্থিতি",
+    ml: "অভিযোগের স্থিতি",
     },
     speak_support: {
       en: "Speak to Support",
@@ -1041,6 +1130,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "सपोर्ट टीमशी बोला",
       te: "మద్దతుతో మాట్లాడండి",
       bn: "সহায়তার সাথে কথা বলুন",
+    ml: "সহায়তার সাথে কথা বলুন",
     },
     change_lang: {
       en: "Change Language",
@@ -1050,6 +1140,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "भाषा बदला",
       te: "భాషను మార్చండి",
       bn: "ভাষা পরিবর্তন করুন",
+    ml: "ভাষা পরিবর্তন করুন",
     }
   };
 
@@ -1062,6 +1153,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "उत्पादन कॅटलॉग",
       te: "ఉత్పత్తి కేటలాగ్",
       bn: "প্রোডাক্ট ক্যাটালগ",
+    ml: "প্রোডাক্ট ক্যাটালগ",
     },
     complaint_reg: {
       en: "Register a new complaint",
@@ -1071,6 +1163,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "नवीन तक्रार नोंदवा",
       te: "కొత్త ఫిర్యాదును నమోదు చేయండి",
       bn: "নতুন অভিযোগ নথিভুক্ত করুন",
+    ml: "নতুন অভিযোগ নথিভুক্ত করুন",
     },
     complaint_status: {
       en: "Check existing ticket status",
@@ -1080,6 +1173,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "सद्य तिकीट स्थिती तपासा",
       te: "ప్రస్తుత ఫిర్యాదు స్థితిని తనిఖీ చేయండి",
       bn: "বিদ্যমান টিকিট স্থিতি পরীক্ষা করুন",
+    ml: "বিদ্যমান টিকিট স্থিতি পরীক্ষা করুন",
     },
     speak_support: {
       en: "Connect with our support team",
@@ -1089,6 +1183,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "आमच्या सपोर्ट टीमशी संपर्क साधा",
       te: "మా మద్దతు బృందంతో కనెక్ట్ అవ్వండి",
       bn: "আমাদের সহায়তা দলের সাথে সংযোগ করুন",
+    ml: "আমাদের সহায়তা দলের সাথে সংযোগ করুন",
     },
     change_lang: {
       en: "Change your preferred language",
@@ -1098,6 +1193,7 @@ export function getMainMenuList(lang: Lang): ReplyList {
       mr: "आपली पसंतीची भाषा बदला",
       te: "మీ ప్రాధాన్యత భాషను మార్చండి",
       bn: "আপনার পছন্দের ভাষা পরিবর্তন করুন",
+    ml: "আপনার পছন্দের ভাষা পরিবর্তন করুন",
     }
   };
 
@@ -1193,7 +1289,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
   const fsmButtonIds = new Set([
     "1", "2", "3", "4", "5",
     "REGISTER", "SKIP", "CANCEL", "SELECT_LANG", "MENU", "MAIN MENU", "YES", "NO",
-    "LANG_EN", "LANG_HI", "LANG_TA", "LANG_KN", "LANG_MR", "LANG_TE", "LANG_BN",
+    "LANG_EN", "LANG_HI", "LANG_TA", "LANG_ML", "LANG_KN", "LANG_MR", "LANG_TE", "LANG_BN",
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
     "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG"
@@ -1641,6 +1737,7 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     LANG_EN: "en", EN: "en", ENGLISH: "en",
     LANG_HI: "hi", HINDI: "hi",
     LANG_TA: "ta", TAMIL: "ta",
+    LANG_ML: "ml", ML: "ml", MALAYALAM: "ml",
     LANG_KN: "kn", KANNADA: "kn",
     LANG_MR: "mr", MARATHI: "mr",
     LANG_TE: "te", TELUGU: "te",
@@ -3775,6 +3872,15 @@ async function handleChangeLanguage(sessionId: string, meta: SessionMeta, text: 
       t("LANG_CHANGED_BN", "bn") + "\n\n" + t("MAIN_MENU_MSG", "bn"),
       undefined,
       getMainMenuList("bn"),
+    );
+  }
+  if (upper === "LANG_ML" || upper === "ML" || upper === "MALAYALAM" || text === "മലയാളം") {
+    const newMeta: SessionMeta = { ...meta, language: "ml" };
+    await updateSession(sessionId, "MAIN_MENU", newMeta);
+    return makeReply(
+      t("LANG_CHANGED_ML", "ml") + "\n\n" + t("MAIN_MENU_MSG", "ml"),
+      undefined,
+      getMainMenuList("ml"),
     );
   }
   if (upper === "CHANGE_LANGUAGE") {
