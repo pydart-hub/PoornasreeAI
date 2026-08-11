@@ -503,11 +503,31 @@ export async function handleCustomerAgentMessage(
   message: string,
 ): Promise<AgentReply | null> {
   const text = message.trim();
+  const upper = text.toUpperCase().trim();
   const supportSettings = await getWhatsAppSupportSettings();
   const botName = supportSettings.botName || "Hari";
   const isRegistered = await checkIsUserRegistered(phoneNumber);
 
-  if (!isRegistered) {
+  const session = await getOrCreateAgentSession(phoneNumber);
+  const meta: AgentMeta & { hasSkippedRegistration?: boolean } = {
+    ...((session.metadata as AgentMeta) ?? {}),
+    agentMode: true,
+  };
+  const userLang = (meta.language || "en") as any;
+
+  // ── SKIP handles skipping registration or returns main menu options list ──
+  if (upper === "SKIP" && session.state !== "COMPLAINT_ASK_SERIAL") {
+    meta.hasSkippedRegistration = true;
+    await updateAgentSession(session.id, session.state, meta);
+    const list = getMainMenuList(userLang);
+    return {
+      message: `💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬\n\nPlease select an option below 👇`,
+      list: list as any,
+    };
+  }
+
+  // ── Prompt unregistered users unless they have explicitly tapped SKIP ──
+  if (!isRegistered && !meta.hasSkippedRegistration) {
     return makeReply(
       `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
       [
@@ -529,43 +549,6 @@ export async function handleCustomerAgentMessage(
         { id: "talk_agent", title: "💬 Talk to Support" },
       ],
     );
-  }
-
-  const session = await getOrCreateAgentSession(phoneNumber);
-  const meta: AgentMeta = {
-    ...((session.metadata as AgentMeta) ?? {}),
-    agentMode: true,
-  };
-  const upper = text.toUpperCase().trim();
-
-  // ── Global restart commands ──
-  if (upper === "MENU" || upper === "HI" || upper === "HELLO" || upper === "START" || upper === "RESTART") {
-    // For registered users: show the welcome menu
-    if (session.state === "AGENT_CHAT") {
-      const welcomeMsg = supportSettings.welcomeGreeting
-        ? formatGreeting(supportSettings.welcomeGreeting, supportSettings)
-        : `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`;
-      return makeReply(
-        welcomeMsg,
-        [
-          { id: "troubleshoot", title: "🔧 Troubleshoot" },
-          { id: "book_service", title: "🛠️ Book Service" },
-          { id: "talk_agent", title: "💬 Talk to Support" },
-        ],
-      );
-    }
-    return null;
-  }
-
-  const userLang = (meta.language || "en") as any;
-
-  // ── SKIP handles skipping registration or returns main menu options list ──
-  if (upper === "SKIP" && session.state !== "COMPLAINT_ASK_SERIAL") {
-    const list = getMainMenuList(userLang);
-    return {
-      message: `💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬\n\nPlease select an option below 👇`,
-      list: list as any,
-    };
   }
 
   // Handle shortcuts
