@@ -382,10 +382,11 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     const location = msg.location as Record<string, unknown> | undefined;
     const lat = location?.latitude;
     const lng = location?.longitude;
+    const locName = location?.name ? String(location.name).trim() : "";
+    const locAddr = location?.address ? String(location.address).trim() : "";
     if (typeof lat === "number" && typeof lng === "number") {
-      const locName = location?.name ? ` (${location.name})` : "";
-      const locAddr = location?.address ? `, ${location.address}` : "";
-      const locationText = `https://maps.google.com/?q=${lat},${lng}${locName}${locAddr}`;
+      const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
+      const locationText = locAddr || locName ? `📍 Location Shared:\n${locName ? locName + '\n' : ''}${locAddr ? locAddr + '\n' : ''}${mapUrl}` : `📍 ${mapUrl}`;
       if (engineer) {
         await routeEngineerMessage(from, locationText, engineer);
         return;
@@ -408,7 +409,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       }
       let savedMessage = null;
       savedMessage = await prisma.simulateMessage.create({
-        data: { phoneNumber: from, role: "user", content: `📍 ${locationText}` },
+        data: { phoneNumber: from, role: "user", content: locationText },
       });
       const { io } = await import("../lib/socket");
       if (io) {

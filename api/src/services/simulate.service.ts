@@ -60,6 +60,7 @@ type SessionMeta = {
   manualDistrict?: string;
   manualState?: string;
   manualAddress?: string;
+  manualGmapLink?: string;
   complaint?: string;
   pincodeDisplay?: string;
   selectedProduct?: string;
@@ -1746,6 +1747,21 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     return makeReply(t("REGISTER_NAME_PROMPT", lang), [getBackButton(lang), getMenuButton(lang)]);
   }
 
+  // Check if customer sent a location attachment or Google Maps link at pincode step
+  const loc = extractGmapLink(text);
+  if (loc && loc.mapLink) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      regGmapLink: loc.mapLink,
+      regAddress: loc.addressText || meta.regAddress,
+    };
+    await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
+    return makeReply(
+      `📍 Location received!\n${loc.mapLink}\n\n` + t("REGISTER_PINCODE_PROMPT", lang),
+      [getBackButton(lang), getMenuButton(lang)]
+    );
+  }
+
   const digits = text.replace(/\D/g, "");
   if (digits.length !== 6) {
     return makeReply(t("INVALID_PINCODE", lang), [getBackButton(lang), getMenuButton(lang)]);
@@ -1772,6 +1788,12 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
     regDistrict: district,
     regState: state,
   };
+
+  if (updatedMeta.regGmapLink) {
+    await saveRegisteredCustomer(sessionId, phoneNumber, updatedMeta);
+    return showMainMenuAfterRegistration(sessionId, phoneNumber, updatedMeta, lang);
+  }
+
   await updateSession(sessionId, "REGISTER_GMAP", updatedMeta);
   return makeReply(t("REGISTER_GMAP_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
 }
@@ -1789,13 +1811,19 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
     return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
   }
 
-  const link = text.trim();
-  if (!link.startsWith("http://") && !link.startsWith("https://")) {
+  const loc = extractGmapLink(text);
+  if (!loc || !loc.mapLink) {
     return makeReply(t("REGISTER_INVALID_GMAP", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
 
-  await saveRegisteredCustomer(sessionId, phoneNumber, { ...meta, regGmapLink: link });
-  return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    regGmapLink: loc.mapLink,
+    regAddress: loc.addressText || meta.regAddress || meta.manualAddress,
+  };
+
+  await saveRegisteredCustomer(sessionId, phoneNumber, updatedMeta);
+  return showMainMenuAfterRegistration(sessionId, phoneNumber, updatedMeta, lang);
 }
 
 async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, meta: SessionMeta) {
@@ -1843,6 +1871,7 @@ async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, me
         regDistrict: meta.regDistrict ?? null,
         regState: meta.regState ?? null,
         regGmapLink: meta.regGmapLink ?? null,
+        regAddress: meta.regAddress || meta.manualAddress || null,
         regIsDealerMachine: meta.regIsDealerMachine ?? false,
       },
     },
@@ -2908,11 +2937,23 @@ async function handleEndCustomerAddress(
   text: string,
 ) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  const address = text.trim();
-  if (address.length < 10) {
+  const loc = extractGmapLink(text);
+  let address = text.trim();
+  let gmapLink = meta.manualGmapLink || meta.regGmapLink;
+
+  if (loc && loc.mapLink) {
+    gmapLink = loc.mapLink;
+    address = loc.addressText || loc.mapLink;
+  } else if (address.length < 5) {
     return makeReply(t("SHORT_ADDRESS", lang));
   }
-  const updatedMeta: SessionMeta = { ...meta, manualAddress: address };
+
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    manualAddress: address,
+    manualGmapLink: gmapLink,
+    regGmapLink: gmapLink || meta.regGmapLink,
+  };
   if (meta.tsSerialPath && meta.machineData) {
     return executePasstestTicketCreation(sessionId, phoneNumber, updatedMeta);
   }
@@ -2970,6 +3011,37 @@ async function loadSavedEndCustomer(phoneNumber: string): Promise<Partial<Sessio
   };
 }
 
+export function extractGmapLink(text: string): { mapLink?: string; addressText?: string } | null {
+  if (!text) return null;
+  let clean = text.trim();
+  if (clean.startsWith("📍 Location Shared:\n")) {
+    clean = clean.replace("📍 Location Shared:\n", "").trim();
+  } else if (clean.startsWith("📍")) {
+    clean = clean.slice(1).trim();
+  }
+
+  const urlMatch = clean.match(/(https?:\/\/[^\s]+|maps\.google[^\s]+|goo\.gl[^\s]+)/i);
+  if (urlMatch) {
+    let mapLink = urlMatch[0];
+    if (!mapLink.startsWith("http://") && !mapLink.startsWith("https://")) {
+      mapLink = `https://${mapLink}`;
+    }
+    const addressText = clean.replace(urlMatch[0], "").replace(/[\n\r]+/g, ", ").trim().replace(/^,\s*|,\s*$/g, "");
+    return { mapLink, addressText: addressText || undefined };
+  }
+
+  const coordsMatch = clean.match(/^(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+  if (coordsMatch) {
+    const lat = coordsMatch[1];
+    const lng = coordsMatch[2];
+    const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+    const addressText = clean.replace(coordsMatch[0], "").trim();
+    return { mapLink, addressText: addressText || undefined };
+  }
+
+  return null;
+}
+
 function pincodeLocationDisplay(meta: SessionMeta): string {
   return (
     meta.pincodeDisplay ||
@@ -2982,7 +3054,9 @@ function pincodeLocationDisplay(meta: SessionMeta): string {
 function buildEndCustomerIssueDescription(meta: SessionMeta, extra?: string): string {
   const name = endCustomerName(meta) || "N/A";
   const address = meta.manualAddress?.trim() || "N/A";
-  const base = `End customer: ${name}, Address: ${address}, Service area: ${pincodeLocationDisplay(meta)}, Pincode: ${meta.manualPincode || "N/A"}`;
+  const gmapLink = meta.manualGmapLink || meta.regGmapLink;
+  const gmapPart = gmapLink ? `, Google Maps: ${gmapLink}` : "";
+  const base = `End customer: ${name}, Address: ${address}, Service area: ${pincodeLocationDisplay(meta)}, Pincode: ${meta.manualPincode || "N/A"}${gmapPart}`;
   return extra ? `${base}, ${extra}` : base;
 }
 

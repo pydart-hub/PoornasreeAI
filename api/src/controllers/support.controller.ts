@@ -591,10 +591,10 @@ const UNKNOWN_LOCATION: WaLocation = {
 function locationFromSessionMetadata(metadata: unknown): WaLocation | null {
   if (!metadata || typeof metadata !== "object") return null;
   const m = metadata as Record<string, unknown>;
-  const state = String(m.manualState ?? "").trim();
-  const district = String(m.manualDistrict ?? "").trim();
-  const place = String(m.manualPlace ?? "").trim();
-  const pincode = m.manualPincode != null ? String(m.manualPincode).trim() : null;
+  const state = String(m.regState ?? m.manualState ?? "").trim();
+  const district = String(m.regDistrict ?? m.manualDistrict ?? "").trim();
+  const place = String(m.regPlace ?? m.manualPlace ?? "").trim();
+  const pincode = m.regPincode != null ? String(m.regPincode).trim() : m.manualPincode != null ? String(m.manualPincode).trim() : null;
   if (!state && !district && !place && !pincode) return null;
   return {
     state: state || UNKNOWN_LOCATION.state,

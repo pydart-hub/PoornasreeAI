@@ -8,7 +8,7 @@ import * as SimulateService from "../services/simulate.service";
 // ── POST /api/simulate/message ────────────────────────────────────────────
 export async function handleMessage(req: Request, res: Response): Promise<void> {
   try {
-    const { phoneNumber, message, mediaUrl } = req.body;
+    const { phoneNumber, message, mediaUrl, location } = req.body;
 
     if (!phoneNumber?.trim()) {
       res.status(400).json({ error: "phoneNumber is required" });
@@ -16,8 +16,15 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
     }
 
     const phone = phoneNumber.trim();
-    // Any input (even empty) is a valid "message" — WhatsApp can send blank
-    const text = typeof message === "string" ? message : "";
+    let text = typeof message === "string" ? message : "";
+    if (location && typeof location.latitude === "number" && typeof location.longitude === "number") {
+      const lat = location.latitude;
+      const lng = location.longitude;
+      const locName = location.name ? String(location.name).trim() : "";
+      const locAddr = location.address ? String(location.address).trim() : "";
+      const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
+      text = locAddr || locName ? `📍 Location Shared:\n${locName ? locName + '\n' : ''}${locAddr ? locAddr + '\n' : ''}${mapUrl}` : `📍 ${mapUrl}`;
+    }
 
     // Persist user message
     if (text || mediaUrl) {
