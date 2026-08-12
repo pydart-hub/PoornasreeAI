@@ -195,6 +195,20 @@ export default function WhatsAppSettingsTab() {
   const [botRules, setBotRules] = useState<WaBotRuleConfig[]>(DEFAULT_BOT_RULES);
   const [menuHeaderTitle, setMenuHeaderTitle] = useState("Poornasree Options");
 
+  // Simulator Preview State
+  const [simulatedCustomerMsg, setSimulatedCustomerMsg] = useState("Hi, I want details about LactoSure Eco");
+  const [simulatedBotResponse, setSimulatedBotResponse] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  const triggerSimulatedResponse = (userText: string, botReplyText: string) => {
+    setSimulatedCustomerMsg(userText);
+    setIsTyping(true);
+    setTimeout(() => {
+      setSimulatedBotResponse(botReplyText);
+      setIsTyping(false);
+    }, 600);
+  };
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
