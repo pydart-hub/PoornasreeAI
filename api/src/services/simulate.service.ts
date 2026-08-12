@@ -1301,6 +1301,16 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     return routeState(session, phoneNumber, text, meta);
   }
 
+  // Product browsing buttons always bypass Groq and go directly to routeState
+  const isProductNavButton =
+    upper.startsWith("CAT_") ||
+    upper.startsWith("PROD_") ||
+    upper === "BACK_CATEGORIES" ||
+    upper === "BACK_MAIN";
+  if (isProductNavButton) {
+    return routeState(session, phoneNumber, text, meta);
+  }
+
   if (isGlobalRestartCommand(upper)) {
     if (session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED") {
       return routeState(session, phoneNumber, text, meta);
