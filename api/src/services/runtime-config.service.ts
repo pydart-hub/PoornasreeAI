@@ -501,7 +501,7 @@ export async function updateSettings(
 /** Convenience typed getters used across the app. */
 export const runtime = {
   groqApiKey: () => cfg("GROQ_API_KEY"),
-  groqModelFast: () => cfg("GROQ_MODEL_FAST") || "llama-3.1-8b-instant",
+  groqModelFast: () => cfg("GROQ_MODEL_FAST") || "llama-3.3-70b-versatile",
   groqModelAgent: () => cfg("GROQ_MODEL_AGENT") || "llama-3.3-70b-versatile",
   groqMaxTokensReply: () => {
     const n = parseInt(cfg("GROQ_MAX_TOKENS_REPLY") || "600", 10);
