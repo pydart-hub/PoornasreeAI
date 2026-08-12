@@ -23,8 +23,15 @@ import {
   HelpCircle,
   FileText,
   Layers,
+  Building2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface CompanyPhoto {
+  url: string;
+  caption: string;
+}
 
 interface SupportSettings {
   botName: string;
@@ -35,6 +42,9 @@ interface SupportSettings {
   welcomeGreeting: string | null;
   afterHoursGreeting: string | null;
   supportHandoffGreeting: string | null;
+  companyAddress?: string | null;
+  companyPhotos?: string | null;
+  companyDetails?: string | null;
 }
 
 interface WaQuickButtonConfig {
@@ -70,6 +80,21 @@ const DEFAULT_WELCOME = "Namaste! 🙏 I'm *{bot_name}* from Poornasree Equipmen
 const DEFAULT_AFTER_HOURS = "Thank you for contacting Poornasree Equipments! 🌙 Our office is currently closed (Business Hours: {business_hours}).\n\nYour message has been logged, and our support team will respond first thing tomorrow morning.";
 const DEFAULT_HANDOFF = "Hello! Our customer support agent is now live and ready to assist you. Please feel free to ask your questions or clarify any doubts.";
 
+const DEFAULT_COMPANY_ADDRESS = "13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala - 682304";
+const DEFAULT_COMPANY_DETAILS = `Poornasree Equipments (Established 2011) — India's No. 1 Milk Testing Equipment Manufacturer.
+Website: www.poornasree.com | Email: sales@poornasree.com
+Head Office: 13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala – 682304 (Tel: +91 484 4859291, Mob: +91 94009 61291)
+Sales Contacts: +91 75101 40111, +91 79092 20003, +91 80757 90438
+Service Contacts: +91 80863 48859, +91 95447 57711
+Branch Offices: Bhopal (MP), Karnataka (Belgaum), Delhi, Rajasthan (Jaipur), Tamil Nadu (Cuddalore), Uttar Pradesh (Pratapgarh), Andhra Pradesh (Vijayawada).`;
+
+const DEFAULT_COMPANY_PHOTOS: CompanyPhoto[] = [
+  { url: "https://poornasree.com/wp-content/uploads/2024/06/Social-Share-image.jpg", caption: "Poornasree Equipments Head Office & Facility" },
+  { url: "https://poornasree.com/wp-content/uploads/2023/12/copmany.png", caption: "LactoSure Eco Milk Analyzer Product Line" },
+  { url: "https://poornasree.com/wp-content/uploads/2024/03/Poornasree-png-300x135.png", caption: "Poornasree Brand Logo" },
+  { url: "https://poornasree.com/wp-content/uploads/2024/02/certificate-of-compiance.png", caption: "ISO 9001:2015 Certificate of Compliance" },
+];
+
 const DEFAULT_BUTTONS: WaQuickButtonConfig[] = [
   { id: "btn_products", title: "📦 View Products", actionType: "auto_reply", responsePayload: "Here is our complete LactoSure ECO product catalog and price list!" },
   { id: "btn_service", title: "🛠️ Book Service", actionType: "trigger_flow", responsePayload: "Please share your machine serial number and pincode to connect with a field service engineer." },
@@ -91,18 +116,24 @@ const DEFAULT_BOT_RULES: WaBotRuleConfig[] = [
 ];
 
 export default function WhatsAppSettingsTab() {
-  const [activeTab, setActiveTab] = useState<"greetings" | "buttons" | "menu" | "bot_rules">("greetings");
+  const [activeTab, setActiveTab] = useState<"greetings" | "company_info" | "buttons" | "menu" | "bot_rules">("greetings");
 
   const [form, setForm] = useState({
     botName: "Hari",
     supportPhone: "+91 94009 61291",
-    supportEmail: "support@poornasree.com",
+    supportEmail: "sales@poornasree.com",
     supportHours: "Mon–Sat, 9 AM – 6 PM IST",
     supportNote: "",
     welcomeGreeting: DEFAULT_WELCOME,
     afterHoursGreeting: DEFAULT_AFTER_HOURS,
     supportHandoffGreeting: DEFAULT_HANDOFF,
+    companyAddress: DEFAULT_COMPANY_ADDRESS,
+    companyDetails: DEFAULT_COMPANY_DETAILS,
   });
+
+  const [companyPhotos, setCompanyPhotos] = useState<CompanyPhoto[]>(DEFAULT_COMPANY_PHOTOS);
+  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [newPhotoCaption, setNewPhotoCaption] = useState("");
 
   const [buttons, setButtons] = useState<WaQuickButtonConfig[]>(DEFAULT_BUTTONS);
   const [listRows, setListRows] = useState<WaListRowConfig[]>(DEFAULT_LIST_ROWS);
@@ -148,6 +179,9 @@ export default function WhatsAppSettingsTab() {
           if (parsed.listRows) setListRows(parsed.listRows);
           if (parsed.botRules) setBotRules(parsed.botRules);
           if (parsed.menuHeaderTitle) setMenuHeaderTitle(parsed.menuHeaderTitle);
+          if (parsed.companyAddress) setForm((f) => ({ ...f, companyAddress: parsed.companyAddress }));
+          if (parsed.companyPhotos) setCompanyPhotos(parsed.companyPhotos);
+          if (parsed.companyDetails) setForm((f) => ({ ...f, companyDetails: parsed.companyDetails }));
         } catch {
           /* ignore */
         }
@@ -159,14 +193,33 @@ export default function WhatsAppSettingsTab() {
         ...f,
         botName: s.botName ?? "Hari",
         supportPhone: s.supportPhone ?? "+91 94009 61291",
-        supportEmail: s.supportEmail ?? "support@poornasree.com",
+        supportEmail: s.supportEmail ?? "sales@poornasree.com",
         supportHours: s.supportHours ?? "Mon–Sat, 9 AM – 6 PM IST",
         supportNote: s.supportNote ?? "",
         // Greetings: DB wins over localStorage — this is the source of truth
         welcomeGreeting: s.welcomeGreeting ?? DEFAULT_WELCOME,
         afterHoursGreeting: s.afterHoursGreeting ?? DEFAULT_AFTER_HOURS,
         supportHandoffGreeting: s.supportHandoffGreeting ?? DEFAULT_HANDOFF,
+        companyAddress: s.companyAddress ?? DEFAULT_COMPANY_ADDRESS,
+        companyDetails: s.companyDetails ?? DEFAULT_COMPANY_DETAILS,
       }));
+
+      if (s.companyPhotos) {
+        try {
+          const parsed = JSON.parse(s.companyPhotos);
+          if (Array.isArray(parsed)) {
+            setCompanyPhotos(
+              parsed.map((p) =>
+                typeof p === "string"
+                  ? { url: p, caption: "Poornasree Equipments" }
+                  : { url: p.url, caption: p.caption || "Poornasree Equipments" }
+              )
+            );
+          }
+        } catch {
+          /* ignore */
+        }
+      }
     } catch {
       setError("Failed to load settings from server");
     }
@@ -199,6 +252,9 @@ export default function WhatsAppSettingsTab() {
           listRows,
           botRules,
           menuHeaderTitle,
+          companyAddress: form.companyAddress,
+          companyPhotos,
+          companyDetails: form.companyDetails,
         }),
       );
 
@@ -214,10 +270,13 @@ export default function WhatsAppSettingsTab() {
           welcomeGreeting: form.welcomeGreeting.trim() || null,
           afterHoursGreeting: form.afterHoursGreeting.trim() || null,
           supportHandoffGreeting: form.supportHandoffGreeting.trim() || null,
+          companyAddress: form.companyAddress.trim() || null,
+          companyPhotos: JSON.stringify(companyPhotos),
+          companyDetails: form.companyDetails.trim() || null,
         }),
       });
 
-      setSuccess("All WhatsApp Interactive Buttons, Menus, Greetings & Bot Rules saved!");
+      setSuccess("All WhatsApp Company Details, Photos, Interactive Buttons, Menus, Greetings & Bot Rules saved!");
       setTimeout(() => setSuccess(""), 4000);
     } catch (e) {
       setError((e as Error).message);
@@ -328,6 +387,7 @@ export default function WhatsAppSettingsTab() {
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto scrollbar-none">
         {[
           { key: "greetings", label: "Greetings & Persona", icon: MessageSquare },
+          { key: "company_info", label: `Company Info & Photos (${companyPhotos.length})`, icon: Building2 },
           { key: "buttons", label: `Quick Buttons (${buttons.length}/3)`, icon: MousePointer },
           { key: "menu", label: `Interactive Menu (${listRows.length}/10)`, icon: ListFilter },
           { key: "bot_rules", label: `Bot Flow Rules (${botRules.length})`, icon: Bot },
@@ -355,6 +415,124 @@ export default function WhatsAppSettingsTab() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Form Editors (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
+          {/* ── TAB: COMPANY INFO & MEDIA ── */}
+          {activeTab === "company_info" && (
+            <div className="space-y-5">
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-emerald-600" />
+                  1. Company Head Office Address
+                </label>
+                <textarea
+                  value={form.companyAddress}
+                  onChange={(e) => setForm((f) => ({ ...f, companyAddress: e.target.value }))}
+                  rows={3}
+                  placeholder="Enter official head office address..."
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                />
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                  2. Company Overview & Branch Offices Information
+                </label>
+                <textarea
+                  value={form.companyDetails}
+                  onChange={(e) => setForm((f) => ({ ...f, companyDetails: e.target.value }))}
+                  rows={6}
+                  placeholder="Enter company description, history, branch offices, department phone numbers..."
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                />
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-emerald-600" />
+                      3. Configured Company Photos ({companyPhotos.length})
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      These photos are automatically dispatched via WhatsApp whenever customers ask for company details or photos.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setCompanyPhotos(DEFAULT_COMPANY_PHOTOS)}
+                    className="text-xs font-bold text-emerald-600 hover:text-emerald-500 transition-colors"
+                  >
+                    Reset Defaults
+                  </button>
+                </div>
+
+                {/* Add New Photo Form */}
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5 text-emerald-600" /> Add New Company Photo URL
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <input
+                      type="url"
+                      placeholder="Image URL (https://poornasree.com/...)"
+                      value={newPhotoUrl}
+                      onChange={(e) => setNewPhotoUrl(e.target.value)}
+                      className="sm:col-span-6 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Caption (e.g. Head Office Facility)"
+                      value={newPhotoCaption}
+                      onChange={(e) => setNewPhotoCaption(e.target.value)}
+                      className="sm:col-span-4 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!newPhotoUrl.trim()) return;
+                        setCompanyPhotos([
+                          ...companyPhotos,
+                          { url: newPhotoUrl.trim(), caption: newPhotoCaption.trim() || "Poornasree Facility" },
+                        ]);
+                        setNewPhotoUrl("");
+                        setNewPhotoCaption("");
+                      }}
+                      disabled={!newPhotoUrl.trim()}
+                      className="sm:col-span-2 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                      Add Photo
+                    </button>
+                  </div>
+                </div>
+
+                {/* Photo Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {companyPhotos.map((photo, pIdx) => (
+                    <div key={pIdx} className="relative group p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3">
+                      <img src={photo.url} alt={photo.caption} className="w-16 h-16 rounded-lg object-cover bg-slate-200 dark:bg-slate-700 shrink-0 border border-slate-200/80" />
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={photo.caption}
+                          onChange={(e) => {
+                            const updated = [...companyPhotos];
+                            updated[pIdx].caption = e.target.value;
+                            setCompanyPhotos(updated);
+                          }}
+                          className="w-full text-xs font-bold text-slate-900 dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 dark:hover:border-slate-600 focus:border-emerald-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-400 truncate mt-1">{photo.url}</p>
+                      </div>
+                      <button
+                        onClick={() => setCompanyPhotos(companyPhotos.filter((_, i) => i !== pIdx))}
+                        className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* ── TAB 1: GREETINGS & PERSONA ── */}
           {activeTab === "greetings" && (
             <div className="space-y-5">
@@ -779,18 +957,19 @@ export default function WhatsAppSettingsTab() {
                             onClick={() => triggerSimulatedResponse(r.title, r.actionPayload)}
                             className="p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
                           >
-                          <p className="font-bold text-xs text-white">{r.title}</p>
-                          <p className="text-[10px] text-slate-400 line-clamp-1">{r.description}</p>
-                        </div>
-                      ))}
+                            <p className="font-bold text-xs text-white">{r.title}</p>
+                            <p className="text-[10px] text-slate-400 line-clamp-1">{r.description}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <span className="text-[9px] text-slate-400 block text-right font-mono mt-1">
-                  14:08
-                </span>
-              </div>
+                  <span className="text-[9px] text-slate-400 block text-right font-mono mt-1">
+                    14:08
+                  </span>
+                </div>
+              )}
             </div>
 
             <p className="text-[10px] text-center text-slate-500">

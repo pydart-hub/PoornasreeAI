@@ -1309,7 +1309,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
     try {
       const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
       if (agentReply) {
-        return makeReply(agentReply.message, agentReply.buttons, agentReply.list, undefined, agentReply.followUpMessage);
+        return makeReply(agentReply.message, agentReply.buttons, agentReply.list, (agentReply.images as any) || undefined, agentReply.followUpMessage);
       }
       // null → agent requested FSM handoff (e.g. BOOK_SERVICE → serial prompt)
       const refreshed = await getOrCreateSession(phoneNumber);

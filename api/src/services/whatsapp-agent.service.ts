@@ -39,8 +39,34 @@ export type AgentReply = {
   message: string;
   buttons?: AgentReplyButton[];
   list?: { buttonText: string; rows: any[] };
+  images?: { url: string; caption?: string }[];
   followUpMessage?: string;
 };
+
+export function parseCompanyPhotos(photosJson: string | null | undefined): { url: string; caption?: string }[] {
+  if (!photosJson?.trim()) return [];
+  try {
+    const parsed = JSON.parse(photosJson);
+    if (Array.isArray(parsed)) {
+      const result: { url: string; caption?: string }[] = [];
+      for (const p of parsed) {
+        if (typeof p === "string" && p.startsWith("http")) {
+          result.push({ url: p, caption: "Poornasree Equipments" });
+        } else if (p && typeof p === "object" && typeof p.url === "string" && p.url.startsWith("http")) {
+          result.push({ url: p.url, caption: p.caption ? String(p.caption) : "Poornasree Equipments" });
+        }
+      }
+      return result;
+    }
+  } catch {
+    return photosJson
+      .split(",")
+      .map((u) => u.trim())
+      .filter((u) => u.startsWith("http"))
+      .map((url) => ({ url, caption: "Poornasree Equipments" }));
+  }
+  return [];
+}
 
 const HISTORY_LIMIT = 14;
 const LANG_CONTEXT_LIMIT = 6;
@@ -48,15 +74,13 @@ const LANG_CONTEXT_LIMIT = 6;
 type AgentMeta = {
   language?: string;
   explicitLanguage?: boolean;
+  hasSkippedRegistration?: boolean;
+  agentMode?: boolean;
   customerName?: string;
   customerPhone?: string;
-  agentMode?: boolean;
-  lastCatalogIds?: string[];
-  customerMachines?: string[];
-  lastLangHints?: string[];
-  lastComplaint?: string;
   complaintSerial?: string;
   complaintProblem?: string;
+  lastComplaint?: any;
 };
 
 // ── Exported helpers ─────────────────────────────────────────────────────────
@@ -67,9 +91,11 @@ export function isGroqChatbotEnabled(): boolean {
 function makeReply(
   message: string,
   buttons?: AgentReplyButton[],
+  list?: { buttonText: string; rows: any[] },
+  images?: { url: string; caption?: string }[],
   followUpMessage?: string,
 ): AgentReply {
-  return { message, buttons, followUpMessage };
+  return { message, buttons, list, images, followUpMessage };
 }
 
 // ── Business Hours Check (Mon-Sat 9 AM - 6 PM IST) ──────────────────────────
@@ -796,40 +822,58 @@ export async function handleCustomerAgentMessage(
     }
   }
 
-  // ── Automatic Product Image Dispatch ──────────────────────────────────────
-  if (/image|images|photo|photos|pic|pics|picture|pictures|catalog|brochure|product|model|price|lactosure/i.test(text)) {
+  // ── Automatic Company Photos & Product Image Dispatch ────────────────────────
+  let imagesToAttach: { url: string; caption?: string }[] = [];
+  if (/image|images|photo|photos|pic|pics|picture|pictures|catalog|brochure|product|model|price|lactosure|company|office|address|location|about/i.test(text)) {
     try {
       const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
       const baseUrl = process.env.FRONTEND_URL || "https://ai.poornasreecloud.com";
 
-      // 1. Check if specific product name matches
+      // 1. Check if user is asking for company photos or company details
+      if (/company|office|address|location|branch|about|poornasree|facility|head office/i.test(text)) {
+        const companyPhotos = parseCompanyPhotos(supportSettings.companyPhotos);
+        for (const photo of companyPhotos) {
+          imagesToAttach.push(photo);
+          await WhatsAppService.sendImage(
+            phoneNumber,
+            photo.url,
+            `🏢 *Poornasree Equipments*\n${photo.caption || "Official Facility & Office"}`,
+          ).catch(() => {});
+        }
+      }
+
+      // 2. Check if specific product name matches
       let matchedCount = 0;
       for (const prod of activeProducts) {
         if (prod.imageUrl && text.toLowerCase().includes(prod.name.toLowerCase())) {
           const fullImageUrl = prod.imageUrl.startsWith("http") ? prod.imageUrl : `${baseUrl}${prod.imageUrl}`;
+          const prodImg = { url: fullImageUrl, caption: `📸 *${prod.name}*\n${prod.detail || ""}` };
+          imagesToAttach.push(prodImg);
           await WhatsAppService.sendImage(
             phoneNumber,
             fullImageUrl,
-            `📸 *${prod.name}*\n${prod.detail || ""}`,
+            prodImg.caption,
           );
           matchedCount++;
         }
       }
 
-      // 2. If user asked generally for images/photos and no specific model matched, send top 3 active model photos
-      if (matchedCount === 0 && /image|images|photo|photos|pic|pics|picture|pictures/i.test(text)) {
+      // 3. If user asked generally for photos and no company/product photo matched, send top 3 active model photos
+      if (imagesToAttach.length === 0 && /image|images|photo|photos|pic|pics|picture|pictures/i.test(text)) {
         const withImages = activeProducts.filter((p) => Boolean(p.imageUrl)).slice(0, 3);
         for (const prod of withImages) {
           const fullImageUrl = prod.imageUrl!.startsWith("http") ? prod.imageUrl! : `${baseUrl}${prod.imageUrl}`;
+          const prodImg = { url: fullImageUrl, caption: `📸 *${prod.name}*\n${prod.detail || ""}` };
+          imagesToAttach.push(prodImg);
           await WhatsAppService.sendImage(
             phoneNumber,
             fullImageUrl,
-            `📸 *${prod.name}*\n${prod.detail || ""}`,
+            prodImg.caption,
           );
         }
       }
     } catch (e) {
-      console.error("[whatsapp-agent] Product image dispatch error:", e);
+      console.error("[whatsapp-agent] Product/company image dispatch error:", e);
     }
   }
 
@@ -839,7 +883,7 @@ export async function handleCustomerAgentMessage(
     { id: "troubleshoot", title: "🔧 Troubleshoot" },
     { id: "book_service", title: "🛠️ Book Service" },
     { id: "talk_agent", title: "💬 Talk to us" },
-  ]);
+  ], undefined, imagesToAttach.length ? imagesToAttach : undefined);
 }
 
 // ── Support notification helper ──────────────────────────────────────────────

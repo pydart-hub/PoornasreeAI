@@ -390,6 +390,9 @@ model ChatbotSetting {
   welcomeGreeting        String?  @db.Text
   afterHoursGreeting     String?  @db.Text
   supportHandoffGreeting String?  @db.Text
+  companyAddress         String?  @db.Text
+  companyPhotos          String?  @db.Text
+  companyDetails         String?  @db.Text
   updatedAt              DateTime @updatedAt
 }
 
