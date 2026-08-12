@@ -2080,7 +2080,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   return runGroqCompanyAssistant(phoneNumber, text, meta);
 }
 
-/** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers FSM state, and answers in customer's exact language like a humanoid assistant */
+/** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers conversation history & FSM state, and answers like a humanoid assistant */
 async function runGroqCompanyAssistant(
   phoneNumber: string,
   query: string,
@@ -2091,19 +2091,37 @@ async function runGroqCompanyAssistant(
   const botName = settings.botName?.trim() || "Hari";
   const lang: Lang = (meta.language ?? "en") as Lang;
   const activeState = options.activeFsmState || meta.previousFsmState || "MAIN_MENU";
+  const customerName = meta.customerName || meta.regName || "";
+  const namePrompt = customerName ? `The customer's name is ${customerName}. Address them by their name naturally when appropriate.` : "";
 
-  const systemPrompt = `You are ${botName}, the official humanoid AI Customer Support Assistant for Poornasree Equipments.
-Your task is to answer customer questions naturally, warmly, and conversationally using the official Company & Product Knowledge provided below.
+  // Fetch recent conversation history from DB to enable true humanoid multi-turn memory
+  let historyMessages: { role: "user" | "assistant"; content: string }[] = [];
+  try {
+    const pastMsgs = await prisma.simulateMessage.findMany({
+      where: { phoneNumber },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    });
+    const reversed = pastMsgs.reverse();
+    historyMessages = reversed.map((m) => ({
+      role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+      content: m.content,
+    }));
+  } catch (err) {
+    console.error("[groq-company-assistant] Failed to fetch chat history:", err);
+  }
 
-HUMANOID CHATBOT BEHAVIOR & RULES:
-1. DETECT THE LANGUAGE of the customer's message (e.g. Malayalam, Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, English).
-2. REPLY ENTIRELY IN THE CUSTOMER'S DETECTED LANGUAGE. If the customer asks in Malayalam, reply in Malayalam script. If in Hindi, reply in Hindi. If in English, reply in English.
-3. Introduce yourself as ${botName} when greeting or answering questions, acting as a friendly, human-like assistant from Poornasree.
-4. Keep the answer friendly, accurate, helpful, and concise (2-4 sentences max).
-5. Use WhatsApp formatting (bold with *text*, emojis).
-6. Do NOT invent false facts beyond the provided official company knowledge.
-7. Include contact details (${settings.supportPhone}) if relevant.
-8. Current Customer Context: The customer is currently in the "${activeState}" step. Answer their question directly first, and then warmly invite them to continue with their options.
+  const systemPrompt = `You are ${botName}, a warm, friendly, intelligent humanoid AI Customer Support Engineer for Poornasree Equipments.
+Your task is to engage with customers in a natural, human-like multi-turn conversation, answering their questions using the official Company & Product Knowledge provided below. ${namePrompt}
+
+HUMANOID CONVERSATIONAL BEHAVIOR & RULES:
+1. Speak naturally and warmly like a real Indian support engineer named ${botName}. Be polite, helpful, and courteous ("Namaste!", "Glad to help!", "Sure thing!").
+2. MULTI-TURN CONVERSATION MEMORY: You have access to the recent conversation history below. Remember what the customer previously asked or mentioned across turns, and build naturally on top of past messages. Never treat a returning question as if it's the first interaction.
+3. DETECT & MATCH THE CUSTOMER'S LANGUAGE: If the customer speaks in Malayalam (script or Manglish), reply in Malayalam! If in Hindi, reply in Hindi! If in Tamil, reply in Tamil! If in English, reply in English!
+4. Keep the answer friendly, accurate, helpful, and concise (2-4 sentences max). Use WhatsApp formatting (bold with *text*, emojis).
+5. Do NOT invent false facts beyond the provided official company knowledge.
+6. Include contact details (${settings.supportPhone}) if relevant.
+7. Current Customer Context: The customer is currently at the "${activeState}" step. Answer their question directly first, and then warmly invite them to proceed with their options.
 
 --- OFFICIAL COMPANY & PRODUCT KNOWLEDGE ---
 Company Overview & Contact:
@@ -2118,13 +2136,19 @@ ${settings.companyAddress || ""}
 
   try {
     const { groqChat } = await import("./groq.service");
-    const reply = await groqChat(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: query },
-      ],
-      { maxTokens: 350, temperature: 0.5 },
-    );
+
+    const conversationPayload: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+      ...historyMessages,
+    ];
+
+    // Append query if not already the last message in history
+    const lastMsg = historyMessages[historyMessages.length - 1];
+    if (!lastMsg || lastMsg.content !== query) {
+      conversationPayload.push({ role: "user", content: query });
+    }
+
+    const reply = await groqChat(conversationPayload, { maxTokens: 350, temperature: 0.5 });
 
     if (reply && reply.trim()) {
       let buttons = [
