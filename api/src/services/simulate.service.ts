@@ -2299,8 +2299,8 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
   }
 
   if (!category) {
-    // User may have typed something else — re-show categories
-    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+    // User typed a free-text question instead of selecting a category -> Route to Gemini AI
+    return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "VIEW_PRODUCT_CATEGORY" });
   }
 
   const products = await prisma.product.findMany({
@@ -2349,7 +2349,8 @@ async function handleProductDetail(sessionId: string, phoneNumber: string, meta:
   }
 
   if (!productId) {
-    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+    // User typed a free-text question instead of clicking product ID -> Route to Gemini AI
+    return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "VIEW_PRODUCT_DETAIL" });
   }
 
   const product = await prisma.product.findUnique({
