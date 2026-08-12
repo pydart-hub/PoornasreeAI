@@ -2219,6 +2219,23 @@ ${settings.companyAddress || ""}
         lowerQuery.includes("working") ||
         lowerQuery.includes("blinking") ||
         lowerQuery.includes("not on") ||
+        lowerQuery.includes("flicker") ||
+        lowerQuery.includes("flickering") ||
+        lowerQuery.includes("fault") ||
+        lowerQuery.includes("damage") ||
+        lowerQuery.includes("fail") ||
+        lowerQuery.includes("display") ||
+        lowerQuery.includes("sensor") ||
+        lowerQuery.includes("motor") ||
+        lowerQuery.includes("power") ||
+        lowerQuery.includes("showing") ||
+        lowerQuery.includes("reading") ||
+        lowerQuery.includes("water") ||
+        lowerQuery.includes("fat") ||
+        lowerQuery.includes("snf") ||
+        lowerQuery.includes("leak") ||
+        lowerQuery.includes("noise") ||
+        lowerQuery.includes("stopped") ||
         lowerQuery.includes("engineer") ||
         lowerQuery.includes("കേടായി") ||
         lowerQuery.includes("പരാതി");
