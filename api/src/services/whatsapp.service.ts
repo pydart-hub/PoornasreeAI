@@ -43,11 +43,16 @@ async function postWhatsAppMessage(
   to: string,
   payload: Record<string, unknown>,
 ): Promise<WaApiResponse | null> {
-  const normalized = normalizeWhatsappNumber(to) ?? to.replace(/\D/g, "");
-  if (!normalized) {
-    console.warn(`[whatsapp] Invalid recipient: ${to}`);
-    return null;
+  const isStatusUpdate = to === "status_update";
+  let normalized = "";
+  if (!isStatusUpdate) {
+    normalized = normalizeWhatsappNumber(to) ?? to.replace(/\D/g, "");
+    if (!normalized) {
+      console.warn(`[whatsapp] Invalid recipient: ${to}`);
+      return null;
+    }
   }
+
   if (!isConfigured()) {
     console.warn("[whatsapp] Not configured — skipping send");
     return null;
@@ -55,24 +60,32 @@ async function postWhatsAppMessage(
 
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
   try {
+    const jsonBody = isStatusUpdate
+      ? { messaging_product: "whatsapp", ...payload }
+      : { messaging_product: "whatsapp", to: normalized, ...payload };
+
     const res = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${runtime.waAccessToken()}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ messaging_product: "whatsapp", to: normalized, ...payload }),
+      body: JSON.stringify(jsonBody),
     });
     const body = (await res.json().catch(() => ({}))) as WaApiResponse;
     if (!res.ok || body.error) {
-      console.error(`[whatsapp] API error (${res.status}) → ${normalized}:`, JSON.stringify(body));
+      console.error(`[whatsapp] API error (${res.status}) → ${to}:`, JSON.stringify(body));
       return body;
     }
-    if (!body.messages?.[0]?.id) {
+    if (!isStatusUpdate && !body.messages?.[0]?.id) {
       console.warn(`[whatsapp] No message id → ${normalized}:`, JSON.stringify(body));
       return body;
     }
-    console.log(`[whatsapp] Sent → ${normalized} id=${body.messages[0].id}`);
+    if (isStatusUpdate) {
+      console.log(`[whatsapp] Status/typing updated for msg=${payload.message_id || "N/A"}`);
+    } else {
+      console.log(`[whatsapp] Sent → ${normalized} id=${body.messages?.[0]?.id}`);
+    }
     return body;
   } catch (err) {
     console.error(`[whatsapp] Network error → ${to}:`, (err as Error).message);
