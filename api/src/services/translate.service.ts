@@ -1,7 +1,4 @@
-import axios from "axios";
-import { runtime } from "./runtime-config.service";
-
-const GEN_MODEL = "phi3:mini";
+import { groqChat, isGroqConfigured } from "./groq.service";
 
 const LANG_NAMES: Record<string, string> = {
   hi: "Hindi", mr: "Marathi", bn: "Bengali", te: "Telugu", ta: "Tamil", kn: "Kannada", ml: "Malayalam"
@@ -23,7 +20,7 @@ export function toSentenceCase(text: string): string {
 }
 
 /**
- * Translates English text to a target language using the local LLM.
+ * Translates English text to a target language using Groq Flagship LLM (Llama 3.3 70B).
  * For English ("en"), it formats the string to sentence case.
  */
 export async function translateText(text: string, langCode: string): Promise<string> {
@@ -32,10 +29,13 @@ export async function translateText(text: string, langCode: string): Promise<str
   }
 
   const langName = LANG_NAMES[langCode] || langCode;
-  
-  const translationPrompt = `Translate the following troubleshooting instructions to ${langName}. 
-Output ONLY the ${langName} translation. Do not include any English or extra commentary. 
-IMPORTANT: Format the translation as clear, proper sentences with correct capitalization (do not use ALL CAPS).
+
+  if (!isGroqConfigured()) {
+    return text;
+  }
+
+  const translationPrompt = `Translate the following text to ${langName}.
+Output ONLY the ${langName} translation. Do not include any English or extra commentary.
 
 Text to translate:
 ${text}
@@ -44,22 +44,14 @@ ${langName} Translation:`;
 
   try {
     const t0 = Date.now();
-    const { data } = await axios.post(
-      `${runtime.ollamaUrl()}/api/chat`,
-      {
-        model: GEN_MODEL,
-        messages: [{ role: "user", content: translationPrompt }],
-        stream: false,
-        keep_alive: "10m",
-        options: { num_ctx: 512, num_predict: 300, temperature: 0 },
-      },
-      { timeout: 120_000 }
+    const translated = await groqChat(
+      [{ role: "user", content: translationPrompt }],
+      { temperature: 0.1, maxTokens: 400, timeoutMs: 15_000 }
     );
-    console.log(`[Translate] translateText to ${langName}: ${Date.now() - t0} ms`);
-    const translated = (data.message?.content as string)?.trim();
+    console.log(`[Translate] Groq Llama 3.3 70B translateText to ${langName}: ${Date.now() - t0} ms`);
     return translated || text;
-  } catch (err: any) {
-    console.error(`[Translate] error translating to ${langName}:`, err?.message ?? err);
+  } catch (e: unknown) {
+    console.error(`[Translate] Groq translation failed:`, e);
     return text;
   }
 }

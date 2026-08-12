@@ -2,11 +2,10 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { embedText, searchVectors } from "../services/vector.service";
 import { translateText } from "../services/translate.service";
+import { groqChat } from "../services/groq.service";
 import { findVideosForQuery } from "./video.controller";
 import axios from "axios";
 import { runtime } from "../services/runtime-config.service";
-
-const GEN_MODEL   = "phi3:mini";
 
 // â”€â”€ RAG helper: build context + call Ollama generate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function generateRAGResponse(userQuery: string, userRole: string, language?: string): Promise<string> {
@@ -123,19 +122,12 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     const prompt = [roleInstruction, "", "CONTEXT:", context, "", `QUESTION:\n${userQuery}`, "", "ANSWER (use ONLY the context above):"].join("\n");
 
     const t2 = Date.now();
-    const { data } = await axios.post(
-      `${runtime.ollamaUrl()}/api/chat`,
-      {
-        model: GEN_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        stream: false,
-        keep_alive: "10m",
-        options: { num_ctx: 1024, num_predict: 200, temperature: 0 },
-      },
-      { timeout: 300_000 }
+    const answer = await groqChat(
+      [{ role: "user", content: prompt }],
+      { temperature: 0.1, maxTokens: 400, timeoutMs: 20_000 }
     );
-    console.log(`[RAG] generate: ${Date.now() - t2} ms`);
-    englishAnswer = (data.message?.content as string)?.trim() || "Sorry, I wasn't able to generate a response.";
+    console.log(`[RAG] Groq Llama 3.3 70B generate: ${Date.now() - t2} ms`);
+    englishAnswer = answer || "Sorry, I wasn't able to generate a response.";
     }
 
     // Step 2: Translate if non-English (focused second LLM call)
