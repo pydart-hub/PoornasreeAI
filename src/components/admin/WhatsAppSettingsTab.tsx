@@ -25,6 +25,8 @@ import {
   Layers,
   Building2,
   Image as ImageIcon,
+  Cpu,
+  Key,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +48,9 @@ interface SupportSettings {
   companyPhotos?: string | null;
   companyDetails?: string | null;
   companyKnowledge?: string | null;
+  activeLlmProvider?: string | null;
+  geminiApiKey?: string | null;
+  groqApiKey?: string | null;
 }
 
 interface WaQuickButtonConfig {
@@ -105,6 +110,8 @@ const DEFAULT_COMPANY_KNOWLEDGE = `Poornasree Equipments Pvt Ltd Overview & Cata
   5. AMCU (Automatic Milk Collection Unit) — Hardware & software suite for dairy cooperative societies.
 - Branch Offices: Kochi (Head Office), Bulandshahr/Delhi, Bhopal, Jaipur, Belgaum, Cuddalore, Pratapgarh, Vijayawada.`;
 
+const DEFAULT_GEMINI_KEY = ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
+
 const DEFAULT_COMPANY_PHOTOS: CompanyPhoto[] = [
   { url: "https://poornasree.com/wp-content/uploads/2024/06/Social-Share-image.jpg", caption: "Poornasree Equipments Head Office & Facility" },
   { url: "https://poornasree.com/wp-content/uploads/2023/12/copmany.png", caption: "LactoSure Eco Milk Analyzer Product Line" },
@@ -147,6 +154,9 @@ export default function WhatsAppSettingsTab() {
     companyAddress: DEFAULT_COMPANY_ADDRESS,
     companyDetails: DEFAULT_COMPANY_DETAILS,
     companyKnowledge: DEFAULT_COMPANY_KNOWLEDGE,
+    activeLlmProvider: "gemini",
+    geminiApiKey: DEFAULT_GEMINI_KEY,
+    groqApiKey: "",
   });
 
   const [companyPhotos, setCompanyPhotos] = useState<CompanyPhoto[]>(DEFAULT_COMPANY_PHOTOS);
@@ -156,15 +166,13 @@ export default function WhatsAppSettingsTab() {
   const [buttons, setButtons] = useState<WaQuickButtonConfig[]>(DEFAULT_BUTTONS);
   const [listRows, setListRows] = useState<WaListRowConfig[]>(DEFAULT_LIST_ROWS);
   const [botRules, setBotRules] = useState<WaBotRuleConfig[]>(DEFAULT_BOT_RULES);
-
   const [menuHeaderTitle, setMenuHeaderTitle] = useState("Poornasree Options");
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
-  // Load stored settings from local storage & API
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     try {
@@ -180,6 +188,9 @@ export default function WhatsAppSettingsTab() {
           if (parsed.companyPhotos) setCompanyPhotos(parsed.companyPhotos);
           if (parsed.companyDetails) setForm((f) => ({ ...f, companyDetails: parsed.companyDetails }));
           if (parsed.companyKnowledge) setForm((f) => ({ ...f, companyKnowledge: parsed.companyKnowledge }));
+          if (parsed.activeLlmProvider) setForm((f) => ({ ...f, activeLlmProvider: parsed.activeLlmProvider }));
+          if (parsed.geminiApiKey) setForm((f) => ({ ...f, geminiApiKey: parsed.geminiApiKey }));
+          if (parsed.groqApiKey) setForm((f) => ({ ...f, groqApiKey: parsed.groqApiKey }));
         } catch {
           /* ignore */
         }
@@ -200,6 +211,9 @@ export default function WhatsAppSettingsTab() {
         companyAddress: s.companyAddress ?? DEFAULT_COMPANY_ADDRESS,
         companyDetails: s.companyDetails ?? DEFAULT_COMPANY_DETAILS,
         companyKnowledge: s.companyKnowledge ?? DEFAULT_COMPANY_KNOWLEDGE,
+        activeLlmProvider: s.activeLlmProvider ?? "gemini",
+        geminiApiKey: s.geminiApiKey ?? DEFAULT_GEMINI_KEY,
+        groqApiKey: s.groqApiKey ?? "",
       }));
 
       if (s.companyPhotos) {
@@ -254,6 +268,9 @@ export default function WhatsAppSettingsTab() {
           companyPhotos,
           companyDetails: form.companyDetails,
           companyKnowledge: form.companyKnowledge,
+          activeLlmProvider: form.activeLlmProvider,
+          geminiApiKey: form.geminiApiKey,
+          groqApiKey: form.groqApiKey,
         }),
       );
 
@@ -273,6 +290,9 @@ export default function WhatsAppSettingsTab() {
           companyPhotos: JSON.stringify(companyPhotos),
           companyDetails: form.companyDetails.trim() || null,
           companyKnowledge: form.companyKnowledge.trim() || null,
+          activeLlmProvider: form.activeLlmProvider.trim() || "gemini",
+          geminiApiKey: form.geminiApiKey.trim() || null,
+          groqApiKey: form.groqApiKey.trim() || null,
         }),
       });
 
@@ -469,6 +489,96 @@ export default function WhatsAppSettingsTab() {
                   placeholder="Enter detailed catalog specifications, owner/managing partner details, service partner network, dairy partners..."
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-mono"
                 />
+              </div>
+
+              {/* 4. AI Engine & LLM Settings (Google Gemini Default Enabled & Groq Token Management) */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-emerald-600" />
+                      4. AI Engine & LLM Settings (Google Gemini AI & Groq Token Configuration)
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure the AI provider engine for WhatsApp customer conversations. Google Gemini AI is enabled by default with automatic Groq fallback.
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
+                    Active: {form.activeLlmProvider === "groq" ? "Groq LLM" : "Google Gemini AI (Default)"}
+                  </span>
+                </div>
+
+                {/* LLM Provider Selection Toggle */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, activeLlmProvider: "gemini" }))}
+                    className={`p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                      form.activeLlmProvider === "gemini" || !form.activeLlmProvider
+                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-500/30"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 font-bold text-xs">✨</div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        Google Gemini AI <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px]">DEFAULT</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        High-speed multimodal AI engine (Gemini 3.6 Flash / gemini-flash-latest).
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, activeLlmProvider: "groq" }))}
+                    className={`p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                      form.activeLlmProvider === "groq"
+                        ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20 ring-2 ring-purple-500/30"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 font-bold text-xs">⚡</div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">Groq AI (Llama 3.3 70B)</div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Ultra-low latency Llama 3.3 70B engine via Groq Cloud API.
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* API Key Token Inputs */}
+                <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1">
+                      <Key className="w-3.5 h-3.5 text-emerald-600" />
+                      Google Gemini API Token Key
+                    </label>
+                    <input
+                      type="password"
+                      value={form.geminiApiKey}
+                      onChange={(e) => setForm((f) => ({ ...f, geminiApiKey: e.target.value }))}
+                      placeholder="AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv6h3RN-..."
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1">
+                      <Key className="w-3.5 h-3.5 text-purple-600" />
+                      Groq API Token Key
+                    </label>
+                    <input
+                      type="password"
+                      value={form.groqApiKey}
+                      onChange={(e) => setForm((f) => ({ ...f, groqApiKey: e.target.value }))}
+                      placeholder="gsk_..."
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">

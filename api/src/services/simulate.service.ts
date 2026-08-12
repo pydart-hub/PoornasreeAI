@@ -2138,7 +2138,7 @@ ${settings.companyAddress || ""}
 --------------------------`;
 
   try {
-    const { groqChat } = await import("./groq.service");
+    const { llmChat } = await import("./llm.service");
 
     const conversationPayload: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
@@ -2151,7 +2151,7 @@ ${settings.companyAddress || ""}
       conversationPayload.push({ role: "user", content: query });
     }
 
-    const reply = await groqChat(conversationPayload, { maxTokens: 350, temperature: 0.5 });
+    const reply = await llmChat(conversationPayload, { maxTokens: 350, temperature: 0.5 });
 
     if (reply && reply.trim()) {
       let buttons = [

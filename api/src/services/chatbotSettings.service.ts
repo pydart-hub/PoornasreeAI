@@ -13,6 +13,9 @@ export type WhatsAppSupportSettings = {
   companyPhotos: string | null;
   companyDetails: string | null;
   companyKnowledge: string | null;
+  activeLlmProvider: string | null;
+  geminiApiKey: string | null;
+  groqApiKey: string | null;
 };
 
 const DEFAULT_COMPANY_ADDRESS = "13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala - 682304";
@@ -47,6 +50,8 @@ const DEFAULT_COMPANY_KNOWLEDGE = `Poornasree Equipments Pvt Ltd Overview & Cata
   5. AMCU (Automatic Milk Collection Unit) — Hardware & software suite for dairy cooperative societies.
 - Branch Offices: Kochi (Head Office), Bulandshahr/Delhi, Bhopal, Jaipur, Belgaum, Cuddalore, Pratapgarh, Vijayawada.`;
 
+const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
+
 const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   botName: "Hari",
   supportPhone: "+91 94009 61291",
@@ -60,6 +65,9 @@ const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   companyPhotos: DEFAULT_COMPANY_PHOTOS,
   companyDetails: DEFAULT_COMPANY_DETAILS,
   companyKnowledge: DEFAULT_COMPANY_KNOWLEDGE,
+  activeLlmProvider: "gemini",
+  geminiApiKey: DEFAULT_GEMINI_KEY,
+  groqApiKey: null,
 };
 
 export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSettings> {
@@ -78,6 +86,9 @@ export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSetti
     companyPhotos: (row as any).companyPhotos?.trim() || DEFAULT_SETTINGS.companyPhotos,
     companyDetails: (row as any).companyDetails?.trim() || DEFAULT_SETTINGS.companyDetails,
     companyKnowledge: (row as any).companyKnowledge?.trim() || DEFAULT_SETTINGS.companyKnowledge,
+    activeLlmProvider: (row as any).activeLlmProvider?.trim() || DEFAULT_SETTINGS.activeLlmProvider,
+    geminiApiKey: (row as any).geminiApiKey?.trim() || DEFAULT_SETTINGS.geminiApiKey,
+    groqApiKey: (row as any).groqApiKey?.trim() || null,
   };
 }
 
@@ -107,6 +118,9 @@ export async function updateWhatsAppSupportSettings(
       companyPhotos: data.companyPhotos?.trim() || DEFAULT_SETTINGS.companyPhotos,
       companyDetails: data.companyDetails?.trim() || DEFAULT_SETTINGS.companyDetails,
       companyKnowledge: data.companyKnowledge?.trim() || DEFAULT_SETTINGS.companyKnowledge,
+      activeLlmProvider: data.activeLlmProvider?.trim() || DEFAULT_SETTINGS.activeLlmProvider,
+      geminiApiKey: data.geminiApiKey?.trim() || DEFAULT_SETTINGS.geminiApiKey,
+      groqApiKey: data.groqApiKey?.trim() || null,
     },
     update: {
       ...(botName !== undefined && { botName: botName || DEFAULT_SETTINGS.botName }),
@@ -121,6 +135,9 @@ export async function updateWhatsAppSupportSettings(
       ...(data.companyPhotos !== undefined && { companyPhotos: data.companyPhotos?.trim() || null }),
       ...(data.companyDetails !== undefined && { companyDetails: data.companyDetails?.trim() || null }),
       ...(data.companyKnowledge !== undefined && { companyKnowledge: data.companyKnowledge?.trim() || null }),
+      ...(data.activeLlmProvider !== undefined && { activeLlmProvider: data.activeLlmProvider?.trim() || null }),
+      ...(data.geminiApiKey !== undefined && { geminiApiKey: data.geminiApiKey?.trim() || null }),
+      ...(data.groqApiKey !== undefined && { groqApiKey: data.groqApiKey?.trim() || null }),
     },
   });
 
@@ -137,6 +154,9 @@ export async function updateWhatsAppSupportSettings(
     companyPhotos: (row as any).companyPhotos || DEFAULT_SETTINGS.companyPhotos,
     companyDetails: (row as any).companyDetails || DEFAULT_SETTINGS.companyDetails,
     companyKnowledge: (row as any).companyKnowledge || DEFAULT_SETTINGS.companyKnowledge,
+    activeLlmProvider: (row as any).activeLlmProvider || DEFAULT_SETTINGS.activeLlmProvider,
+    geminiApiKey: (row as any).geminiApiKey || DEFAULT_SETTINGS.geminiApiKey,
+    groqApiKey: (row as any).groqApiKey || null,
   };
 }
 

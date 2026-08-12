@@ -394,6 +394,9 @@ model ChatbotSetting {
   companyPhotos          String?  @db.Text
   companyDetails         String?  @db.Text
   companyKnowledge       String?  @db.Text
+  activeLlmProvider      String?  @default("gemini")
+  geminiApiKey           String?  @db.Text
+  groqApiKey             String?  @db.Text
   updatedAt              DateTime @updatedAt
 }
 
