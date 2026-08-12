@@ -2111,6 +2111,30 @@ async function runGroqCompanyAssistant(
     console.error("[groq-company-assistant] Failed to fetch chat history:", err);
   }
 
+  // Fetch trained document issues & chunks (CHATBOT_DATAS for customer, Engineers Training for service engineer)
+  let matchedDocKnowledge = "";
+  let hasExactDocMatch = false;
+  try {
+    const { loadTrainingCatalog, prefilterCatalog } = await import("./training-catalog.service");
+    const allCatalog = await loadTrainingCatalog();
+    const isServiceUser = (meta as any).isEngineer || (meta as any).role === "service_engineer" || (meta as any).role === "service";
+    const roleCatalog = isServiceUser
+      ? allCatalog.filter((e) => e.role === "service" || e.role === "customer" || e.source === "company")
+      : allCatalog.filter((e) => e.role === "customer" || e.source === "company");
+
+    const matchedEntries = prefilterCatalog(roleCatalog, query, 5);
+    const docEntries = matchedEntries.filter((e) => e.source === "document_issue" || e.source === "json");
+
+    if (docEntries.length > 0) {
+      hasExactDocMatch = true;
+      matchedDocKnowledge = docEntries
+        .map((e) => `[MATCHED TROUBLESHOOTING DOCUMENT: ${e.title}]\n${e.content}`)
+        .join("\n\n");
+    }
+  } catch (err) {
+    console.error("[groq-company-assistant] Failed to load document troubleshooting chunks:", err);
+  }
+
   const systemPrompt = `You are ${botName}, a friendly, intelligent human customer support representative for Poornasree Equipments.
 Answer the customer's question directly, concisely, and naturally using the official knowledge below. ${namePrompt}
 
@@ -2130,6 +2154,13 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
    - For casual greetings, jokes, or off-topic prompts, respond with a friendly, natural 1-sentence human redirection ("Njan Poornasree customer support representative Hari aanu. Machine service aano product enquiry aano venath?"). Never generate hallucinated or broken words.
 8. MULTI-TURN MEMORY: Maintain natural context from recent messages below.
 9. Do NOT invent false facts beyond the official company knowledge below.
+10. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
+    - When the user asks a troubleshooting or machine complaint question, follow ONLY the exact steps and actions from the MATCHED TROUBLESHOOTING DOCUMENTS below.
+    - Follow the EXACT steps and sequence (Step 1, Step 2, etc.) from the document.
+    - ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.
+
+--- MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS ---
+${matchedDocKnowledge || "No specific troubleshooting document match found."}
 
 --- OFFICIAL KNOWLEDGE ---
 Company Overview & Contact:
@@ -2168,9 +2199,31 @@ ${settings.companyAddress || ""}
         lowerQuery.includes("broken") ||
         lowerQuery.includes("problem") ||
         lowerQuery.includes("issue") ||
+        lowerQuery.includes("error") ||
+        lowerQuery.includes("working") ||
+        lowerQuery.includes("blinking") ||
+        lowerQuery.includes("not on") ||
         lowerQuery.includes("engineer") ||
         lowerQuery.includes("കേടായി") ||
         lowerQuery.includes("പരാതി");
+
+      // Automatic Manual Complaint Registration in DB if user is reporting a machine issue but NO document match exists
+      if (isServiceIntent && !hasExactDocMatch) {
+        try {
+          await prisma.manualComplaint.create({
+            data: {
+              phoneNumber,
+              machineName: meta.serialNumber || meta.regName || "Customer Machine",
+              complaint: query.trim(),
+              isReviewed: false,
+              hasMatch: false,
+            },
+          });
+          console.log(`[manual-complaint] Registered un-cataloged complaint for ${phoneNumber}: "${query}"`);
+        } catch (mErr) {
+          console.error("[manual-complaint] Failed to log manual complaint:", mErr);
+        }
+      }
 
       const isProductIntent =
         lowerQuery.includes("price") ||
