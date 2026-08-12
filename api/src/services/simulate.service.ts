@@ -2115,20 +2115,36 @@ async function runGroqCompanyAssistant(
   let matchedDocKnowledge = "";
   let hasExactDocMatch = false;
   try {
-    const { loadTrainingCatalog, prefilterCatalog } = await import("./training-catalog.service");
-    const allCatalog = await loadTrainingCatalog();
     const isServiceUser = (meta as any).isEngineer || (meta as any).role === "service_engineer" || (meta as any).role === "service";
-    const roleCatalog = isServiceUser
-      ? allCatalog.filter((e) => e.role === "service" || e.role === "customer" || e.source === "company")
-      : allCatalog.filter((e) => e.role === "customer" || e.source === "company");
+    const targetDocType = isServiceUser ? { in: ["service", "customer"] } : "customer";
 
-    const matchedEntries = prefilterCatalog(roleCatalog, query, 5);
-    const docEntries = matchedEntries.filter((e) => e.source === "document_issue" || e.source === "json");
+    const allChunks = await prisma.documentChunk.findMany({
+      where: { document: { documentType: targetDocType } },
+      include: { document: true },
+    });
 
-    if (docEntries.length > 0) {
+    const queryWords = query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !["the", "and", "for", "not", "this", "that", "with", "from", "you", "machine", "work", "help"].includes(w));
+
+    const scoredChunks = allChunks.map((chunk) => {
+      const contentLower = chunk.content.toLowerCase();
+      let score = 0;
+      for (const w of queryWords) {
+        if (contentLower.includes(w)) score += 1;
+      }
+      return { chunk, score };
+    });
+
+    scoredChunks.sort((a, b) => b.score - a.score);
+    const topMatches = scoredChunks.filter((item) => item.score >= 1).slice(0, 3);
+
+    if (topMatches.length > 0) {
       hasExactDocMatch = true;
-      matchedDocKnowledge = docEntries
-        .map((e) => `[MATCHED TROUBLESHOOTING DOCUMENT: ${e.title}]\n${e.content}`)
+      matchedDocKnowledge = topMatches
+        .map((m) => `[MATCHED OFFICIAL TROUBLESHOOTING DOCUMENT: ${m.chunk.document.title}]\n${m.chunk.content}`)
         .join("\n\n");
     }
   } catch (err) {
