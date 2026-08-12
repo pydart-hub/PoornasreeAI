@@ -422,7 +422,7 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     mr: "कृपया एक वैध उत्पादन निवडा:",
     te: "దయచేసి సరైన ఉత్పత్తిని ఎంచుకోండి:",
     bn: "অনুগ্রহ করে একটি বৈধ পণ্য নির্বাচন করুন:",
-    ml: "অনুগ্রহ করে একটি বৈধ পণ্য নির্বাচন করুন:",
+ml: "অনুগ্রহ করে একটি বৈধ পণ্য নির্বাচন করুন:",
   },
   NO_STEPS: {
     en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.\n\nWould you like to book a service visit? Our technician will come to your location.",
@@ -433,26 +433,6 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     te: "📝 *ఫిర్యాదు నమోదు చేయబడింది:* {complaint}\n\n😔 ఈ సమస్య కోసం పరిష్కార దశలు కనుగొనబడలేదు.\n\nమీరు సేవా సందర్శనను బుక్ చేయాలనుకుంటున్నారా? మా సాంకేతిక నిపుణుడు మీ స్థానానికి వస్తాడు.",
     bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন।",
     ml: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন।",
-  },
-  NO_STEPS_BASE: {
-    en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.",
-    hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n😔 इस समस्या के लिए कोई समाधान चरण नहीं मिले।",
-    ta: "📝 *புகார் குறிக்கப்பட்டது:* {complaint}\n\n😔 இந்த சிக்கலுக்கான தீர்வு படிகள் கிடைக்கவில்லை.",
-    kn: "📝 *ದೂರು ದಾಖಲಾಗಿದೆ:* {complaint}\n\n😔 ಈ ಸಮಸ್ಯೆಗಾಗಿ ಪರಿಹಾರ ಹಂತಗಳು ಕಂಡುಬಂದಿಲ್ಲ.",
-    mr: "📝 *तक्रार नोंदवली:* {complaint}\n\n😔 या समस्येसाठी कोणतेही निवारण चरण सापडले नाहीत.",
-    te: "📝 *ఫిర్యాదు నమోదు చేయబడింది:* {complaint}\n\n😔 ఈ సమస్య కోసం పరిష్కార దశలు కనుగొనబడలేదు.",
-    bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।",
-    ml: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।",
-  },
-  STEPS_FOUND: {
-    en: "🔧 *Troubleshooting Steps:*\n\n{steps}\n\nWere you able to resolve the issue?",
-    hi: "🔧 *समस्या निवारण चरण:*\n\n{steps}\n\nक्या आप समस्या हल करने में सफल रहे?",
-    ta: "🔧 *பழுதுநீக்கும் படிகள்:*\n\n{steps}\n\nஉங்களால் சிக்கலைத் தீர்க்க முடிந்ததா?",
-    kn: "🔧 *ದೋಷನಿವಾರಣೆ ಹಂತಗಳು:*\n\n{steps}\n\nಸಮಸ್ಯೆಯನ್ನು ಬಗೆಹರಿಸಲು ನಿಮಗೆ ಸಾಧ್ಯವಾಯಿತೇ?",
-    mr: "🔧 *समस्या निवारण चरण:*\n\n{steps}\n\nतुम्ही समस्या सोडवू शकलात का?",
-    te: "🔧 *ట్రబుల్షూటింగ్ దశలు:*\n\n{steps}\n\nమీరు సమస్యను పరిష్కరించగలిగారా?",
-    bn: "🔧 *সমস্যা সমাধানের পদক্ষেপ:*\n\n{steps}\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
-    ml: "🔧 *সমস্যা সমাধানের পদক্ষেপ:*\n\n{steps}\n\nআপনি কি সমস্যাটি সমাধান করতে পেরেছেন?",
   },
   ISSUE_RESOLVED: {
     en: "🎉 *Issue Resolved!*\n\nWe're glad the troubleshooting helped! 😊\n\nThank you for choosing Poornasree Support. 🙏",
@@ -1086,7 +1066,7 @@ function getNoButton(lang: Lang): ReplyButton {
   return { id: "NO", title: EXTRA_TRANSLATIONS.NO_BUTTON[lang] || EXTRA_TRANSLATIONS.NO_BUTTON.en };
 }
 
-export function getMainMenuList(lang: Lang): ReplyList {
+export function getMainMenuList(lang: Lang, options?: { hasTickets?: boolean }): ReplyList {
   const titles: Record<string, Record<Lang, string>> = {
     view_products: {
       en: "View Our Products",
@@ -1208,11 +1188,25 @@ export function getMainMenuList(lang: Lang): ReplyList {
     rows: [
       { id: "1", title: titles.view_products[lang] || titles.view_products.en, description: descriptions.view_products[lang] || descriptions.view_products.en },
       { id: "2", title: titles.complaint_reg[lang] || titles.complaint_reg.en, description: descriptions.complaint_reg[lang] || descriptions.complaint_reg.en },
-      { id: "3", title: titles.complaint_status[lang] || titles.complaint_status.en, description: descriptions.complaint_status[lang] || descriptions.complaint_status.en },
+      ...(options?.hasTickets ? [{ id: "3", title: titles.complaint_status[lang] || titles.complaint_status.en, description: descriptions.complaint_status[lang] || descriptions.complaint_status.en }] : []),
       { id: "4", title: titles.speak_support[lang] || titles.speak_support.en, description: descriptions.speak_support[lang] || descriptions.speak_support.en },
       { id: "5", title: titles.change_lang[lang] || titles.change_lang.en, description: descriptions.change_lang[lang] || descriptions.change_lang.en },
     ],
   };
+}
+
+export async function getContextualMainMenuList(phoneNumber: string, lang: Lang): Promise<ReplyList> {
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+  const ticketCount = await prisma.ticket.count({
+    where: {
+      OR: [
+        { phoneNumber: { contains: last10 } },
+        { phoneNumber: phoneNumber }
+      ]
+    }
+  });
+  return getMainMenuList(lang, { hasTickets: ticketCount > 0 });
 }
 
 // ── Static messages kept for non-FSM use (feedback, etc.) ────────────────
@@ -1503,7 +1497,7 @@ export async function startGreeting(phoneNumber: string) {
       "\n\n" +
       t("MAIN_MENU_MSG", lang),
       undefined,
-      getMainMenuList(lang)
+      await getContextualMainMenuList(phoneNumber, lang)
     );
   }
 
@@ -1538,7 +1532,7 @@ async function routeState(
         );
       }
       await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+      return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
 
     case "GREETING":
     case "COMPLETED":
@@ -1552,7 +1546,7 @@ async function routeState(
 
     case "VIEW_PRODUCTS":
       await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+      return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
 
     case "COMPLAINT_ASK_SERIAL":
       return handleComplaintAskSerial(session.id, phoneNumber, meta, text);
@@ -2002,7 +1996,7 @@ async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: str
     "\n\n" +
     t("MAIN_MENU_MSG", lang),
     undefined,
-    getMainMenuList(lang)
+    await getContextualMainMenuList(phoneNumber, lang)
   );
 }
 async function handleMainMenu(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
@@ -2061,7 +2055,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
 
-  return makeReply(t("VALID_OPTION", lang), undefined, getMainMenuList(lang));
+  return makeReply(t("VALID_OPTION", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
 }
 
 // ── VIEW_PRODUCTS ─────────────────────────────────────────────────────────
