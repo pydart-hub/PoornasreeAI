@@ -10,7 +10,6 @@ import { runtime } from "../services/runtime-config.service";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
-import { searchTrainingVideos } from "../services/engineer-training-video.service";
 import { transcribeAudioWithGroq } from "../services/groq.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
