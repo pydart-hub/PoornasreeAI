@@ -749,17 +749,15 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
   }
 
   if (result.list?.rows?.length) {
-    try {
-      await WhatsAppService.sendInteractiveList(to, result.message, result.list.buttonText, result.list.rows);
-    } catch (err) {
-      console.error("[whatsapp] sendInteractiveList failed — falling back to plain text:", err);
+    const sent = await WhatsAppService.sendInteractiveList(to, result.message, result.list.buttonText, result.list.rows);
+    if (!sent) {
+      console.warn("[whatsapp] Interactive list delivery failed — falling back to plain text");
       await WhatsAppService.sendMessage(to, result.message);
     }
   } else if (result.buttons?.length) {
-    try {
-      await WhatsAppService.sendInteractiveButtons(to, result.message, result.buttons);
-    } catch (err) {
-      console.error("[whatsapp] sendInteractiveButtons failed — falling back to plain text:", err);
+    const sent = await WhatsAppService.sendInteractiveButtons(to, result.message, result.buttons);
+    if (!sent) {
+      console.warn("[whatsapp] Interactive buttons delivery failed — falling back to plain text");
       await WhatsAppService.sendMessage(to, result.message);
     }
   } else {

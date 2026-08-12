@@ -161,15 +161,15 @@ export type WaButton =
   | { id: string; title: string }
   | { id: "__location__"; title: string; isLocation: true };
 
-/** Send an interactive button message via WhatsApp Cloud API. */
+/** Send an interactive button message via WhatsApp Cloud API. Returns true if sent successfully. */
 export async function sendInteractiveButtons(
   to: string,
   body: string,
   buttons: WaButton[],
-): Promise<void> {
+): Promise<boolean> {
   if (!isConfigured()) {
     console.warn("[whatsapp] Not configured — skipping sendInteractiveButtons");
-    return;
+    return false;
   }
 
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
@@ -178,9 +178,10 @@ export async function sendInteractiveButtons(
     if ("isLocation" in b && b.isLocation) {
       return { type: "location" };
     }
+    const cleanTitle = Array.from(b.title).slice(0, 20).join("");
     return {
       type: "reply",
-      reply: { id: b.id, title: b.title.slice(0, 20) },
+      reply: { id: b.id, title: cleanTitle },
     };
   });
 
@@ -206,32 +207,36 @@ export async function sendInteractiveButtons(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error(`[whatsapp] Interactive send failed (${res.status}):`, JSON.stringify(err));
+      return false;
     } else {
       console.log(`[whatsapp] Sent buttons → ${to}: ${body.slice(0, 60)}…`);
+      return true;
     }
   } catch (err) {
     console.error(`[whatsapp] Network error sending buttons to ${to}:`, (err as Error).message);
+    return false;
   }
 }
 
 /** WhatsApp interactive list-row shape. Title max 24 chars. */
 export type WaListRow = { id: string; title: string; description?: string };
 
-/** Send an interactive list message via WhatsApp Cloud API. Max 10 rows. */
+/** Send an interactive list message via WhatsApp Cloud API. Max 10 rows. Returns true if sent successfully. */
 export async function sendInteractiveList(
   to: string,
   body: string,
   buttonText: string,
   rows: WaListRow[],
-): Promise<void> {
+): Promise<boolean> {
   if (!isConfigured()) {
     console.warn("[whatsapp] Not configured — skipping sendInteractiveList");
-    return;
+    return false;
   }
 
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
+    const cleanButtonText = Array.from(buttonText).slice(0, 20).join("");
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -246,14 +251,14 @@ export async function sendInteractiveList(
           type: "list",
           body: { text: body },
           action: {
-            button: buttonText.slice(0, 20),
+            button: cleanButtonText,
             sections: [
               {
                 title: "Options",
                 rows: rows.slice(0, 10).map((r) => ({
                   id: r.id,
-                  title: r.title.slice(0, 24),
-                  ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+                  title: Array.from(r.title).slice(0, 24).join(""),
+                  ...(r.description ? { description: Array.from(r.description).slice(0, 72).join("") } : {}),
                 })),
               },
             ],
@@ -265,11 +270,14 @@ export async function sendInteractiveList(
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error(`[whatsapp] List send failed (${res.status}):`, JSON.stringify(err));
+      return false;
     } else {
       console.log(`[whatsapp] Sent list → ${to}: ${body.slice(0, 60)}…`);
+      return true;
     }
   } catch (err) {
     console.error(`[whatsapp] Network error sending list to ${to}:`, (err as Error).message);
+    return false;
   }
 }
 
