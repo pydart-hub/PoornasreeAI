@@ -554,7 +554,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   }
 
   // Run through FSM
-  const result = await SimulateService.handleMessage(from, text);
+  const result = await SimulateService.handleMessage(from, text, messageId);
 
   // Human typing delay (1.2 seconds) to ensure the typing animation is visible on WhatsApp app
   await new Promise((resolve) => setTimeout(resolve, 1200));

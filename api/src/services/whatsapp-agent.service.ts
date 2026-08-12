@@ -522,7 +522,12 @@ async function checkIsUserRegistered(phoneNumber: string): Promise<boolean> {
 export async function handleCustomerAgentMessage(
   phoneNumber: string,
   message: string,
+  messageId?: string,
 ): Promise<AgentReply | null> {
+  if (messageId) {
+    await WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
+  }
+
   const text = message.trim();
   const upper = text.toUpperCase().trim();
   const supportSettings = await getWhatsAppSupportSettings();

@@ -1239,7 +1239,7 @@ const RATING_LIST: ReplyList = {
 };
 
 // ── Entry point ───────────────────────────────────────────────────────────
-export async function handleMessage(phoneNumber: string, message: string) {
+export async function handleMessage(phoneNumber: string, message: string, messageId?: string) {
   const text = message.trim();
   const upper = text.toUpperCase();
 
@@ -1307,7 +1307,7 @@ export async function handleMessage(phoneNumber: string, message: string) {
 
   if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
     try {
-      const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
+      const agentReply = await handleCustomerAgentMessage(phoneNumber, text, messageId);
       if (agentReply) {
         return makeReply(agentReply.message, agentReply.buttons, agentReply.list, (agentReply.images as any) || undefined, agentReply.followUpMessage);
       }
