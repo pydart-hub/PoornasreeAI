@@ -505,9 +505,57 @@ export async function handleCustomerAgentMessage(
     };
   }
 
+  // ── Interactive Button & Shortcut Handlers (Executed for all users) ──
+  if (upper === "TALK_AGENT" || upper === "SPEAK TO SUPPORT" || upper === "4") {
+    meta.hasSkippedRegistration = true;
+    await updateAgentSession(session.id, session.state, meta);
+    return handleTalkToSupport(phoneNumber, session.id, meta);
+  }
+
+  if (upper === "YES_RESOLVED") {
+    meta.hasSkippedRegistration = true;
+    await updateAgentSession(session.id, "AGENT_CHAT", { ...meta, lastComplaint: undefined });
+    return makeReply(
+      `Great! 🎉 Glad the issue is resolved. If you face any other problems in the future, feel free to reach out anytime. We're always here to help!`,
+      [
+        { id: "troubleshoot", title: "🔧 Troubleshoot" },
+        { id: "book_service", title: "🛠️ Book Service" },
+        { id: "talk_agent", title: "💬 Talk to Support" },
+      ],
+    );
+  }
+
+  if (upper === "REGISTER" || upper === "REGISTER_MACHINE" || upper === "REGISTER NOW") {
+    // Hand off to FSM registration flow
+    return null;
+  }
+
+  if (upper === "TROUBLESHOOT" || upper === "1") {
+    meta.hasSkippedRegistration = true;
+    await updateAgentSession(session.id, session.state, meta);
+    return makeReply(
+      `🔧 *Poornasree Troubleshooting Assistant*\n\nPlease describe the issue you are experiencing with your machine (e.g. *Vibro not working*, *Analyzer not turning on*, *T2 error*, *Low battery*, *Hot sample error*).`,
+      [
+        { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+        { id: "talk_agent", title: "💬 Talk to us" },
+      ],
+    );
+  }
+
+  if (upper === "BOOK_SERVICE" || upper === "BOOK SERVICE" || upper === "2") {
+    meta.hasSkippedRegistration = true;
+    await updateAgentSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
+    return makeReply(
+      `Sure! I'll help you book a service visit. Please enter your 10-digit machine serial number (e.g. ECO-2024-8841) — or tap Skip to continue without it.`,
+      [
+        { id: "SKIP", title: "Skip ⏭️" },
+        { id: "MENU", title: "Menu 📋" },
+      ],
+    );
+  }
+
   // ── Prompt unregistered users unless they have explicitly tapped SKIP ──
   if (!isRegistered && !meta.hasSkippedRegistration) {
-    // Detect if this is a greeting/first contact vs a meaningful question
     const greetings = new Set(["HI", "HELLO", "HEY", "NAMASTE", "HAI", "HELO", "HIII", "HIIII", "NAMSTE", "NAMASKAR"]);
     const isGreeting = !text || upper.length <= 4 || greetings.has(upper);
 
@@ -540,49 +588,6 @@ export async function handleCustomerAgentMessage(
         { id: "troubleshoot", title: "🔧 Troubleshoot" },
         { id: "book_service", title: "🛠️ Book Service" },
         { id: "talk_agent", title: "💬 Talk to Support" },
-      ],
-    );
-  }
-
-  // Handle shortcuts
-  if (upper === "TALK_AGENT" || upper === "SPEAK TO SUPPORT" || upper === "4") {
-    return handleTalkToSupport(phoneNumber, session.id, meta);
-  }
-
-  if (upper === "YES_RESOLVED") {
-    await updateAgentSession(session.id, "AGENT_CHAT", { ...meta, lastComplaint: undefined });
-    return makeReply(
-      `Great! 🎉 Glad the issue is resolved. If you face any other problems in the future, feel free to reach out anytime. We're always here to help!`,
-      [
-        { id: "troubleshoot", title: "🔧 Troubleshoot" },
-        { id: "book_service", title: "🛠️ Book Service" },
-        { id: "talk_agent", title: "💬 Talk to Support" },
-      ],
-    );
-  }
-
-  if (upper === "REGISTER" || upper === "REGISTER_MACHINE" || upper === "REGISTER NOW") {
-    // Hand off to FSM registration flow
-    return null;
-  }
-
-  if (upper === "TROUBLESHOOT" || upper === "1") {
-    return makeReply(
-      `🔧 *Poornasree Troubleshooting Assistant*\n\nPlease describe the issue you are experiencing with your machine (e.g. *Vibro not working*, *Analyzer not turning on*, *T2 error*, *Low battery*, *Hot sample error*).`,
-      [
-        { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
-        { id: "talk_agent", title: "💬 Talk to us" },
-      ],
-    );
-  }
-
-  if (upper === "BOOK_SERVICE" || upper === "BOOK SERVICE" || upper === "2") {
-    await updateAgentSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
-    return makeReply(
-      `Sure! I'll help you book a service visit. Please enter your 10-digit machine serial number (e.g. ECO-2024-8841) — or tap Skip to continue without it.`,
-      [
-        { id: "SKIP", title: "Skip ⏭️" },
-        { id: "MENU", title: "Menu 📋" },
       ],
     );
   }
