@@ -8,8 +8,6 @@
     "tunnel": "echo No tunnel needed — using local PostgreSQL on port 5432",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test:stages": "powershell -File ../tests/e2e/test-stage-api.ps1",
     "webhook:dev": "node scripts/webhook-receiver.js"
   },
   "prisma": {
