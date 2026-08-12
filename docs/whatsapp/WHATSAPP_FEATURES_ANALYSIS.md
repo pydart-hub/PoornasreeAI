@@ -1,16 +1,15 @@
 # WhatsApp Chat Features — Complete Technical Analysis
 
-> **Scope:** Customer-facing WhatsApp chatbot, AI agent, complaint registration, troubleshooting, service booking, registration flow, engineer WhatsApp, dealer WhatsApp.
-> **Date:** 2026-08-11
-> **Key files:**
-> - `api/src/controllers/whatsapp.controller.ts` — webhook entry, message routing
-> - `api/src/services/simulate.service.ts` — FSM (Finite State Machine) for customer conversations
-> - `api/src/services/whatsapp-agent.service.ts` — Groq LLM conversational AI agent
+> **Update Note (August 12, 2026)**: The active production codebase was refactored to streamline customer interactions. Secondary agent/dealer modules were archived into `docs/whatsapp/`. Core active runtime logic is concentrated in `api/src/controllers/whatsapp.controller.ts` and `api/src/services/simulate.service.ts`.
+>
+> **Scope:** Customer-facing WhatsApp chatbot, registration state machine, multi-language switcher, ticket booking, Groq Whisper voice note STT, and Meta Cloud API senders.
+> **Date:** 2026-08-12
+> **Active Production Files:**
+> - `api/src/controllers/whatsapp.controller.ts` — Webhook entry, deduplication, voice note STT, image upload, message delivery
+> - `api/src/services/simulate.service.ts` — Machine Registration FSM & Language State Machine
 > - `api/src/services/whatsapp.service.ts` — Meta Cloud API message sender (buttons, lists, images, video)
-> - `api/src/services/chatbotSettings.service.ts` — bot name, support phone
-> - `api/src/services/engineer-whatsapp.service.ts` — engineer WhatsApp routing
-> - `api/src/services/dealer-whatsapp.service.ts` — dealer WhatsApp routing
-> - `api/src/routes/whatsapp.routes.ts` — route mount at `/api/whatsapp`
+> - `api/src/services/groq.service.ts` — Groq Whisper voice note transcription API client
+> - `api/src/routes/whatsapp.routes.ts` — Route mount at `/api/whatsapp`
 
 ---
 
