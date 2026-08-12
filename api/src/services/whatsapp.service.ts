@@ -120,26 +120,23 @@ export async function sendTemplate(to: string, options: SendTemplateOptions): Pr
   return !!result?.messages?.[0]?.id;
 }
 
-/** Mark an incoming customer message as "read" in WhatsApp (displays blue double checkmarks ✓✓). */
+/** Mark an incoming customer message as "read" in WhatsApp (blue checkmarks ✓✓) and show animated typing indicator ("typing..."). */
 export async function markMessageAsRead(messageId: string): Promise<boolean> {
   if (!messageId || !isConfigured()) return false;
   const result = await postWhatsAppMessage("status_update", {
     status: "read",
     message_id: messageId,
-  });
-  return !!result;
-}
-
-/** Show animated WhatsApp typing indicator ("typing...") to the customer. */
-export async function sendTypingIndicator(to: string): Promise<boolean> {
-  if (!to || !isConfigured()) return false;
-  const result = await postWhatsAppMessage(to, {
-    recipient_type: "individual",
     typing_indicator: {
       type: "text",
     },
   });
   return !!result;
+}
+
+/** Show animated WhatsApp typing indicator ("typing...") to the customer. */
+export async function sendTypingIndicator(messageId: string): Promise<boolean> {
+  if (!messageId || !isConfigured()) return false;
+  return markMessageAsRead(messageId);
 }
 
 /** Send a plain-text WhatsApp message. `to` should be international digits (e.g. 919876543210). */
