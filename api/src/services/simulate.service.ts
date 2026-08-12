@@ -85,6 +85,9 @@ type SessionMeta = {
   regCustomerId?: string;
   regIsDealerMachine?: boolean;
   hasSkippedRegistration?: boolean;
+  /** Product browsing */
+  selectedCategory?: string;
+  selectedProductId?: string;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -1248,6 +1251,9 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED";
   const inLegacyTransactional =
     session.state === "VIEW_PRODUCTS" ||
+    session.state === "VIEW_PRODUCT_CATEGORY" ||
+    session.state === "VIEW_PRODUCT_DETAIL" ||
+
     session.state === "COMPLAINT_ASK_SERIAL" ||
     session.state === "MACHINE_CONFIRM" ||
     session.state === "COMPLAINT_CATEGORY" ||
@@ -1545,8 +1551,13 @@ async function routeState(
       return handleMainMenu(session.id, phoneNumber, meta, text);
 
     case "VIEW_PRODUCTS":
-      await updateSession(session.id, "MAIN_MENU", meta);
-      return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+      return handleProductBrowse(session.id, phoneNumber, meta, text);
+
+    case "VIEW_PRODUCT_CATEGORY":
+      return handleProductCategory(session.id, phoneNumber, meta, text);
+
+    case "VIEW_PRODUCT_DETAIL":
+      return handleProductDetail(session.id, phoneNumber, meta, text);
 
     case "COMPLAINT_ASK_SERIAL":
       return handleComplaintAskSerial(session.id, phoneNumber, meta, text);
@@ -2058,53 +2069,211 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   return makeReply(t("VALID_OPTION", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
 }
 
-// ── VIEW_PRODUCTS ─────────────────────────────────────────────────────────
+// ── VIEW_PRODUCTS — 3-step browsing flow ──────────────────────────────────
 const DEFAULT_CONTACT = "+91 94009 61291";
 
+/** Pretty-print a category key → readable label */
+function categoryLabel(cat: string): string {
+  const labels: Record<string, string> = {
+    lactogrand: "LactoGrand",
+    lactosure: "LactoSure",
+    other: "Other Products",
+  };
+  return labels[cat.toLowerCase()] ?? cat.charAt(0).toUpperCase() + cat.slice(1);
+}
+
+/** Step 1: show category selection list */
 async function showProducts(sessionId: string, meta: SessionMeta) {
+  return handleProductBrowse(sessionId, "", meta, "");
+}
+
+async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta: SessionMeta, _text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  await updateSession(sessionId, "VIEW_PRODUCTS", meta);
 
-  // Fetch admin-managed products from the database
-  const products = sortByCategory(
-    await prisma.product.findMany({ where: { isActive: true } }),
-  );
+  const categories = await prisma.product.groupBy({
+    by: ["category"],
+    where: { isActive: true },
+    _count: { id: true },
+  });
 
-  if (products.length === 0) {
+  if (categories.length === 0) {
+    await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(
-      `📦 *Our Products*\n\nNo products available at the moment. Please check back later!\n\n📞 *Contact Us:* ${DEFAULT_CONTACT}`,
-      [getMenuButton(lang), COMPLAINT_BUTTON],
+      `📦 No products available at the moment.\n\n📞 Contact us: ${DEFAULT_CONTACT}`,
+      [getMenuButton(lang)],
     );
   }
 
-  // Build image array for WhatsApp (only products that have an image)
-  const baseUrl = runtime.frontendUrl().replace(/\/$/, "");
-  const images: ProductImage[] = products
-    .filter(p => p.imageUrl)
-    .map(p => ({
-      url: p.imageUrl!.startsWith("http") ? p.imageUrl! : `${baseUrl}${p.imageUrl}`,
-      caption: `*${p.name}*${p.price ? `\n💰 ${p.price}` : ""}${p.detail ? `\n\n${p.detail}` : ""}${p.contactNumber ? `\n\n📞 ${p.contactNumber}` : ""}`,
-    }));
+  await updateSession(sessionId, "VIEW_PRODUCTS", meta);
 
-  const productLines = formatProductsGrouped(products);
-  const contactNumber = products.find(p => p.contactNumber)?.contactNumber ?? DEFAULT_CONTACT;
-
-  const summary = [
-    `📦 *Our Products — Poornasree Equipments*`,
-    ``,
-    ...productLines,
-    ``,
-    `📞 *Contact Us:* ${contactNumber}`,
-    `🌐 *Website:* poornasree.com/products`,
-  ].join("\n");
+  const rows = categories.map((c, i) => ({
+    id: `CAT_${c.category.toUpperCase()}`,
+    title: `${categoryLabel(c.category)}`,
+    description: `${c._count.id} product${c._count.id !== 1 ? "s" : ""}`,
+  }));
+  rows.push({ id: "BACK_MAIN", title: "⬅️ Main Menu", description: "Go back to main menu" });
 
   return makeReply(
-    summary,
-    [getMenuButton(lang), COMPLAINT_BUTTON],
+    `📦 *Our Products*\n\nPlease select a product category to explore:`,
+    undefined,
+    { buttonText: "Browse Categories 📋", rows },
+  );
+}
+
+/** Step 2: user picked a category — show products in that category */
+async function handleProductCategory(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.trim().toUpperCase();
+
+  if (upper === "BACK_MAIN" || upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
+  // Resolve category from button ID like "CAT_LACTOGRAND" or from raw text
+  let category: string | null = null;
+  if (upper.startsWith("CAT_")) {
+    category = upper.replace("CAT_", "").toLowerCase();
+  } else {
+    // Try to match category by name
+    const cats = await prisma.product.groupBy({ by: ["category"], where: { isActive: true } });
+    const match = cats.find(c => c.category.toLowerCase() === upper.toLowerCase() || categoryLabel(c.category).toLowerCase() === upper.toLowerCase());
+    if (match) category = match.category;
+  }
+
+  if (!category) {
+    // User may have typed something else — re-show categories
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+
+  const products = await prisma.product.findMany({
+    where: { isActive: true, category },
+    select: { id: true, name: true, imageUrl: true, price: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (products.length === 0) {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+
+  await updateSession(sessionId, "VIEW_PRODUCT_CATEGORY", { ...meta, selectedCategory: category });
+
+  const rows = products.map(p => ({
+    id: `PROD_${p.id}`,
+    title: p.name,
+    description: p.price ? `💰 ${p.price}` : "Tap to view details",
+  }));
+  rows.push({ id: "BACK_CATEGORIES", title: "⬅️ Back to Categories", description: "" });
+
+  return makeReply(
+    `📦 *${categoryLabel(category)}*\n\nSelect a product to view details:`,
+    undefined,
+    { buttonText: `View Products 📋`, rows },
+  );
+}
+
+/** Step 3: user picked a product — Groq generates description from image in customer's language */
+async function handleProductDetail(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.trim().toUpperCase();
+
+  if (upper === "BACK_CATEGORIES" || upper === "BACK") {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+  if (upper === "BACK_MAIN" || upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
+  // Resolve product ID from button ID "PROD_<uuid>"
+  let productId: string | null = null;
+  if (upper.startsWith("PROD_")) {
+    productId = text.trim().slice(5); // preserve original case for UUID
+  }
+
+  if (!productId) {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, name: true, imageUrl: true, price: true, detail: true, contactNumber: true, category: true },
+  });
+
+  if (!product) {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+
+  await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", { ...meta, selectedProductId: productId });
+
+  const baseUrl = runtime.frontendUrl().replace(/\/$/, "");
+  const imageUrl = product.imageUrl
+    ? (product.imageUrl.startsWith("http") ? product.imageUrl : `${baseUrl}${product.imageUrl}`)
+    : null;
+
+  // Detect customer's language name for Groq prompt
+  const langNames: Record<string, string> = {
+    en: "English", hi: "Hindi", ml: "Malayalam", ta: "Tamil",
+    kn: "Kannada", mr: "Marathi", te: "Telugu", bn: "Bengali",
+  };
+  const targetLanguage = langNames[lang] ?? "English";
+
+  // Use Groq to generate a product description in the customer's language
+  let description = product.detail ?? "";
+  try {
+    const { groqChat } = await import("./groq.service");
+    const systemPrompt = `You are a product description specialist for Poornasree Equipments, a dairy equipment company.
+The customer's preferred language is ${targetLanguage}.
+Write a compelling, friendly product description in ${targetLanguage} language only.
+Be concise (2-3 sentences). Use WhatsApp-friendly formatting (bold with *text*, emojis).
+If the product name includes technical terms (like LactoGrand, LactoSure, Vibro, ECO), keep those in English.
+Do NOT include pricing or contact info in the description.`;
+
+    const userPrompt = product.imageUrl
+      ? `Product name: "${product.name}" (Category: ${product.category}). This product has an image at: ${imageUrl}. Generate a compelling product description in ${targetLanguage}.`
+      : `Product name: "${product.name}" (Category: ${product.category}). Generate a compelling product description in ${targetLanguage}.`;
+
+    description = await groqChat(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      { maxTokens: 200, temperature: 0.7 },
+    );
+  } catch (err) {
+    console.error("[product] Groq description failed:", err);
+    description = product.detail ?? product.name;
+  }
+
+  const contact = product.contactNumber ?? DEFAULT_CONTACT;
+  const priceText = product.price ? `\n💰 *Price:* ${product.price}` : "";
+
+  const msg = [
+    `📦 *${product.name}*`,
+    ``,
+    description,
+    priceText,
+    ``,
+    `📞 *Contact:* ${contact}`,
+    `🌐 *Website:* poornasree.com/products`,
+  ].join("\n").trim();
+
+  const images: ProductImage[] = imageUrl
+    ? [{ url: imageUrl, caption: product.name }]
+    : [];
+
+  return makeReply(
+    msg,
+    [
+      { id: "BACK_CATEGORIES", title: "⬅️ Back to Products" },
+      getMenuButton(lang),
+    ],
     undefined,
     images.length > 0 ? images : undefined,
   );
 }
+
+
 
 // ── CHECK_STATUS ──────────────────────────────────────────────────────────
 async function showTicketStatus(sessionId: string, phoneNumber: string, meta: SessionMeta) {
