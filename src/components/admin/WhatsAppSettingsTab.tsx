@@ -96,19 +96,46 @@ Service Contacts: +91 80863 48859, +91 95447 57711
 Authorized Service Partner Network: Harisree Enterprises (24-hour problem resolution policy across India)
 Branch Offices: Bhopal (MP), Karnataka (Belgaum), Delhi / Bulandshahr (UP), Rajasthan (Jaipur), Tamil Nadu (Cuddalore), Uttar Pradesh (Pratapgarh), Andhra Pradesh (Vijayawada).`;
 
-const DEFAULT_COMPANY_KNOWLEDGE = `Poornasree Equipments Pvt Ltd Overview & Catalog Knowledge:
-- Managing Partner: Babumon Gopi (Managing Director & Founder).
-- Company Profile: Established in 2011, headquartered in Kochi, Kerala. India's leading Make in India brand & OEM in milk testing equipment.
-- Production Scale: ~100 employees across 10 departments, monthly production capacity of 2,500 units. ISO 9001:2015 certified with CE, ZED, and IMEX standards.
-- Authorized Field Service Partner: Harisree Enterprises (provides field engineer visits & 24-hour service resolution across India).
-- Key Dairy Partners: MILMA (Kerala), Amul (Gujarat), KMF / Nandini (Karnataka), Aavin (Tamil Nadu), Vijaya (AP/Telangana), Corporate Dairies & AMCU centers.
-- Product Line:
-  1. LactoSure ECO Series Milk Analyzers (Eco, Eco-S, Eco V, Eco-SV, Eco-D-V4, Eco-CP, Eco-SV-V4) — India's fastest ultrasonic milk analyzers (~20-40 sec). Measures Fat, SNF, CLR, Protein, Lactose, Added Salt, Added Water, Sample Temp. Features battery & solar variants.
-  2. VIBRO Ultrasonic Milk Stirrer — Removes air bubbles from milk samples prior to testing for accurate fat/SNF analysis.
-  3. LactoSure DPS-T (Data Processing Unit - DPU) — Computerized milk collection unit syncing data with weighing scales & printers.
-  4. LactoSure EXD (External Display) — High-visibility LED display for real-time payout transparency.
-  5. AMCU (Automatic Milk Collection Unit) — Hardware & software suite for dairy cooperative societies.
-- Branch Offices: Kochi (Head Office), Bulandshahr/Delhi, Bhopal, Jaipur, Belgaum, Cuddalore, Pratapgarh, Vijayawada.`;
+const DEFAULT_COMPANY_KNOWLEDGE = `POORNASREE EQUIPMENTS PVT LTD — COMPLETE OFFICIAL PRODUCT CATALOG & AI TRAINING KNOWLEDGE MATRIX:
+
+1. LACTOSURE ECO SERIES MILK ANALYZERS (Category: lactosure)
+- Overview: India's fastest & most reliable ultrasonic milk analyzers designed for dairy collection societies and farmers.
+- Test Time: 20–30 seconds ultra-fast measurement per sample.
+- Testing Parameters: Fat (0.01%–15%), SNF (3%–15%), Density/CLR (1.020–1.040 g/cm³), Protein (2%–7%), Lactose (0.01%–6%), Added Water (0%–70%), Sample Temperature (5°C–45°C), Freezing Point.
+- Key Specifications & Operating Features:
+  • Operating Voltage: 12V DC / 220V AC dual power capability.
+  • Power Consumption: Low power consumption (~30W).
+  • Sample Volume: ~15 ml per test.
+  • Cleaning: Automatic cleaning & peristaltic pump rinse cycle.
+  • Connectivity: RS232, Bluetooth, USB sync for external LED display (EXD), weighing scale, and thermal printers.
+- Model Comparison Matrix:
+  • ECO V3: Standard entry-level ultrasonic milk analyzer, highly reliable and fast.
+  • ECO-V: Enhanced model with high-visibility digital display & improved sensor stability.
+  • ECO SV-V4: Smart variant with built-in Bluetooth connectivity, fast processing, and mobile app sync.
+  • ECO D-V4 (ECO-DS0G-12AH-V4): Premium dual-power variant equipped with integrated battery charger and solar charging port for uninterrupted operation in rural areas.
+
+2. LACTOGRAND SERIES (Category: lactogrand)
+- Overview: Industrial heavy-duty milk analyzers & computerized collection terminals engineered for high-volume dairy societies & milk collection centers.
+- Testing Parameters: Full 8-parameter analysis (Fat, SNF, Density/CLR, Protein, Lactose, Salt, Added Water, Sample Temp).
+- Hardware & Connectivity: High-resolution color LCD / Touchscreen, stainless steel probe, RS232/USB, built-in WiFi, GPRS / 4G cloud data transfer.
+- Model Comparison Matrix:
+  • LactoGrand Lite: Compact, budget-friendly high-accuracy milk analyzer.
+  • LactoGrand SD: Industrial model with built-in SD card / internal memory storage for offline milk collection logging.
+  • LactoGrand S Pro: Professional high-capacity analyzer with multi-scale calibration and thermal printer support.
+  • LactoGrand S Pro Connect +: Ultimate flagship analyzer featuring WiFi, 4G cloud sync, GPRS, thermal printer integration, and direct society management software sync.
+
+3. VIBRO ULTRASONIC MILK STIRRER (Category: other / stirrer)
+- Function: Removes trapped air bubbles, froth, and gas from fresh milk samples in 5–10 seconds prior to ultrasonic analysis.
+- Why It Is Essential: Air bubbles cause false low Fat & SNF readings. Using Vibro guarantees 100% accurate testing.
+- Features: High-frequency ultrasonic vibration transducer, stainless steel beaker holder, automatic shut-off timer, splash-proof casing.
+
+4. LACTOSURE EXD (EXTERNAL DISPLAY) (Category: other)
+- Function: Remote high-brightness LED display unit.
+- Purpose: Connects via RS232/Bluetooth to LactoSure analyzers to show Fat, SNF, rate, and total payout to farmers for full transparency.
+
+5. AMCU (AUTOMATIC MILK COLLECTION UNIT) (Category: other)
+- Function: Complete hardware & software suite combining Milk Analyzer (LactoSure/LactoGrand), Weighing Scale, Thermal Printer, and AMCU Software.
+- Features: Automatic farmer identification, instant billing receipt printing, SMS alerts, and society cloud database upload.`;
 
 const DEFAULT_GEMINI_KEY = ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
 
