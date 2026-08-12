@@ -12,7 +12,7 @@
 // This runs BEFORE the expensive full LLM response generation, so a confident
 // classifier match saves an LLM call (~400-600ms savings).
 
-import { groqChat, groqFastModel } from "./groq.service";
+import { groqChat, groqFastModel, groqAgentModel } from "./groq.service";
 import type { CatalogEntry } from "./training-catalog.service";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ function cacheKey(message: string, candidateIds: string[]): string {
 // This keeps the LLM call cheap (fewer tokens) and improves accuracy.
 
 const PRODUCT_KEYWORDS: Record<string, RegExp> = {
+  t2: /\bt2\b|\bno[._ ]?t2\b|temp[._ ]?set|temperature|hot[._ ]?sample|sample[._ ]?not[._ ]?found|air[._ ]?in[._ ]?milk/i,
   vibro: /vibro|stirrer|stir/i,
   analyzer: /analyzer|machine|milk.*test|ecos|ecod|lactosure|lactogrand|eco[_-]?v|eco[_-]?sv|eco[_-]?d|lse/i,
   charger: /charger|adapter|solar.*charger|charging/i,
@@ -66,6 +67,7 @@ const PRODUCT_KEYWORDS: Record<string, RegExp> = {
 };
 
 const COMPLAINT_KEYWORDS: Record<string, string[]> = {
+  t2: ["t2", "temp.set", "sample", "sensor", "analyzer", "mainboard"],
   vibro: ["vibro"],
   analyzer: ["analyzer", "ecod", "dpst", "lactosure"],
   charger: ["charger", "adapter", "solar charger"],
@@ -120,17 +122,29 @@ export function prefilterCandidates(
       // Pattern matching (check if user message contains any training pattern)
       for (const pattern of e.patterns) {
         const patternLower = pattern.toLowerCase();
-        if (patternLower.length > 4 && lower.includes(patternLower)) {
-          score += 15; // Direct pattern substring match — very strong signal
+        if (patternLower.length >= 2 && lower.includes(patternLower)) {
+          if (patternLower === "t2" || patternLower === "no t2") {
+            const regex = new RegExp(`\\b${patternLower.replace(/\./g, "\\.")}\\b`, "i");
+            if (regex.test(lower)) score += 25;
+          } else {
+            score += 15; // Direct pattern substring match — very strong signal
+          }
         }
         // Partial pattern match (some words from pattern in user message)
-        const patternWords = patternLower.split(/\s+/).filter((w) => w.length > 3);
+        const patternWords = patternLower.split(/\s+/).filter((w) => w.length >= 2);
         const matchCount = patternWords.filter((w) => lower.includes(w)).length;
         if (matchCount >= 2) score += matchCount * 3;
       }
 
+      // Special T2 / Temp Set boost
+      if (/\b(no\s*)?t2(\s*error)?\b|\btemp[._\s]*set\b|\bsample[._\s]*not[._\s]*found\b/i.test(lower)) {
+        if (/temp_set|t2|sample_not_found|plunge/i.test(e.tag) || /t2|temp/i.test(e.title)) {
+          score += 25;
+        }
+      }
+
       // Title/word overlap in content
-      const msgWords = lower.split(/\s+/).filter((w) => w.length > 3);
+      const msgWords = lower.split(/\s+/).filter((w) => w.length >= 2);
       for (const word of msgWords) {
         if (hay.includes(word)) score += 1;
       }
@@ -147,9 +161,9 @@ export function prefilterCandidates(
     .filter((s) => s.score >= 4)
     .sort((a, b) => b.score - a.score);
 
-  // Require complaint/hardware keywords in user query before building candidates
-  const hasComplaintWords = /not|problem|error|issue|fault|broken|not working|not on|blank|fail|repair|fix|trouble|wrong|stuck|stop/i.test(lower);
-  if (!hasComplaintWords && scored.length > 0 && scored[0].score < 8) {
+  // Require complaint/hardware keywords or symptoms in user query before building candidates
+  const hasComplaintWords = /not|problem|error|issue|fault|broken|not working|not on|blank|fail|repair|fix|trouble|wrong|stuck|stop|samasya|kharab|nahi chal|variation|count|sample|temp|temperature|water|plunge|zero|fat|snf|cleaning|sound|noise|leak|smoke|heating|hot|cold|vibro|stirrer|pump|sensor|display|lcd|screen|battery|charger|adapter|printer|keyboard|keypad|usb|pendrive|wifi|gsm|cloud|sms|rate chart|t2|\bno[._ ]?t2\b/i.test(lower);
+  if (!hasComplaintWords) {
     return [];
   }
 
@@ -176,10 +190,11 @@ ${candidates.map((c, i) => `[${i}] ID="${c.id}" | Title="${c.title}" | Patterns:
 
 RULES:
 1. Analyze the customer's message semantically — understand the INTENT even if the wording is different from the patterns.
-2. Consider regional language mix (Hinglish, Tanglish, Manglish) — translate mentally to the underlying technical issue.
-3. Pick the SINGLE best matching entry by index number [0-N].
-4. If NONE match well, set matched=false.
-5. Confidence: 100 = exact match, 80-99 = strong semantic match, 50-79 = plausible match, <50 = uncertain.
+2. CRITICAL MATCH ACCURACY RULE: Only set matched=true if one of the candidate entries is a genuine, accurate match for the customer's specific reported issue. If the reported issue is NOT covered by the candidate titles/patterns (e.g. motor gear teeth broken, physical frame damage, unlisted component error), you MUST set matched=false, index=-1, and confidence=0! DO NOT make loose or weak guesses.
+3. CRITICAL NON-COMPLAINT RULE: If the customer's message is a general question (e.g. asking company address, location, office hours, product prices, greetings, management/MD, or sales inquiries) and NOT a machine failure complaint, set matched=false, index=-1, and confidence=0!
+4. Consider regional language mix (Hinglish, Tanglish, Manglish) — translate mentally to the underlying technical issue.
+5. Pick the SINGLE best matching entry by index number [0-N] only if confidence is 80+.
+6. Confidence scoring: 100 = exact match, 85-99 = strong semantic match, 50-84 = weak/vague match, <50 = uncertain.
 
 RESPONSE FORMAT (JSON only):
 {
@@ -239,10 +254,10 @@ export async function classifyComplaint(
         },
       ],
       {
-        model: groqFastModel(), // Use fast model (llama-3.1-8b-instant) for classification
+        model: groqAgentModel(), // Use 70B model for high precision semantic matching
         temperature: 0.05,
-        maxTokens: 200,
-        timeoutMs: 4000,
+        maxTokens: 250,
+        timeoutMs: 6000,
       },
     );
 

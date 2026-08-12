@@ -363,7 +363,8 @@ PERSONA & HUMAN CONVERSATION RULES (CRITICAL):
 LANGUAGE RULE (STRICT):
 - Identify the language used by the customer in their message and recent chat history.
 - Reply ONLY in ${langName}. Write fluently in ${langName}. If the user types in Hinglish, Tanglish, or Manglish, match their exact casual conversational style.
-- NEVER output meta-complaints about language barriers (e.g. NEVER say "I think there might be a language barrier here" or "I'll do my best to help you in English"). Respond directly in their language or simple clear English!
+- MANGLISH & REGIONAL PHRASES: "ninte per ntha" / "ntha peru" / "aaranu" means "What is your name?" in Manglish (Malayalam in English script). Answer naturally in Malayalam/Manglish: "Ente per ${botName}, Poornasree Equipments-il ninnulla support executive aanu. Ningalkku enganeyanu sahayikendath?" (My name is Hari, Support Executive from Poornasree Equipments. How can I help you?).
+- ABSOLUTE BAN ON LANGUAGE BARRIER META-TEXT: NEVER say "I think there might be a language barrier here", "You've sent a message in Malayalam", or "I'll do my best to respond". Answer directly in their language or simple friendly English!
 
 STRICT CONTENT SAFETY & BOUNDARY RULES:
 - If the customer uses improper language, profanity, abusive words, or attempts flirting/romance:
@@ -403,6 +404,7 @@ Active Support Tickets:\n${activeTickets}
 TRAINING DOCUMENTS & TROUBLESHOOTING GUIDES:\n${catalogContext.slice(0, 6000)}
 
 TROUBLESHOOTING & BOUNDARY INSTRUCTIONS (CRITICAL):
+- COMPANY & GENERAL FAQ MODE: If the user message is asking for company address, location, office hours, product prices, branches, warranty, or contact info, answer ONLY with the relevant company information from the training documents above. DO NOT output hardware error troubleshooting steps, "WIFI ERROR", or "Did these steps resolve your issue?"!
 - ${isEngineer
       ? `SERVICE ENGINEER MODE: You are assisting a certified service engineer. Provide technical component replacement steps, PCB part numbers, transducer voltage test values, calibration details, and wiring schematics.`
       : `STRICT CUSTOMER BOUNDARY RULE: You are assisting an end-user customer. Provide ONLY customer-level troubleshooting checks (power cord connection, fuse check, distilled water cleaning, charging). DO NOT give internal engineer PCB board replacement, IC soldering, or component schematic instructions to customers. If customer checks fail, prompt them to tap Register Complaint for a field engineer visit.`
@@ -410,8 +412,7 @@ TROUBLESHOOTING & BOUNDARY INSTRUCTIONS (CRITICAL):
 - When a user reports a machine issue (e.g. "Vibro not working", "Analyzer not on", "Low battery error"), you MUST provide the EXACT CHECK and ACTION steps from the training documents above.
 - Format troubleshooting as numbered steps: "Step 1: CHECK ... → If failed, ACTION: ..."
 - After listing ALL checks and actions, ask: "Did these steps resolve your issue?"
-- If the training documents contain a matching troubleshooting guide, use it EXACTLY. Do NOT make up your own steps.
-- If no matching guide exists, ask clarifying questions about the specific machine model and error symptoms.
+- STRICT RULE FOR TROUBLESHOOTING: You MUST ONLY provide troubleshooting steps if they appear verbatim in the TRAINING DOCUMENTS & TROUBLESHOOTING GUIDES section above. NEVER invent, guess, or hallucinate hardware troubleshooting steps that are not in the training documents above. If no matching guide exists in the training documents, politely ask the user to tap *Register Complaint* to log a service request for a field engineer.
 
 REPLY FORMATTING (WhatsApp Friendly):
 - Keep paragraphs short (2-3 lines max) with clean line breaks.
@@ -436,8 +437,13 @@ REPLY FORMATTING (WhatsApp Friendly):
         timeoutMs: 40_000,
       },
     );
-    const trimmed = (reply || "").trim();
-    if (trimmed.length > 5) return trimmed;
+    let cleaned = (reply || "").trim();
+    cleaned = cleaned
+      .replace(/I think there might be a language barrier here[^.]*\.?/gi, "")
+      .replace(/You've sent a message in [^.]*\.?/gi, "")
+      .replace(/I'll do my best to understand and respond[^.]*\.?/gi, "")
+      .trim();
+    if (cleaned.length > 5) return cleaned;
   } catch (err) {
     console.error("[whatsapp-agent] Groq completion error:", err);
   }
@@ -495,7 +501,7 @@ async function translateTroubleshooting(text: string, lang: string): Promise<str
     const prompt = `Translate the following machine troubleshooting guide into natural, fluent ${langName} for a WhatsApp message. Keep formatting, line breaks, check numbers (1, 2, 3), bold headings (*heading*), and emojis intact:\n\n${text}`;
     const translated = await groqChat(
       [{ role: "user", content: prompt }],
-      { model: groqFastModel(), temperature: 0.2, maxTokens: 600, timeoutMs: 15_000 }
+      { model: groqAgentModel(), temperature: 0.2, maxTokens: 800, timeoutMs: 20_000 }
     );
     return translated?.trim() || text;
   } catch {
@@ -517,6 +523,67 @@ async function checkIsUserRegistered(phoneNumber: string): Promise<boolean> {
     select: { id: true },
   });
   return !!user;
+}
+
+export function getAgentButtons(lang: string = "en", isRegistered = true): Array<{ id: string; title: string }> {
+  const l = (lang || "en").toLowerCase();
+
+  if (l === "hi") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ शिकायत दर्ज करें" },
+      { id: "REGISTER", title: "📝 मशीन रजिस्ट्रेशन" },
+      { id: "SELECT_LANG", title: "🌐 भाषा बदलें" },
+    ];
+  }
+  if (l === "ml") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ പരാതി നൽകുക" },
+      { id: "REGISTER", title: "📝 മെഷീൻ രജിസ്റ്റർ" },
+      { id: "SELECT_LANG", title: "🌐 ഭാഷ മാറ്റുക" },
+    ];
+  }
+  if (l === "ta") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ புகார் பதிவு" },
+      { id: "REGISTER", title: "📝 இயந்திர பதிவு" },
+      { id: "SELECT_LANG", title: "🌐 மொழி மாற்றவும்" },
+    ];
+  }
+  if (l === "kn") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ ದೂರು ನೋಂದಾಯಿಸಿ" },
+      { id: "REGISTER", title: "📝 ಯಂತ್ರ ನೋಂದಣಿ" },
+      { id: "SELECT_LANG", title: "🌐 ಭಾಷೆ ಬದಲಾಯಿಸಿ" },
+    ];
+  }
+  if (l === "te") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ ఫిర్యాదు చేయండి" },
+      { id: "REGISTER", title: "📝 యంత్ర నమోదు" },
+      { id: "SELECT_LANG", title: "🌐 భాష మార్చండి" },
+    ];
+  }
+  if (l === "mr") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ तक्रार नोंदवा" },
+      { id: "REGISTER", title: "📝 मशीन नोंदणी" },
+      { id: "SELECT_LANG", title: "🌐 भाषा बदला" },
+    ];
+  }
+  if (l === "bn") {
+    return [
+      { id: "BOOK_SERVICE", title: "🛠️ অভিযোগ জানান" },
+      { id: "REGISTER", title: "📝 মেশিন রেজিস্ট্রেশন" },
+      { id: "SELECT_LANG", title: "🌐 ভাষা পরিবর্তন" },
+    ];
+  }
+
+  // Default English
+  return [
+    { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+    { id: "REGISTER", title: "📝 Register Machine" },
+    { id: "SELECT_LANG", title: "🌐 Change Language" },
+  ];
 }
 
 // ── Public Entry Point: Customer WhatsApp Agent ──────────────────────────────
@@ -542,8 +609,65 @@ export async function handleCustomerAgentMessage(
   };
   const userLang = (meta.language || "en") as any;
 
+  // ── Explicit Language Selection & Detection Interceptor ───────────
+  const langTriggerMap: Record<string, string> = {
+    LANG_EN: "en", ENGLISH: "en",
+    LANG_HI: "hi", HINDI: "hi", "हिंदी": "hi",
+    LANG_ML: "ml", MALAYALAM: "ml", "മലയാളം": "ml",
+    LANG_TA: "ta", TAMIL: "ta", "தமிழ்": "ta",
+    LANG_KN: "kn", KANNADA: "kn", "ಕನ್ನಡ": "kn",
+    LANG_TE: "te", TELUGU: "te", "తెలుగు": "te",
+    LANG_MR: "mr", MARATHI: "mr", "मराठी": "mr",
+    LANG_BN: "bn", BENGALI: "bn", "বাংলা": "bn",
+  };
+
+  let requestedLang = langTriggerMap[upper] || langTriggerMap[text];
+  if (!requestedLang) {
+    const lMatch = text.match(/\b(malayalam|hindi|tamil|kannada|telugu|marathi|bengali|english)\b/i);
+    if (lMatch) {
+      const name = lMatch[1].toLowerCase();
+      const map: Record<string, string> = {
+        malayalam: "ml", hindi: "hi", tamil: "ta", kannada: "kn",
+        telugu: "te", marathi: "mr", bengali: "bn", english: "en",
+      };
+      requestedLang = map[name];
+    }
+  }
+
+  if (upper === "SELECT_LANG" || upper === "CHANGE_LANG" || upper === "CHANGE_LANGUAGE" || upper === "LANGUAGE") {
+    await updateAgentSession(session.id, "CHANGE_LANGUAGE", meta);
+    return makeReply(
+      `🌐 *Select your preferred language / भाषा चुनें / നിങ്ങളുടെ ഭാഷ തിരഞ്ഞെടുക്കുക:*`,
+      [
+        { id: "LANG_EN", title: "English 🇬🇧" },
+        { id: "LANG_HI", title: "हिंदी 🇮🇳" },
+        { id: "LANG_ML", title: "മലയാളം 🌴" },
+      ]
+    );
+  }
+
+  if (requestedLang) {
+    meta.language = requestedLang;
+    await updateAgentSession(session.id, session.state, meta);
+    const confirmMsgs: Record<string, string> = {
+      en: "🌐 Language changed to English. How can I help you today?",
+      hi: "🌐 भाषा बदलकर हिंदी कर दी गई है। आज मैं आपकी क्या सहायता कर सकता हूँ?",
+      ml: "🌐 ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി. ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?",
+      ta: "🌐 மொழி தமிழாக மாற்றப்பட்டது. இன்று எவ்வாறு உதவ முடியும்?",
+      kn: "🌐 ಭಾಷೆಯನ್ನು ಕನ್ನಡಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ. ಇಂದು ನಾನು ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
+      te: "🌐 భాష తెలుగుకు మార్చబడింది. ఈ రోజు నేను మీకు ఎలా సహాయం చేయగలను?",
+      mr: "🌐 भाषा मराठीमध्ये बदलली आहे. आज मी तुम्हाला कशी मदत करू शकतो?",
+      bn: "🌐 ভাষা বাংলায় পরিবর্তিত হয়েছে। আজ আমি কীভাবে সাহায্য করতে পারি?",
+    };
+    const confirmText = confirmMsgs[requestedLang] || `🌐 Language changed.`;
+    return makeReply(
+      confirmText,
+      getAgentButtons(requestedLang, isRegistered)
+    );
+  }
+
   // ── SKIP handles skipping registration or returns main menu options list ──
-  const isSkipCmd = upper === "SKIP" || upper.includes("SKIP") || upper === "0" || text.includes("छोड़ें") || text.includes("தவிர்");
+  const isSkipCmd = upper === "SKIP" || upper.includes("SKIP") || upper === "0" || text.includes("छोड़ें") || text.includes("തവിർ");
   if (isSkipCmd && session.state !== "COMPLAINT_ASK_SERIAL") {
     meta.hasSkippedRegistration = true;
     await updateAgentSession(session.id, session.state, meta);
@@ -566,11 +690,7 @@ export async function handleCustomerAgentMessage(
     await updateAgentSession(session.id, "AGENT_CHAT", { ...meta, lastComplaint: undefined });
     return makeReply(
       `Great! 🎉 Glad the issue is resolved. If you face any other problems in the future, feel free to reach out anytime. We're always here to help!`,
-      [
-        { id: "troubleshoot", title: "🔧 Troubleshoot" },
-        { id: "book_service", title: "🛠️ Book Service" },
-        { id: "talk_agent", title: "💬 Talk to Support" },
-      ],
+      getAgentButtons(userLang, isRegistered),
     );
   }
 
@@ -584,10 +704,7 @@ export async function handleCustomerAgentMessage(
     await updateAgentSession(session.id, session.state, meta);
     return makeReply(
       `🔧 *Poornasree Troubleshooting Assistant*\n\nPlease describe the issue you are experiencing with your machine (e.g. *Vibro not working*, *Analyzer not turning on*, *T2 error*, *Low battery*, *Hot sample error*).`,
-      [
-        { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
-        { id: "talk_agent", title: "💬 Talk to us" },
-      ],
+      getAgentButtons(userLang, isRegistered),
     );
   }
 
@@ -603,18 +720,12 @@ export async function handleCustomerAgentMessage(
     );
   }
 
-  // ── Prompt unregistered users unless they have explicitly tapped SKIP ──
-  if (!isRegistered && !meta.hasSkippedRegistration) {
-    const greetings = new Set(["HI", "HELLO", "HEY", "NAMASTE", "HAI", "HELO", "HIII", "HIIII", "NAMSTE", "NAMASKAR"]);
-    const isGreeting = !text || upper.length <= 4 || greetings.has(upper);
+  // ── Greeting & Initial Contact Handling (For Registered & Unregistered Users) ──
+  const greetings = new Set(["HI", "HELLO", "HEY", "NAMASTE", "HAI", "HELO", "HIII", "HIIII", "NAMSTE", "NAMASKAR", "MENU", "START", "RESET"]);
+  const isGreeting = !text || upper.length <= 4 || greetings.has(upper);
 
-    if (!isGreeting) {
-      // User typed a real question — treat as implicit skip, answer directly
-      meta.hasSkippedRegistration = true;
-      await updateAgentSession(session.id, "MAIN_MENU", meta);
-      // fall through to Groq answer below
-    } else {
-      // First contact — show registration prompt and set state so FSM can route buttons
+  if (isGreeting) {
+    if (!isRegistered && !meta.hasSkippedRegistration) {
       await updateAgentSession(session.id, "REGISTER_PROMPT", meta);
       return makeReply(
         `👋 *Welcome to Poornasree Equipments!*\n\nWe don't have your details on file yet.\n\n📝 *Register now* to enjoy faster service and personalized support.\n\nOr press *Skip* to continue without registering.`,
@@ -625,19 +736,20 @@ export async function handleCustomerAgentMessage(
         ],
       );
     }
-  }
 
-  if (!text) {
-    const welcomeMsg = supportSettings.welcomeGreeting
-      ? formatGreeting(supportSettings.welcomeGreeting, supportSettings)
-      : `Namaste! 🙏 I'm ${botName} from Poornasree Equipments. How can I help you today?`;
+    const greetingText =
+      userLang === "hi"
+        ? `नमस्ते! 🙏 पूर्णश्री इक्विपमेंट्स में आपका स्वागत है। आज मैं आपकी क्या सहायता कर सकता हूँ?\nआप अपनी समस्या लिख सकते हैं या नीचे दिए गए विकल्पों में से चुन सकते हैं।`
+        : userLang === "ml"
+        ? `നമസ്കാരം! 🙏 പൂർണ്ണശ്രീ എക്യുപ്‌മെന്റസിലേക്ക് സ്വാഗതം. ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?\nനിങ്ങൾക്ക് ഏത് സംശയവും ചോദിക്കാം അല്ലെങ്കിൽ താഴെയുള്ള ഓപ്ഷനുകൾ തിരഞ്ഞെടുക്കാം.`
+        : userLang === "ta"
+        ? `வணக்கம்! 🙏 பூர்ணஸ்ரீ எக்விப்மென்ட்ஸிற்கு வரவேற்கிறோம். இன்று நான் எவ்வாறு உதவ முடியும்?\nநீங்கள் கேள்விகளைக் கேட்கலாம் அல்லது கீழே உள்ள விருப்பங்களைத் தேர்ந்தெடுக்கலாம்.`
+        : `Namaste! 🙏 Welcome to Poornasree Equipments. How can I help you today?\nYou can ask any question, report an issue, or choose an option below.`;
+
+    await updateAgentSession(session.id, "MAIN_MENU", meta);
     return makeReply(
-      welcomeMsg,
-      [
-        { id: "troubleshoot", title: "🔧 Troubleshoot" },
-        { id: "book_service", title: "🛠️ Book Service" },
-        { id: "talk_agent", title: "💬 Talk to Support" },
-      ],
+      greetingText,
+      getAgentButtons(userLang, isRegistered)
     );
   }
 
@@ -696,33 +808,33 @@ export async function handleCustomerAgentMessage(
 
   // ── Permanent Language Persistence & Explicit Switch Detection ──
   const lowerText = text.toLowerCase();
-  let requestedLang: string | null = null;
+  let explicitLang: string | null = null;
 
   if (/\b(english|eng)\b/i.test(lowerText) || /in english|speak english|talk english|talk in english/i.test(lowerText)) {
-    requestedLang = "en";
+    explicitLang = "en";
   } else if (/\bmalayalam\b|മലയാളം/i.test(lowerText) || /in malayalam|speak malayalam|talk in malayalam/i.test(lowerText)) {
-    requestedLang = "ml";
+    explicitLang = "ml";
   } else if (/\bhindi\b|हिंदी|हिन्दी/i.test(lowerText) || /in hindi|speak hindi|talk in hindi/i.test(lowerText)) {
-    requestedLang = "hi";
+    explicitLang = "hi";
   } else if (/\btamil\b|தமிழ்/i.test(lowerText) || /in tamil|speak tamil|talk in tamil/i.test(lowerText)) {
-    requestedLang = "ta";
+    explicitLang = "ta";
   } else if (/\btelugu\b|తెలుగు/i.test(lowerText) || /in telugu|speak telugu|talk in telugu/i.test(lowerText)) {
-    requestedLang = "te";
+    explicitLang = "te";
   } else if (/\bkannada\b|കന്നഡ|ಕನ್ನಡ/i.test(lowerText) || /in kannada|speak kannada|talk in kannada/i.test(lowerText)) {
-    requestedLang = "kn";
+    explicitLang = "kn";
   } else if (/\bbengali\b|বাংলা/i.test(lowerText) || /in bengali|speak bengali|talk in bengali/i.test(lowerText)) {
-    requestedLang = "bn";
+    explicitLang = "bn";
   } else if (/\b(ente|enikk|aanu|alla|undo|avunnilla|ariyumo|cheyyumo|ivide|evidaya|onnum|enthaanu|ningal|njan|mashineentha|paalu)\b/i.test(lowerText)) {
-    requestedLang = "ml";
+    explicitLang = "ml";
   } else if (/\b(meri|mera|mere|kaise|chalu|nhi|nahin|kare|kaam|karo|batao|kya|kaise)\b/i.test(lowerText)) {
-    requestedLang = "hi";
+    explicitLang = "hi";
   } else if (/\b(enadhu|enaku|ennudaiya|theriyuma|irukku|panla|varala|pannunga)\b/i.test(lowerText)) {
-    requestedLang = "ta";
+    explicitLang = "ta";
   }
 
   // Check if language needs to be updated permanently in DB
-  if (requestedLang) {
-    meta.language = requestedLang;
+  if (explicitLang) {
+    meta.language = explicitLang;
     meta.explicitLanguage = true;
     await updateAgentSession(session.id, session.state, meta);
   } else if (!meta.language) {
@@ -747,28 +859,37 @@ export async function handleCustomerAgentMessage(
   const isNewUser = /new user|first time|just bought|unbox|setting up|how to use/i.test(text);
 
   // Load relevant training document RAG
-  // Customers get ONLY Customer documents (CHATBOT_DATAS, customer-training.json, company-knowledge);
-  // Engineers get BOTH Customer AND Engineer documents (Engineers Training, training.json, etc.)
   const targetRole: CatalogRole = isEngineer ? "service" : isNewUser ? "new_user" : "customer";
   const roleCatalog = await getCatalogForRole(targetRole);
-  const catalog = prefilterCatalog(roleCatalog, text, 40);
-  const catalogContext = formatCatalogForPrompt(catalog);
-
-  // Intent Priority Guard: Check if query is about general company info/location/sales
+  // Intent Priority Guard: Check if query is about general company info/location/sales vs hardware complaint
   const isCompanyOrFaqQuery = /company|office|address|location|branch|hours|opening|head office|md|owner|price|catalog|brochure|about|poornasree|where is/i.test(text);
-  const isHardwareComplaint = /not working|error|fault|problem|blank|damaged|broken|stopped|issue|defect|repair|fix|samasya|kharab|nahi chal/i.test(text);
+  const isHardwareComplaint = /not working|error|fault|problem|blank|damaged|broken|stopped|issue|defect|repair|fix|samasya|kharab|nahi chal|variation|count|sample|temp|temperature|water|plunge|zero|fat|snf|cleaning|sound|noise|leak|smoke|heating|hot|cold|vibro|stirrer|pump|sensor|display|lcd|screen|battery|charger|adapter|printer|keyboard|keypad|usb|pendrive|wifi|gsm|cloud|sms|rate chart|t2|\bno[._ ]?t2\b/i.test(text);
+
+  // For general company inquiries, exclude hardware troubleshooting entries from AI context and clear past complaint memory
+  if (isCompanyOrFaqQuery && !isHardwareComplaint) {
+    delete meta.lastComplaint;
+  }
+
+  const filteredRoleCatalog = (isCompanyOrFaqQuery && !isHardwareComplaint)
+    ? roleCatalog.filter((e) => (e.tag.startsWith("company_") || e.tag.startsWith("product_") || e.source === "company") && !e.tag.includes("troubleshoot"))
+    : roleCatalog;
+
+  const catalog = prefilterCatalog(filteredRoleCatalog, text, 40);
+  const catalogContext = formatCatalogForPrompt(catalog);
 
   // ── Structured Complaint Matching via Groq LLM Classifier ──────────────────
   // Two-stage matching: fast keyword pre-filter → Groq semantic classifier.
   // Bypass if the user query is a general company/location/FAQ inquiry.
   const troubleshootEntries = roleCatalog.filter((e) => e.source === "json" || e.source === "document_issue");
-  if (!isCompanyOrFaqQuery && isHardwareComplaint && troubleshootEntries.length > 0 && isGroqConfigured()) {
+  const shouldRunClassifier = !isCompanyOrFaqQuery && isHardwareComplaint && troubleshootEntries.length > 0 && isGroqConfigured();
+
+  if (shouldRunClassifier) {
     const candidates = prefilterCandidates(troubleshootEntries, text, 15);
 
     if (candidates.length > 0) {
       const { entry: classifiedEntry, confidence } = await classifyComplaint(text, candidates);
 
-      if (classifiedEntry && confidence >= 60) {
+      if (classifiedEntry && confidence >= 75) {
         meta.lastComplaint = classifiedEntry.title;
         await updateAgentSession(session.id, "AGENT_CHAT", meta);
 
@@ -807,6 +928,17 @@ export async function handleCustomerAgentMessage(
         ]);
       }
     }
+
+    // STRICT USER RULE: If query is a hardware complaint but no exact match is found in training documents,
+    // DO NOT invent steps! Ask user to register a service complaint immediately.
+    const noGuideMsg = lang === "hi"
+      ? `हमारे प्रशिक्षण दस्तावेज़ में इस विशिष्ट समस्या के लिए स्वयं-निवारण चरण उपलब्ध नहीं हैं। 🙏\n\nकृपया फ़ील्ड इंजीनियर सेवा बुक करने के लिए नीचे *Register Complaint* पर टैप करें।`
+      : `We don't have a self-troubleshooting guide for this specific issue in our training documents. 🙏\n\nPlease tap *Register Complaint* below to log a service request for a field service engineer to visit and inspect your machine.`;
+
+    return makeReply(noGuideMsg, [
+      { id: "BOOK_SERVICE", title: "🛠️ Register Complaint" },
+      { id: "talk_agent", title: "💬 Talk to us" },
+    ]);
   }
 
   // Generate Groq completion

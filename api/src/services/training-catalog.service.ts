@@ -100,12 +100,52 @@ async function loadDocumentIssues(): Promise<CatalogEntry[]> {
         .join("\n")
         .trim();
 
+      // Intelligent real-life alias expansion
+      const patternSet = new Set<string>();
+      patternSet.add(issue.title);
+      patternSet.add(issue.problemType);
+      if (issue.description) patternSet.add(issue.description);
+
+      // Split slashes in titles like "T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK"
+      const parts = issue.title.split("/").map((p) => p.trim()).filter(Boolean);
+      for (const p of parts) {
+        patternSet.add(p);
+        if (/t2|temp[._\s]*set/i.test(p)) {
+          patternSet.add("T2");
+          patternSet.add("NO T2");
+          patternSet.add("NO T2 ERROR");
+          patternSet.add("T2 ERROR");
+          patternSet.add("T2 TEMP");
+          patternSet.add("TEMP SET");
+          patternSet.add("TEMP SET ERROR");
+          patternSet.add("TEMP ERROR");
+        }
+        if (/sample[._\s]*not[._\s]*found/i.test(p)) {
+          patternSet.add("SAMPLE NOT FOUND");
+          patternSet.add("NO SAMPLE");
+        }
+        if (/air[._\s]*in[._\s]*milk/i.test(p)) {
+          patternSet.add("AIR IN MILK");
+          patternSet.add("AIR IN SAMPLE");
+        }
+        if (/vibro|stirrer/i.test(p) || /vibro|stirrer/i.test(issue.problemType)) {
+          patternSet.add("Vibro");
+          patternSet.add("Vibro not working");
+          patternSet.add("Vibro nahi chal raha");
+          patternSet.add("Vibro light nahi jala");
+          patternSet.add("Vibro slow");
+          patternSet.add("Vibro low vibration");
+          patternSet.add("Vibro continuous vibration");
+          patternSet.add("Vibro button issue");
+        }
+      }
+
       return {
         id: `document_issue:${issue.problemType}`,
         tag: issue.problemType,
         role,
         title: issue.title,
-        patterns: [issue.title, issue.problemType, issue.description || ""].filter(Boolean),
+        patterns: Array.from(patternSet),
         content,
         source: "document_issue" as const,
       };

@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poornasree AI — Interactive Chatbot Workflow Architecture</title>
+  <!-- Google Fonts & FontAwesome icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-secondary: #121824;
+      --bg-card: rgba(22, 30, 46, 0.7);
+      --bg-card-hover: rgba(30, 41, 64, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.3);
+      
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #8b5cf6;
+
+      --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
+      --shadow-active: 0 0 35px rgba(6, 182, 212, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Ambient Glow Effects */
+    .ambient-blur-1 {
+      position: fixed;
+      top: -100px;
+      left: 10%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .ambient-blur-2 {
+      position: fixed;
+      bottom: -100px;
+      right: 10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Header Bar */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(10, 13, 20, 0.85);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-text h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .pill-badge {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-emerald);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pill-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* Main Container Layout */
+    .app-container {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 1200px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Flowchart Section */
+    .flow-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Workflow Cards */
+    .flow-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .flow-node:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .flow-node.active-path {
+      border-color: var(--accent-cyan);
+      box-shadow: var(--shadow-active);
+      background: rgba(18, 28, 48, 0.9);
+    }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+
+    .node-step-tag {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--accent-indigo);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    .node-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .node-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .icon-indigo { background: rgba(99, 102, 241, 0.15); color: var(--accent-indigo); }
+    .icon-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+    .icon-emerald { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+    .icon-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+    .icon-purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
+    .icon-rose { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+
+    .node-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .node-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    /* Sub-branches within nodes */
+    .branch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .branch-card {
+      background: rgba(10, 13, 20, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 0.85rem;
+      transition: all 0.2s ease;
+    }
+
+    .branch-card:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(10, 13, 20, 0.9);
+    }
+
+    .branch-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .branch-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Connectors */
+    .connector-line {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 24px;
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+
+    .connector-line i {
+      animation: bounceDown 1.5s infinite;
+    }
+
+    @keyframes bounceDown {
+      0%, 100% { transform: translateY(-2px); opacity: 0.4; }
+      50% { transform: translateY(2px); opacity: 1; color: var(--accent-cyan); }
+    }
+
+    /* Simulator Side Panel */
+    .sim-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 1.5rem;
+      backdrop-filter: blur(16px);
+      height: fit-content;
+      position: sticky;
+      top: 90px;
+    }
+
+    .sim-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sim-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.725rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-indigo);
+      color: #fff;
+    }
+
+    /* Phone Mockup Window */
+    .phone-screen {
+      background: #000;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+      padding: 1rem;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    }
+
+    .chat-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      overflow-y: auto;
+      max-height: 340px;
+      padding-right: 0.25rem;
+    }
+
+    .msg-bubble {
+      max-width: 85%;
+      padding: 0.75rem 0.9rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      word-wrap: break-word;
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      background: #005c4b;
+      color: #e9edef;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg-bot {
+      align-self: flex-start;
+      background: #202c33;
+      color: #e9edef;
+      border-bottom-left-radius: 2px;
+    }
+
+    .btn-action {
+      display: block;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.45rem;
+      border-radius: 8px;
+      margin-top: 0.4rem;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .btn-action:hover {
+      background: rgba(6, 182, 212, 0.2);
+    }
+
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0.5rem 0.75rem;
+      background: #202c33;
+      border-radius: 12px;
+      width: fit-content;
+      margin-top: 0.5rem;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      animation: typing 1.4s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 100% { transform: translateY(0); opacity: 0.4; }
+      50% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    /* Trace Path Highlights */
+    .path-tracker {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: rgba(10, 13, 20, 0.8);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.75rem;
+    }
+
+    .path-step {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .path-step.active {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-blur-1"></div>
+  <div class="ambient-blur-2"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">
+        <i class="fa-solid fa-robot"></i>
+      </div>
+      <div class="brand-text">
+        <h1>Poornasree AI Chatbot Architecture</h1>
+        <p>WhatsApp Self-Troubleshooting & Complaint Escalation Engine</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="pill-badge">
+        <div class="dot"></div>
+        Live Production Engine
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-container">
+
+    <!-- Left: Flowchart Section -->
+    <div class="flow-section">
+
+      <!-- Stage 1 -->
+      <div class="section-title">
+        <i class="fa-solid fa-cloud-arrow-down"></i> Stage 1: Ingestion & Session Boot
+      </div>
+
+      <div class="flow-node" id="node-webhook" onclick="highlightNode('node-webhook')">
+        <div class="node-header">
+          <div class="node-title-group">
+            <div class="node-icon icon-indigo"><i class="fa-brands fa-whatsapp"></i></div>
+            <div class="node-title">1. Incoming WhatsApp Message</div>
+          </div>
+          <span class="node-step-tag">STEP 01</span>
+        </div>
+        <p class="node-desc">Receives incoming text/media payload via WhatsApp Business API webhook. Starts background typing animation heartbeat loop (2s periodic interval).</p>
+        <div class="branch-grid">
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-keyboard"></i> Text Payload</div>
+            <div class="branch-desc">Extracts text message string, trims whitespace, and converts to uppercase for intent checks.</div>
+          </div>
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-spinner"></i> Typing Indicator</div>
+            <div class="branch-desc">Sends continuous typing indicator state to user's WhatsApp mobile client.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector-line"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- Stage 2 -->
+      <div class="section-title">
+        <i class="fa-solid fa-language"></i> Stage 2: Multi-Language & Registration Context
+      </div>
+
+      <div class="flow-node" id="node-lang-reg" onclick="highlightNode('node-lang-reg')">
+        <div class="node-header">
+          <div class="node-title-group">
+            <div class="node-icon icon-cyan"><i class="fa-solid fa-globe"></i></div>
+            <div class="node-title">2. Language Persistence & Registration Routing</div>
+          </div>
+          <span class="node-step-tag">STEP 02</span>
+        </div>
+        <p class="node-desc">Intercepts explicit language commands (English, Hindi, Malayalam, Tamil, Kannada, Telugu, Marathi, Bengali) and checks user registration status in PostgreSQL database.</p>
+        <div class="branch-grid">
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-user-check"></i> Registered User</div>
+            <div class="branch-desc">Greets with personalized buttons: <code>[Book Service]</code>, <code>[Register Machine]</code>, <code>[Change Language]</code>.</div>
+          </div>
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-user-plus"></i> Unregistered User</div>
+            <div class="branch-desc">Shows registration prompt: <code>[Register Machine]</code>, <code>[Skip for Now]</code>, <code>[Select Language]</code>.</div>
+          </div>
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-language"></i> Language Persistence</div>
+            <div class="branch-desc">Saves <code>meta.language</code> in DB. All future responses & buttons auto-translate to target language.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector-line"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- Stage 3 -->
+      <div class="section-title">
+        <i class="fa-solid fa-microchip"></i> Stage 3: Training Document Classification
+      </div>
+
+      <div class="flow-node" id="node-classifier" onclick="highlightNode('node-classifier')">
+        <div class="node-header">
+          <div class="node-title-group">
+            <div class="node-icon icon-amber"><i class="fa-solid fa-brain"></i></div>
+            <div class="node-title">3. Groq 70B Hybrid Catalog Classifier</div>
+          </div>
+          <span class="node-step-tag">STEP 03</span>
+        </div>
+        <p class="node-desc">Evaluates input against 200+ DocumentIssue records from <code>CHATBOT_DATAS</code> excel sheet. Uses short-term boosts for <code>T2</code>, <code>Vibro</code>, <code>Power</code>, <code>Sensor</code>, and <code>Temp Set</code>.</p>
+        <div class="branch-grid">
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-filter"></i> Candidate Prefilter</div>
+            <div class="branch-desc">Scores catalog entries based on product keywords and word boundary aliases (e.g. <code>T2</code>, <code>No T2</code>, <code>Vibro</code>).</div>
+          </div>
+          <div class="branch-card">
+            <div class="branch-title"><i class="fa-solid fa-bolt"></i> Groq 70B Inference</div>
+            <div class="branch-desc">Invokes <code>llama-3.3-70b-versatile</code> agent model with prompt strictness. Score threshold 75+ required.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector-line"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- Stage 4 -->
+      <div class="section-title">
+        <i class="fa-solid fa-code-branch"></i> Stage 4: Resolution or Strict Escalation Branching
+      </div>
+
+      <div class="flow-node" id="node-response" onclick="highlightNode('node-response')">
+        <div class="node-header">
+          <div class="node-title-group">
+            <div class="node-icon icon-emerald"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="node-title">4. Strict Non-Hallucination Response Engine</div>
+          </div>
+          <span class="node-step-tag">STEP 04</span>
+        </div>
+        <p class="node-desc">Enforces strict compliance with training document. Never invents fake hardware troubleshooting steps.</p>
+        <div class="branch-grid">
+          <div class="branch-card" style="border-color: rgba(16, 185, 129, 0.4);">
+            <div class="branch-title" style="color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Match Found (Score >= 75)</div>
+            <div class="branch-desc">Returns exact <strong>Check & Action</strong> steps from DocumentIssue. Translates text & suggests YouTube video.</div>
+          </div>
+          <div class="branch-card" style="border-color: rgba(244, 63, 94, 0.4);">
+            <div class="branch-title" style="color: var(--accent-rose);"><i class="fa-solid fa-triangle-exclamation"></i> No Match / Unlisted Issue</div>
+            <div class="branch-desc">Outputs escalation notice: <em>"We don't have a self-troubleshooting guide for this specific issue..."</em> + <code>[Register Complaint]</code> button.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector-line"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- Stage 5 -->
+      <div class="section-title">
+        <i class="fa-solid fa-ticket"></i> Stage 5: Service Ticket & Field Engineer Dispatch
+      </div>
+
+      <div class="flow-node" id="node-ticket" onclick="highlightNode('node-ticket')">
+        <div class="node-header">
+          <div class="node-title-group">
+            <div class="node-icon icon-purple"><i class="fa-solid fa-wrench"></i></div>
+            <div class="node-title">5. Complaint Booking & Real-Time Notification</div>
+          </div>
+          <span class="node-step-tag">STEP 05</span>
+        </div>
+        <p class="node-desc">Collects 10-digit Machine Serial Number, logs service complaint ticket in PostgreSQL, and dispatches real-time WhatsApp & Push notifications to Admin & Field Engineers.</p>
+      </div>
+
+    </div>
+
+    <!-- Right: Interactive Simulator Panel -->
+    <div class="sim-panel">
+      <div class="sim-header">
+        <div class="sim-title">
+          <i class="fa-solid fa-mobile-screen-button" style="color: var(--accent-cyan);"></i> Live Flow Simulator
+        </div>
+        <span style="font-size: 0.7rem; color: var(--text-muted);">Click query to test</span>
+      </div>
+
+      <div class="preset-chips">
+        <div class="chip" onclick="simulateQuery('no t2 error')">no t2 error</div>
+        <div class="chip" onclick="simulateQuery('vibro nahi chal raha')">vibro nahi chal raha</div>
+        <div class="chip" onclick="simulateQuery('Malayalam')">Malayalam</div>
+        <div class="chip" onclick="simulateQuery('motor gear broken inside chassis')">motor gear broken</div>
+        <div class="chip" onclick="simulateQuery('HI')">HI (Greeting)</div>
+      </div>
+
+      <div class="phone-screen">
+        <div class="chat-messages" id="chatContainer">
+          <div class="msg-bubble msg-bot">
+            👋 <strong>Welcome to Poornasree Equipments!</strong><br>
+            How can I help you today? Select a query chip above to trace the system workflow.
+            <div class="btn-action">🛠️ Book Service</div>
+            <div class="btn-action">📝 Register Machine</div>
+            <div class="btn-action">🌐 Change Language</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="path-tracker" id="pathTracker">
+        <div style="font-weight: 700; color: #fff; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+          <i class="fa-solid fa-route" style="color: var(--accent-indigo);"></i> Executed Execution Path:
+        </div>
+        <div class="path-step" id="ps-1"><i class="fa-solid fa-circle-dot"></i> Step 1: Webhook & Typing Indicator</div>
+        <div class="path-step" id="ps-2"><i class="fa-solid fa-circle-dot"></i> Step 2: Language & Registration Context</div>
+        <div class="path-step" id="ps-3"><i class="fa-solid fa-circle-dot"></i> Step 3: Classifier & Candidate Scoring</div>
+        <div class="path-step" id="ps-4"><i class="fa-solid fa-circle-dot"></i> Step 4: Strict Response / Escalation</div>
+        <div class="path-step" id="ps-5"><i class="fa-solid fa-circle-dot"></i> Step 5: Complaint Ticket Logged</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function highlightNode(nodeId) {
+      document.querySelectorAll('.flow-node').forEach(node => {
+        node.classList.remove('active-path');
+      });
+      const target = document.getElementById(nodeId);
+      if (target) {
+        target.classList.add('active-path');
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function resetPathTracker() {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById(`ps-${i}`);
+        if (el) el.classList.remove('active');
+      }
+    }
+
+    function setPathActive(steps) {
+      resetPathTracker();
+      steps.forEach(s => {
+        const el = document.getElementById(`ps-${s}`);
+        if (el) el.classList.add('active');
+      });
+    }
+
+    function simulateQuery(query) {
+      const container = document.getElementById('chatContainer');
+      
+      // User message bubble
+      const userBubble = document.createElement('div');
+      userBubble.className = 'msg-bubble msg-user';
+      userBubble.textContent = query;
+      container.appendChild(userBubble);
+      container.scrollTop = container.scrollHeight;
+
+      // Typing indicator
+      const typing = document.createElement('div');
+      typing.className = 'typing-indicator';
+      typing.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+      container.appendChild(typing);
+      container.scrollTop = container.scrollHeight;
+
+      // Highlight step 1 & 2
+      highlightNode('node-webhook');
+      setPathActive([1, 2]);
+
+      setTimeout(() => {
+        container.removeChild(typing);
+        const botBubble = document.createElement('div');
+        botBubble.className = 'msg-bubble msg-bot';
+
+        const q = query.toLowerCase();
+
+        if (q.includes('no t2') || q.includes('t2 error')) {
+          highlightNode('node-response');
+          setPathActive([1, 2, 3, 4]);
+          botBubble.innerHTML = `🔧 <strong>Troubleshooting: T2/TEMP.SET ERROR/SAMPLE NOT FOUND</strong><br><br>` +
+            `1. Check leakage/block in sample sucking section → Check silicon tube broken/bend<br>` +
+            `2. Check L-Plug properly inserted → Check O-Ring` +
+            `<div class="btn-action">✅ Yes, Resolved</div>` +
+            `<div class="btn-action">🛠️ Register Complaint</div>`;
+        } else if (q.includes('vibro')) {
+          highlightNode('node-response');
+          setPathActive([1, 2, 3, 4]);
+          botBubble.innerHTML = `🔧 <strong>Troubleshooting: NOT WORKING (NOT ON LED)</strong><br><br>` +
+            `1. Check Fuse → Replace Fuse<br>` +
+            `2. Check Power Supply Adapter → Replace Power Supply` +
+            `<div class="btn-action">✅ Yes, Resolved</div>` +
+            `<div class="btn-action">🛠️ Register Complaint</div>`;
+        } else if (q.includes('malayalam')) {
+          highlightNode('node-lang-reg');
+          setPathActive([1, 2]);
+          botBubble.innerHTML = `🌐 <strong>ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി.</strong> ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?` +
+            `<div class="btn-action">🛠️ പരാതി നൽകുക</div>` +
+            `<div class="btn-action">📝 മെഷീൻ രജിസ്റ്റർ</div>` +
+            `<div class="btn-action">🌐 ഭാഷ മാറ്റുക</div>`;
+        } else if (q.includes('motor gear broken')) {
+          highlightNode('node-response');
+          setPathActive([1, 2, 3, 4, 5]);
+          botBubble.innerHTML = `We don't have a self-troubleshooting guide for this specific issue in our training documents. 🙏<br><br>` +
+            `Please tap <strong>Register Complaint</strong> below to log a service request for a field service engineer.` +
+            `<div class="btn-action">🛠️ Register Complaint</div>` +
+            `<div class="btn-action">💬 Talk to us</div>`;
+        } else {
+          highlightNode('node-lang-reg');
+          setPathActive([1, 2]);
+          botBubble.innerHTML = `Namaste! 🙏 Welcome back to Poornasree Equipments. How can I help you today?` +
+            `<div class="btn-action">🛠️ Book Service</div>` +
+            `<div class="btn-action">📝 Register Machine</div>` +
+            `<div class="btn-action">🌐 Change Language</div>`;
+        }
+
+        container.appendChild(botBubble);
+        container.scrollTop = container.scrollHeight;
+      }, 700);
+    }
+  </script>
+</body>
+</html>

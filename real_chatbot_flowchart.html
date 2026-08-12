@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poornasree AI — Detailed Visual Flowchart with Real-Life Examples</title>
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --bg-dark: #06080e;
+      --bg-panel: rgba(15, 21, 36, 0.9);
+      --bg-card: rgba(20, 28, 46, 0.85);
+      --bg-card-hover: rgba(28, 39, 64, 0.95);
+      --border-color: rgba(255, 255, 255, 0.08);
+
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #8b5cf6;
+
+      --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Background Glows */
+    .blur-1 {
+      position: fixed;
+      top: -150px;
+      left: 15%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .blur-2 {
+      position: fixed;
+      bottom: -150px;
+      right: 15%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Header Bar */
+    header {
+      background: rgba(15, 21, 36, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-text h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .brand-text p {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      font-size: 0.8rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .symbol-shape {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+
+    .shape-oval { border-radius: 9999px; background: var(--accent-indigo); }
+    .shape-diamond { transform: rotate(45deg); width: 10px; height: 10px; background: var(--accent-amber); margin: 0 4px; }
+    .shape-rect { background: var(--accent-cyan); }
+    .shape-green { background: var(--accent-emerald); }
+    .shape-red { background: var(--accent-rose); }
+
+    /* Canvas Container */
+    .canvas-container {
+      flex: 1;
+      padding: 3rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 1050px;
+      margin: 0 auto;
+      width: 100%;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Standard Flowchart Node Shapes */
+
+    /* 1. START / END OVAL NODE */
+    .fc-node-oval {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(79, 70, 229, 0.5));
+      border: 2px solid var(--accent-indigo);
+      border-radius: 9999px;
+      padding: 0.95rem 2.8rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    /* 2. PROCESS RECTANGLE NODE */
+    .fc-node-rect {
+      background: var(--bg-card);
+      border: 2px solid rgba(6, 182, 212, 0.4);
+      border-radius: 16px;
+      padding: 1.4rem 1.8rem;
+      width: 100%;
+      max-width: 720px;
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow-glow);
+      transition: all 0.25s ease;
+    }
+
+    .fc-node-rect:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+
+    .node-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .node-desc {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin-bottom: 0.85rem;
+    }
+
+    /* Example Box Inside Node */
+    .example-box {
+      background: rgba(8, 12, 20, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0.9rem 1.1rem;
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .example-header {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent-cyan);
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .example-chat-bubble {
+      background: #202c33;
+      color: #e9edef;
+      border-radius: 10px;
+      padding: 0.6rem 0.85rem;
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .example-btn {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--accent-cyan);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin: 0.2rem 0.1rem;
+    }
+
+    /* 3. DECISION DIAMOND NODE */
+    .fc-decision-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+
+    .fc-node-diamond {
+      width: 240px;
+      height: 240px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(180, 83, 9, 0.3));
+      border: 2px solid var(--accent-amber);
+      transform: rotate(45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 35px rgba(245, 158, 11, 0.25);
+      transition: all 0.3s ease;
+      margin: 1.5rem 0;
+    }
+
+    .fc-node-diamond:hover {
+      border-color: #fbbf24;
+      box-shadow: 0 0 45px rgba(245, 158, 11, 0.4);
+    }
+
+    .diamond-content {
+      transform: rotate(-45deg);
+      text-align: center;
+      padding: 1rem;
+      width: 210px;
+    }
+
+    .diamond-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    /* 4. SUCCESS / ESCALATION SPECIFIC RECTANGLES */
+    .rect-success {
+      border-color: rgba(16, 185, 129, 0.5);
+      background: rgba(6, 95, 70, 0.22);
+    }
+
+    .rect-escalation {
+      border-color: rgba(244, 63, 94, 0.5);
+      background: rgba(136, 19, 55, 0.22);
+    }
+
+    /* Branch Container (YES / NO Split) */
+    .branch-split-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      width: 100%;
+      max-width: 900px;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 800px) {
+      .branch-split-container { grid-template-columns: 1fr; }
+    }
+
+    .branch-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .branch-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.9rem;
+      border-radius: 9999px;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .badge-yes {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .badge-no {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--accent-rose);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+
+    /* Connecting Arrows */
+    .flow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0.75rem 0;
+      color: var(--text-dim);
+    }
+
+    .connector-line {
+      width: 2px;
+      height: 28px;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2), var(--accent-cyan));
+    }
+
+    .connector-arrow {
+      font-size: 0.9rem;
+      color: var(--accent-cyan);
+      margin-top: -2px;
+    }
+
+    .code-tag {
+      font-family: 'Fira Code', monospace;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      color: var(--accent-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="blur-1"></div>
+  <div class="blur-2"></div>
+
+  <!-- Header Bar -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-diagram-project"></i></div>
+      <div class="brand-text">
+        <h1>Poornasree AI — Customer & Chatbot Real Flowchart</h1>
+        <p>Detailed System Flowchart with Exact Real-Life Input & Output Examples</p>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="symbol-shape shape-oval"></div> Start / End</div>
+      <div class="legend-item"><div class="symbol-shape shape-diamond"></div> Decision Branch</div>
+      <div class="legend-item"><div class="symbol-shape shape-rect"></div> System Process</div>
+      <div class="legend-item"><div class="symbol-shape shape-green"></div> Match / Resolution</div>
+      <div class="legend-item"><div class="symbol-shape shape-red"></div> Service Escalation</div>
+    </div>
+  </header>
+
+  <!-- Flowchart Canvas Container -->
+  <div class="canvas-container">
+
+    <!-- 1. START NODE -->
+    <div class="fc-node-oval">
+      <i class="fa-brands fa-whatsapp"></i> 1. START: Customer Sends WhatsApp Message
+    </div>
+
+    <div class="flow-connector">
+      <div class="connector-line"></div>
+      <div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+    </div>
+
+    <!-- 2. INGESTION PROCESS -->
+    <div class="fc-node-rect">
+      <div class="node-header">
+        <div class="node-title"><i class="fa-solid fa-cloud-arrow-down" style="color: var(--accent-cyan);"></i> Ingestion & Heartbeat Engine</div>
+        <span class="code-tag">STEP 01</span>
+      </div>
+      <div class="node-desc">
+        Receives WhatsApp payload via Webhook. Trims string, converts to UPPERCASE, and starts continuous 2-second typing animation heartbeat loop on mobile client.
+      </div>
+      <div class="example-box">
+        <div class="example-header"><i class="fa-solid fa-code"></i> Real Payload Example</div>
+        <div style="color: #cbd5e1; font-family: 'Fira Code', monospace; font-size: 0.75rem;">
+          From: "+917999111222" | Body: "no t2 error" | Sanitize: "NO T2 ERROR"
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-connector">
+      <div class="connector-line"></div>
+      <div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+    </div>
+
+    <!-- 3. DECISION 1: LANGUAGE SWITCH -->
+    <div class="fc-decision-wrapper">
+      <div class="fc-node-diamond">
+        <div class="diamond-content">
+          <i class="fa-solid fa-language" style="color: var(--accent-amber); font-size: 1.2rem; margin-bottom: 0.3rem;"></i>
+          <div class="diamond-title">2. Is Language Switch Requested?</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split: Language YES vs NO -->
+    <div class="branch-split-container">
+      
+      <!-- Branch YES: Language Change -->
+      <div class="branch-column">
+        <div class="branch-badge badge-yes"><i class="fa-solid fa-check"></i> YES (Lang Request)</div>
+        <div class="fc-node-rect" style="border-color: var(--accent-emerald);">
+          <div class="node-header">
+            <div class="node-title" style="color: var(--accent-emerald);"><i class="fa-solid fa-globe"></i> Save Language in DB</div>
+          </div>
+          <div class="node-desc">
+            Saves <code>meta.language = "ml"</code> or <code>"hi"</code> in PostgreSQL session. Auto-translates future replies & buttons into target language.
+          </div>
+          <div class="example-box">
+            <div class="example-header"><i class="fa-solid fa-comment-dots"></i> Malayalam Example Output</div>
+            <div class="example-chat-bubble">
+              🌐 <strong>ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി.</strong> ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?
+              <div style="margin-top: 0.3rem;">
+                <span class="example-btn">🛠️ പരാതി നൽകുക</span>
+                <span class="example-btn">📝 മെഷീൻ രജിസ്റ്റർ</span>
+                <span class="example-btn">🌐 ഭാഷ മാറ്റുക</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+        
+        <div class="fc-node-oval" style="background: rgba(16, 185, 129, 0.25); border-color: var(--accent-emerald); font-size: 0.85rem;">
+          Continue Chat in Selected Language
+        </div>
+      </div>
+
+      <!-- Branch NO: Check Registration -->
+      <div class="branch-column">
+        <div class="branch-badge badge-no"><i class="fa-solid fa-xmark"></i> NO (Standard Msg)</div>
+        <div class="fc-node-rect">
+          <div class="node-header">
+            <div class="node-title"><i class="fa-solid fa-user-gear" style="color: var(--accent-indigo);"></i> 3. Database Identity Check</div>
+            <span class="code-tag">STEP 02</span>
+          </div>
+          <div class="node-desc">
+            Queries PostgreSQL DB: <code>prisma.user.findFirst({ where: { whatsappNumber: phone } })</code> to verify customer registration status.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="flow-connector">
+      <div class="connector-line"></div>
+      <div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+    </div>
+
+    <!-- 4. DECISION 2: IS USER REGISTERED -->
+    <div class="fc-decision-wrapper">
+      <div class="fc-node-diamond">
+        <div class="diamond-content">
+          <i class="fa-solid fa-user-check" style="color: var(--accent-amber); font-size: 1.2rem; margin-bottom: 0.3rem;"></i>
+          <div class="diamond-title">Is Customer Registered in Database?</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split: Registered vs Unregistered -->
+    <div class="branch-split-container">
+      
+      <!-- Unregistered Path -->
+      <div class="branch-column">
+        <div class="branch-badge badge-no"><i class="fa-solid fa-user-plus"></i> NO (New Customer)</div>
+        <div class="fc-node-rect">
+          <div class="node-header">
+            <div class="node-title" style="color: var(--accent-amber);"><i class="fa-solid fa-id-card"></i> Registration Prompt</div>
+          </div>
+          <div class="node-desc">
+            Sends Welcome & Registration prompt. If user taps Register, starts 5-Step FSM registration.
+          </div>
+          <div class="example-box">
+            <div class="example-header"><i class="fa-solid fa-comment-dots"></i> New Customer Reply</div>
+            <div class="example-chat-bubble">
+              👋 <strong>Welcome to Poornasree Equipments!</strong> We don't have your details on file yet.<br>
+              📝 <strong>Register now</strong> for faster service.<br>
+              <span class="example-btn">📝 Register Machine</span>
+              <span class="example-btn">⏭️ Skip for Now</span>
+              <span class="example-btn">🌐 Select Language</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registered Path -->
+      <div class="branch-column">
+        <div class="branch-badge badge-yes"><i class="fa-solid fa-user-check"></i> YES (Registered)</div>
+        <div class="fc-node-rect">
+          <div class="node-header">
+            <div class="node-title" style="color: var(--accent-emerald);"><i class="fa-solid fa-comments"></i> Welcome Back Greeting</div>
+          </div>
+          <div class="node-desc">
+            Sends Welcome Back greeting with full interactive options.
+          </div>
+          <div class="example-box">
+            <div class="example-header"><i class="fa-solid fa-comment-dots"></i> Registered Customer Reply</div>
+            <div class="example-chat-bubble">
+              Namaste! 🙏 Welcome back to Poornasree Equipments. How can I help you today?<br>
+              <span class="example-btn">🛠️ Book Service</span>
+              <span class="example-btn">📝 Register Machine</span>
+              <span class="example-btn">🌐 Change Language</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="flow-connector">
+      <div class="connector-line"></div>
+      <div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+    </div>
+
+    <!-- 5. DECISION 3: IS INTENT HARDWARE COMPLAINT -->
+    <div class="fc-decision-wrapper">
+      <div class="fc-node-diamond">
+        <div class="diamond-content">
+          <i class="fa-solid fa-wrench" style="color: var(--accent-amber); font-size: 1.2rem; margin-bottom: 0.3rem;"></i>
+          <div class="diamond-title">4. Is Intent a Hardware Complaint?</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split: Hardware Fault vs Sales / FAQ -->
+    <div class="branch-split-container">
+      
+      <!-- Sales / FAQ Path -->
+      <div class="branch-column">
+        <div class="branch-badge badge-no"><i class="fa-solid fa-store"></i> NO (Sales / FAQ)</div>
+        <div class="fc-node-rect">
+          <div class="node-header">
+            <div class="node-title"><i class="fa-solid fa-file-image" style="color: var(--accent-purple);"></i> Product / Info Dispatch</div>
+          </div>
+          <div class="node-desc">
+            User asks <em>"Lactosure price"</em> or <em>"send brochure"</em>. Bot dispatches active product specs, catalog brochure images & company photos.
+          </div>
+        </div>
+        <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+        <div class="fc-node-oval" style="font-size: 0.85rem;">Session Completed</div>
+      </div>
+
+      <!-- Hardware Fault Path -->
+      <div class="branch-column">
+        <div class="branch-badge badge-yes"><i class="fa-solid fa-brain"></i> YES (Hardware Fault)</div>
+        <div class="fc-node-rect">
+          <div class="node-header">
+            <div class="node-title"><i class="fa-solid fa-filter" style="color: var(--accent-cyan);"></i> Candidate Prefilter</div>
+            <span class="code-tag">STEP 03</span>
+          </div>
+          <div class="node-desc">
+            Scores 200+ <code>CHATBOT_DATAS</code> entries. Query containing <code>t2</code> boosts <code>analyzer_mainboard_temp_set_error</code> (+25 pts).
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="flow-connector">
+      <div class="connector-line"></div>
+      <div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+    </div>
+
+    <!-- 6. GROQ 70B CLASSIFICATION PROCESS -->
+    <div class="fc-node-rect">
+      <div class="node-header">
+        <div class="node-title"><i class="fa-solid fa-bolt" style="color: var(--accent-amber);"></i> 5. Groq 70B Semantic Classifier</div>
+        <span class="code-tag">LLM EVAL</span>
+      </div>
+      <div class="node-desc">
+        Invokes <code>llama-3.3-70b-versatile</code> model to classify candidate matches. Minimum confidence threshold of <strong>75+</strong> required.
+      </div>
+    </div>
+
+    <div class="flow-connector">
+      <div class="connector-line"></div>
+      <div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+    </div>
+
+    <!-- 7. DECISION 4: TRAINING DOCUMENT MATCH FOUND? -->
+    <div class="fc-decision-wrapper">
+      <div class="fc-node-diamond">
+        <div class="diamond-content">
+          <i class="fa-solid fa-shield-halved" style="color: var(--accent-amber); font-size: 1.2rem; margin-bottom: 0.3rem;"></i>
+          <div class="diamond-title">6. Training Document Match Found?</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split: Match Found vs Unlisted Escalation -->
+    <div class="branch-split-container">
+      
+      <!-- Match Found Path -->
+      <div class="branch-column">
+        <div class="branch-badge badge-yes"><i class="fa-solid fa-check"></i> YES (Match >= 75)</div>
+        <div class="fc-node-rect rect-success">
+          <div class="node-header">
+            <div class="node-title" style="color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Check & Action Output</div>
+          </div>
+          <div class="node-desc">
+            Outputs exact <strong>Check & Action</strong> steps from DocumentIssue Row 8 + YouTube tutorial.
+          </div>
+          <div class="example-box">
+            <div class="example-header"><i class="fa-solid fa-comment-dots"></i> "no t2 error" Output Example</div>
+            <div class="example-chat-bubble">
+              🔧 <strong>Troubleshooting: T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK</strong><br><br>
+              1. Check: CHECK THE LEAKAGE/BLOCK OF THE SAMPLE SUCKING SECTIONS → CHECK THE SILICON TUBE BROKEN/BEND<br>
+              2. Check: CHECK THE L-PLUG PROPERLY INSERT → CHECK THE O-RING<br><br>
+              ▶️ <em>Milk Analyzer T2 Error & Temperature Calibration Guide</em><br>
+              <span class="example-btn">✅ Yes, Resolved</span>
+              <span class="example-btn">🛠️ Register Complaint</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+        
+        <div class="fc-node-oval" style="background: rgba(16, 185, 129, 0.25); border-color: var(--accent-emerald); font-size: 0.85rem;">
+          Issue Resolved (Session Closed)
+        </div>
+      </div>
+
+      <!-- Unlisted Escalation Path -->
+      <div class="branch-column">
+        <div class="branch-badge badge-no"><i class="fa-solid fa-triangle-exclamation"></i> NO (Unlisted Fault)</div>
+        <div class="fc-node-rect rect-escalation">
+          <div class="node-header">
+            <div class="node-title" style="color: var(--accent-rose);"><i class="fa-solid fa-shield-cat"></i> Strict Escalation Notice</div>
+          </div>
+          <div class="node-desc">
+            Enforces Strict Non-Hallucination Rule for unknown issues (e.g. <em>"motor gear broken inside chassis"</em>).
+          </div>
+          <div class="example-box">
+            <div class="example-header"><i class="fa-solid fa-comment-dots"></i> Unlisted Issue Output Example</div>
+            <div class="example-chat-bubble">
+              We don't have a self-troubleshooting guide for this specific issue in our training documents. 🙏<br><br>
+              Please tap <strong>Register Complaint</strong> below to log a service request for a field service engineer.<br>
+              <span class="example-btn">🛠️ Register Complaint</span>
+              <span class="example-btn">💬 Talk to us</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+
+        <!-- Service Booking Node -->
+        <div class="fc-node-rect rect-escalation">
+          <div class="node-header">
+            <div class="node-title" style="color: var(--accent-rose);"><i class="fa-solid fa-ticket"></i> Service Ticket & Alerts</div>
+          </div>
+          <div class="node-desc">
+            Prompts for Machine Serial Number (<code>ECO-2024-8841</code>) ➔ Logs Service Ticket in DB ➔ Dispatches real-time WhatsApp & Push alerts to Field Engineers.
+          </div>
+        </div>
+
+        <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+
+        <div class="fc-node-oval" style="background: rgba(244, 63, 94, 0.25); border-color: var(--accent-rose); font-size: 0.85rem;">
+          Ticket Logged & Field Visit Assigned
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>

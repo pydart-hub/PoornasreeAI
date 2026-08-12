@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poornasree AI — Master WhatsApp Feature Flows Architecture</title>
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-dark: #06080d;
+      --bg-panel: rgba(14, 20, 34, 0.9);
+      --bg-card: rgba(20, 29, 48, 0.85);
+      --bg-card-hover: rgba(28, 41, 68, 0.95);
+      --border-color: rgba(255, 255, 255, 0.08);
+
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #8b5cf6;
+
+      --shadow-glow: 0 0 35px rgba(99, 102, 241, 0.15);
+      --shadow-active: 0 0 45px rgba(6, 182, 212, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Background Glows */
+    .blur-1 {
+      position: fixed;
+      top: -150px;
+      left: 10%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .blur-2 {
+      position: fixed;
+      bottom: -150px;
+      right: 10%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: rgba(14, 20, 34, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-text h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .brand-text p {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+
+    /* Feature Navigation Chips */
+    .feature-nav-bar {
+      background: rgba(10, 14, 24, 0.8);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 2rem;
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .nav-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.45rem 0.95rem;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .nav-chip:hover, .nav-chip.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-indigo);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Main Container Grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 2rem;
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 2.5rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 1250px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Left Detail Column */
+    .flow-column {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .feature-banner {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.15));
+      border: 1px solid var(--border-accent);
+      border-radius: 20px;
+      padding: 1.5rem 1.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .feature-banner h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.25rem;
+    }
+
+    .feature-banner p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .tech-tag {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    /* Standard Flowchart Node Shapes */
+
+    .fc-node-oval {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(79, 70, 229, 0.5));
+      border: 2px solid var(--accent-indigo);
+      border-radius: 9999px;
+      padding: 0.95rem 2.5rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7rem;
+    }
+
+    .fc-node-rect {
+      background: var(--bg-card);
+      border: 2px solid rgba(6, 182, 212, 0.4);
+      border-radius: 16px;
+      padding: 1.4rem 1.8rem;
+      width: 100%;
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow-glow);
+      transition: all 0.25s ease;
+    }
+
+    .fc-node-rect:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+
+    .node-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .node-desc {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin-bottom: 0.85rem;
+    }
+
+    .example-box {
+      background: rgba(8, 12, 20, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0.9rem 1.1rem;
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .example-header {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent-cyan);
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .example-chat-bubble {
+      background: #202c33;
+      color: #e9edef;
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .example-btn {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--accent-cyan);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin: 0.2rem 0.1rem;
+    }
+
+    .fc-decision-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+
+    .fc-node-diamond {
+      width: 230px;
+      height: 230px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(180, 83, 9, 0.3));
+      border: 2px solid var(--accent-amber);
+      transform: rotate(45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 35px rgba(245, 158, 11, 0.25);
+      transition: all 0.3s ease;
+      margin: 1.5rem 0;
+    }
+
+    .diamond-content {
+      transform: rotate(-45deg);
+      text-align: center;
+      padding: 1rem;
+      width: 200px;
+    }
+
+    .diamond-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    .branch-split-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.75rem;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 800px) {
+      .branch-split-container { grid-template-columns: 1fr; }
+    }
+
+    .branch-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .branch-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.9rem;
+      border-radius: 9999px;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .badge-yes { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-no { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.4); }
+
+    .flow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0.75rem 0;
+      color: var(--text-dim);
+    }
+
+    .connector-line { width: 2px; height: 26px; background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2), var(--accent-cyan)); }
+    .connector-arrow { font-size: 0.88rem; color: var(--accent-cyan); margin-top: -2px; }
+
+    /* Right Side Phone Simulator */
+    .sim-sticky-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 1.6rem;
+      backdrop-filter: blur(18px);
+      height: fit-content;
+      position: sticky;
+      top: 100px;
+    }
+
+    .sim-panel-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .phone-mockup {
+      background: #0b1019;
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      height: 500px;
+    }
+
+    .phone-header {
+      background: #162032;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.85rem;
+    }
+
+    .bot-info h4 { font-size: 0.85rem; font-weight: 600; color: #fff; }
+    .bot-info p { font-size: 0.68rem; color: var(--accent-emerald); }
+
+    .phone-messages {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .chat-bubble {
+      max-width: 88%;
+      padding: 0.75rem 0.95rem;
+      border-radius: 14px;
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .bubble-customer { align-self: flex-end; background: #005c4b; color: #e9edef; border-bottom-right-radius: 2px; }
+    .bubble-bot { align-self: flex-start; background: #202c33; color: #e9edef; border-bottom-left-radius: 2px; }
+
+    .chat-btn-action {
+      display: block;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.45rem;
+      border-radius: 8px;
+      margin-top: 0.4rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="blur-1"></div>
+  <div class="blur-2"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-diagram-project"></i></div>
+      <div class="brand-text">
+        <h1>Poornasree AI — Master WhatsApp Feature Flows</h1>
+        <p>Complete End-to-End Dialogue Flows for All 12 WhatsApp System Features</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Feature Navigation Bar -->
+  <div class="feature-nav-bar">
+    <button class="nav-chip active" onclick="loadFeatureFlow('troubleshooting')"><i class="fa-solid fa-brain"></i> 1. AI Self-Troubleshooting</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('multilang')"><i class="fa-solid fa-language"></i> 2. Multi-Language Switch</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('registration')"><i class="fa-solid fa-id-card"></i> 3. Machine Registration FSM</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('service_booking')"><i class="fa-solid fa-wrench"></i> 4. Service Complaint Booking</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('engineer_otp')"><i class="fa-solid fa-truck-fast"></i> 5. Engineer Alert & OTP Closure</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('dealer_notify')"><i class="fa-solid fa-building"></i> 6. Dealer Territory Alerts</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('video_engine')"><i class="fa-solid fa-video"></i> 7. Video Recommendation</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('product_catalog')"><i class="fa-solid fa-store"></i> 8. Catalog & Photo Dispatcher</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('human_handoff')"><i class="fa-solid fa-headset"></i> 9. Human Support Handoff</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('feedback_rating')"><i class="fa-solid fa-star"></i> 10. Feedback Rating Engine</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('session_cleanup')"><i class="fa-solid fa-clock-rotate-left"></i> 11. Session Cleanup Engine</button>
+    <button class="nav-chip" onclick="loadFeatureFlow('marketing')"><i class="fa-solid fa-bullhorn"></i> 12. Broadcast Marketing</button>
+  </div>
+
+  <!-- Main Grid Layout -->
+  <div class="main-grid">
+
+    <!-- Left Flow Column -->
+    <div class="flow-column" id="flowContainer">
+      <!-- Dynamically Rendered via JavaScript -->
+    </div>
+
+    <!-- Right Sticky Simulator Panel -->
+    <div class="sim-sticky-panel">
+      <div class="sim-panel-title">
+        <span><i class="fa-solid fa-mobile-screen" style="color: var(--accent-cyan);"></i> WhatsApp Live Simulator</span>
+        <span style="font-size: 0.72rem; color: var(--accent-emerald);" id="activeFeatureTitle">Feature 1</span>
+      </div>
+
+      <div class="phone-mockup">
+        <div class="phone-header">
+          <div class="avatar"><i class="fa-solid fa-robot"></i></div>
+          <div class="bot-info">
+            <h4>Hari — Poornasree AI</h4>
+            <p>● Online | WhatsApp Agent</p>
+          </div>
+        </div>
+
+        <div class="phone-messages" id="phoneChatMessages">
+          <!-- Dynamically Populated -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const featureFlows = {
+      troubleshooting: {
+        title: "1. AI Self-Troubleshooting & Non-Hallucination Engine",
+        tech: "whatsapp-agent.service.ts | complaint-classifier.service.ts",
+        desc: "Matches hardware fault queries against 200+ DocumentIssue entries from CHATBOT_DATAS. Enforces strict escalation for unlisted faults.",
+        chat: [
+          { sender: 'user', text: 'no t2 error' },
+          { sender: 'bot', text: '🔧 <strong>Troubleshooting: T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK</strong><br><br>1. Check: CHECK THE LEAKAGE/BLOCK OF THE SAMPLE SUCKING SECTIONS → CHECK THE SILICON TUBE BROKEN/BEND<br>2. Check: CHECK THE L-PLUG PROPERLY INSERT → CHECK THE O-RING<br><br>▶️ <em>Milk Analyzer T2 Error & Temperature Calibration Guide</em>',
+            buttons: ['✅ Yes, Resolved', '🛠️ Register Complaint', '💬 Talk to us'] }
+        ],
+        nodes: [
+          { type: 'start', text: 'Customer Sends Hardware Complaint ("no t2 error", "vibro slow")' },
+          { type: 'rect', title: '1. Webhook & Heartbeat Ingestion', tag: 'STEP 01', desc: 'Receives payload string, sanitizes to UPPERCASE, and starts continuous 2s periodic typing indicator loop.' },
+          { type: 'rect', title: '2. Catalog Candidate Prefiltering', tag: 'STEP 02', desc: 'Scores 200+ DocumentIssue entries from CHATBOT_DATAS. Short-term alias boost (+25 pts) applied for T2, Vibro, Power, Sensor.' },
+          { type: 'rect', title: '3. Groq 70B Semantic Classification', tag: 'LLM EVAL', desc: 'Invokes llama-3.3-70b-versatile. Minimum confidence threshold of 75+ required.' },
+          { type: 'diamond', title: 'Document Issue Match Found (Confidence >= 75)?' },
+          {
+            split: true,
+            yes: {
+              title: 'Exact Checks & Actions Output',
+              desc: 'Outputs exact Check & Action steps from DocumentIssue Row 8 + video guide + translates text to active language.',
+              chatEx: '1. Check leakage -> Silicon tube<br>2. Check L-Plug -> O-Ring',
+              endText: 'Issue Resolved (Session Closed)'
+            },
+            no: {
+              title: 'Strict Escalation Notice',
+              desc: 'Enforces Strict Non-Hallucination Rule: "We don\'t have a self-troubleshooting guide for this specific issue in our training documents. 🙏 Please tap Register Complaint below..."',
+              chatEx: 'Buttons: [Register Complaint], [Talk to us]',
+              endText: 'Escalated to Service Complaint Booking'
+            }
+          }
+        ]
+      },
+
+      multilang: {
+        title: "2. Multi-Language Session Switching & Persistence",
+        tech: "whatsapp-agent.service.ts | simulate.service.ts",
+        desc: "Supports 8 languages (English, Hindi, Malayalam, Tamil, Kannada, Telugu, Marathi, Bengali). Saves meta.language in PostgreSQL session.",
+        chat: [
+          { sender: 'user', text: 'Malayalam' },
+          { sender: 'bot', text: '🌐 <strong>ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി.</strong> ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?',
+            buttons: ['🛠️ പരാതി നൽകുക', '📝 മെഷീൻ രജിസ്റ്റർ', '🌐 ഭാഷ മാറ്റുക'] },
+          { sender: 'user', text: 'vibro nahi chal raha' },
+          { sender: 'bot', text: '🔧 <strong>പരിഹരിക്കൽ: പ്രവർത്തിക്കുന്നില്ല (LED ഇല്ല)</strong><br><br>1. ഫ്യൂസ് പരിശോധിക്കുക → ഫ്യൂസ് മാറ്റുക<br>2. പവർ സപ്ലൈ പരിശോധിക്കുക → പവർ സപ്ലൈ മാറ്റുക',
+            buttons: ['✅ ശരിയായി', '🛠️ പരാതി നൽകുക'] }
+        ],
+        nodes: [
+          { type: 'start', text: 'Customer Requests Language ("Malayalam", "Hindi me", SELECT_LANG)' },
+          { type: 'rect', title: '1. Language Interceptor & Matcher', tag: 'LANG DETECT', desc: 'Parses text string or button payload. Maps requested language to standard ISO code (ml, hi, ta, kn, te, mr, bn, en).' },
+          { type: 'rect', title: '2. PostgreSQL Session Persistence', tag: 'DB UPDATE', desc: 'Updates ConversationSession.metadata: meta.language = "ml". Sets explicitLanguage = true.' },
+          { type: 'rect', title: '3. Multi-Lingual UI & Button Translator', tag: 'TRANSLATION', desc: 'Auto-translates greetings, troubleshooting steps, and button titles (getAgentButtons) into target language.' },
+          { type: 'oval', text: 'All Future Messages & Steps Continue in Target Language' }
+        ]
+      },
+
+      registration: {
+        title: "3. Customer Registration & Machine Onboarding FSM",
+        tech: "simulate.service.ts (5-Step FSM)",
+        desc: "Guides new customers through machine registration: Serial -> Name -> Pincode -> Location -> Account Created.",
+        chat: [
+          { sender: 'user', text: 'REGISTER' },
+          { sender: 'bot', text: '📝 <strong>Poornasree Machine Registration</strong><br><br>Please enter your 10-digit Machine Serial Number (e.g. ECO-2024-8841):' },
+          { sender: 'user', text: 'ECO-2024-8841' },
+          { sender: 'bot', text: 'Great! Now, please enter your Full Name:' },
+          { sender: 'user', text: 'Ramesh Kumar' },
+          { sender: 'bot', text: '🎉 <strong>Registration Successful!</strong> Your machine ECO-2024-8841 has been registered under Ramesh Kumar.' }
+        ],
+        nodes: [
+          { type: 'start', text: 'New Customer Taps [📝 Register Machine]' },
+          { type: 'rect', title: '1. State REGISTER_SERIAL', tag: 'FSM STEP 1', desc: 'Prompts customer to enter 10-digit Machine Serial Number (e.g. ECO-2024-8841).' },
+          { type: 'rect', title: '2. State REGISTER_NAME', tag: 'FSM STEP 2', desc: 'Captures Customer Full Name.' },
+          { type: 'rect', title: '3. State REGISTER_PINCODE & GMAP', tag: 'FSM STEP 3 & 4', desc: 'Captures Pincode and Google Maps Location link / Address.' },
+          { type: 'rect', title: '4. Database Record Creation', tag: 'PRISMA WRITE', desc: 'Creates new User record (role=customer) and links Machine entity in PostgreSQL.' },
+          { type: 'oval', text: 'User Account Registered & Returned to Main Menu' }
+        ]
+      },
+
+      service_booking: {
+        title: "4. Service Complaint Booking Flow",
+        tech: "whatsapp-agent.service.ts | ticket.service.ts",
+        desc: "Captures serial number & problem description to generate official Service Ticket in DB.",
+        chat: [
+          { sender: 'user', text: 'BOOK_SERVICE' },
+          { sender: 'bot', text: 'Sure! I\'ll help you book a service visit. Please enter your 10-digit machine serial number (e.g. ECO-2024-8841):' },
+          { sender: 'user', text: 'ECO-2024-8841' },
+          { sender: 'bot', text: 'Got it! 📝 Now, please describe the issue you are facing:' },
+          { sender: 'user', text: 'Low vibration on stirrer' },
+          { sender: 'bot', text: '✅ <strong>Service Request Created!</strong><br><br>Ticket ID: <code>SRV-2026-0812-004</code><br>Serial: ECO-2024-8841<br>Issue: Low vibration on stirrer<br><br>Our field engineer will contact you shortly.' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Customer Taps [🛠️ Book Service] or [🛠️ Register Complaint]' },
+          { type: 'rect', title: '1. State COMPLAINT_ASK_SERIAL', tag: 'TICKET STEP 1', desc: 'Prompts customer for 10-digit machine serial number or allows Skip.' },
+          { type: 'rect', title: '2. State COMPLAINT_ASK_ISSUE', tag: 'TICKET STEP 2', desc: 'Captures specific problem description.' },
+          { type: 'rect', title: '3. PostgreSQL Ticket Record Write', tag: 'PRISMA TICKET', desc: 'Generates unique Ticket ID (e.g. SRV-2026-0812-004) and saves in DB.' },
+          { type: 'oval', text: 'Ticket Logged & Sent to Engineer Dispatch Pipeline' }
+        ]
+      },
+
+      engineer_otp: {
+        title: "5. Field Engineer Alert & OTP Closure Engine",
+        tech: "engineer-ticket-notification.service.ts | engineer-whatsapp.service.ts",
+        desc: "Dispatches WhatsApp ticket notification to Field Engineer & 4-digit OTP to customer for site verification.",
+        chat: [
+          { sender: 'bot', text: '🔔 <strong>New Service Ticket Assigned!</strong><br><br>Ticket ID: SRV-2026-0812-004<br>Customer: Ramesh Kumar (+919847012345)<br>Serial: ECO-2024-8841<br>Location: Ernakulam, Kerala<br><br>Customer OTP: <strong>4821</strong> (Verify on site to close ticket)' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Service Ticket Created in System' },
+          { type: 'rect', title: '1. Territory & Engineer Assignment', tag: 'GEO ROUTING', desc: 'Finds nearest active Field Engineer by Pincode / District.' },
+          { type: 'rect', title: '2. WhatsApp Notification Dispatch', tag: 'WHATSAPP API', desc: 'Sends ticket details, customer phone number, and location link to Field Engineer\'s WhatsApp.' },
+          { type: 'rect', title: '3. Customer 4-Digit OTP Generation', tag: 'SECURITY OTP', desc: 'Generates 4-digit OTP and sends to Customer WhatsApp.' },
+          { type: 'rect', title: '4. On-Site OTP Verification & Closure', tag: 'TICKET CLOSE', desc: 'Engineer enters customer OTP on site via WhatsApp or Mobile App to officially close ticket.' },
+          { type: 'oval', text: 'Ticket Closed & Customer Feedback Triggered' }
+        ]
+      },
+
+      dealer_notify: {
+        title: "6. Dealer Territory WhatsApp Alerts",
+        tech: "dealer-whatsapp.service.ts | dealer-ticket-notification.service.ts",
+        desc: "Alerts regional dealers when a machine in their assigned territory requests service or onboarding.",
+        chat: [
+          { sender: 'bot', text: '🏢 <strong>Dealer Territory Alert</strong><br><br>Customer Ramesh Kumar (+919847012345) in your territory (Ernakulam) has raised a service request for model ECO-2024-8841.' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Customer in Dealer Territory Raises Request' },
+          { type: 'rect', title: '1. Territory Mapping Lookup', tag: 'DB LOOKUP', desc: 'Matches customer pincode/district against Dealer assigned territories.' },
+          { type: 'rect', title: '2. Automated WhatsApp Template Dispatch', tag: 'DEALER ALERT', desc: 'Dispatches instant WhatsApp alert to Dealer with customer contact & machine info.' },
+          { type: 'oval', text: 'Dealer Notified for Regional Support' }
+        ]
+      },
+
+      video_engine: {
+        title: "7. Video Recommendation Engine",
+        tech: "video-recommendation.service.ts",
+        desc: "Matches customer query keywords against database of YouTube tutorial guides and appends video links.",
+        chat: [
+          { sender: 'bot', text: '📺 <strong>Related Video Guides:</strong><br><br>▶️ <em>Milk Analyzer T2 Error & Temperature Calibration Guide</em><br>https://youtu.be/4GH45wgoW0Y' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Troubleshooting Reply Formatted' },
+          { type: 'rect', title: '1. Video Keyword Extractor', tag: 'KEYWORD SEARCH', desc: 'Extracts keywords (T2, Vibro, Cleaning, Reading Variation, Power).' },
+          { type: 'rect', title: '2. Database Video Query', tag: 'PRISMA SEARCH', desc: 'Queries TrainingVideo table for matching YouTube URLs.' },
+          { type: 'rect', title: '3. Video Block Injection', tag: 'TEXT INJECT', desc: 'Appends YouTube video title & clickable link to bottom of WhatsApp reply.' },
+          { type: 'oval', text: 'Video Recommendation Delivered' }
+        ]
+      },
+
+      product_catalog: {
+        title: "8. Product Catalog & Photo Dispatcher",
+        tech: "whatsapp-agent.service.ts",
+        desc: "Dispatches product specs, brochure images, and head office facility photos when customer asks for pricing or catalog.",
+        chat: [
+          { sender: 'user', text: 'send product photos' },
+          { sender: 'bot', text: '📸 <strong>Lactosure Eco V Milk Analyzer</strong><br>High-speed ultrasonic milk testing machine with cloud auto-sync.<br><br>[Attached Product Photos & Brochure PDF]' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Customer Asks for Products / Price / Photos' },
+          { type: 'rect', title: '1. Intent Detection', tag: 'CATALOG DETECT', desc: 'Matches keywords: "photo", "pic", "price", "catalog", "brochure", "office address".' },
+          { type: 'rect', title: '2. Media Retrieval', tag: 'MEDIA FETCH', desc: 'Fetches active product image URLs and company head office photos from database.' },
+          { type: 'rect', title: '3. WhatsApp Media Dispatch', tag: 'MEDIA DISPATCH', desc: 'Sends structured message with attached images and captions.' },
+          { type: 'oval', text: 'Product Images Delivered to Customer' }
+        ]
+      },
+
+      human_handoff: {
+        title: "9. Human Support Agent Handoff (Live Chat)",
+        tech: "whatsapp-agent.service.ts | support.controller.ts",
+        desc: "Pauses AI automated replies and notifies human support agents on the Admin Panel for live chat takeover.",
+        chat: [
+          { sender: 'user', text: 'TALK_AGENT' },
+          { sender: 'bot', text: '💬 <strong>Connecting you with Support...</strong><br><br>Our support agent will take over this conversation shortly. Please wait a moment.' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Customer Taps [💬 Talk to us]' },
+          { type: 'rect', title: '1. State Update to TALK_AGENT', tag: 'STATE PAUSE', desc: 'Pauses AI auto-replies for this customer session.' },
+          { type: 'rect', title: '2. Admin Portal Real-Time Alert', tag: 'SOCKET / PUSH', desc: 'Alerts support agents on Admin Portal (/admin?tab=livechat).' },
+          { type: 'rect', title: '3. Live Human Chat Takeover', tag: 'HUMAN CHAT', desc: 'Support agent sends replies directly to customer WhatsApp via Admin Portal.' },
+          { type: 'oval', text: 'Human Support Session Active' }
+        ]
+      },
+
+      feedback_rating: {
+        title: "10. Feedback Rating Engine",
+        tech: "simulate.service.ts",
+        desc: "Collects 5-star ratings or binary satisfaction feedback after troubleshooting or ticket completion.",
+        chat: [
+          { sender: 'bot', text: 'Did these troubleshooting steps resolve your issue?',
+            buttons: ['⭐ 5 Star', '⭐ 4 Star', '⭐ 3 Star', '⭐ 2 Star', '⭐ 1 Star'] },
+          { sender: 'user', text: '⭐ 5 Star' },
+          { sender: 'bot', text: 'Thank you for your rating! ⭐⭐⭐⭐⭐ We are glad we could help.' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Troubleshooting / Ticket Completed' },
+          { type: 'rect', title: '1. Rating Prompt Dispatch', tag: 'FEEDBACK PROMPT', desc: 'Sends 5-Star rating buttons or Yes/No satisfaction prompt.' },
+          { type: 'rect', title: '2. Database Feedback Record Write', tag: 'PRISMA FEEDBACK', desc: 'Saves rating integer (1-5) and user comments into Feedback table.' },
+          { type: 'oval', text: 'Feedback Recorded for Analytics' }
+        ]
+      },
+
+      session_cleanup: {
+        title: "11. Session Cleanup & Memory Management Engine",
+        tech: "session-cleanup.service.ts",
+        desc: "Periodically cleans up inactive sessions (idle > 24 hours) to prevent memory bloat and reset conversation state.",
+        chat: [
+          { sender: 'bot', text: 'Session closed due to inactivity. Send "Hi" anytime to start a new chat!' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Cron Schedule Trigger (Every Hour)' },
+          { type: 'rect', title: '1. Inactive Session Query', tag: 'CLEANUP QUERY', desc: 'Finds ConversationSession records updated > 24 hours ago.' },
+          { type: 'rect', title: '2. Session State Reset', tag: 'DB RESET', desc: 'Updates state to COMPLETED and clears temporary complaint metadata.' },
+          { type: 'oval', text: 'Memory Freed & Session Reset' }
+        ]
+      },
+
+      marketing: {
+        title: "12. Broadcast Marketing & Notification Engine",
+        tech: "marketing.routes.ts | whatsapp.service.ts",
+        desc: "Dispatches bulk WhatsApp template messages for software updates, maintenance reminders, and announcements.",
+        chat: [
+          { sender: 'bot', text: '🔔 <strong>Poornasree Software Update Notice</strong><br><br>New firmware update (v4.2) is now available for your Lactosure Milk Analyzer. Contact support for free update installation!' }
+        ],
+        nodes: [
+          { type: 'start', text: 'Admin Launches Campaign in Admin Panel' },
+          { type: 'rect', title: '1. Customer Segment Selection', tag: 'SEGMENTATION', desc: 'Filters target customers by district, machine model, or registration status.' },
+          { type: 'rect', title: '2. Rate-Limited Template Broadcast', tag: 'BULK API', desc: 'Dispatches approved WhatsApp Meta template messages with rate limiting.' },
+          { type: 'oval', text: 'Broadcast Delivered & Delivery Analytics Logged' }
+        ]
+      }
+    };
+
+    function renderNode(node) {
+      if (node.type === 'start') {
+        return `<div class="fc-node-oval"><i class="fa-solid fa-circle-play"></i> ${node.text}</div><div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>`;
+      }
+      if (node.type === 'oval') {
+        return `<div class="fc-node-oval" style="background: rgba(16, 185, 129, 0.25); border-color: var(--accent-emerald); font-size: 0.88rem;"><i class="fa-solid fa-flag-checkered"></i> ${node.text}</div>`;
+      }
+      if (node.type === 'rect') {
+        return `<div class="fc-node-rect"><div class="node-header"><div class="node-title"><i class="fa-solid fa-gear" style="color: var(--accent-cyan);"></i> ${node.title}</div><span class="tech-tag">${node.tag}</span></div><div class="node-desc">${node.desc}</div></div><div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>`;
+      }
+      if (node.type === 'diamond') {
+        return `<div class="fc-decision-wrapper"><div class="fc-node-diamond"><div class="diamond-content"><i class="fa-solid fa-code-branch" style="color: var(--accent-amber); font-size: 1.2rem; margin-bottom: 0.3rem;"></i><div class="diamond-title">${node.title}</div></div></div></div>`;
+      }
+      if (node.split) {
+        return `<div class="branch-split-container">
+          <div class="branch-column">
+            <div class="branch-badge badge-yes"><i class="fa-solid fa-check"></i> YES</div>
+            <div class="fc-node-rect" style="border-color: var(--accent-emerald);">
+              <div class="node-header"><div class="node-title" style="color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> ${node.yes.title}</div></div>
+              <div class="node-desc">${node.yes.desc}</div>
+            </div>
+            <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+            <div class="fc-node-oval" style="background: rgba(16, 185, 129, 0.25); border-color: var(--accent-emerald); font-size: 0.82rem;">${node.yes.endText}</div>
+          </div>
+
+          <div class="branch-column">
+            <div class="branch-badge badge-no"><i class="fa-solid fa-xmark"></i> NO</div>
+            <div class="fc-node-rect" style="border-color: var(--accent-rose);">
+              <div class="node-header"><div class="node-title" style="color: var(--accent-rose);"><i class="fa-solid fa-triangle-exclamation"></i> ${node.no.title}</div></div>
+              <div class="node-desc">${node.no.desc}</div>
+            </div>
+            <div class="flow-connector"><div class="connector-line"></div><div class="connector-arrow"><i class="fa-solid fa-chevron-down"></i></div></div>
+            <div class="fc-node-oval" style="background: rgba(244, 63, 94, 0.25); border-color: var(--accent-rose); font-size: 0.82rem;">${node.no.endText}</div>
+          </div>
+        </div>`;
+      }
+      return '';
+    }
+
+    function loadFeatureFlow(key) {
+      document.querySelectorAll('.nav-chip').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const data = featureFlows[key];
+      document.getElementById('activeFeatureTitle').textContent = data.title;
+
+      const container = document.getElementById('flowContainer');
+      let html = `<div class="feature-banner">
+        <div>
+          <h2>${data.title}</h2>
+          <p>${data.desc}</p>
+        </div>
+        <span class="tech-tag">${data.tech}</span>
+      </div>`;
+
+      data.nodes.forEach(n => {
+        html += renderNode(n);
+      });
+
+      container.innerHTML = html;
+
+      // Populate Phone Simulator
+      const phoneContainer = document.getElementById('phoneChatMessages');
+      phoneContainer.innerHTML = '';
+      data.chat.forEach(msg => {
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble bubble-${msg.sender}`;
+        let msgHtml = msg.text;
+        if (msg.buttons) {
+          msg.buttons.forEach(btn => {
+            msgHtml += `<div class="chat-btn-action">${btn}</div>`;
+          });
+        }
+        bubble.innerHTML = msgHtml;
+        phoneContainer.appendChild(bubble);
+      });
+      phoneContainer.scrollTop = phoneContainer.scrollHeight;
+    }
+
+    // Default load Feature 1
+    window.onload = () => loadFeatureFlow('troubleshooting');
+  </script>
+</body>
+</html>

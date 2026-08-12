@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poornasree AI — Customer & Chatbot Complete Flowchart Architecture</title>
+  <!-- Google Fonts & FontAwesome icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --bg-primary: #07090e;
+      --bg-secondary: #0f1523;
+      --bg-card: rgba(18, 26, 43, 0.75);
+      --bg-card-hover: rgba(28, 39, 64, 0.9);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.35);
+      
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --accent-purple: #8b5cf6;
+
+      --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.18);
+      --shadow-active: 0 0 40px rgba(6, 182, 212, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Ambient Background Glows */
+    .ambient-glow-1 {
+      position: fixed;
+      top: -150px;
+      left: 15%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .ambient-glow-2 {
+      position: fixed;
+      bottom: -150px;
+      right: 15%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Top Navigation Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      background: rgba(7, 9, 14, 0.85);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.1rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.35rem;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+    }
+
+    .brand-title h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-title p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .persona-bar {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .persona-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.45rem 0.9rem;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .persona-btn:hover, .persona-btn.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-indigo);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Layout Grid */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 2rem;
+      max-width: 1680px;
+      margin: 0 auto;
+      padding: 2.5rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    @media (max-width: 1250px) {
+      .main-layout { grid-template-columns: 1fr; }
+    }
+
+    /* Flowchart Section */
+    .flow-column {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .stage-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .stage-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 8px;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .stage-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Flow Node Cards */
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 1.6rem;
+      backdrop-filter: blur(14px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .node-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .node-card.highlighted {
+      border-color: var(--accent-cyan);
+      box-shadow: var(--shadow-active);
+      background: rgba(20, 32, 54, 0.95);
+    }
+
+    .node-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .node-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .box-blue { background: rgba(99, 102, 241, 0.18); color: var(--accent-indigo); }
+    .box-cyan { background: rgba(6, 182, 212, 0.18); color: var(--accent-cyan); }
+    .box-green { background: rgba(16, 185, 129, 0.18); color: var(--accent-emerald); }
+    .box-amber { background: rgba(245, 158, 11, 0.18); color: var(--accent-amber); }
+    .box-purple { background: rgba(139, 92, 246, 0.18); color: var(--accent-purple); }
+    .box-red { background: rgba(244, 63, 94, 0.18); color: var(--accent-rose); }
+
+    .node-title-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .node-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* Dual Actor Swimlane (Customer vs Bot) */
+    .swimlane-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .swimlane-grid { grid-template-columns: 1fr; }
+    }
+
+    .lane-box {
+      background: rgba(10, 14, 23, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    .lane-customer {
+      border-left: 3px solid var(--accent-amber);
+    }
+
+    .lane-bot {
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .lane-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .lane-customer .lane-header { color: var(--accent-amber); }
+    .lane-bot .lane-header { color: var(--accent-cyan); }
+
+    .lane-content {
+      font-size: 0.825rem;
+      color: var(--text-main);
+      line-height: 1.45;
+    }
+
+    .pill-tag {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      color: #e2e8f0;
+      margin-top: 0.3rem;
+    }
+
+    /* Decision Branch Container */
+    .decision-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .decision-card {
+      background: rgba(12, 17, 29, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 1.1rem;
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+
+    .decision-card:hover {
+      border-color: var(--accent-cyan);
+      transform: translateY(-2px);
+    }
+
+    .decision-label {
+      font-size: 0.825rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .decision-text {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Connectors */
+    .flow-arrow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 30px;
+      color: var(--text-dim);
+      font-size: 1.1rem;
+    }
+
+    .flow-arrow i {
+      animation: pulseArrow 1.5s infinite;
+    }
+
+    @keyframes pulseArrow {
+      0%, 100% { transform: translateY(-3px); opacity: 0.4; }
+      50% { transform: translateY(3px); opacity: 1; color: var(--accent-cyan); }
+    }
+
+    /* Right Side Simulator Panel */
+    .sim-sticky-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 1.6rem;
+      backdrop-filter: blur(18px);
+      height: fit-content;
+      position: sticky;
+      top: 100px;
+    }
+
+    .sim-panel-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .phone-mockup {
+      background: #0b1019;
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      height: 480px;
+    }
+
+    .phone-header {
+      background: #162032;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.85rem;
+    }
+
+    .bot-info h4 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .bot-info p {
+      font-size: 0.68rem;
+      color: var(--accent-emerald);
+    }
+
+    .phone-messages {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .chat-bubble {
+      max-width: 88%;
+      padding: 0.75rem 0.95rem;
+      border-radius: 14px;
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .bubble-customer {
+      align-self: flex-end;
+      background: #005c4b;
+      color: #e9edef;
+      border-bottom-right-radius: 2px;
+    }
+
+    .bubble-bot {
+      align-self: flex-start;
+      background: #202c33;
+      color: #e9edef;
+      border-bottom-left-radius: 2px;
+    }
+
+    .chat-btn-action {
+      display: block;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--accent-cyan);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.45rem;
+      border-radius: 8px;
+      margin-top: 0.4rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chat-btn-action:hover {
+      background: rgba(6, 182, 212, 0.25);
+    }
+
+    .journey-tracker {
+      margin-top: 1.25rem;
+      background: rgba(10, 14, 23, 0.9);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    .tracker-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.6rem;
+    }
+
+    .tracker-step {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .tracker-step.active {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow-1"></div>
+  <div class="ambient-glow-2"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-diagram-project"></i></div>
+      <div class="brand-title">
+        <h1>Customer & Chatbot Complete Flowchart</h1>
+        <p>Poornasree AI Customer Journey & Dialogue State Architecture</p>
+      </div>
+    </div>
+    <div class="persona-bar">
+      <button class="persona-btn active" onclick="loadPersona('new_user')"><i class="fa-solid fa-user-plus"></i> New Customer Persona</button>
+      <button class="persona-btn" onclick="loadPersona('reg_user')"><i class="fa-solid fa-user-check"></i> Registered Customer Persona</button>
+      <button class="persona-btn" onclick="loadPersona('lang_switch')"><i class="fa-solid fa-language"></i> Regional Language Persona</button>
+      <button class="persona-btn" onclick="loadPersona('unlisted')"><i class="fa-solid fa-triangle-exclamation"></i> Unlisted Complaint Persona</button>
+    </div>
+  </header>
+
+  <!-- Main Grid Layout -->
+  <div class="main-layout">
+
+    <!-- Left Flow Column -->
+    <div class="flow-column">
+
+      <!-- STAGE 1: ENTRY & IDENTITY -->
+      <div class="stage-header">
+        <span class="stage-badge">STAGE 01</span>
+        <h2 class="stage-title">Entry & Customer Identity Check</h2>
+      </div>
+
+      <div class="node-card" id="stage1-node">
+        <div class="node-top">
+          <div>
+            <div class="node-title-text">1. Initial WhatsApp Contact</div>
+            <div class="node-subtitle">Customer initiates contact via WhatsApp message</div>
+          </div>
+          <div class="node-icon-box box-blue"><i class="fa-brands fa-whatsapp"></i></div>
+        </div>
+
+        <div class="swimlane-grid">
+          <div class="lane-box lane-customer">
+            <div class="lane-header"><i class="fa-solid fa-user"></i> Customer Behavior</div>
+            <div class="lane-content">
+              Sends greeting (<em>"Hi"</em>, <em>"Namaste"</em>, <em>"Menu"</em>) or directly types issue/question (<em>"no t2 error"</em>, <em>"vibro nahi chal raha"</em>, <em>"Malayalam"</em>).
+            </div>
+          </div>
+          <div class="lane-box lane-bot">
+            <div class="lane-header"><i class="fa-solid fa-robot"></i> Chatbot System Action</div>
+            <div class="lane-content">
+              1. Starts periodic 2s typing animation heartbeat.<br>
+              2. Searches <code>User</code> table by WhatsApp phone number.
+            </div>
+          </div>
+        </div>
+
+        <!-- Decision Branches for Registration -->
+        <div class="decision-container">
+          <div class="decision-card" style="border-left: 3px solid var(--accent-amber);" onclick="loadPersona('new_user')">
+            <div class="decision-label" style="color: var(--accent-amber);"><i class="fa-solid fa-user-xmark"></i> Unregistered Customer Path</div>
+            <div class="decision-text">
+              Bot shows Welcome & Registration prompt:<br>
+              <code>[📝 Register Machine]</code> <code>[⏭️ Skip for Now]</code> <code>[🌐 Select Language]</code>
+            </div>
+          </div>
+
+          <div class="decision-card" style="border-left: 3px solid var(--accent-emerald);" onclick="loadPersona('reg_user')">
+            <div class="decision-label" style="color: var(--accent-emerald);"><i class="fa-solid fa-user-check"></i> Registered Customer Path</div>
+            <div class="decision-text">
+              Bot welcomes back registered customer:<br>
+              <code>[🛠️ Book Service]</code> <code>[📝 Register Machine]</code> <code>[🌐 Select Language]</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- STAGE 2: INTENT CLASSIFICATION & LANGUAGE ROUTING -->
+      <div class="stage-header">
+        <span class="stage-badge">STAGE 02</span>
+        <h2 class="stage-title">Language Switch & Intent Routing</h2>
+      </div>
+
+      <div class="node-card" id="stage2-node">
+        <div class="node-top">
+          <div>
+            <div class="node-title-text">2. Dialogue Intent & Multi-Language Router</div>
+            <div class="node-subtitle">Evaluates message type and user language preferences</div>
+          </div>
+          <div class="node-icon-box box-cyan"><i class="fa-solid fa-diagram-next"></i></div>
+        </div>
+
+        <div class="decision-container">
+          <div class="decision-card" onclick="loadPersona('lang_switch')">
+            <div class="decision-label" style="color: var(--accent-cyan);"><i class="fa-solid fa-language"></i> A. Language Switch Requested</div>
+            <div class="decision-text">
+              User says <em>"Malayalam"</em>, <em>"Hindi"</em>, <em>"Tamil"</em> or taps <code>[Select Language]</code>.<br>
+              Saves <code>meta.language</code> in DB. All future responses, steps & buttons translate to that language.
+            </div>
+          </div>
+
+          <div class="decision-card">
+            <div class="decision-label" style="color: var(--accent-purple);"><i class="fa-solid fa-store"></i> B. Product / Sales Inquiry</div>
+            <div class="decision-text">
+              User asks <em>"Lactosure price"</em>, <em>"company address"</em>, <em>"send brochure"</em>.<br>
+              Bot dispatches active product specs, catalog images & company photos.
+            </div>
+          </div>
+
+          <div class="decision-card">
+            <div class="decision-label" style="color: var(--accent-emerald);"><i class="fa-solid fa-wrench"></i> C. Hardware Complaint / Fault</div>
+            <div class="decision-text">
+              User types fault (<em>"t2 error"</em>, <em>"vibro slow"</em>, <em>"reading variation"</em>).<br>
+              Routes to Groq 70B Hybrid Classifier.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- STAGE 3: HYBRID CLASSIFIER & TROUBLESHOOTING ENGINE -->
+      <div class="stage-header">
+        <span class="stage-badge">STAGE 03</span>
+        <h2 class="stage-title">Groq 70B Classifier & Training Document Verification</h2>
+      </div>
+
+      <div class="node-card" id="stage3-node">
+        <div class="node-top">
+          <div>
+            <div class="node-title-text">3. Self-Troubleshooting vs Strict Escalation Branch</div>
+            <div class="node-subtitle">Evaluates complaint against 200+ DocumentIssue entries from CHATBOT_DATAS</div>
+          </div>
+          <div class="node-icon-box box-amber"><i class="fa-solid fa-shield-halved"></i></div>
+        </div>
+
+        <div class="swimlane-grid">
+          <div class="lane-box" style="border-left: 3px solid var(--accent-emerald);">
+            <div class="lane-header" style="color: var(--accent-emerald);"><i class="fa-solid fa-circle-check"></i> Match Found (Confidence >= 75)</div>
+            <div class="lane-content">
+              Bot outputs exact <strong>Check & Action</strong> steps from DocumentIssue:<br>
+              <span class="pill-tag">1. Check: Leakage/Block -> Action: Silicon Tube</span><br>
+              <span class="pill-tag">2. Check: L-Plug -> Action: O-Ring</span><br><br>
+              Translates steps to user's active language & suggests YouTube video.<br>
+              Buttons: <code>[✅ Yes, Resolved]</code> <code>[🛠️ Register Complaint]</code>
+            </div>
+          </div>
+
+          <div class="lane-box" style="border-left: 3px solid var(--accent-rose);" onclick="loadPersona('unlisted')">
+            <div class="lane-header" style="color: var(--accent-rose);"><i class="fa-solid fa-triangle-exclamation"></i> Unlisted Issue / No Document Match</div>
+            <div class="lane-content">
+              Bot enforces <strong>Strict Non-Hallucination Rule</strong>:<br>
+              <em>"We don't have a self-troubleshooting guide for this specific issue in our training documents. 🙏 Please tap Register Complaint below..."</em><br><br>
+              Buttons: <code>[🛠️ Register Complaint]</code> <code>[💬 Talk to us]</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><i class="fa-solid fa-chevron-down"></i></div>
+
+      <!-- STAGE 4: TICKET BOOKING & ENGINEER DISPATCH -->
+      <div class="stage-header">
+        <span class="stage-badge">STAGE 04</span>
+        <h2 class="stage-title">Service Complaint Ticket & Field Dispatch</h2>
+      </div>
+
+      <div class="node-card" id="stage4-node">
+        <div class="node-top">
+          <div>
+            <div class="node-title-text">4. Service Booking & Real-Time Notification</div>
+            <div class="node-subtitle">Logs complaint ticket and alerts field engineers</div>
+          </div>
+          <div class="node-icon-box box-purple"><i class="fa-solid fa-truck-fast"></i></div>
+        </div>
+
+        <div class="swimlane-grid">
+          <div class="lane-box lane-customer">
+            <div class="lane-header"><i class="fa-solid fa-user"></i> Customer Action</div>
+            <div class="lane-content">
+              Customer taps <code>[🛠️ Register Complaint]</code> -> Enters 10-digit Machine Serial Number (e.g. <code>ECO-2024-8841</code>).
+            </div>
+          </div>
+          <div class="lane-box lane-bot">
+            <div class="lane-header"><i class="fa-solid fa-gears"></i> System Action</div>
+            <div class="lane-content">
+              1. Creates Service Ticket record in PostgreSQL DB.<br>
+              2. Dispatches instant WhatsApp & Push notifications to Admin & Field Engineer.<br>
+              3. Sends confirmation & ticket ID to customer.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Sticky Simulator Panel -->
+    <div class="sim-sticky-panel">
+      <div class="sim-panel-title">
+        <span><i class="fa-solid fa-mobile-screen" style="color: var(--accent-cyan);"></i> Live Chat Simulator</span>
+        <span style="font-size: 0.72rem; color: var(--accent-emerald);" id="activePersonaLabel">New Customer</span>
+      </div>
+
+      <div class="phone-mockup">
+        <div class="phone-header">
+          <div class="avatar"><i class="fa-solid fa-robot"></i></div>
+          <div class="bot-info">
+            <h4>Hari — Poornasree AI</h4>
+            <p>● Online | WhatsApp Agent</p>
+          </div>
+        </div>
+
+        <div class="phone-messages" id="simChatMessages">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="journey-tracker">
+        <div class="tracker-title"><i class="fa-solid fa-route"></i> Journey Path Execution:</div>
+        <div class="tracker-step active" id="ts-1"><i class="fa-solid fa-circle-check"></i> 1. Entry & Identity Resolution</div>
+        <div class="tracker-step" id="ts-2"><i class="fa-solid fa-circle-check"></i> 2. Language & Intent Routing</div>
+        <div class="tracker-step" id="ts-3"><i class="fa-solid fa-circle-check"></i> 3. Document Issue Classification</div>
+        <div class="tracker-step" id="ts-4"><i class="fa-solid fa-circle-check"></i> 4. Response & Service Escalation</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const personas = {
+      new_user: {
+        label: "New Customer Persona",
+        node: "stage1-node",
+        steps: [1],
+        chat: [
+          { sender: 'user', text: 'Hi' },
+          { sender: 'bot', text: '👋 <strong>Welcome to Poornasree Equipments!</strong><br><br>We don\'t have your details on file yet.<br><br>📝 <strong>Register now</strong> to enjoy faster service and personalized support.<br><br>Or press <strong>Skip</strong> to continue without registering.',
+            buttons: ['📝 Register Machine', '⏭️ Skip for Now', '🌐 Select Language'] }
+        ]
+      },
+      reg_user: {
+        label: "Registered Customer Persona",
+        node: "stage1-node",
+        steps: [1, 2],
+        chat: [
+          { sender: 'user', text: 'HI' },
+          { sender: 'bot', text: 'Namaste! 🙏 Welcome back to Poornasree Equipments. How can I help you today?<br>You can ask any question, report an issue, or choose an option below.',
+            buttons: ['🛠️ Book Service', '📝 Register Machine', '🌐 Change Language'] },
+          { sender: 'user', text: 'no t2 error' },
+          { sender: 'bot', text: '🔧 <strong>Troubleshooting: T2/TEMP.SET ERROR/SAMPLE NOT FOUND/AIR IN MILK</strong><br><br>1. Check leakage/block of sample sucking section → Check silicon tube broken/bend<br>2. Check L-Plug properly inserted → Check O-Ring',
+            buttons: ['✅ Yes, Resolved', '🛠️ Register Complaint', '💬 Talk to us'] }
+        ]
+      },
+      lang_switch: {
+        label: "Regional Language Persona",
+        node: "stage2-node",
+        steps: [1, 2, 3],
+        chat: [
+          { sender: 'user', text: 'Malayalam' },
+          { sender: 'bot', text: '🌐 <strong>ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി.</strong> ഇന്ന് ഞാൻ എങ്ങനെ സഹായിക്കണം?',
+            buttons: ['🛠️ പരാതി നൽകുക', '📝 മെഷീൻ രജിസ്റ്റർ', '🌐 ഭാഷ മാറ്റുക'] },
+          { sender: 'user', text: 'vibro nahi chal raha' },
+          { sender: 'bot', text: '🔧 <strong>പരിഹരിക്കൽ: പ്രവർത്തിക്കുന്നില്ല (LED ഇല്ല)</strong><br><br>1. ഫ്യൂസ് പരിശോധിക്കുക → ഫ്യൂസ് മാറ്റുക<br>2. പവർ സപ്ലൈ പരിശോധിക്കുക → പവർ സപ്ലൈ മാറ്റുക',
+            buttons: ['✅ Yes, Resolved', '🛠️ Register Complaint', '💬 Talk to us'] }
+        ]
+      },
+      unlisted: {
+        label: "Unlisted Complaint Persona",
+        node: "stage3-node",
+        steps: [1, 2, 3, 4],
+        chat: [
+          { sender: 'user', text: 'my motor gear teeth broken inside chassis' },
+          { sender: 'bot', text: 'We don\'t have a self-troubleshooting guide for this specific issue in our training documents. 🙏<br><br>Please tap <strong>Register Complaint</strong> below to log a service request for a field service engineer to visit and inspect your machine.',
+            buttons: ['🛠️ Register Complaint', '💬 Talk to us'] }
+        ]
+      }
+    };
+
+    function loadPersona(key) {
+      document.querySelectorAll('.persona-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const data = personas[key];
+      document.getElementById('activePersonaLabel').textContent = data.label;
+
+      // Highlight flowchart node
+      document.querySelectorAll('.node-card').forEach(n => n.classList.remove('highlighted'));
+      const targetNode = document.getElementById(data.node);
+      if (targetNode) {
+        targetNode.classList.add('highlighted');
+        targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      // Update tracker steps
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`ts-${i}`);
+        if (data.steps.includes(i)) el.classList.add('active');
+        else el.classList.remove('active');
+      }
+
+      // Populate Chat Simulator
+      const container = document.getElementById('simChatMessages');
+      container.innerHTML = '';
+      data.chat.forEach(msg => {
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble bubble-${msg.sender}`;
+        let html = msg.text;
+        if (msg.buttons) {
+          msg.buttons.forEach(btn => {
+            html += `<div class="chat-btn-action">${btn}</div>`;
+          });
+        }
+        bubble.innerHTML = html;
+        container.appendChild(bubble);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Initialize with New User Persona
+    window.onload = () => loadPersona('new_user');
+  </script>
+</body>
+</html>
