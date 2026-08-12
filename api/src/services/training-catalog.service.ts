@@ -172,9 +172,12 @@ export async function loadTrainingCatalog(force = false): Promise<CatalogEntry[]
   const fromProducts = await loadProductsFromDb();
 
   const byTag = new Map<string, CatalogEntry>();
-  for (const e of fromDb) byTag.set(`${e.role}:${e.tag}`, e);
-  for (const e of fromProducts) byTag.set(`${e.role}:${e.tag}`, e);
+  // 1. Insert JSON entries first as baseline
   for (const e of fromJson) byTag.set(`${e.role}:${e.tag}`, e);
+  // 2. Insert DB DocumentIssues second so Admin-uploaded documents (CHATBOT_DATAS & Engineers Training) override legacy JSON!
+  for (const e of fromDb) byTag.set(`${e.role}:${e.tag}`, e);
+  // 3. Insert Products
+  for (const e of fromProducts) byTag.set(`${e.role}:${e.tag}`, e);
 
   const entries = Array.from(byTag.values());
   cache = { loadedAt: Date.now(), entries };

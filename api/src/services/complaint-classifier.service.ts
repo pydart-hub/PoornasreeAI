@@ -144,12 +144,14 @@ export function prefilterCandidates(
 
       return { e, score };
     })
-    .filter((s) => s.score > 0)
+    .filter((s) => s.score >= 4)
     .sort((a, b) => b.score - a.score);
 
-  // Take top candidates, but ensure we have at least a few if the query looks like a complaint
-  const hasComplaintWords = /not|problem|error|issue|fault|broken|not working|not on|blank|fail/i.test(lower);
-  const minCandidates = hasComplaintWords ? 5 : 0;
+  // Require complaint/hardware keywords in user query before building candidates
+  const hasComplaintWords = /not|problem|error|issue|fault|broken|not working|not on|blank|fail|repair|fix|trouble|wrong|stuck|stop/i.test(lower);
+  if (!hasComplaintWords && scored.length > 0 && scored[0].score < 8) {
+    return [];
+  }
 
   const result = scored
     .slice(0, maxCandidates)
@@ -213,14 +215,7 @@ export async function classifyComplaint(
     return { entry: null, confidence: cached.result.confidence };
   }
 
-  // For very few candidates, use a simpler heuristic instead of calling Groq
-  if (candidates.length <= 2) {
-    const entry = candidates[0];
-    const confidence = candidates.length === 1 ? 70 : 50;
-    const result: ClassifierResult = { matched: true, entryId: entry.id, confidence };
-    classifierCache.set(key, { result, cachedAt: Date.now() });
-    return { entry, confidence };
-  }
+
 
   // Build condensed candidate list for the LLM
   const condensed = candidates.map((c) => ({

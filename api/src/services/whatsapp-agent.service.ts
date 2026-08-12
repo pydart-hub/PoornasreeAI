@@ -147,7 +147,7 @@ function detectLanguage(text: string): string {
 
   const lower = text.toLowerCase();
   const tanglish = ["enna", "sariya", "illa", "vanga", "poren", "theriyuma", "romba", "kasu", "da", "di"];
-  const manglish = ["ente", "ningalude", "cheyyam", "pokam", "sari", "illatha", "engane", "athe", "nandhi", "shubharatri"];
+  const manglish = ["ente", "ningalude", "cheyyam", "pokam", "sari", "illatha", "engane", "athe", "nandhi", "shubharatri", "ninte", "per", "ntha", "peru", "aaranu", "njan", "nokk"];
   const telugu = ["endi", "ra", "ayya", "cheppu", "ema", "kadu", "thini", "vellu"];
   const hinglish = [
     "bhai", "bhaiya", "kya", "nai", "haan", "nahi", "thik",
@@ -363,6 +363,7 @@ PERSONA & HUMAN CONVERSATION RULES (CRITICAL):
 LANGUAGE RULE (STRICT):
 - Identify the language used by the customer in their message and recent chat history.
 - Reply ONLY in ${langName}. Write fluently in ${langName}. If the user types in Hinglish, Tanglish, or Manglish, match their exact casual conversational style.
+- NEVER output meta-complaints about language barriers (e.g. NEVER say "I think there might be a language barrier here" or "I'll do my best to help you in English"). Respond directly in their language or simple clear English!
 
 STRICT CONTENT SAFETY & BOUNDARY RULES:
 - If the customer uses improper language, profanity, abusive words, or attempts flirting/romance:
@@ -431,7 +432,7 @@ REPLY FORMATTING (WhatsApp Friendly):
       {
         model: groqAgentModel(),
         temperature: 0.35,
-        maxTokens: isEngineer ? 900 : 600,
+        maxTokens: isEngineer ? 1000 : 850,
         timeoutMs: 40_000,
       },
     );
@@ -741,7 +742,7 @@ export async function handleCustomerAgentMessage(
   }
 
   const isSenderEngineer = await isRegisteredEngineer(phoneNumber);
-  const isTechnicalQuery = /circuit|pcb|soldering|transducer|wiring|pin voltage|board replace/i.test(text);
+  const isTechnicalQuery = /transducer voltage|pin voltage|ic replacement|soldering diagram|component schematic/i.test(text);
   const isEngineer = isSenderEngineer || isTechnicalQuery;
   const isNewUser = /new user|first time|just bought|unbox|setting up|how to use/i.test(text);
 
@@ -753,22 +754,31 @@ export async function handleCustomerAgentMessage(
   const catalog = prefilterCatalog(roleCatalog, text, 40);
   const catalogContext = formatCatalogForPrompt(catalog);
 
+  // Intent Priority Guard: Check if query is about general company info/location/sales
+  const isCompanyOrFaqQuery = /company|office|address|location|branch|hours|opening|head office|md|owner|price|catalog|brochure|about|poornasree|where is/i.test(text);
+  const isHardwareComplaint = /not working|error|fault|problem|blank|damaged|broken|stopped|issue|defect|repair|fix|samasya|kharab|nahi chal/i.test(text);
+
   // ── Structured Complaint Matching via Groq LLM Classifier ──────────────────
   // Two-stage matching: fast keyword pre-filter → Groq semantic classifier.
-  // This correctly handles real customer phrasings like "mera machine nahi chalta",
-  // "display blank issue", "battery charging nahi ho raha", etc.
+  // Bypass if the user query is a general company/location/FAQ inquiry.
   const troubleshootEntries = roleCatalog.filter((e) => e.source === "json" || e.source === "document_issue");
-  if (troubleshootEntries.length > 0 && isGroqConfigured()) {
+  if (!isCompanyOrFaqQuery && isHardwareComplaint && troubleshootEntries.length > 0 && isGroqConfigured()) {
     const candidates = prefilterCandidates(troubleshootEntries, text, 15);
 
     if (candidates.length > 0) {
       const { entry: classifiedEntry, confidence } = await classifyComplaint(text, candidates);
 
-      if (classifiedEntry && confidence >= 50) {
+      if (classifiedEntry && confidence >= 60) {
         meta.lastComplaint = classifiedEntry.title;
         await updateAgentSession(session.id, "AGENT_CHAT", meta);
 
-        let structuredText = `🔧 *Troubleshooting: ${classifiedEntry.title}*\n\n${classifiedEntry.content}`;
+        // Strip duplicate "please raise a service request" trailing text to prevent boilerplate clashes
+        let cleanedContent = classifiedEntry.content;
+        cleanedContent = cleanedContent
+          .replace(/(please|kindly)?\s*(if\s+.*?)?(raise|book)\s*(a|your)?\s*(service request|complaint)[^.]*\.?/gi, "")
+          .trim();
+
+        let structuredText = `🔧 *Troubleshooting: ${classifiedEntry.title}*\n\n${cleanedContent}`;
         structuredText += `\n\n✅ Did these steps resolve your issue? If not, tap *Register Complaint* below and our field engineer will be assigned to you.`;
 
         if (lang !== "en") {
@@ -778,8 +788,11 @@ export async function handleCustomerAgentMessage(
         try {
           const matchedVideos = await findVideosForQuery(`${text} ${classifiedEntry.title}`, 2);
           if (matchedVideos.length > 0) {
+            const uniqueVideos = Array.from(
+              new Map(matchedVideos.map((v) => [v.youtubeUrl, v])).values()
+            );
             structuredText += formatVideoSuggestions(
-              matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
+              uniqueVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
               lang,
             );
           }
@@ -810,14 +823,16 @@ export async function handleCustomerAgentMessage(
   );
 
   // ── Automatic Video Recommendation Injection ─────────────────────────────
-  // If the conversation touches an error, fault, or troubleshooting topic, query videos
   const videoSearchTerms = [text, meta.lastComplaint ?? ""].join(" ");
   if (/error|fault|issue|problem|cleaning|fat|snf|reading|vibro|stirrer|power|display|battery/i.test(text)) {
     try {
       const matchedVideos = await findVideosForQuery(videoSearchTerms, 2);
       if (matchedVideos.length > 0) {
+        const uniqueVideos = Array.from(
+          new Map(matchedVideos.map((v) => [v.youtubeUrl, v])).values()
+        );
         const videoBlock = formatVideoSuggestions(
-          matchedVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
+          uniqueVideos.map((v) => ({ title: v.title, youtubeUrl: v.youtubeUrl })),
           lang,
         );
         replyText += videoBlock;
@@ -839,27 +854,14 @@ export async function handleCustomerAgentMessage(
         const companyPhotos = parseCompanyPhotos(supportSettings.companyPhotos);
         for (const photo of companyPhotos) {
           imagesToAttach.push(photo);
-          await WhatsAppService.sendImage(
-            phoneNumber,
-            photo.url,
-            `🏢 *Poornasree Equipments*\n${photo.caption || "Official Facility & Office"}`,
-          ).catch(() => {});
         }
       }
 
       // 2. Check if specific product name matches
-      let matchedCount = 0;
       for (const prod of activeProducts) {
         if (prod.imageUrl && text.toLowerCase().includes(prod.name.toLowerCase())) {
           const fullImageUrl = prod.imageUrl.startsWith("http") ? prod.imageUrl : `${baseUrl}${prod.imageUrl}`;
-          const prodImg = { url: fullImageUrl, caption: `📸 *${prod.name}*\n${prod.detail || ""}` };
-          imagesToAttach.push(prodImg);
-          await WhatsAppService.sendImage(
-            phoneNumber,
-            fullImageUrl,
-            prodImg.caption,
-          );
-          matchedCount++;
+          imagesToAttach.push({ url: fullImageUrl, caption: `📸 *${prod.name}*\n${prod.detail || ""}` });
         }
       }
 
@@ -868,13 +870,7 @@ export async function handleCustomerAgentMessage(
         const withImages = activeProducts.filter((p) => Boolean(p.imageUrl)).slice(0, 3);
         for (const prod of withImages) {
           const fullImageUrl = prod.imageUrl!.startsWith("http") ? prod.imageUrl! : `${baseUrl}${prod.imageUrl}`;
-          const prodImg = { url: fullImageUrl, caption: `📸 *${prod.name}*\n${prod.detail || ""}` };
-          imagesToAttach.push(prodImg);
-          await WhatsAppService.sendImage(
-            phoneNumber,
-            fullImageUrl,
-            prodImg.caption,
-          );
+          imagesToAttach.push({ url: fullImageUrl, caption: `📸 *${prod.name}*\n${prod.detail || ""}` });
         }
       }
     } catch (e) {

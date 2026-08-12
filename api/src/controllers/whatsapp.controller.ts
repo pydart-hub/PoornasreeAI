@@ -553,8 +553,25 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // Run through FSM
-  const result = await SimulateService.handleMessage(from, text, messageId);
+  // Send status: read and typing indicator immediately
+  if (messageId) {
+    await WhatsAppService.markMessageAsRead(messageId).catch(() => {});
+    await WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
+  }
+
+  // Start periodic heartbeat every 2000ms to keep typing indicator active on mobile while processing
+  const typingInterval = setInterval(() => {
+    if (messageId) {
+      WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
+    }
+  }, 2000);
+
+  let result;
+  try {
+    result = await SimulateService.handleMessage(from, text, messageId);
+  } finally {
+    clearInterval(typingInterval);
+  }
 
   // Human typing delay (1.2 seconds) to ensure the typing animation is visible on WhatsApp app
   await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -745,7 +762,10 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
   }
 
   if (result.images?.length) {
-    for (const img of result.images) {
+    const uniqueImages = Array.from(
+      new Map(result.images.map((img) => [img.url, img])).values()
+    );
+    for (const img of uniqueImages) {
       await WhatsAppService.sendImage(to, img.url, img.caption);
     }
   }

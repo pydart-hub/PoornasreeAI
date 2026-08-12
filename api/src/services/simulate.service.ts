@@ -1567,8 +1567,20 @@ async function routeState(
   meta: SessionMeta,
 ) {
   const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
 
   switch (session.state) {
+    case "AGENT_CHAT":
+      if (upper === "BOOK_SERVICE" || upper.includes("BOOK SERVICE") || upper.includes("COMPLAINT") || upper === "2") {
+        await updateSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
+        return makeReply(
+          t("SERIAL_PROMPT", lang),
+          [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+        );
+      }
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+
     case "GREETING":
     case "COMPLETED":
       return startGreeting(phoneNumber);
