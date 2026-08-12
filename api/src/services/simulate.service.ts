@@ -2114,7 +2114,7 @@ async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta
     );
   }
 
-  await updateSession(sessionId, "VIEW_PRODUCTS", meta);
+  await updateSession(sessionId, "VIEW_PRODUCT_CATEGORY", meta);
 
   const rows = categories.map((c, i) => ({
     id: `CAT_${c.category.toUpperCase()}`,
