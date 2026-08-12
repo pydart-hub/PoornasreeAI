@@ -2154,28 +2154,58 @@ ${settings.companyAddress || ""}
     const reply = await llmChat(conversationPayload, { maxTokens: 350, temperature: 0.5 });
 
     if (reply && reply.trim()) {
+      const lowerQuery = query.toLowerCase();
+      const isServiceIntent =
+        lowerQuery.includes("service") ||
+        lowerQuery.includes("complaint") ||
+        lowerQuery.includes("repair") ||
+        lowerQuery.includes("fix") ||
+        lowerQuery.includes("broken") ||
+        lowerQuery.includes("problem") ||
+        lowerQuery.includes("issue") ||
+        lowerQuery.includes("engineer") ||
+        lowerQuery.includes("കേടായി") ||
+        lowerQuery.includes("പരാതി");
+
+      const isProductIntent =
+        lowerQuery.includes("price") ||
+        lowerQuery.includes("cost") ||
+        lowerQuery.includes("catalog") ||
+        lowerQuery.includes("rate") ||
+        lowerQuery.includes("buy") ||
+        lowerQuery.includes("model") ||
+        lowerQuery.includes("lactosure") ||
+        lowerQuery.includes("vibro") ||
+        lowerQuery.includes("വില");
+
       let buttons = [
         { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
         { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
         getMenuButton(lang),
       ];
 
-      if (activeState === "REGISTER_PROMPT") {
-        buttons = [
-          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
-          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
-          getMenuButton(lang),
-        ];
-      } else if (activeState === "COMPLAINT_ASK_SERIAL" || activeState === "REGISTER_SERIAL") {
+      if (activeState === "COMPLAINT_ASK_SERIAL" || activeState === "REGISTER_SERIAL") {
         buttons = [
           { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
           { id: "SKIP", title: "⏭️ Skip Serial" },
           getMenuButton(lang),
         ];
-      } else if (activeState.startsWith("VIEW_PRODUCT")) {
+      } else if (activeState === "REGISTER_PROMPT") {
         buttons = [
-          { id: "VIEW_PRODUCTS", title: "📦 Back to Products" },
+          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
+          getMenuButton(lang),
+        ];
+      } else if (isServiceIntent) {
+        buttons = [
           { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
+          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
+          getMenuButton(lang),
+        ];
+      } else if (isProductIntent) {
+        buttons = [
+          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
+          { id: "REGISTER", title: "📝 Register Machine" },
           getMenuButton(lang),
         ];
       }
