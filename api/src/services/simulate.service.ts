@@ -2139,7 +2139,8 @@ async function runGroqCompanyAssistant(
     });
 
     scoredChunks.sort((a, b) => b.score - a.score);
-    const topMatches = scoredChunks.filter((item) => item.score >= 1).slice(0, 3);
+    const minScoreRequired = queryWords.length >= 3 ? 2 : 1;
+    const topMatches = scoredChunks.filter((item) => item.score >= minScoreRequired).slice(0, 3);
 
     if (topMatches.length > 0) {
       hasExactDocMatch = true;
@@ -2150,6 +2151,12 @@ async function runGroqCompanyAssistant(
   } catch (err) {
     console.error("[groq-company-assistant] Failed to load document troubleshooting chunks:", err);
   }
+
+  const uncatalogedRule = !hasExactDocMatch
+    ? `\n11. UNCATALOGED COMPLAINT RULE:
+       - This customer issue/complaint is NOT covered in our official troubleshooting documents.
+       - Politely inform the customer in 1 natural sentence in their exact language/script that their issue has been logged for technical review, and advise them to book a technician service visit.`
+    : "";
 
   const systemPrompt = `You are ${botName}, a friendly, intelligent human customer support representative for Poornasree Equipments.
 Answer the customer's question directly, concisely, and naturally using the official knowledge below. ${namePrompt}
@@ -2173,7 +2180,7 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 10. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
     - When the user asks a troubleshooting or machine complaint question, follow ONLY the exact steps and actions from the MATCHED TROUBLESHOOTING DOCUMENTS below.
     - Follow the EXACT steps and sequence (Step 1, Step 2, etc.) from the document.
-    - ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.
+    - ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.${uncatalogedRule}
 
 --- MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS ---
 ${matchedDocKnowledge || "No specific troubleshooting document match found."}
