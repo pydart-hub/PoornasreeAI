@@ -359,6 +359,12 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
+  // ── Mark incoming message as read (blue ticks ✓✓) & send typing indicator animation ──
+  if (messageId) {
+    WhatsAppService.markMessageAsRead(messageId).catch(() => {});
+  }
+  WhatsAppService.sendTypingIndicator(from).catch(() => {});
+
   // ── Check if sender is a service engineer first ──
   const cleanFrom = from.replace(/\D/g, "");
   

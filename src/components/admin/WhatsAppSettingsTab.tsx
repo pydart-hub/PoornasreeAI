@@ -117,6 +117,16 @@ export default function WhatsAppSettingsTab() {
 
   const [simulatedCustomerMsg, setSimulatedCustomerMsg] = useState("Hi");
   const [simulatedBotResponse, setSimulatedBotResponse] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+
+  const triggerSimulatedResponse = (custMsg: string, botResp: string) => {
+    setSimulatedCustomerMsg(custMsg);
+    setIsTyping(true);
+    setTimeout(() => {
+      setSimulatedBotResponse(botResp);
+      setIsTyping(false);
+    }, 400);
+  };
 
   // Load stored settings from local storage & API
   const fetchSettings = useCallback(async () => {
@@ -721,49 +731,54 @@ export default function WhatsAppSettingsTab() {
                 </span>
               </div>
 
+              {/* Animated Typing Indicator Bubble */}
+              {isTyping && (
+                <div className="self-start bg-[#202c33] text-emerald-400 px-4 py-2.5 rounded-2xl rounded-tl-none text-xs flex items-center space-x-1.5 animate-pulse border border-emerald-500/20 shadow-md">
+                  <span className="text-[11px] font-medium text-slate-300 mr-1.5">typing</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              )}
+
               {/* Bot Response Bubble */}
-              <div className="self-start bg-[#202c33] text-white px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs max-w-[90%] relative space-y-2">
-                <p className="whitespace-pre-wrap font-sans leading-relaxed">
-                  {activeTab === "greetings" && formatMessage(form.welcomeGreeting)}
-                  {activeTab === "buttons" && "Welcome to Poornasree Equipments! Please select an option below:"}
-                  {activeTab === "menu" && "Explore our support catalog and machine options:"}
-                  {activeTab === "bot_rules" && (simulatedBotResponse || "Try typing 'price', 'service', or 'location' to test bot flow rules!")}
-                </p>
+              {!isTyping && (
+                <div className="self-start bg-[#202c33] text-white px-3.5 py-2.5 rounded-2xl rounded-tl-none text-xs max-w-[90%] relative space-y-2">
+                  <p className="whitespace-pre-wrap font-sans leading-relaxed">
+                    {activeTab === "greetings" && formatMessage(form.welcomeGreeting)}
+                    {activeTab === "buttons" && "Welcome to Poornasree Equipments! Please select an option below:"}
+                    {activeTab === "menu" && "Explore our support catalog and machine options:"}
+                    {activeTab === "bot_rules" && (simulatedBotResponse || "Try typing 'price', 'service', or 'location' to test bot flow rules!")}
+                  </p>
 
-                {/* Render Quick Reply Buttons in Preview if tab is 'buttons' or 'greetings' */}
-                {(activeTab === "buttons" || activeTab === "greetings") && buttons.length > 0 && (
-                  <div className="pt-2 border-t border-slate-700/60 space-y-1.5">
-                    {buttons.map((b) => (
-                      <button
-                        key={b.id}
-                        onClick={() => {
-                          setSimulatedCustomerMsg(b.title);
-                          setSimulatedBotResponse(b.responsePayload);
-                        }}
-                        className="w-full py-1.5 px-3 rounded-lg bg-[#2a3942] hover:bg-[#344651] text-emerald-400 font-bold text-xs text-center transition-colors shadow-2xs"
-                      >
-                        {b.title}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Render Interactive List Menu Button in Preview if tab is 'menu' */}
-                {activeTab === "menu" && (
-                  <div className="pt-2 border-t border-slate-700/60 space-y-2">
-                    <div className="w-full py-2 px-3 rounded-xl bg-[#2a3942] text-emerald-400 font-bold text-xs text-center border border-emerald-500/30">
-                      {menuHeaderTitle}
-                    </div>
-                    <div className="space-y-1 bg-[#111b21] p-2 rounded-xl border border-slate-800">
-                      {listRows.map((r) => (
-                        <div
-                          key={r.id}
-                          onClick={() => {
-                            setSimulatedCustomerMsg(r.title);
-                            setSimulatedBotResponse(r.actionPayload);
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                  {/* Render Quick Reply Buttons in Preview if tab is 'buttons' or 'greetings' */}
+                  {(activeTab === "buttons" || activeTab === "greetings") && buttons.length > 0 && (
+                    <div className="pt-2 border-t border-slate-700/60 space-y-1.5">
+                      {buttons.map((b) => (
+                        <button
+                          key={b.id}
+                          onClick={() => triggerSimulatedResponse(b.title, b.responsePayload)}
+                          className="w-full py-1.5 px-3 rounded-lg bg-[#2a3942] hover:bg-[#344651] text-emerald-400 font-bold text-xs text-center transition-colors shadow-2xs"
                         >
+                          {b.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Render Interactive List Menu Button in Preview if tab is 'menu' */}
+                  {activeTab === "menu" && (
+                    <div className="pt-2 border-t border-slate-700/60 space-y-2">
+                      <div className="w-full py-2 px-3 rounded-xl bg-[#2a3942] text-emerald-400 font-bold text-xs text-center border border-emerald-500/30">
+                        {menuHeaderTitle}
+                      </div>
+                      <div className="space-y-1 bg-[#111b21] p-2 rounded-xl border border-slate-800">
+                        {listRows.map((r) => (
+                          <div
+                            key={r.id}
+                            onClick={() => triggerSimulatedResponse(r.title, r.actionPayload)}
+                            className="p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer transition-colors"
+                          >
                           <p className="font-bold text-xs text-white">{r.title}</p>
                           <p className="text-[10px] text-slate-400 line-clamp-1">{r.description}</p>
                         </div>
