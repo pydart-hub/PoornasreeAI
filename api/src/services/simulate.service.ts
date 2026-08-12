@@ -2140,6 +2140,11 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
   }
 
+  // If user directly sends a PROD_ id while in this state, pass to detail handler
+  if (upper.startsWith("PROD_")) {
+    return handleProductDetail(sessionId, phoneNumber, meta, text);
+  }
+
   // Resolve category from button ID like "CAT_LACTOGRAND" or from raw text
   let category: string | null = null;
   if (upper.startsWith("CAT_")) {
@@ -2166,7 +2171,7 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
     return handleProductBrowse(sessionId, phoneNumber, meta, "");
   }
 
-  await updateSession(sessionId, "VIEW_PRODUCT_CATEGORY", { ...meta, selectedCategory: category });
+  await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", { ...meta, selectedCategory: category });
 
   const rows = products.map(p => ({
     id: `PROD_${p.id}`,
