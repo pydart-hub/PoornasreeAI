@@ -361,7 +361,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // ── Mark incoming message as read (blue ticks ✓✓) & send typing indicator animation ──
   if (messageId) {
-    WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
+    await WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
   }
 
   // ── Check if sender is a service engineer first ──
@@ -555,6 +555,9 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // Run through FSM
   const result = await SimulateService.handleMessage(from, text);
+
+  // Human typing delay (1.2 seconds) to ensure the typing animation is visible on WhatsApp app
+  await new Promise((resolve) => setTimeout(resolve, 1200));
 
   await deliverBotReply(from, result);
 }
