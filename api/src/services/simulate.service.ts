@@ -68,6 +68,7 @@ type SessionMeta = {
   tsSteps?: string[];
   tsCurrentStep?: number;
   language?: Lang;
+  previousFsmState?: string;
   /** Set when name/pincode were loaded from a prior ticket — skip confirm on Book Service */
   skipEndCustomerConfirm?: boolean;
   customComplaintPath?: boolean;
@@ -1699,13 +1700,8 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
 
-  const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
-  await updateSession(sessionId, "MAIN_MENU", skipMeta);
-  return makeReply(
-    "💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬",
-    undefined,
-    getMainMenuList(lang)
-  );
+  // Free-text query from unregistered user -> Groq Humanoid Assistant answers & presents Register/Browse buttons
+  return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "REGISTER_PROMPT" });
 }
 
 async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
@@ -1722,6 +1718,10 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
   }
 
   const serial = text.trim();
+  if (text.includes(" ") || text.length > 25 || /[\?\!\.\,]/g.test(text)) {
+    return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "REGISTER_SERIAL" });
+  }
+
   if (serial.length < 3) {
     return makeReply(t("SERIAL_INVALID", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
@@ -2080,25 +2080,30 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   return runGroqCompanyAssistant(phoneNumber, text, meta);
 }
 
-/** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings and answers in customer's exact language */
-async function runGroqCompanyAssistant(phoneNumber: string, query: string, meta: SessionMeta) {
+/** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers FSM state, and answers in customer's exact language like a humanoid assistant */
+async function runGroqCompanyAssistant(
+  phoneNumber: string,
+  query: string,
+  meta: SessionMeta,
+  options: { activeFsmState?: string } = {}
+) {
   const settings = await getWhatsAppSupportSettings();
+  const botName = settings.botName?.trim() || "Hari";
   const lang: Lang = (meta.language ?? "en") as Lang;
-  const langNames: Record<string, string> = {
-    en: "English", hi: "Hindi", ml: "Malayalam", ta: "Tamil",
-    kn: "Kannada", mr: "Marathi", te: "Telugu", bn: "Bengali",
-  };
+  const activeState = options.activeFsmState || meta.previousFsmState || "MAIN_MENU";
 
-  const systemPrompt = `You are Hari, the official AI Customer Support Assistant for Poornasree Equipments.
-Your task is to answer customer questions using the official Company & Product Knowledge provided below.
+  const systemPrompt = `You are ${botName}, the official humanoid AI Customer Support Assistant for Poornasree Equipments.
+Your task is to answer customer questions naturally, warmly, and conversationally using the official Company & Product Knowledge provided below.
 
-IMPORTANT LANGUAGE RULES:
+HUMANOID CHATBOT BEHAVIOR & RULES:
 1. DETECT THE LANGUAGE of the customer's message (e.g. Malayalam, Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, English).
-2. REPLY ENTIRELY IN THE CUSTOMER'S DETECTED LANGUAGE. If the user asks in Malayalam, reply in Malayalam. If in Hindi, reply in Hindi. If in English, reply in English.
-3. Keep the answer friendly, accurate, helpful, and concise (2-4 sentences max).
-4. Use WhatsApp formatting (bold with *text*, emojis).
-5. Do NOT invent false facts beyond the provided official company knowledge.
-6. Include contact details (${settings.supportPhone}) if relevant.
+2. REPLY ENTIRELY IN THE CUSTOMER'S DETECTED LANGUAGE. If the customer asks in Malayalam, reply in Malayalam script. If in Hindi, reply in Hindi. If in English, reply in English.
+3. Introduce yourself as ${botName} when greeting or answering questions, acting as a friendly, human-like assistant from Poornasree.
+4. Keep the answer friendly, accurate, helpful, and concise (2-4 sentences max).
+5. Use WhatsApp formatting (bold with *text*, emojis).
+6. Do NOT invent false facts beyond the provided official company knowledge.
+7. Include contact details (${settings.supportPhone}) if relevant.
+8. Current Customer Context: The customer is currently in the "${activeState}" step. Answer their question directly first, and then warmly invite them to continue with their options.
 
 --- OFFICIAL COMPANY & PRODUCT KNOWLEDGE ---
 Company Overview & Contact:
@@ -2122,11 +2127,33 @@ ${settings.companyAddress || ""}
     );
 
     if (reply && reply.trim()) {
-      return makeReply(reply.trim(), [
+      let buttons = [
         { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
         { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
         getMenuButton(lang),
-      ]);
+      ];
+
+      if (activeState === "REGISTER_PROMPT") {
+        buttons = [
+          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
+          getMenuButton(lang),
+        ];
+      } else if (activeState === "COMPLAINT_ASK_SERIAL" || activeState === "REGISTER_SERIAL") {
+        buttons = [
+          { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
+          { id: "SKIP", title: "⏭️ Skip Serial" },
+          getMenuButton(lang),
+        ];
+      } else if (activeState.startsWith("VIEW_PRODUCT")) {
+        buttons = [
+          { id: "VIEW_PRODUCTS", title: "📦 Back to Products" },
+          { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
+          getMenuButton(lang),
+        ];
+      }
+
+      return makeReply(reply.trim(), buttons);
     }
   } catch (err) {
     console.error("[groq-company-assistant] Fallback error:", err);
@@ -2418,6 +2445,10 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
   }
 
   const serial = text.replace(/\s+/g, "").toUpperCase();
+  if (text.includes(" ") || text.length > 25 || /[\?\!\.\,]/g.test(text)) {
+    return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "COMPLAINT_ASK_SERIAL" });
+  }
+
   if (serial.length < 3) {
     return makeReply(t("SERIAL_INVALID", lang), [getSkipButton(lang), getMenuButton(lang)]);
   }
