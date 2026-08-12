@@ -2178,11 +2178,7 @@ ${settings.companyAddress || ""}
         lowerQuery.includes("vibro") ||
         lowerQuery.includes("വില");
 
-      let buttons = [
-        { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
-        { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
-        getMenuButton(lang),
-      ];
+      let buttons: ReplyButton[] | undefined = undefined;
 
       if (activeState === "COMPLAINT_ASK_SERIAL" || activeState === "REGISTER_SERIAL") {
         buttons = [
