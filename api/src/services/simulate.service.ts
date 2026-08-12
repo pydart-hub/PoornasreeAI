@@ -2190,12 +2190,6 @@ ${settings.companyAddress || ""}
           { id: "SKIP", title: "⏭️ Skip Serial" },
           getMenuButton(lang),
         ];
-      } else if (activeState === "REGISTER_PROMPT") {
-        buttons = [
-          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
-          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
-          getMenuButton(lang),
-        ];
       } else if (isServiceIntent) {
         buttons = [
           { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
@@ -2205,7 +2199,13 @@ ${settings.companyAddress || ""}
       } else if (isProductIntent) {
         buttons = [
           { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
-          { id: "REGISTER", title: "📝 Register Machine" },
+          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+          getMenuButton(lang),
+        ];
+      } else if (activeState === "REGISTER_PROMPT") {
+        buttons = [
+          { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+          { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
           getMenuButton(lang),
         ];
       }
