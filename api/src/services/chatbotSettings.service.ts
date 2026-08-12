@@ -12,6 +12,7 @@ export type WhatsAppSupportSettings = {
   companyAddress: string | null;
   companyPhotos: string | null;
   companyDetails: string | null;
+  companyKnowledge: string | null;
 };
 
 const DEFAULT_COMPANY_ADDRESS = "13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala - 682304";
@@ -23,12 +24,28 @@ const DEFAULT_COMPANY_PHOTOS = JSON.stringify([
   { url: "https://poornasree.com/wp-content/uploads/2024/02/certificate-of-compiance.png", caption: "ISO 9001:2015 Certificate of Compliance" }
 ]);
 
-const DEFAULT_COMPANY_DETAILS = `Poornasree Equipments (Established 2011) — India's No. 1 Milk Testing Equipment Manufacturer.
+const DEFAULT_COMPANY_DETAILS = `Poornasree Equipments Pvt Ltd (Established 2011) — India's No. 1 Milk Testing Equipment Manufacturer.
+Managing Partner & Founder: Babumon Gopi
 Website: www.poornasree.com | Email: sales@poornasree.com
 Head Office: 13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala – 682304 (Tel: +91 484 4859291, Mob: +91 94009 61291)
 Sales Contacts: +91 75101 40111, +91 79092 20003, +91 80757 90438
 Service Contacts: +91 80863 48859, +91 95447 57711
-Branch Offices: Bhopal (MP), Karnataka (Belgaum), Delhi, Rajasthan (Jaipur), Tamil Nadu (Cuddalore), Uttar Pradesh (Pratapgarh), Andhra Pradesh (Vijayawada).`;
+Authorized Service Partner Network: Harisree Enterprises (24-hour problem resolution policy across India)
+Branch Offices: Bhopal (MP), Karnataka (Belgaum), Delhi / Bulandshahr (UP), Rajasthan (Jaipur), Tamil Nadu (Cuddalore), Uttar Pradesh (Pratapgarh), Andhra Pradesh (Vijayawada).`;
+
+const DEFAULT_COMPANY_KNOWLEDGE = `Poornasree Equipments Pvt Ltd Overview & Catalog Knowledge:
+- Managing Partner: Babumon Gopi (Managing Director & Founder).
+- Company Profile: Established in 2011, headquartered in Kochi, Kerala. India's leading Make in India brand & OEM in milk testing equipment.
+- Production Scale: ~100 employees across 10 departments, monthly production capacity of 2,500 units. ISO 9001:2015 certified with CE, ZED, and IMEX standards.
+- Authorized Field Service Partner: Harisree Enterprises (provides field engineer visits & 24-hour service resolution across India).
+- Key Dairy Partners: MILMA (Kerala), Amul (Gujarat), KMF / Nandini (Karnataka), Aavin (Tamil Nadu), Vijaya (AP/Telangana), Corporate Dairies & AMCU centers.
+- Product Line:
+  1. LactoSure ECO Series Milk Analyzers (Eco, Eco-S, Eco V, Eco-SV, Eco-D-V4, Eco-CP, Eco-SV-V4) — India's fastest ultrasonic milk analyzers (~20-40 sec). Measures Fat, SNF, CLR, Protein, Lactose, Added Salt, Added Water, Sample Temp. Features battery & solar variants.
+  2. VIBRO Ultrasonic Milk Stirrer — Removes air bubbles from milk samples prior to testing for accurate fat/SNF analysis.
+  3. LactoSure DPS-T (Data Processing Unit - DPU) — Computerized milk collection unit syncing data with weighing scales & printers.
+  4. LactoSure EXD (External Display) — High-visibility LED display for real-time payout transparency.
+  5. AMCU (Automatic Milk Collection Unit) — Hardware & software suite for dairy cooperative societies.
+- Branch Offices: Kochi (Head Office), Bulandshahr/Delhi, Bhopal, Jaipur, Belgaum, Cuddalore, Pratapgarh, Vijayawada.`;
 
 const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   botName: "Hari",
@@ -42,6 +59,7 @@ const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   companyAddress: DEFAULT_COMPANY_ADDRESS,
   companyPhotos: DEFAULT_COMPANY_PHOTOS,
   companyDetails: DEFAULT_COMPANY_DETAILS,
+  companyKnowledge: DEFAULT_COMPANY_KNOWLEDGE,
 };
 
 export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSettings> {
@@ -59,6 +77,7 @@ export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSetti
     companyAddress: (row as any).companyAddress?.trim() || DEFAULT_SETTINGS.companyAddress,
     companyPhotos: (row as any).companyPhotos?.trim() || DEFAULT_SETTINGS.companyPhotos,
     companyDetails: (row as any).companyDetails?.trim() || DEFAULT_SETTINGS.companyDetails,
+    companyKnowledge: (row as any).companyKnowledge?.trim() || DEFAULT_SETTINGS.companyKnowledge,
   };
 }
 
@@ -87,6 +106,7 @@ export async function updateWhatsAppSupportSettings(
       companyAddress: data.companyAddress?.trim() || DEFAULT_SETTINGS.companyAddress,
       companyPhotos: data.companyPhotos?.trim() || DEFAULT_SETTINGS.companyPhotos,
       companyDetails: data.companyDetails?.trim() || DEFAULT_SETTINGS.companyDetails,
+      companyKnowledge: data.companyKnowledge?.trim() || DEFAULT_SETTINGS.companyKnowledge,
     },
     update: {
       ...(botName !== undefined && { botName: botName || DEFAULT_SETTINGS.botName }),
@@ -100,6 +120,7 @@ export async function updateWhatsAppSupportSettings(
       ...(data.companyAddress !== undefined && { companyAddress: data.companyAddress?.trim() || null }),
       ...(data.companyPhotos !== undefined && { companyPhotos: data.companyPhotos?.trim() || null }),
       ...(data.companyDetails !== undefined && { companyDetails: data.companyDetails?.trim() || null }),
+      ...(data.companyKnowledge !== undefined && { companyKnowledge: data.companyKnowledge?.trim() || null }),
     },
   });
 
@@ -115,6 +136,7 @@ export async function updateWhatsAppSupportSettings(
     companyAddress: (row as any).companyAddress || DEFAULT_SETTINGS.companyAddress,
     companyPhotos: (row as any).companyPhotos || DEFAULT_SETTINGS.companyPhotos,
     companyDetails: (row as any).companyDetails || DEFAULT_SETTINGS.companyDetails,
+    companyKnowledge: (row as any).companyKnowledge || DEFAULT_SETTINGS.companyKnowledge,
   };
 }
 

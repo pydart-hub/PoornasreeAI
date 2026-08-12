@@ -2076,8 +2076,66 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
 
+  // Free-text query (not matching strict menu digits/buttons) -> Groq Conversational Assistant using DB company & product knowledge
+  return runGroqCompanyAssistant(phoneNumber, text, meta);
+}
+
+/** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings and answers in customer's exact language */
+async function runGroqCompanyAssistant(phoneNumber: string, query: string, meta: SessionMeta) {
+  const settings = await getWhatsAppSupportSettings();
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const langNames: Record<string, string> = {
+    en: "English", hi: "Hindi", ml: "Malayalam", ta: "Tamil",
+    kn: "Kannada", mr: "Marathi", te: "Telugu", bn: "Bengali",
+  };
+
+  const systemPrompt = `You are Hari, the official AI Customer Support Assistant for Poornasree Equipments.
+Your task is to answer customer questions using the official Company & Product Knowledge provided below.
+
+IMPORTANT LANGUAGE RULES:
+1. DETECT THE LANGUAGE of the customer's message (e.g. Malayalam, Hindi, Tamil, Telugu, Kannada, Marathi, Bengali, English).
+2. REPLY ENTIRELY IN THE CUSTOMER'S DETECTED LANGUAGE. If the user asks in Malayalam, reply in Malayalam. If in Hindi, reply in Hindi. If in English, reply in English.
+3. Keep the answer friendly, accurate, helpful, and concise (2-4 sentences max).
+4. Use WhatsApp formatting (bold with *text*, emojis).
+5. Do NOT invent false facts beyond the provided official company knowledge.
+6. Include contact details (${settings.supportPhone}) if relevant.
+
+--- OFFICIAL COMPANY & PRODUCT KNOWLEDGE ---
+Company Overview & Contact:
+${settings.companyDetails || ""}
+
+Company Knowledge & Catalog:
+${settings.companyKnowledge || ""}
+
+Head Office Address:
+${settings.companyAddress || ""}
+--------------------------------------------`;
+
+  try {
+    const { groqChat } = await import("./groq.service");
+    const reply = await groqChat(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: query },
+      ],
+      { maxTokens: 350, temperature: 0.5 },
+    );
+
+    if (reply && reply.trim()) {
+      return makeReply(reply.trim(), [
+        { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
+        { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
+        getMenuButton(lang),
+      ]);
+    }
+  } catch (err) {
+    console.error("[groq-company-assistant] Fallback error:", err);
+  }
+
+  // Fallback if Groq is unavailable
   return makeReply(t("VALID_OPTION", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
 }
+
 
 // ── VIEW_PRODUCTS — 3-step browsing flow ──────────────────────────────────
 const DEFAULT_CONTACT = "+91 94009 61291";

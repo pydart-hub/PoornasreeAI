@@ -393,6 +393,7 @@ model ChatbotSetting {
   companyAddress         String?  @db.Text
   companyPhotos          String?  @db.Text
   companyDetails         String?  @db.Text
+  companyKnowledge       String?  @db.Text
   updatedAt              DateTime @updatedAt
 }
 

@@ -45,6 +45,7 @@ interface SupportSettings {
   companyAddress?: string | null;
   companyPhotos?: string | null;
   companyDetails?: string | null;
+  companyKnowledge?: string | null;
 }
 
 interface WaQuickButtonConfig {
@@ -81,12 +82,28 @@ const DEFAULT_AFTER_HOURS = "Thank you for contacting Poornasree Equipments! �
 const DEFAULT_HANDOFF = "Hello! Our customer support agent is now live and ready to assist you. Please feel free to ask your questions or clarify any doubts.";
 
 const DEFAULT_COMPANY_ADDRESS = "13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala - 682304";
-const DEFAULT_COMPANY_DETAILS = `Poornasree Equipments (Established 2011) — India's No. 1 Milk Testing Equipment Manufacturer.
+const DEFAULT_COMPANY_DETAILS = `Poornasree Equipments Pvt Ltd (Established 2011) — India's No. 1 Milk Testing Equipment Manufacturer.
+Managing Partner & Founder: Babumon Gopi
 Website: www.poornasree.com | Email: sales@poornasree.com
 Head Office: 13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala – 682304 (Tel: +91 484 4859291, Mob: +91 94009 61291)
 Sales Contacts: +91 75101 40111, +91 79092 20003, +91 80757 90438
 Service Contacts: +91 80863 48859, +91 95447 57711
-Branch Offices: Bhopal (MP), Karnataka (Belgaum), Delhi, Rajasthan (Jaipur), Tamil Nadu (Cuddalore), Uttar Pradesh (Pratapgarh), Andhra Pradesh (Vijayawada).`;
+Authorized Service Partner Network: Harisree Enterprises (24-hour problem resolution policy across India)
+Branch Offices: Bhopal (MP), Karnataka (Belgaum), Delhi / Bulandshahr (UP), Rajasthan (Jaipur), Tamil Nadu (Cuddalore), Uttar Pradesh (Pratapgarh), Andhra Pradesh (Vijayawada).`;
+
+const DEFAULT_COMPANY_KNOWLEDGE = `Poornasree Equipments Pvt Ltd Overview & Catalog Knowledge:
+- Managing Partner: Babumon Gopi (Managing Director & Founder).
+- Company Profile: Established in 2011, headquartered in Kochi, Kerala. India's leading Make in India brand & OEM in milk testing equipment.
+- Production Scale: ~100 employees across 10 departments, monthly production capacity of 2,500 units. ISO 9001:2015 certified with CE, ZED, and IMEX standards.
+- Authorized Field Service Partner: Harisree Enterprises (provides field engineer visits & 24-hour service resolution across India).
+- Key Dairy Partners: MILMA (Kerala), Amul (Gujarat), KMF / Nandini (Karnataka), Aavin (Tamil Nadu), Vijaya (AP/Telangana), Corporate Dairies & AMCU centers.
+- Product Line:
+  1. LactoSure ECO Series Milk Analyzers (Eco, Eco-S, Eco V, Eco-SV, Eco-D-V4, Eco-CP, Eco-SV-V4) — India's fastest ultrasonic milk analyzers (~20-40 sec). Measures Fat, SNF, CLR, Protein, Lactose, Added Salt, Added Water, Sample Temp. Features battery & solar variants.
+  2. VIBRO Ultrasonic Milk Stirrer — Removes air bubbles from milk samples prior to testing for accurate fat/SNF analysis.
+  3. LactoSure DPS-T (Data Processing Unit - DPU) — Computerized milk collection unit syncing data with weighing scales & printers.
+  4. LactoSure EXD (External Display) — High-visibility LED display for real-time payout transparency.
+  5. AMCU (Automatic Milk Collection Unit) — Hardware & software suite for dairy cooperative societies.
+- Branch Offices: Kochi (Head Office), Bulandshahr/Delhi, Bhopal, Jaipur, Belgaum, Cuddalore, Pratapgarh, Vijayawada.`;
 
 const DEFAULT_COMPANY_PHOTOS: CompanyPhoto[] = [
   { url: "https://poornasree.com/wp-content/uploads/2024/06/Social-Share-image.jpg", caption: "Poornasree Equipments Head Office & Facility" },
@@ -129,6 +146,7 @@ export default function WhatsAppSettingsTab() {
     supportHandoffGreeting: DEFAULT_HANDOFF,
     companyAddress: DEFAULT_COMPANY_ADDRESS,
     companyDetails: DEFAULT_COMPANY_DETAILS,
+    companyKnowledge: DEFAULT_COMPANY_KNOWLEDGE,
   });
 
   const [companyPhotos, setCompanyPhotos] = useState<CompanyPhoto[]>(DEFAULT_COMPANY_PHOTOS);
@@ -139,25 +157,12 @@ export default function WhatsAppSettingsTab() {
   const [listRows, setListRows] = useState<WaListRowConfig[]>(DEFAULT_LIST_ROWS);
   const [botRules, setBotRules] = useState<WaBotRuleConfig[]>(DEFAULT_BOT_RULES);
 
-  const [menuHeaderTitle, setMenuHeaderTitle] = useState("Explore Support Menu 📋");
+  const [menuHeaderTitle, setMenuHeaderTitle] = useState("Poornasree Options");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const [simulatedCustomerMsg, setSimulatedCustomerMsg] = useState("Hi");
-  const [simulatedBotResponse, setSimulatedBotResponse] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-
-  const triggerSimulatedResponse = (custMsg: string, botResp: string) => {
-    setSimulatedCustomerMsg(custMsg);
-    setIsTyping(true);
-    setTimeout(() => {
-      setSimulatedBotResponse(botResp);
-      setIsTyping(false);
-    }, 400);
-  };
 
   // Load stored settings from local storage & API
   const fetchSettings = useCallback(async () => {
@@ -167,14 +172,6 @@ export default function WhatsAppSettingsTab() {
       if (savedConfig) {
         try {
           const parsed = JSON.parse(savedConfig);
-          if (parsed.greetings) {
-            setForm((f) => ({
-              ...f,
-              welcomeGreeting: parsed.greetings.welcomeGreeting || DEFAULT_WELCOME,
-              afterHoursGreeting: parsed.greetings.afterHoursGreeting || DEFAULT_AFTER_HOURS,
-              supportHandoffGreeting: parsed.greetings.supportHandoffGreeting || DEFAULT_HANDOFF,
-            }));
-          }
           if (parsed.buttons) setButtons(parsed.buttons);
           if (parsed.listRows) setListRows(parsed.listRows);
           if (parsed.botRules) setBotRules(parsed.botRules);
@@ -182,6 +179,7 @@ export default function WhatsAppSettingsTab() {
           if (parsed.companyAddress) setForm((f) => ({ ...f, companyAddress: parsed.companyAddress }));
           if (parsed.companyPhotos) setCompanyPhotos(parsed.companyPhotos);
           if (parsed.companyDetails) setForm((f) => ({ ...f, companyDetails: parsed.companyDetails }));
+          if (parsed.companyKnowledge) setForm((f) => ({ ...f, companyKnowledge: parsed.companyKnowledge }));
         } catch {
           /* ignore */
         }
@@ -196,12 +194,12 @@ export default function WhatsAppSettingsTab() {
         supportEmail: s.supportEmail ?? "sales@poornasree.com",
         supportHours: s.supportHours ?? "Mon–Sat, 9 AM – 6 PM IST",
         supportNote: s.supportNote ?? "",
-        // Greetings: DB wins over localStorage — this is the source of truth
         welcomeGreeting: s.welcomeGreeting ?? DEFAULT_WELCOME,
         afterHoursGreeting: s.afterHoursGreeting ?? DEFAULT_AFTER_HOURS,
         supportHandoffGreeting: s.supportHandoffGreeting ?? DEFAULT_HANDOFF,
         companyAddress: s.companyAddress ?? DEFAULT_COMPANY_ADDRESS,
         companyDetails: s.companyDetails ?? DEFAULT_COMPANY_DETAILS,
+        companyKnowledge: s.companyKnowledge ?? DEFAULT_COMPANY_KNOWLEDGE,
       }));
 
       if (s.companyPhotos) {
@@ -255,6 +253,7 @@ export default function WhatsAppSettingsTab() {
           companyAddress: form.companyAddress,
           companyPhotos,
           companyDetails: form.companyDetails,
+          companyKnowledge: form.companyKnowledge,
         }),
       );
 
@@ -273,6 +272,7 @@ export default function WhatsAppSettingsTab() {
           companyAddress: form.companyAddress.trim() || null,
           companyPhotos: JSON.stringify(companyPhotos),
           companyDetails: form.companyDetails.trim() || null,
+          companyKnowledge: form.companyKnowledge.trim() || null,
         }),
       });
 
@@ -441,8 +441,33 @@ export default function WhatsAppSettingsTab() {
                   value={form.companyDetails}
                   onChange={(e) => setForm((f) => ({ ...f, companyDetails: e.target.value }))}
                   rows={6}
-                  placeholder="Enter company description, history, branch offices, department phone numbers..."
+                  placeholder="Enter company description, history, managing partner, branch offices, department phone numbers..."
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                />
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    3. Groq AI Knowledge Base (Managing Partner, Service Partners & Product Catalog)
+                  </label>
+                  <button
+                    onClick={() => setForm((f) => ({ ...f, companyKnowledge: DEFAULT_COMPANY_KNOWLEDGE }))}
+                    className="text-xs font-bold text-purple-600 hover:text-purple-500 transition-colors"
+                  >
+                    Reset Knowledge Defaults
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Groq LLM uses this live DB configuration to answer any customer inquiries in their language (Malayalam, Hindi, Tamil, English, etc.) when asking questions outside fixed menu buttons.
+                </p>
+                <textarea
+                  value={form.companyKnowledge}
+                  onChange={(e) => setForm((f) => ({ ...f, companyKnowledge: e.target.value }))}
+                  rows={9}
+                  placeholder="Enter detailed catalog specifications, owner/managing partner details, service partner network, dairy partners..."
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-mono"
                 />
               </div>
 
