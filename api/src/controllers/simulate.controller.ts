@@ -61,9 +61,8 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
     });
 
     if (engineer) {
-      const { routeEngineerMessage } = await import("./whatsapp.controller");
-      await routeEngineerMessage(phone, text, engineer);
-      res.json({ ok: true, message: "Engineer message processed in simulator." });
+      const result = await SimulateService.handleMessage(phone, text);
+      res.json(result);
       return;
     }
 

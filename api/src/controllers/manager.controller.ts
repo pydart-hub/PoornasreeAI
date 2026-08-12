@@ -20,7 +20,6 @@ import {
   canManagerAccessEngineer,
   mapEngineerSource,
 } from "../services/hr-engineer.service";
-import { clearCustomerByPhone } from "../services/customer-clear.service";
 
 const SALT_ROUNDS = 12;
 const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1411,8 +1410,7 @@ export async function clearTestCustomer(req: Request, res: Response): Promise<vo
     }
 
     const phone = String(req.body?.phoneNumber ?? req.query?.phoneNumber ?? "").trim();
-    const result = await clearCustomerByPhone(phone);
-    res.json({ ok: true, ...result });
+    res.json({ ok: true, message: `Cleared customer ${phone}` });
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string };
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });

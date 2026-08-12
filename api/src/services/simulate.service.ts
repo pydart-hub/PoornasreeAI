@@ -43,10 +43,6 @@ import {
 } from "./chatbotSettings.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 import * as WhatsAppService from "./whatsapp.service";
-import {
-  handleCustomerAgentMessage,
-  isGroqChatbotEnabled,
-} from "./whatsapp-agent.service";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -1305,49 +1301,12 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     return routeState(session, phoneNumber, text, meta);
   }
 
-  if (isGroqChatbotEnabled() && !inFeedback && !inLegacyTransactional) {
-    try {
-      const agentReply = await handleCustomerAgentMessage(phoneNumber, text, messageId);
-      if (agentReply) {
-        return makeReply(agentReply.message, agentReply.buttons, agentReply.list, (agentReply.images as any) || undefined, agentReply.followUpMessage);
-      }
-      // null → agent requested FSM handoff (e.g. BOOK_SERVICE → serial prompt)
-      const refreshed = await getOrCreateSession(phoneNumber);
-      const refreshedMeta: SessionMeta = (refreshed.metadata as SessionMeta) ?? meta;
-      const refreshedLang: Lang = (refreshedMeta.language ?? lang) as Lang;
-      if (refreshed.state === "COMPLAINT_ASK_SERIAL") {
-        return makeReply(
-          t("SERIAL_PROMPT", refreshedLang),
-          [getSkipButton(refreshedLang), getMenuButton(refreshedLang)],
-        );
-      }
-    } catch (err) {
-      console.error("[simulate] Groq agent failed — falling back to FSM:", err);
-      // fall through to legacy FSM
-    }
-  }
-
-  // ── Global navigation commands (any state except feedback) ──────────────
-  // Note: "HI" is excluded while in CHANGE_LANGUAGE — it collides with the Hindi button id.
   if (isGlobalRestartCommand(upper)) {
-    // If in feedback flow, don't interrupt
     if (session.state === "FEEDBACK_RATING" || session.state === "FEEDBACK_SATISFIED") {
       return routeState(session, phoneNumber, text, meta);
     }
-    // Let language selection handle button taps (LANG_EN / LANG_HI)
     if (session.state === "CHANGE_LANGUAGE") {
       return routeState(session, phoneNumber, text, meta);
-    }
-    // Groq mode: MENU/HI restarts into agent welcome
-    if (isGroqChatbotEnabled()) {
-      try {
-        const agentReply = await handleCustomerAgentMessage(phoneNumber, "MENU");
-        if (agentReply) {
-          return makeReply(agentReply.message, agentReply.buttons, undefined, undefined, agentReply.followUpMessage);
-        }
-      } catch (err) {
-        console.error("[simulate] Groq agent MENU failed:", err);
-      }
     }
     return startGreeting(phoneNumber);
   }
@@ -1510,7 +1469,7 @@ async function handleGlobalBack(
 }
 
 // ── Greeting / Registration check ─────────────────────────────────────────
-async function startGreeting(phoneNumber: string) {
+export async function startGreeting(phoneNumber: string) {
   const session = await getOrCreateSession(phoneNumber);
   const existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (existingMeta.language ?? "en") as Lang;
@@ -1783,22 +1742,8 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
 
-  // Any free-form text → treat as a question, route to Groq AI + show menu
-  if (isGroqChatbotEnabled()) {
-    // Mark as effectively skipped so session stays in Groq chat mode
-    const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
-    await updateSession(sessionId, "MAIN_MENU", skipMeta);
-    try {
-      const agentReply = await handleCustomerAgentMessage(phoneNumber, text);
-      if (agentReply) {
-        return makeReply(agentReply.message, agentReply.buttons, agentReply.list, undefined, agentReply.followUpMessage);
-      }
-    } catch (err) {
-      console.error("[simulate] Groq agent failed in REGISTER_PROMPT fallback:", err);
-    }
-  }
-
-  // Groq disabled or failed — show menu directly
+  const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
+  await updateSession(sessionId, "MAIN_MENU", skipMeta);
   return makeReply(
     "💡 You can select an option from the menu below, or type any question to ask me anything directly! 💬",
     undefined,

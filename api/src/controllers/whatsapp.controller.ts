@@ -9,24 +9,7 @@ import prisma from "../lib/prisma";
 import { runtime } from "../services/runtime-config.service";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
-import {
-  handleEngineerWhatsAppMessage,
-  getActiveTicket,
-  setActiveTicket,
-  handleReachedPhotoAttached,
-  handleFinishedPhotoAttached,
-  handleNormalPhotoAttached,
-} from "../services/engineer-whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
-import {
-  sendEngineerMessage,
-  attachWorkReportPhoto,
-  findEngineerTicket,
-  sendTicketActionButtons,
-  sendReportMenuList,
-  type EngineerTicketRow,
-} from "../services/engineer-ticket-whatsapp.shared";
-import { handleDealerWhatsAppMessage } from "../services/dealer-whatsapp.service";
 import { searchTrainingVideos } from "../services/engineer-training-video.service";
 import { transcribeAudioWithGroq } from "../services/groq.service";
 
@@ -248,7 +231,7 @@ async function sendIssuesList(to: string, prefix: string, page: number, category
   });
 
   if (issues.length === 0) {
-    await sendEngineerMessage(to, `⚠️ No troubleshooting guides found for ${categoryName}.`);
+    await WhatsAppService.sendMessage(to, `⚠️ No troubleshooting guides found for ${categoryName}.`);
     return;
   }
 
@@ -286,14 +269,11 @@ async function sendIssuesList(to: string, prefix: string, page: number, category
   const endNum = startIndex + pageIssues.length;
   const totalNum = issues.length;
 
-  await sendEngineerMessage(
+  await WhatsAppService.sendInteractiveList(
     to,
     `🔍 *Troubleshoot - ${categoryName}*\n\nPlease select the issue (showing ${startNum}-${endNum} of ${totalNum}):`,
-    undefined,
-    {
-      buttonText: "Select Issue",
-      rows,
-    }
+    "Select Issue",
+    rows,
   );
 }
 
@@ -364,24 +344,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     await WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
   }
 
-  // ── Check if sender is a service engineer first ──
-  const cleanFrom = from.replace(/\D/g, "");
-  
-  const allEngineers = await prisma.user.findMany({
-    where: { role: "service_engineer" },
-    select: { id: true, firstName: true, whatsappNumber: true },
-  });
-  
-  const engineer = allEngineers.find(e => {
-    if (!e.whatsappNumber) return false;
-    const cleanDb = e.whatsappNumber.replace(/\D/g, "");
-    
-    if (cleanDb.length >= 10 && cleanFrom.length >= 10) {
-      return cleanDb.slice(-10) === cleanFrom.slice(-10);
-    }
-    return cleanDb === cleanFrom;
-  });
-
   // Handle location shares (native WhatsApp location button)
   if (msg.type === "location") {
     const location = msg.location as Record<string, unknown> | undefined;
@@ -392,39 +354,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     if (typeof lat === "number" && typeof lng === "number") {
       const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
       const locationText = locAddr || locName ? `📍 Location Shared:\n${locName ? locName + '\n' : ''}${locAddr ? locAddr + '\n' : ''}${mapUrl}` : `📍 ${mapUrl}`;
-      if (engineer) {
-        await routeEngineerMessage(from, locationText, engineer);
-        return;
-      }
-      const allDealers = await prisma.user.findMany({
-        where: { role: "dealer" },
-        select: { id: true, firstName: true, whatsappNumber: true },
-      });
-      const dealer = allDealers.find(d => {
-        if (!d.whatsappNumber) return false;
-        const cleanDb = d.whatsappNumber.replace(/\D/g, "");
-        if (cleanDb.length >= 10 && cleanFrom.length >= 10) {
-          return cleanDb.slice(-10) === cleanFrom.slice(-10);
-        }
-        return cleanDb === cleanFrom;
-      });
-      if (dealer) {
-        await handleDealerWhatsAppMessage(from, locationText, dealer);
-        return;
-      }
-      let savedMessage = null;
-      savedMessage = await prisma.simulateMessage.create({
-        data: { phoneNumber: from, role: "user", content: locationText },
-      });
-      const { io } = await import("../lib/socket");
-      if (io) {
-        io.to("customer_support").emit("support-chat:message", { phoneNumber: from, message: savedMessage });
-      }
-      const session = await prisma.conversationSession.findFirst({
-        where: { phoneNumber: from },
-        orderBy: { updatedAt: "desc" },
-      });
-      if (session?.isBotPaused) return;
       const result = await SimulateService.handleMessage(from, locationText);
       await deliverBotReply(from, result);
       return;
@@ -435,11 +364,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // Handle image uploads
   if (msg.type === "image") {
-    if (engineer) {
-      await handleEngineerImage(from, msg, engineer);
-    } else {
-      await handleCustomerImage(from, msg);
-    }
+    await handleCustomerImage(from, msg);
     return;
   }
 
@@ -486,30 +411,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  if (engineer) {
-    await routeEngineerMessage(from, text, engineer);
-    return;
-  }
-
-  // ── Check if sender is a dealer ──
-  const allDealers = await prisma.user.findMany({
-    where: { role: "dealer" },
-    select: { id: true, firstName: true, whatsappNumber: true },
-  });
-
-  const dealer = allDealers.find(d => {
-    if (!d.whatsappNumber) return false;
-    const cleanDb = d.whatsappNumber.replace(/\D/g, "");
-    if (cleanDb.length >= 10 && cleanFrom.length >= 10) {
-      return cleanDb.slice(-10) === cleanFrom.slice(-10);
-    }
-    return cleanDb === cleanFrom;
-  });
-
-  if (dealer) {
-    await handleDealerWhatsAppMessage(from, text, dealer);
-    return;
-  }
+  // ── Route all inbound messages directly to SimulateService ──
 
   // ── Customer flow — existing FSM ──
 
@@ -579,171 +481,6 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   await deliverBotReply(from, result);
 }
 
-/** Unifies engineer command routing for real webhook + simulator chat */
-export async function routeEngineerMessage(
-  from: string,
-  text: string,
-  engineer: { id: string; firstName: string }
-): Promise<void> {
-  const trimmed = text.trim();
-
-  if (trimmed.startsWith("ENG_PHOTO:")) {
-    const parts = trimmed.split(":");
-    const ticketNumber = parts[1];
-    const filename = parts[2];
-
-    const ticket = await prisma.ticket.findFirst({
-      where: { ticketNumber, assignedEngineerId: engineer.id },
-    });
-    if (!ticket) {
-      await sendEngineerMessage(from, `❌ Ticket *${ticketNumber}* not found.`);
-      return;
-    }
-
-    const { type } = await attachWorkReportPhoto(ticket.id, engineer.id, filename);
-    if (type === "reached") {
-      await handleReachedPhotoAttached(from, engineer, ticketNumber);
-    } else if (type === "finished") {
-      await handleFinishedPhotoAttached(from, engineer, ticketNumber);
-    } else {
-      await handleNormalPhotoAttached(from, engineer, ticketNumber);
-    }
-    return;
-  }
-
-  await handleEngineerWhatsAppMessage(from, text, engineer, async (f, t, eng) => {
-    if (t.toUpperCase().trim() === "TROUBLESHOOT") {
-      await prisma.troubleshootingSession.deleteMany({
-        where: { phoneNumber: f, status: "ACTIVE" },
-      });
-
-      const issues = await prisma.documentIssue.findMany({
-        where: { isActive: true, audience: { in: ["engineer", "customer", "both"] } },
-        select: { problemType: true }
-      });
-
-      const activeCategories = new Map<string, string>(); // prefix -> name
-
-      issues.forEach(iss => {
-        if (iss.problemType.toLowerCase().startsWith("chatbot")) return;
-        const { prefix, name } = extractProductFromTag(iss.problemType);
-        activeCategories.set(prefix, name);
-      });
-
-      if (activeCategories.size === 0) {
-        await sendEngineerMessage(f, `⚠️ No troubleshooting guides available right now.`);
-        return;
-      }
-
-      const categoryList = Array.from(activeCategories.entries()).map(([prefix, name]) => ({
-        id: `ENG_TS_PROD:${prefix}`,
-        title: name.slice(0, 24),
-      }));
-
-      await sendEngineerMessage(
-        f,
-        `🔍 *Troubleshoot Mode*\n\nPlease select the product:`,
-        undefined,
-        {
-          buttonText: "Select Product",
-          rows: categoryList.slice(0, 10)
-        }
-      );
-      return;
-    }
-
-    if (t.startsWith("ENG_TS_PROD:")) {
-      const prefix = t.replace("ENG_TS_PROD:", "").trim();
-      const { name: categoryName } = extractProductFromTag(prefix);
-
-      await prisma.troubleshootingSession.deleteMany({
-        where: { phoneNumber: f, status: "ACTIVE" },
-      });
-
-      await prisma.troubleshootingSession.create({
-        data: {
-          phoneNumber: f,
-          serialNumber: "ENGINEER",
-          problemType: `__PENDING_PROD__${prefix}`,
-          currentStep: 0,
-          status: "ACTIVE",
-        },
-      });
-
-      await sendIssuesList(f, prefix, 0, categoryName);
-      return;
-    }
-
-    if (t.startsWith("ENG_TS_PAGE:")) {
-      const parts = t.split(":");
-      const prefix = parts[1];
-      const page = parseInt(parts[2] ?? "0", 10) || 0;
-      const { name: categoryName } = extractProductFromTag(prefix);
-      await sendIssuesList(f, prefix, page, categoryName);
-      return;
-    }
-
-    if (t.startsWith("ENG_TS_ISSUE:")) {
-      const issueId = t.replace("ENG_TS_ISSUE:", "").trim();
-      const template = await prisma.documentIssue.findUnique({
-        where: { id: issueId },
-        include: { steps: { orderBy: { stepNumber: "asc" } } },
-      });
-
-      if (!template || template.steps.length === 0) {
-        await sendEngineerMessage(f, `⚠️ No steps found for this issue.`);
-        return;
-      }
-
-      let activeSession = await prisma.troubleshootingSession.findFirst({
-        where: { phoneNumber: f, status: "ACTIVE" },
-      });
-
-      if (!activeSession) {
-        activeSession = await prisma.troubleshootingSession.create({
-          data: {
-            phoneNumber: f,
-            serialNumber: "ENGINEER",
-            problemType: template.problemType,
-            currentStep: 1,
-            status: "ACTIVE",
-          },
-        });
-      } else {
-        await prisma.troubleshootingSession.update({
-          where: { id: activeSession.id },
-          data: { problemType: template.problemType, currentStep: 1 },
-        });
-      }
-
-      const steps = template.steps;
-      await sendEngineerMessage(
-        f,
-        `🔍 *${template.title}*\n\n` +
-        `🔧 *Step 1 of ${steps.length}:*\n` +
-        `--------------------\n` +
-        `✓ ${steps[0].stepContent}\n` +
-        `--------------------\n\n` +
-        `Did this resolve the issue?`,
-        [
-          { id: "ENG_YES",  title: "✅ Resolved" },
-          ...(steps.length > 1 ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
-          { id: "CANCEL",   title: "❌ Cancel" },
-        ],
-      );
-      await sendMatchingRdVideo(f, template.title);
-      return;
-    }
-
-    const activeSession = await prisma.troubleshootingSession.findFirst({
-      where: { phoneNumber: f, status: "ACTIVE" },
-    });
-    if (activeSession) {
-      await handleEngineerTroubleshootStep(f, t, eng, activeSession);
-    }
-  });
-}
-
 /** Persist and send the FSM reply; video links go in a separate text message. */
 async function deliverBotReply(to: string, result: SimulateReply): Promise<void> {
   if (!result.message) return;
@@ -802,319 +539,7 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
   }
 }
 
-// ── Engineer troubleshoot step handler ───────────────────────────────────
-// Routes the engineer through private step-by-step templates.
-async function handleEngineerTroubleshootStep(
-  from: string,
-  text: string,
-  engineer: { id: string; firstName: string },
-  session: { id: string; phoneNumber: string; serialNumber: string; problemType: string; currentStep: number; status: string },
-): Promise<void> {
-  const upper = text.toUpperCase().trim();
 
-  // ── Cancel / exit troubleshoot ─────────────────────────────────────────
-  if (upper === "CANCEL" || upper === "EXIT" || upper === "MENU") {
-    await prisma.troubleshootingSession.update({
-      where: { id: session.id },
-      data: { status: "COMPLETED" },
-    });
-    await sendEngineerMessage(
-      from,
-      `Troubleshoot session ended. What would you like to do?`,
-      [
-        { id: "TICKETS",      title: "📋 My Tickets" },
-        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
-        { id: "HELP",         title: "❓ Help" },
-      ],
-    );
-    return;
-  }
-
-  // ── Phase 1: Engineer just picked a product — wait for number ─────────
-  if (session.problemType.startsWith("__PENDING_PROD__")) {
-    const prefix = session.problemType.replace("__PENDING_PROD__", "");
-    
-    const issues = await prisma.documentIssue.findMany({
-      where: { 
-        isActive: true, 
-        audience: { in: ["engineer", "both"] },
-        problemType: { startsWith: prefix }
-      },
-      orderBy: { title: "asc" }
-    });
-    
-    if (issues.length === 0) {
-       await sendEngineerMessage(from, `⚠️ Product session expired. Type TROUBLESHOOT to restart.`);
-       return;
-    }
-    
-    const selectedIndex = parseInt(text.trim(), 10) - 1;
-    
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= issues.length) {
-      await sendEngineerMessage(from, `⚠️ Please reply with a valid number from 1 to ${issues.length}.`);
-      return;
-    }
-    
-    const selectedIssue = issues[selectedIndex];
-    
-    const template = await prisma.documentIssue.findUnique({
-      where: { id: selectedIssue.id },
-      include: { steps: { orderBy: { stepNumber: "asc" } } },
-    });
-
-    if (!template || template.steps.length === 0) {
-      await sendEngineerMessage(from, `⚠️ No steps found for this issue.`);
-      return;
-    }
-
-    const steps = template.steps;
-    await prisma.troubleshootingSession.update({
-      where: { id: session.id },
-      data: { problemType: template.problemType, currentStep: 1 },
-    });
-
-    await sendEngineerMessage(
-      from,
-      `🔍 *${template.title}*\n\n` +
-      `🔧 *Step 1 of ${steps.length}:*\n` +
-      `--------------------\n` +
-      steps[0].stepContent + "\n" +
-      `--------------------\n\n` +
-      `Did this resolve the issue?`,
-      [
-        { id: "ENG_YES",  title: "✅ Resolved" },
-        ...(steps.length > 1 ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
-        { id: "CANCEL",   title: "❌ Cancel" },
-      ],
-    );
-    await sendMatchingRdVideo(from, template.title);
-    return;
-  }
-
-  // ── Phase 2: Mid-session — handle YES / NEXT ───────────────────────────
-  if (upper === "ENG_YES" || upper === "1") {
-    await prisma.troubleshootingSession.update({
-      where: { id: session.id },
-      data: { status: "COMPLETED" },
-    });
-    await sendEngineerMessage(
-      from,
-      `` +
-      `✅ *Issue Resolved!*\n\nGlad the guide helped, ${engineer.firstName}. Troubleshoot session closed.`,
-    );
-    return;
-  }
-
-  if (upper === "ENG_NEXT" || upper === "2") {
-    const template = await prisma.documentIssue.findUnique({
-      where: { problemType: session.problemType },
-      include: { steps: { orderBy: { stepNumber: "asc" } } },
-    });
-
-    if (!template) {
-      await prisma.troubleshootingSession.update({ where: { id: session.id }, data: { status: "COMPLETED" } });
-      await sendEngineerMessage(from, `⚠️ Template not found. Session ended.`);
-      return;
-    }
-
-    const nextStep = session.currentStep + 1;
-    if (nextStep > template.steps.length) {
-      // All steps exhausted
-      await prisma.troubleshootingSession.update({
-        where: { id: session.id },
-        data: { status: "ESCALATED" },
-      });
-      await sendEngineerMessage(
-        from,
-        `✅ *All ${template.steps.length} steps completed.*\n\nIssue still unresolved? Contact your service manager with template: *${template.problemType}*.`,
-      );
-      return;
-    }
-
-    await prisma.troubleshootingSession.update({
-      where: { id: session.id },
-      data: { currentStep: nextStep },
-    });
-
-    const step = template.steps[nextStep - 1];
-    await sendEngineerMessage(
-      from,
-      `🔧 *Step ${nextStep} of ${template.steps.length}:*\n` +
-      `--------------------\n` +
-      `✓ ${step.stepContent}\n` +
-      `--------------------\n\n` +
-      `Did this resolve the issue?`,
-      [
-        { id: "ENG_YES",  title: "✅ Resolved" },
-        ...(nextStep < template.steps.length ? [{ id: "ENG_NEXT", title: "➡️ Next Step" }] : []),
-        { id: "CANCEL",   title: "❌ Cancel" },
-      ],
-    );
-    return;
-  }
-
-  // Unrecognised input during a session — first check if it's an AI training video query
-  try {
-    const matchedVideos = await searchTrainingVideos(text.trim());
-    if (matchedVideos.length > 0) {
-      const videoList = matchedVideos
-        .map((v) => `▶️ *${v.title}*\n${v.youtubeUrl}`)
-        .join("\n\n");
-      await sendEngineerMessage(
-        from,
-        `📺 *Training Videos matching "${text.trim()}":*\n\n${videoList}`,
-      );
-      // Wait briefly so messages arrive in order
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  } catch (err) {
-    console.error("[whatsapp] Training video search error during troubleshoot:", err);
-  }
-
-  // Re-show current step
-  const template = await prisma.documentIssue.findUnique({
-    where: { problemType: session.problemType },
-    include: { steps: { where: { stepNumber: session.currentStep }, take: 1 } },
-  });
-  const stepContent = template?.steps[0]?.stepContent ?? "Step not found.";
-  await sendEngineerMessage(
-    from,
-    `Please choose an option for *Step ${session.currentStep}:*\n\n✓ ${stepContent}`,
-    [
-      { id: "ENG_YES",  title: "✅ Resolved" },
-      { id: "ENG_NEXT", title: "➡️ Next Step" },
-      { id: "CANCEL",   title: "❌ Cancel" },
-    ],
-  );
-}
-
-// ── Engineer image handler ────────────────────────────────────────────────
-// Downloads the photo from Meta's media API and attaches it to the
-// work report for the ticket whose number appears in the image caption.
-async function handleEngineerImage(
-  from: string,
-  msg: Record<string, unknown>,
-  engineer: { id: string; firstName: string },
-): Promise<void> {
-  const image = msg.image as Record<string, unknown> | undefined;
-  const mediaId = String(image?.id ?? "");
-  const caption = String(image?.caption ?? "").trim().toUpperCase();
-
-  if (!mediaId) {
-    await sendEngineerMessage(from, "⚠️ Could not read the image. Please try again.");
-    return;
-  }
-
-  if (!WhatsAppService.isConfigured()) {
-    await sendEngineerMessage(from, "⚠️ WhatsApp media download is not configured on this server.");
-    return;
-  }
-
-  try {
-    // Step 1: Resolve media URL from Meta Graph API
-    const metaUrlRes = await fetch(
-      `https://graph.facebook.com/v21.0/${mediaId}`,
-      { headers: { Authorization: `Bearer ${runtime.waAccessToken()}` } },
-    );
-    if (!metaUrlRes.ok) throw new Error(`Media URL fetch failed: ${metaUrlRes.status}`);
-    const metaUrlJson = (await metaUrlRes.json()) as { url?: string; mime_type?: string };
-    const downloadUrl = metaUrlJson.url;
-    const mimeType    = metaUrlJson.mime_type ?? "image/jpeg";
-    if (!downloadUrl) throw new Error("No download URL in Meta response");
-
-    // Step 2: Download the image binary
-    const imgRes = await fetch(downloadUrl, {
-      headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
-    });
-    if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
-    const buffer = Buffer.from(await imgRes.arrayBuffer());
-
-    // Step 3: Save to disk
-    const ext      = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-wa.${ext}`;
-    const dir      = path.resolve(__dirname, "../../uploads/work-reports");
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, filename), buffer);
-
-    // Step 4: Determine target ticket
-    let targetTicket = null;
-
-    if (caption) {
-      targetTicket = await prisma.ticket.findFirst({
-        where: { ticketNumber: caption, assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
-      });
-    }
-
-    if (!targetTicket) {
-      const activeTn = getActiveTicket(from);
-      if (activeTn) {
-        targetTicket = await prisma.ticket.findFirst({
-          where: { ticketNumber: activeTn, assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
-        });
-      }
-    }
-
-    if (!targetTicket) {
-      const activeTickets = await prisma.ticket.findMany({
-        where: { assignedEngineerId: engineer.id, status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] } },
-        select: { id: true, ticketNumber: true }
-      });
-      if (activeTickets.length === 1) {
-        targetTicket = activeTickets[0];
-      }
-    }
-
-    if (targetTicket) {
-      // Auto-attach
-      const { type, ticketNumber } = await attachWorkReportPhoto(targetTicket.id, engineer.id, filename);
-      if (type === "reached") {
-        await handleReachedPhotoAttached(from, engineer, ticketNumber);
-      } else if (type === "finished") {
-        await handleFinishedPhotoAttached(from, engineer, ticketNumber);
-      } else {
-        await handleNormalPhotoAttached(from, engineer, ticketNumber);
-      }
-      return;
-    }
-
-    // Fallback: ask for ticket if no caption and multiple/no active tickets resolved
-    if (caption) {
-      await sendEngineerMessage(from, `❌ Ticket *${caption}* not found. The photo was saved, but not attached.`);
-      return;
-    }
-
-    const tickets = await prisma.ticket.findMany({
-      where: {
-        assignedEngineerId: engineer.id,
-        status: { in: ["ASSIGNED", "IN_PROGRESS", "PENDING_OTP"] },
-      },
-      select: { ticketNumber: true, status: true, customer: { select: { firstName: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    });
-
-    if (tickets.length === 0) {
-      await sendEngineerMessage(from, "⚠️ Photo saved, but you have no active tickets to attach it to.");
-      return;
-    }
-
-    await sendEngineerMessage(
-      from,
-      "Photo received! Which ticket does this belong to?",
-      undefined,
-      {
-        buttonText: "Select Ticket",
-        rows: tickets.map((t) => ({
-          id: `ENG_PHOTO:${t.ticketNumber}:${filename}`,
-          title: t.ticketNumber.replace(/^TKT-\d{8}-/i, "").slice(0, 24) || t.ticketNumber.slice(0, 24),
-          description: `Attach to ${t.customer?.firstName ?? "Customer"} (${t.status})`,
-        })),
-      }
-    );
-  } catch (e: unknown) {
-    console.error("[whatsapp] handleEngineerImage error:", e);
-  }
-}
 
 async function handleCustomerImage(
   from: string,
