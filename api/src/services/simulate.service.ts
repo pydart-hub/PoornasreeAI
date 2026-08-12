@@ -2260,6 +2260,22 @@ Do NOT include pricing or contact info in the description.`;
     description = product.detail ?? product.name;
   }
 
+  // Fetch other active products to display under "Other Products" in 3rd point
+  const otherProducts = await prisma.product.findMany({
+    where: { isActive: true, id: { not: productId } },
+    select: { id: true, name: true, category: true, price: true },
+    orderBy: { createdAt: "asc" },
+    take: 4,
+  });
+
+  const otherLines = otherProducts.map(
+    op => `• *${op.name}* (${categoryLabel(op.category)})${op.price ? ` — 💰 ${op.price}` : ""}`
+  );
+
+  const otherProductsBlock = otherLines.length > 0
+    ? `\n✨ *Other Products Available:*\n${otherLines.join("\n")}`
+    : "";
+
   const contact = product.contactNumber ?? DEFAULT_CONTACT;
   const priceText = product.price ? `\n💰 *Price:* ${product.price}` : "";
 
@@ -2268,25 +2284,32 @@ Do NOT include pricing or contact info in the description.`;
     ``,
     description,
     priceText,
+    otherProductsBlock,
     ``,
     `📞 *Contact:* ${contact}`,
     `🌐 *Website:* poornasree.com/products`,
-  ].join("\n").trim();
+  ].filter(Boolean).join("\n").trim();
 
   const images: ProductImage[] = imageUrl
-    ? [{ url: imageUrl, caption: product.name }]
+    ? [{ url: imageUrl, caption: "" }]
     : [];
+
+  const rows = otherProducts.map(op => ({
+    id: `PROD_${op.id}`,
+    title: op.name,
+    description: op.price ? `💰 ${op.price}` : categoryLabel(op.category),
+  }));
+  rows.push({ id: "BACK_CATEGORIES", title: "⬅️ Back to Categories", description: "View all product categories" });
+  rows.push({ id: "BACK_MAIN", title: "⬅️ Main Menu", description: "Return to main menu" });
 
   return makeReply(
     msg,
-    [
-      { id: "BACK_CATEGORIES", title: "⬅️ Back to Products" },
-      getMenuButton(lang),
-    ],
     undefined,
+    { buttonText: "Explore Products 📋", rows },
     images.length > 0 ? images : undefined,
   );
 }
+
 
 
 

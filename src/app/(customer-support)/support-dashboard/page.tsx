@@ -302,10 +302,11 @@ export default function SupportDashboard() {
         }
       });
       
-      // Update chat messages if this chat is active
+      // Update chat messages if this chat is active (deduplicate by id)
       if (data.phoneNumber === activePhone) {
-        setMessages(p => [...p, data.message]);
+        setMessages(p => p.some(m => m.id === data.message.id) ? p : [...p, data.message]);
       } else {
+
         if (data.message.role === "user") {
           addToast(`New message from ${data.phoneNumber}`, "info");
         }
