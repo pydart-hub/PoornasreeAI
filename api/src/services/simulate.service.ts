@@ -2111,6 +2111,12 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
       { id: "SKIP", title: "⏭️ Skip for Now" },
     ]);
   }
+  if (upperChoice === "COMPACT_ADAPTER") {
+    return runGroqCompanyAssistant(phoneNumber, "Compact Adapter output voltage troubleshooting", meta, { sessionId });
+  }
+  if (upperChoice === "CHARGER_ADAPTER") {
+    return runGroqCompanyAssistant(phoneNumber, "Charger Adapter output voltage troubleshooting", meta, { sessionId });
+  }
 
   // Free-text query (not matching strict menu digits/buttons) -> Groq Conversational Assistant using DB company & product knowledge
   return runGroqCompanyAssistant(phoneNumber, text, meta, { sessionId });
@@ -2215,6 +2221,7 @@ async function runGroqCompanyAssistant(
       console.error("[product-interceptor] Failed to intercept product query:", pErr);
     }
   }
+
   const isPhotoRequest =
     lowerQuery.includes("photo") ||
     lowerQuery.includes("picture") ||
@@ -2241,6 +2248,20 @@ async function runGroqCompanyAssistant(
     } catch {
       /* ignore */
     }
+  }
+  // ── Adapter Disambiguation Interceptor ───────────────────────────
+  const isAdapterQuery = lowerQuery.includes("adapter") || lowerQuery.includes("അഡാപ്റ്റർ") || lowerQuery.includes("എഡാപ്റ്റർ");
+  const specifiesCompact = lowerQuery.includes("compact") || lowerQuery.includes("കോംപാക്ട്");
+  const specifiesCharger = lowerQuery.includes("charger") || lowerQuery.includes("ചാർജർ");
+
+  if (isAdapterQuery && !specifiesCompact && !specifiesCharger) {
+    return makeReply(
+      `🔌 *Which adapter model are you using?*\n\nWe have two adapter models. Please select your adapter type below so I can give you the exact troubleshooting steps:`,
+      [
+        { id: "COMPACT_ADAPTER", title: "🔌 Compact Adapter" },
+        { id: "CHARGER_ADAPTER", title: "⚡ Charger Adapter" },
+      ]
+    );
   }
 
   // Fetch recent conversation history from DB to enable true humanoid multi-turn memory
