@@ -449,13 +449,29 @@ export async function processDocument(
               }
             }
 
-            let combinedItem = action;
-            if (remarks.length > 0) {
-              combinedItem = `${action}\n   ↳ Remark: ${remarks.join(" | ")}`;
-            }
+            const isRemarkAction = /^(EG:|ITS WORKING|AFTER |DOWN KEY|UP KEY|THE CHARACTER|TO ENTER|" 0D "|' 0D '|"L"|'L')/i.test(action);
 
-            const lines = combinedItem.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            activeStep.actionItems.push(...lines);
+            if (isRemarkAction && activeStep.actionItems.length > 0) {
+              const lastIdx = activeStep.actionItems.length - 1;
+              let remarkText = action;
+              if (remarks.length > 0) {
+                remarkText += ` | ${remarks.join(" | ")}`;
+              }
+
+              if (!activeStep.actionItems[lastIdx].includes("↳ Remark:")) {
+                activeStep.actionItems[lastIdx] += `\n   ↳ Remark: ${remarkText}`;
+              } else {
+                activeStep.actionItems[lastIdx] += ` | ${remarkText}`;
+              }
+            } else {
+              let combinedItem = action;
+              if (remarks.length > 0) {
+                combinedItem = `${action}\n   ↳ Remark: ${remarks.join(" | ")}`;
+              }
+
+              const lines = combinedItem.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+              activeStep.actionItems.push(...lines);
+            }
           }
         }
       });
