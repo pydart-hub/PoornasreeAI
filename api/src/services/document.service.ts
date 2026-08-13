@@ -354,7 +354,8 @@ export async function processDocument(
       interface ComplaintGroup {
         product: string;
         complaint: string;
-        stepMap: Map<number, CheckStepData>;
+        checksList: CheckStepData[];
+        columnActiveStepMap: Map<number, CheckStepData>;
         hasContactCare: boolean;
       }
 
@@ -380,7 +381,8 @@ export async function processDocument(
           complaintGroupMap.set(tag, {
             product: lastProduct,
             complaint: lastComplaint,
-            stepMap: new Map(),
+            checksList: [],
+            columnActiveStepMap: new Map(),
             hasContactCare: false,
           });
           tagOrder.push(tag);
@@ -388,9 +390,8 @@ export async function processDocument(
 
         const group = complaintGroupMap.get(tag)!;
 
-        // Process column pairs: col 4/5 = step 0, col 6/7 = step 1, col 8/9 = step 2, etc.
-        let stepIdx = 0;
-        for (let col = 4; col < cells.length; col += 2, stepIdx++) {
+        // Process column pairs: col 4/5, col 6/7, col 8/9, col 10/11...
+        for (let col = 4; col < cells.length; col += 2) {
           const check = cells[col] ? String(cells[col]).trim() : "";
           const action = cells[col + 1] ? String(cells[col + 1]).trim() : "";
           const nextVal = cells[col + 2] ? String(cells[col + 2]).trim() : "";
@@ -400,34 +401,39 @@ export async function processDocument(
           if (/contact customer care/i.test(check) || /contact customer care/i.test(action)) {
             group.hasContactCare = true;
             if (check && !/contact customer care/i.test(check)) {
-              if (!group.stepMap.has(stepIdx)) {
-                group.stepMap.set(stepIdx, { checkTitle: check, actionItems: [] });
+              let activeStep = group.checksList.find(c => c.checkTitle.toLowerCase() === check.toLowerCase());
+              if (!activeStep) {
+                activeStep = { checkTitle: check, actionItems: [] };
+                group.checksList.push(activeStep);
               }
-              const step = group.stepMap.get(stepIdx)!;
+              group.columnActiveStepMap.set(col, activeStep);
               if (action && !/contact customer care/i.test(action)) {
-                step.actionItems.push(action);
+                activeStep.actionItems.push(action);
               }
             }
             continue;
           }
 
-          if (!group.stepMap.has(stepIdx)) {
-            group.stepMap.set(stepIdx, { checkTitle: check, actionItems: [] });
+          let activeStep: CheckStepData | undefined;
+
+          if (check) {
+            activeStep = group.checksList.find(c => c.checkTitle.toLowerCase() === check.toLowerCase());
+            if (!activeStep) {
+              activeStep = { checkTitle: check, actionItems: [] };
+              group.checksList.push(activeStep);
+            }
+            group.columnActiveStepMap.set(col, activeStep);
+          } else {
+            activeStep = group.columnActiveStepMap.get(col) || group.checksList[group.checksList.length - 1];
           }
 
-          const step = group.stepMap.get(stepIdx)!;
-          if (check && !step.checkTitle) {
-            step.checkTitle = check;
-          }
-
-          if (action) {
+          if (action && activeStep) {
             let combinedItem = action;
-            // If action is a machine setting item and nextVal is an example/value/remark, pair them!
             if (nextVal && !/contact customer care/i.test(nextVal) && !nextVal.toUpperCase().startsWith("CHECK") && !nextVal.toUpperCase().startsWith("TO CONTACT")) {
               combinedItem = `${action} ➔ ${nextVal}`;
             }
             const lines = combinedItem.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            step.actionItems.push(...lines);
+            activeStep.actionItems.push(...lines);
           }
         }
       });
@@ -451,9 +457,7 @@ export async function processDocument(
         const respLines = [`Here's how to troubleshoot your ${p} — ${c}:`];
         let stepNum = 1;
 
-        const sortedStepIndices = Array.from(group.stepMap.keys()).sort((a, b) => a - b);
-        for (const idx of sortedStepIndices) {
-          const stepData = group.stepMap.get(idx)!;
+        for (const stepData of group.checksList) {
           const checkHeader = stepData.checkTitle || `Check ${stepNum}`;
           
           if (stepData.actionItems.length > 0) {
