@@ -2361,16 +2361,23 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
       ⚡ *Action 1:* [Main Action from ACTION-1]
          • [Sub-setting 1, e.g. 1) RATE CHART ENABLE - ENABLE]
          • [Sub-setting 2, e.g. 2) AUTO CHART SELECTION...]
-         • [Sub-setting 3, e.g. 3) HIGH-LOW FX RATE...]
 
       📍 *Step 2:* (Only if CHECK-2 exists in document)
       🔍 *Check 2:* [Content from CHECK-2 in document]
       ⚡ *Action 1:* [Main Action from ACTION-2 list]
 
-    - CRITICAL DOCUMENT MAPPING & EXAMPLE PRESERVATION RULES:
-      1. Every distinct Check in the document (CHECK-1, CHECK-2, CHECK-3...) MUST be formatted as its own distinct Step (Step 1, Step 2, Step 3...).
+      📍 *Step 3:* (Only if CHECK-3 exists in document)
+      🔍 *Check 3:* [Content from CHECK-3 in document]
+      ⚡ *Action 1:* [Main Action from ACTION-3 list]
+
+      📍 *Step 4:* (Include ALL remaining Check steps: Step 4, Step 5, Step 6...)
+      🔍 *Check 4:* [Content from CHECK-4 in document]
+      ⚡ *Action 1:* [Main Action from ACTION-4 list]
+
+    - CRITICAL DOCUMENT MAPPING & COMPLETE UN-TRUNCATED OUTPUT RULES:
+      1. YOU MUST OUTPUT EVERY SINGLE CHECK STEP FROM THE DOCUMENT (Check 1, Check 2, Check 3, Check 4, Check 5...). ABSOLUTELY DO NOT STOP AT CHECK 2! If the matched document contains 5 Checks, YOUR RESPONSE MUST CONTAIN ALL 5 CHECKS AS STEP 1, STEP 2, STEP 3, STEP 4, AND STEP 5!
       2. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). Sub-numbered configuration settings (e.g. '1) RATE CHART ENABLE', '2) AUTO CHART SELECTION', '3) HIGH-LOW FX RATE') MUST be indented as sub-bullets under Action 1 (• 1) RATE CHART ENABLE - ENABLE \n • 2) AUTO CHART SELECTION...). DO NOT format sub-settings as separate main Actions (Action 2, Action 3, Action 4).
-      3. Under Check 2, list ALL actions corresponding to CHECK-2 from ACTION-2.
+      3. ABSOLUTELY NO TRUNCATION: You MUST output EVERY SINGLE Check (Check 1 to N), EVERY Action line (Action 1, Action 2...), and EVERY sub-bullet item from the matched document without omitting, shortening, or cutting off a single line!
       4. PRESERVE ALL EXAMPLES AND BUTTON ENABLE DETAILS VERBATIM: If an action in the document contains an example (e.g. "eg: F 2.0", "EG: FAT LIMIT FAT = 7.0", "ENTER THE RUPEES") or a button enable instruction (e.g. "RATE CHART ENABLE - ENABLE", "HIGH-LOW FX RATE - ENABLE"), YOU MUST INCLUDE THAT EXACT EXAMPLE AND BUTTON ENABLE SETTING IN THE ACTION TEXT!
       5. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
       6. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
