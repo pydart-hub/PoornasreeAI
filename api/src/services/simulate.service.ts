@@ -2111,14 +2111,20 @@ async function runGroqCompanyAssistant(
 
   if (isPhotoRequest) {
     try {
-      const photos = settings.companyPhotos ? JSON.parse(settings.companyPhotos) : [];
-      if (Array.isArray(photos) && photos.length > 0) {
-        const photoList = photos.map((p: any) => `📷 *${p.caption}*\n${p.url}`).join("\n\n");
-        return makeReply(
-          `📸 *Poornasree Equipments Head Office & Facility Photos*\n\n${photoList}`,
-          [{ id: "VIEW_PRODUCTS", title: "📦 Browse Products" }]
-        );
-      }
+      const defaultPhotos = [
+        { url: "https://poornasree.com/wp-content/uploads/2024/06/Social-Share-image.jpg", caption: "Poornasree Equipments Head Office & Facility" },
+        { url: "https://poornasree.com/wp-content/uploads/2023/12/copmany.png", caption: "LactoSure Eco Milk Analyzer Product Line" },
+        { url: "https://poornasree.com/wp-content/uploads/2024/03/Poornasree-png-300x135.png", caption: "Poornasree Brand Logo" },
+        { url: "https://poornasree.com/wp-content/uploads/2024/02/certificate-of-compiance.png", caption: "ISO 9001:2015 Certificate of Compliance" }
+      ];
+      const parsed = settings.companyPhotos ? JSON.parse(settings.companyPhotos) : [];
+      const photos = Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultPhotos;
+
+      const photoList = photos.map((p: any) => `📷 *${p.caption}*\n${p.url}`).join("\n\n");
+      return makeReply(
+        `📸 *Poornasree Equipments Head Office & Facility Photos*\n\n${photoList}`,
+        [{ id: "VIEW_PRODUCTS", title: "📦 Browse Products" }]
+      );
     } catch {
       /* ignore */
     }
