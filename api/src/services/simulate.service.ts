@@ -2373,8 +2373,8 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 
     - CRITICAL DOCUMENT MAPPING & EXAMPLE PRESERVATION RULES:
       1. Every distinct Check in the document (CHECK-1, CHECK-2, CHECK-3...) MUST be formatted as its own distinct Step (Step 1, Step 2, Step 3...).
-      2. Under Check 1, list ALL actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:, ⚡ Action 2:, ⚡ Action 3:...).
-      3. Under Check 2, list ALL actions corresponding to CHECK-2 from ACTION-2 (⚡ Action 1:, ⚡ Action 2:...).
+      2. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). If an action contains sub-numbered configuration settings (e.g. '1) RATE CHART ENABLE', '2) AUTO CHART SELECTION', '3) HIGH-LOW FX RATE'), format them as indented sub-bullets under Action 1 (⚡ Action 1: ENTER THE CORRECT SETTINGS \n   • 1) RATE CHART ENABLE - ENABLE \n   • 2) AUTO CHART SELECTION...), DO NOT list sub-settings as separate main Actions (Action 2, Action 3, Action 4).
+      3. Under Check 2, list ALL actions corresponding to CHECK-2 from ACTION-2.
       4. PRESERVE ALL EXAMPLES AND BUTTON ENABLE DETAILS VERBATIM: If an action in the document contains an example (e.g. "eg: F 2.0", "EG: FAT LIMIT FAT = 7.0", "ENTER THE RUPEES") or a button enable instruction (e.g. "RATE CHART ENABLE - ENABLE", "HIGH-LOW FX RATE - ENABLE"), YOU MUST INCLUDE THAT EXACT EXAMPLE AND BUTTON ENABLE SETTING IN THE ACTION TEXT!
       5. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
       6. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).

@@ -451,8 +451,17 @@ export async function processDocument(
           const checkHeader = stepData.checkTitle || `Check ${stepNum}`;
           
           if (stepData.actionItems.length > 0) {
-            const formattedActions = stepData.actionItems.map((ai, aIdx) => `   - Action ${aIdx + 1}: ${ai}`).join("\n");
-            respLines.push(`${stepNum}. Check ${stepNum}: ${checkHeader}\n${formattedActions}`);
+            const actionLines: string[] = [];
+            let mainActionCount = 0;
+            for (const ai of stepData.actionItems) {
+              if (/^\d+[\).\s]/.test(ai)) {
+                actionLines.push(`      • ${ai}`);
+              } else {
+                mainActionCount++;
+                actionLines.push(`   - Action ${mainActionCount}: ${ai}`);
+              }
+            }
+            respLines.push(`${stepNum}. Check ${stepNum}: ${checkHeader}\n${actionLines.join("\n")}`);
           } else {
             respLines.push(`${stepNum}. Check ${stepNum}: ${checkHeader}`);
           }
