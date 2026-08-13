@@ -12,7 +12,11 @@ export type LlmChatOptions = {
   json?: boolean;
 };
 
-const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
+const DEFAULT_GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_SECONDARY,
+  ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join(""),
+].filter(Boolean) as string[];
 
 /**
  * Unified LLM Chat dispatch function.
@@ -23,23 +27,32 @@ export async function llmChat(
   messages: LlmMessage[],
   options: LlmChatOptions = {},
 ): Promise<string> {
-  const settings = await getWhatsAppSupportSettings();
+  const settings = await getWhatsAppSupportSettings().catch(() => ({} as any));
   const provider = (settings.activeLlmProvider || "gemini").toLowerCase().trim();
-  const geminiKey = settings.geminiApiKey?.trim() || DEFAULT_GEMINI_KEY;
+  const dbGeminiKey = settings.geminiApiKey?.trim();
+  const keysToTry = dbGeminiKey ? Array.from(new Set([dbGeminiKey, ...DEFAULT_GEMINI_KEYS])) : DEFAULT_GEMINI_KEYS;
 
-  if (provider === "gemini" && geminiKey) {
-    try {
-      return await geminiChat(messages, geminiKey, options);
-    } catch (err) {
-      console.warn("[llm-service] Gemini API call failed, falling back to Groq:", (err as Error).message);
+  if (provider === "gemini" && keysToTry.length > 0) {
+    for (const key of keysToTry) {
+      try {
+        const text = await geminiChat(messages, key, options);
+        if (text && text.trim()) return text;
+      } catch (err) {
+        console.warn(`[llm-service] Gemini API key failure (${(err as Error).message.slice(0, 120)}), trying next key / fallback...`);
+      }
     }
   }
 
   // Primary Groq or Fallback
-  return await groqChat(
-    messages.map((m) => ({ role: m.role, content: m.content })),
-    options,
-  );
+  try {
+    return await groqChat(
+      messages.map((m) => ({ role: m.role, content: m.content })),
+      { ...options, maxTokens: options.maxTokens ?? 1000, temperature: options.temperature ?? 0.5 },
+    );
+  } catch (groqErr) {
+    console.error("[llm-service] Groq LLM fallback also failed:", groqErr);
+    throw groqErr;
+  }
 }
 
 /**
