@@ -393,8 +393,9 @@ export async function processDocument(
         for (let col = 4; col < cells.length; col += 2, stepIdx++) {
           const check = cells[col] ? String(cells[col]).trim() : "";
           const action = cells[col + 1] ? String(cells[col + 1]).trim() : "";
+          const nextVal = cells[col + 2] ? String(cells[col + 2]).trim() : "";
 
-          if (!check && !action) continue;
+          if (!check && !action && !nextVal) continue;
 
           if (/contact customer care/i.test(check) || /contact customer care/i.test(action)) {
             group.hasContactCare = true;
@@ -420,7 +421,12 @@ export async function processDocument(
           }
 
           if (action) {
-            const lines = action.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            let combinedItem = action;
+            // If action is a machine setting item and nextVal is an example/value/remark, pair them!
+            if (nextVal && !/contact customer care/i.test(nextVal) && !nextVal.toUpperCase().startsWith("CHECK") && !nextVal.toUpperCase().startsWith("TO CONTACT")) {
+              combinedItem = `${action} ➔ ${nextVal}`;
+            }
+            const lines = combinedItem.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             step.actionItems.push(...lines);
           }
         }
