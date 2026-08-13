@@ -343,52 +343,96 @@ export async function processDocument(
     if (userChatSheet) {
       // ── Detect CHATBOT_DATAS format and convert to intents ──────────
       const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
-      const seenTags = new Set<string>();
       let lastProduct = "";
+      let lastComplaint = "";
+
+      interface CheckStepData {
+        checkTitle: string;
+        actionItems: string[];
+      }
+
+      interface ComplaintGroup {
+        product: string;
+        complaint: string;
+        stepMap: Map<number, CheckStepData>;
+        hasContactCare: boolean;
+      }
+
+      const complaintGroupMap = new Map<string, ComplaintGroup>();
+      const tagOrder: string[] = [];
 
       userChatSheet.eachRow((row, rowIdx) => {
         if (rowIdx === 1) return; // skip header
         const cells = row.values as (string | null | undefined)[];
-        // exceljs row.values is 1-indexed; col 2 = PRODUCT, col 3 = COMPLAINT, col 4+ = CHECK/ACTION pairs
         const productCell = cells[2] ? String(cells[2]).trim() : "";
-        const complaint   = cells[3] ? String(cells[3]).trim() : "";
+        const complaintCell = cells[3] ? String(cells[3]).trim() : "";
 
         if (productCell) lastProduct = productCell;
-        if (!complaint || !lastProduct) return;
-        
-        // Ensure we don't accidentally process header rows if they shifted
-        if (complaint.toLowerCase() === "complaint" || complaint.toLowerCase() === "comp" || lastProduct.toLowerCase() === "product/parts" || lastProduct.toLowerCase() === "prod") return;
+        if (complaintCell) lastComplaint = complaintCell;
 
-        // Build CHECK/ACTION pairs from col 4 onwards
-        const pairs: Array<{ check: string; action: string }> = [];
-        for (let col = 4; col < cells.length; col += 2) {
-          const check  = cells[col]   ? String(cells[col]).trim()   : "";
-          const action = cells[col+1] ? String(cells[col+1]).trim() : "";
+        if (!lastProduct || !lastComplaint) return;
+        if (lastComplaint.toLowerCase() === "complaint" || lastComplaint.toLowerCase() === "comp" || lastProduct.toLowerCase() === "product/parts" || lastProduct.toLowerCase() === "prod") return;
+
+        const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 50);
+        const tag = `chatbot_${slug(lastProduct)}_${slug(lastComplaint)}`;
+
+        if (!complaintGroupMap.has(tag)) {
+          complaintGroupMap.set(tag, {
+            product: lastProduct,
+            complaint: lastComplaint,
+            stepMap: new Map(),
+            hasContactCare: false,
+          });
+          tagOrder.push(tag);
+        }
+
+        const group = complaintGroupMap.get(tag)!;
+
+        // Process column pairs: col 4/5 = step 0, col 6/7 = step 1, col 8/9 = step 2, etc.
+        let stepIdx = 0;
+        for (let col = 4; col < cells.length; col += 2, stepIdx++) {
+          const check = cells[col] ? String(cells[col]).trim() : "";
+          const action = cells[col + 1] ? String(cells[col + 1]).trim() : "";
+
           if (!check && !action) continue;
 
-          if (/contact customer care/i.test(check)) {
-            pairs.push({ check: "CONTACT_CARE", action: "" });
-            break;
+          if (/contact customer care/i.test(check) || /contact customer care/i.test(action)) {
+            group.hasContactCare = true;
+            if (check && !/contact customer care/i.test(check)) {
+              if (!group.stepMap.has(stepIdx)) {
+                group.stepMap.set(stepIdx, { checkTitle: check, actionItems: [] });
+              }
+              const step = group.stepMap.get(stepIdx)!;
+              if (action && !/contact customer care/i.test(action)) {
+                step.actionItems.push(action);
+              }
+            }
+            continue;
           }
-          if (/contact customer care/i.test(action)) {
-            if (check) pairs.push({ check, action: "" });
-            pairs.push({ check: "CONTACT_CARE", action: "" });
-            break;
+
+          if (!group.stepMap.has(stepIdx)) {
+            group.stepMap.set(stepIdx, { checkTitle: check, actionItems: [] });
           }
-          pairs.push({ check, action });
+
+          const step = group.stepMap.get(stepIdx)!;
+          if (check && !step.checkTitle) {
+            step.checkTitle = check;
+          }
+
+          if (action) {
+            const lines = action.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            step.actionItems.push(...lines);
+          }
         }
-        if (pairs.length === 0) return;
+      });
 
-        // Generate tag
-        const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 50);
-        const tag = `chatbot_${slug(lastProduct)}_${slug(complaint)}`;
-        if (seenTags.has(tag)) return;
-        seenTags.add(tag);
-
-        // Build patterns
-        const p = lastProduct;
-        const c = complaint.trim();
+      // Construct final intents from complaintGroupMap
+      for (const tag of tagOrder) {
+        const group = complaintGroupMap.get(tag)!;
+        const p = group.product;
+        const c = group.complaint;
         const cLow = c.toLowerCase();
+
         const patterns: string[] = [c, `${p} - ${c}`, `${p} ${cLow}`];
         if (/not (work|on|show|detect|print|send)/i.test(c)) {
           patterns.push(`Why is my ${p} ${cLow}?`, `My ${p} is ${cLow}`);
@@ -398,26 +442,25 @@ export async function processDocument(
           patterns.push(`My ${p} has ${cLow} issue`, `Problem with ${p}: ${cLow}`);
         }
 
-        // Build response text
-        const respLines = [`Here's how to troubleshoot your ${p} — ${complaint}:`];
+        const respLines = [`Here's how to troubleshoot your ${p} — ${c}:`];
         let stepNum = 1;
-        for (const { check, action } of pairs) {
-          if (check === "CONTACT_CARE") {
-            respLines.push(`${stepNum}. If none of the above steps help, please contact Poornasree Customer Care for further assistance.`);
-            break;
-          }
-          if (check && action) {
-            const actionLines = action.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            if (actionLines.length > 1) {
-              const formattedActions = actionLines.map((al, idx) => `   - Action ${idx + 1}: ${al}`).join("\n");
-              respLines.push(`${stepNum}. Check ${stepNum}: ${check}\n${formattedActions}`);
-            } else {
-              respLines.push(`${stepNum}. Check ${stepNum}: ${check} → Action: ${action}`);
-            }
-          } else if (check) {
-            respLines.push(`${stepNum}. Check ${stepNum}: ${check}`);
+
+        const sortedStepIndices = Array.from(group.stepMap.keys()).sort((a, b) => a - b);
+        for (const idx of sortedStepIndices) {
+          const stepData = group.stepMap.get(idx)!;
+          const checkHeader = stepData.checkTitle || `Check ${stepNum}`;
+          
+          if (stepData.actionItems.length > 0) {
+            const formattedActions = stepData.actionItems.map((ai, aIdx) => `   - Action ${aIdx + 1}: ${ai}`).join("\n");
+            respLines.push(`${stepNum}. Check ${stepNum}: ${checkHeader}\n${formattedActions}`);
+          } else {
+            respLines.push(`${stepNum}. Check ${stepNum}: ${checkHeader}`);
           }
           stepNum++;
+        }
+
+        if (group.hasContactCare || stepNum === 1) {
+          respLines.push(`${stepNum}. If none of the above steps help, please contact Poornasree Customer Care for further assistance.`);
         }
 
         intents.push({
@@ -425,9 +468,9 @@ export async function processDocument(
           patterns: [...new Set(patterns)],
           responses: [respLines.join("\n")],
           role: documentType,
-          complaint: complaint,
+          complaint: c,
         });
-      });
+      }
 
         if (intents.length > 0) {
           // Clear all old DocumentIssues so they don't linger
