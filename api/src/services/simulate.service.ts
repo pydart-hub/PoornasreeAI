@@ -1298,17 +1298,21 @@ export async function handleMessage(phoneNumber: string, message: string, messag
       [getCancelButton(lang), getMenuButton(lang)]
     );
   }
-  if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
-    return routeState(session, phoneNumber, text, meta);
-  }
 
-  // Product browsing buttons always bypass Groq and go directly to routeState
+  // Product browsing buttons and VIEW_PRODUCTS always bypass state locks and go directly to product handlers
   const isProductNavButton =
+    upper === "VIEW_PRODUCTS" ||
+    upper === "PRODUCTS" ||
     upper.startsWith("CAT_") ||
     upper.startsWith("PROD_") ||
     upper === "BACK_CATEGORIES" ||
     upper === "BACK_MAIN";
+
   if (isProductNavButton) {
+    return routeState(session, phoneNumber, text, meta);
+  }
+
+  if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
     return routeState(session, phoneNumber, text, meta);
   }
 
