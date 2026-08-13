@@ -2337,7 +2337,7 @@ ${settings.companyAddress || ""}
       conversationPayload.push({ role: "user", content: query });
     }
 
-    const reply = await llmChat(conversationPayload, { maxTokens: 350, temperature: 0.5 });
+    const reply = await llmChat(conversationPayload, { maxTokens: 1000, temperature: 0.5 });
 
     if (reply && reply.trim()) {
       const lowerQuery = query.toLowerCase();

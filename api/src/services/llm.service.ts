@@ -63,7 +63,7 @@ export async function geminiChat(
     contents: contents.length > 0 ? contents : [{ role: "user", parts: [{ text: "Hello" }] }],
     generationConfig: {
       temperature: options.temperature ?? 0.5,
-      maxOutputTokens: options.maxTokens ?? 400,
+      maxOutputTokens: options.maxTokens ?? 1000,
     },
   };
 
