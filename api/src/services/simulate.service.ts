@@ -2084,7 +2084,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   }
 
   // Free-text query (not matching strict menu digits/buttons) -> Groq Conversational Assistant using DB company & product knowledge
-  return runGroqCompanyAssistant(phoneNumber, text, meta);
+  return runGroqCompanyAssistant(phoneNumber, text, meta, { sessionId });
 }
 
 /** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers conversation history & FSM state, and answers like a humanoid assistant */
@@ -2092,16 +2092,71 @@ async function runGroqCompanyAssistant(
   phoneNumber: string,
   query: string,
   meta: SessionMeta,
-  options: { activeFsmState?: string } = {}
-) {
+  options: { activeFsmState?: string; sessionId?: string } = {}
+): Promise<any> {
   const settings = await getWhatsAppSupportSettings();
   const botName = settings.botName?.trim() || "Hari";
   const lang: Lang = (meta.language ?? "en") as Lang;
   const activeState = options.activeFsmState || meta.previousFsmState || "MAIN_MENU";
   const customerName = meta.customerName || meta.regName || "";
   const namePrompt = customerName ? `The customer's name is ${customerName}. Address them by their name naturally when appropriate.` : "";
-
   const lowerQuery = query.toLowerCase();
+
+  // Retrieve or create active conversation session ID
+  let targetSessionId = options.sessionId;
+  if (!targetSessionId) {
+    try {
+      const activeSess = await prisma.conversationSession.findFirst({
+        where: { phoneNumber },
+        orderBy: { updatedAt: "desc" },
+      });
+      targetSessionId = activeSess?.id;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Intercept explicit product, category, or catalog requests from chat
+  if (targetSessionId) {
+    try {
+      const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
+      const cleanQ = lowerQuery.trim();
+
+      // 1. Check if user typed or clicked a specific product model name
+      const matchedProduct = activeProducts.find((p) => {
+        const pNameLower = p.name.toLowerCase();
+        if (cleanQ === pNameLower) return true;
+        if (cleanQ.includes(pNameLower)) return true;
+        if (pNameLower.includes("v3") && (cleanQ.includes("v3") || cleanQ.includes("eco v3"))) return true;
+        if (pNameLower.includes("vibro") && cleanQ.includes("vibro")) return true;
+        if (pNameLower.includes("exd") && cleanQ.includes("exd")) return true;
+        if (pNameLower.includes("amcu") && cleanQ.includes("amcu")) return true;
+        if (pNameLower.includes("lite") && cleanQ.includes("lite")) return true;
+        if (pNameLower.includes("s pro") && cleanQ.includes("s pro")) return true;
+        if (pNameLower.includes("sd") && cleanQ.includes("sd")) return true;
+        return false;
+      });
+
+      if (matchedProduct) {
+        return handleProductDetail(targetSessionId, phoneNumber, meta, `PROD_${matchedProduct.id}`);
+      }
+
+      // 2. Check if user specified a category
+      if (cleanQ.includes("lactosure") || cleanQ === "eco" || cleanQ.includes("eco series")) {
+        return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOSURE");
+      }
+      if (cleanQ.includes("lactogrand") || cleanQ.includes("grand")) {
+        return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOGRAND");
+      }
+
+      // 3. General Product Catalog intent
+      if (cleanQ === "products" || cleanQ === "catalog" || cleanQ === "browse products" || cleanQ.includes("show products") || cleanQ.includes("product details")) {
+        return showProducts(targetSessionId, meta);
+      }
+    } catch (pErr) {
+      console.error("[product-interceptor] Failed to intercept product query:", pErr);
+    }
+  }
   const isPhotoRequest =
     lowerQuery.includes("photo") ||
     lowerQuery.includes("picture") ||
@@ -2398,7 +2453,7 @@ async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta
 }
 
 /** Step 2: user picked a category — show products in that category */
-async function handleProductCategory(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+async function handleProductCategory(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string): Promise<any> {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.trim().toUpperCase();
 
@@ -2455,7 +2510,7 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
 }
 
 /** Step 3: user picked a product — Groq generates description from image in customer's language */
-async function handleProductDetail(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+async function handleProductDetail(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string): Promise<any> {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.trim().toUpperCase();
 
