@@ -2264,7 +2264,11 @@ async function runGroqCompanyAssistant(
   let matchedDocKnowledge = "";
   let hasExactDocMatch = false;
   try {
+    const isServiceUser = (meta as any).isEngineer || (meta as any).role === "service_engineer" || (meta as any).role === "service";
+    const targetDocTypes = isServiceUser ? ["service", "customer", "both"] : ["customer", "both"];
+
     const allChunks = await prisma.documentChunk.findMany({
+      where: { document: { documentType: { in: targetDocTypes } } },
       include: { document: true },
     });
 
