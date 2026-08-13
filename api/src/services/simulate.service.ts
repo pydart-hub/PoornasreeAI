@@ -1693,19 +1693,21 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     );
   }
 
-  if (upper === "REGISTER" || upper === "1") {
+  if (upper === "REGISTER" || upper === "REGISTER_MACHINE") {
     await updateSession(sessionId, "REGISTER_SERIAL", meta);
     return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getCancelButton(lang), getMenuButton(lang)]);
   }
 
-  if (upper === "SKIP" || upper === "0") {
+  if (upper === "SKIP" || upper === "SKIP_REGISTER" || upper === "0") {
     const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
     await updateSession(sessionId, "MAIN_MENU", skipMeta);
-    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
   }
 
-  // Free-text query from unregistered user -> Groq Humanoid Assistant answers & presents Register/Browse buttons
-  return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "REGISTER_PROMPT" });
+  // Free-text query / digit input from unregistered user -> Auto-skip registration and route to main menu / Groq assistant
+  const autoMeta: SessionMeta = { ...meta, hasSkippedRegistration: true };
+  await updateSession(sessionId, "MAIN_MENU", autoMeta);
+  return handleMainMenu(sessionId, phoneNumber, autoMeta, text);
 }
 
 async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
@@ -2426,13 +2428,13 @@ async function showProducts(sessionId: string, meta: SessionMeta) {
 async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta: SessionMeta, _text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
 
-  const categories = await prisma.product.groupBy({
-    by: ["category"],
+  const products = await prisma.product.findMany({
     where: { isActive: true },
-    _count: { id: true },
+    select: { id: true, name: true, category: true, price: true },
+    orderBy: { createdAt: "asc" },
   });
 
-  if (categories.length === 0) {
+  if (products.length === 0) {
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(
       `📦 No products available at the moment.\n\n📞 Contact us: ${DEFAULT_CONTACT}`,
@@ -2440,19 +2442,19 @@ async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta
     );
   }
 
-  await updateSession(sessionId, "VIEW_PRODUCT_CATEGORY", meta);
+  await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", meta);
 
-  const rows = categories.map((c, i) => ({
-    id: `CAT_${c.category.toUpperCase()}`,
-    title: `${categoryLabel(c.category)}`,
-    description: `${c._count.id} product${c._count.id !== 1 ? "s" : ""}`,
+  const rows = products.map((p) => ({
+    id: `PROD_${p.id}`,
+    title: p.name,
+    description: `${categoryLabel(p.category)}${p.price ? ` — 💰 ${p.price}` : ""}`,
   }));
   rows.push({ id: "BACK_MAIN", title: "⬅️ Main Menu", description: "Go back to main menu" });
 
   return makeReply(
-    `📦 *Our Products*\n\nPlease select a product category to explore:`,
+    `📦 *Poornasree Products Catalog*\n\nPlease select any product from the list below to view specs & photos:`,
     undefined,
-    { buttonText: "Browse Categories 📋", rows },
+    { buttonText: "Browse Products 📋", rows },
   );
 }
 
