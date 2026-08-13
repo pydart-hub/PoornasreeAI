@@ -2156,7 +2156,7 @@ async function runGroqCompanyAssistant(
       }
 
       // 3. General Product Catalog intent
-      if (cleanQ === "products" || cleanQ === "catalog" || cleanQ === "browse products" || cleanQ.includes("show products") || cleanQ.includes("product details")) {
+      if (cleanQ === "products" || cleanQ === "catalog" || cleanQ === "browse products" || cleanQ === "view_products" || cleanQ.includes("show products") || cleanQ.includes("product details")) {
         return showProducts(targetSessionId, meta);
       }
     } catch (pErr) {
