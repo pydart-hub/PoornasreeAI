@@ -2197,9 +2197,14 @@ async function runGroqCompanyAssistant(
         cleanQ.includes("products kanik") ||
         cleanQ.includes("products kaanik") ||
         cleanQ.includes("products undo") ||
-        cleanQ.includes("products ond") ||
         cleanQ.includes("kaanikamo") ||
         cleanQ.includes("kanikamo") ||
+        cleanQ.includes("kaananam") ||
+        cleanQ.includes("kaanenam") ||
+        cleanQ.includes("nokkanam") ||
+        cleanQ.includes("nokkamo") ||
+        cleanQ.includes("products kaan") ||
+        cleanQ.includes("product kaan") ||
         cleanQ.includes("മോഡലുകൾ") ||
         cleanQ.includes("ഉല്പന്നങ്ങൾ");
 
@@ -2259,11 +2264,7 @@ async function runGroqCompanyAssistant(
   let matchedDocKnowledge = "";
   let hasExactDocMatch = false;
   try {
-    const isServiceUser = (meta as any).isEngineer || (meta as any).role === "service_engineer" || (meta as any).role === "service";
-    const targetDocType = isServiceUser ? { in: ["service", "customer"] } : "customer";
-
     const allChunks = await prisma.documentChunk.findMany({
-      where: { document: { documentType: targetDocType } },
       include: { document: true },
     });
 
@@ -2456,7 +2457,7 @@ ${settings.companyAddress || ""}
           { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
           { id: "SKIP", title: "⏭️ Skip Serial" },
         ];
-      } else if (isServiceIntent || hasExactDocMatch) {
+      } else if (isServiceIntent || hasExactDocMatch || lowerQuery.includes("error") || lowerQuery.includes("issue") || lowerQuery.includes("problem") || lowerQuery.includes("voltage") || lowerQuery.includes("work") || lowerQuery.includes("step") || lowerQuery.includes("check")) {
         buttons = [
           { id: "TROUBLESHOOT_RESOLVED", title: "✅ Resolved" },
           { id: "TROUBLESHOOT_UNRESOLVED", title: "❌ Unresolved" },
