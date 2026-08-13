@@ -2345,12 +2345,12 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
       🔍 *Check 3:* [Content from CHECK-3 in document]
       ⚡ *Action 1:* [First action from ACTION-3 list]
 
-    - CRITICAL DOCUMENT MAPPING RULES:
+    - CRITICAL DOCUMENT MAPPING & EXAMPLE PRESERVATION RULES:
       1. Every distinct Check in the document (CHECK-1, CHECK-2, CHECK-3...) MUST be formatted as its own distinct Step (Step 1, Step 2, Step 3...).
       2. Under Check 1, list ALL actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:, ⚡ Action 2:, ⚡ Action 3:...).
       3. Under Check 2, list ALL actions corresponding to CHECK-2 from ACTION-2 (⚡ Action 1:, ⚡ Action 2:...).
-      4. Under Check 3, list ALL actions corresponding to CHECK-3 from ACTION-3.
-      5. ABSOLUTELY DO NOT omit, skip, or merge distinct checks or actions!
+      4. PRESERVE ALL EXAMPLES AND BUTTON ENABLE DETAILS VERBATIM: If an action in the document contains an example (e.g. "eg: F 2.0", "EG: FAT LIMIT FAT = 7.0", "ENTER THE RUPEES") or a button enable instruction (e.g. "RATE CHART ENABLE - ENABLE", "HIGH-LOW FX RATE - ENABLE"), YOU MUST INCLUDE THAT EXACT EXAMPLE AND BUTTON ENABLE SETTING IN THE ACTION TEXT!
+      5. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
       6. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
       7. Follow ONLY the exact steps and sequence from the matched document.
       8. ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.${uncatalogedRule}
