@@ -1561,6 +1561,11 @@ async function routeState(
     );
   }
 
+  if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
+    await updateSession(session.id, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
   switch (session.state) {
     case "AGENT_CHAT":
       if (upper === "BOOK_SERVICE" || upper.includes("BOOK SERVICE") || upper.includes("COMPLAINT") || upper === "2") {
@@ -2737,6 +2742,11 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
 
   if (upper === "VIEW_PRODUCTS" || upper === "PRODUCTS" || upper.startsWith("CAT_") || upper.startsWith("PROD_")) {
     return routeState({ id: sessionId, state: "VIEW_PRODUCTS" }, phoneNumber, text, meta);
+  }
+
+  if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
   }
 
   if (upper === "SKIP" || upper === "0") {
