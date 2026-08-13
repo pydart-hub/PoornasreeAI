@@ -1289,7 +1289,8 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     "LANG_EN", "LANG_HI", "LANG_TA", "LANG_ML", "LANG_KN", "LANG_MR", "LANG_TE", "LANG_BN",
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
-    "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG"
+    "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG",
+    "TROUBLESHOOT_RESOLVED", "TROUBLESHOOT_UNRESOLVED", "RESOLVED", "UNRESOLVED"
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
     await updateSession(session.id, "REGISTER_SERIAL", { language: meta.language });
@@ -1542,6 +1543,23 @@ async function routeState(
 ): Promise<any> {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
+
+  if (upper === "TROUBLESHOOT_RESOLVED" || upper === "RESOLVED" || (upper.includes("SOLVED") && !upper.includes("NOT"))) {
+    await updateSession(session.id, "MAIN_MENU", meta);
+    return makeReply(
+      `🎉 *Glad we could help!* Your issue has been marked as resolved.\n\nPlease select an option from the menu below if you need anything else:`,
+      undefined,
+      await getContextualMainMenuList(phoneNumber, lang)
+    );
+  }
+
+  if (upper === "TROUBLESHOOT_UNRESOLVED" || upper === "UNRESOLVED" || upper.includes("NOT SOLVED") || upper.includes("NOT FIXED") || upper.includes("UNCATALOGED")) {
+    await updateSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
+    return makeReply(
+      t("SERIAL_PROMPT", lang),
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
+  }
 
   switch (session.state) {
     case "AGENT_CHAT":
@@ -2305,8 +2323,17 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
    - For off-topic questions (universe, galaxy, movies, jokes), give a polite 1-sentence human redirection ("I am Hari from Poornasree customer support. How can I assist you with your equipment today?").
    - Do NOT repeat or mention off-topic words in your response.
 10. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
-    - When the user asks a troubleshooting or machine complaint question, follow ONLY the exact steps and actions from the MATCHED TROUBLESHOOTING DOCUMENTS below.
-    - Follow the EXACT steps and sequence (Step 1, Step 2, etc.) from the document.
+    - When MATCHED TROUBLESHOOTING DOCUMENTS exist below, structure each step clearly into an explicit stepwise checklist:
+      📍 *Step 1:*
+      🔍 *Check:* [Exact item to inspect/verify from document]
+      ⚡ *Action:* [Exact corrective action to take from document]
+
+      📍 *Step 2:*
+      🔍 *Check:* [Item to inspect]
+      ⚡ *Action:* [Corrective action to take]
+
+    - Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
+    - Follow ONLY the exact steps and sequence (Step 1, Step 2, etc.) from the matched document.
     - ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.${uncatalogedRule}
 
 --- MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS ---
@@ -2410,9 +2437,10 @@ ${settings.companyAddress || ""}
           { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
           { id: "SKIP", title: "⏭️ Skip Serial" },
         ];
-      } else if (isServiceIntent) {
+      } else if (isServiceIntent || hasExactDocMatch) {
         buttons = [
-          { id: "COMPLAINT_REG", title: "🛠️ Book Service" },
+          { id: "TROUBLESHOOT_RESOLVED", title: "✅ Resolved" },
+          { id: "TROUBLESHOOT_UNRESOLVED", title: "❌ Unresolved" },
         ];
       } else if (isProductIntent) {
         buttons = [
