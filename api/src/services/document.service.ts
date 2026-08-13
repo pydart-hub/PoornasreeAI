@@ -428,10 +428,21 @@ export async function processDocument(
           }
 
           if (action && activeStep) {
-            let combinedItem = action;
-            if (nextVal && !/contact customer care/i.test(nextVal) && !nextVal.toUpperCase().startsWith("CHECK") && !nextVal.toUpperCase().startsWith("TO CONTACT")) {
-              combinedItem = `${action} ➔ ${nextVal}`;
+            const remarks: string[] = [];
+            for (let cIdx = col + 2; cIdx < cells.length; cIdx++) {
+              const extra = cells[cIdx] ? String(cells[cIdx]).trim() : "";
+              if (extra && !/contact customer care/i.test(extra) && !extra.toUpperCase().startsWith("TO CONTACT")) {
+                if (!remarks.includes(extra)) {
+                  remarks.push(extra);
+                }
+              }
             }
+
+            let combinedItem = action;
+            if (remarks.length > 0) {
+              combinedItem = `${action}\n   ↳ Remark: ${remarks.join(" | ")}`;
+            }
+
             const lines = combinedItem.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             activeStep.actionItems.push(...lines);
           }
