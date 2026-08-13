@@ -407,9 +407,15 @@ export async function processDocument(
             break;
           }
           if (check && action) {
-            respLines.push(`${stepNum}. Check: ${check} → ${action}`);
+            const actionLines = action.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            if (actionLines.length > 1) {
+              const formattedActions = actionLines.map((al, idx) => `   - Action ${idx + 1}: ${al}`).join("\n");
+              respLines.push(`${stepNum}. Check ${stepNum}: ${check}\n${formattedActions}`);
+            } else {
+              respLines.push(`${stepNum}. Check ${stepNum}: ${check} → Action: ${action}`);
+            }
           } else if (check) {
-            respLines.push(`${stepNum}. ${check}`);
+            respLines.push(`${stepNum}. Check ${stepNum}: ${check}`);
           }
           stepNum++;
         }
