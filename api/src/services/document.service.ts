@@ -434,7 +434,7 @@ export async function processDocument(
             const remarks: string[] = [];
             for (let cIdx = col + 2; cIdx < cells.length; cIdx++) {
               const extra = cells[cIdx] ? String(cells[cIdx]).trim() : "";
-              if (extra && !/contact customer care/i.test(extra) && !extra.toUpperCase().startsWith("TO CONTACT")) {
+              if (extra && !/contact customer care/i.test(extra) && !extra.toUpperCase().startsWith("TO CONTACT") && !/^CHECK|^TO CHECK/i.test(extra)) {
                 if (!remarks.includes(extra)) {
                   remarks.push(extra);
                 }
