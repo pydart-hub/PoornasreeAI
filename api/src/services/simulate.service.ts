@@ -2358,22 +2358,18 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 
       📍 *Step 1:*
       🔍 *Check 1:* [Content from CHECK-1 in document]
-      ⚡ *Action 1:* [First action from ACTION-1 list]
-      ⚡ *Action 2:* [Second action from ACTION-1 list]
-      ⚡ *Action 3:* [Third action from ACTION-1 list, etc.]
+      ⚡ *Action 1:* [Main Action from ACTION-1]
+         • [Sub-setting 1, e.g. 1) RATE CHART ENABLE - ENABLE]
+         • [Sub-setting 2, e.g. 2) AUTO CHART SELECTION...]
+         • [Sub-setting 3, e.g. 3) HIGH-LOW FX RATE...]
 
       📍 *Step 2:* (Only if CHECK-2 exists in document)
       🔍 *Check 2:* [Content from CHECK-2 in document]
-      ⚡ *Action 1:* [First action from ACTION-2 list]
-      ⚡ *Action 2:* [Second action from ACTION-2 list, etc.]
-
-      📍 *Step 3:* (Only if CHECK-3 exists in document)
-      🔍 *Check 3:* [Content from CHECK-3 in document]
-      ⚡ *Action 1:* [First action from ACTION-3 list]
+      ⚡ *Action 1:* [Main Action from ACTION-2 list]
 
     - CRITICAL DOCUMENT MAPPING & EXAMPLE PRESERVATION RULES:
       1. Every distinct Check in the document (CHECK-1, CHECK-2, CHECK-3...) MUST be formatted as its own distinct Step (Step 1, Step 2, Step 3...).
-      2. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). If an action contains sub-numbered configuration settings (e.g. '1) RATE CHART ENABLE', '2) AUTO CHART SELECTION', '3) HIGH-LOW FX RATE'), format them as indented sub-bullets under Action 1 (⚡ Action 1: ENTER THE CORRECT SETTINGS \n   • 1) RATE CHART ENABLE - ENABLE \n   • 2) AUTO CHART SELECTION...), DO NOT list sub-settings as separate main Actions (Action 2, Action 3, Action 4).
+      2. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). Sub-numbered configuration settings (e.g. '1) RATE CHART ENABLE', '2) AUTO CHART SELECTION', '3) HIGH-LOW FX RATE') MUST be indented as sub-bullets under Action 1 (• 1) RATE CHART ENABLE - ENABLE \n • 2) AUTO CHART SELECTION...). DO NOT format sub-settings as separate main Actions (Action 2, Action 3, Action 4).
       3. Under Check 2, list ALL actions corresponding to CHECK-2 from ACTION-2.
       4. PRESERVE ALL EXAMPLES AND BUTTON ENABLE DETAILS VERBATIM: If an action in the document contains an example (e.g. "eg: F 2.0", "EG: FAT LIMIT FAT = 7.0", "ENTER THE RUPEES") or a button enable instruction (e.g. "RATE CHART ENABLE - ENABLE", "HIGH-LOW FX RATE - ENABLE"), YOU MUST INCLUDE THAT EXACT EXAMPLE AND BUTTON ENABLE SETTING IN THE ACTION TEXT!
       5. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
