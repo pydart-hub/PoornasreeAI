@@ -2075,6 +2075,13 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     await updateSession(sessionId, "CHANGE_LANGUAGE", meta);
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
+  if (upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT_REGISTER" || upperChoice === "BOOK_SERVICE") {
+    await updateSession(sessionId, "REGISTER_PROMPT", meta);
+    return makeReply(t("REGISTER_WELCOME", lang), [
+      { id: "REGISTER_MACHINE", title: "📝 Register Machine" },
+      { id: "SKIP", title: "⏭️ Skip for Now" },
+    ]);
+  }
 
   // Free-text query (not matching strict menu digits/buttons) -> Groq Conversational Assistant using DB company & product knowledge
   return runGroqCompanyAssistant(phoneNumber, text, meta);
@@ -2093,6 +2100,29 @@ async function runGroqCompanyAssistant(
   const activeState = options.activeFsmState || meta.previousFsmState || "MAIN_MENU";
   const customerName = meta.customerName || meta.regName || "";
   const namePrompt = customerName ? `The customer's name is ${customerName}. Address them by their name naturally when appropriate.` : "";
+
+  const lowerQuery = query.toLowerCase();
+  const isPhotoRequest =
+    lowerQuery.includes("photo") ||
+    lowerQuery.includes("picture") ||
+    lowerQuery.includes("image") ||
+    lowerQuery.includes("ഫോട്ടോ") ||
+    lowerQuery.includes("പടം");
+
+  if (isPhotoRequest) {
+    try {
+      const photos = settings.companyPhotos ? JSON.parse(settings.companyPhotos) : [];
+      if (Array.isArray(photos) && photos.length > 0) {
+        const photoList = photos.map((p: any) => `📷 *${p.caption}*\n${p.url}`).join("\n\n");
+        return makeReply(
+          `📸 *Poornasree Equipments Head Office & Facility Photos*\n\n${photoList}`,
+          [{ id: "VIEW_PRODUCTS", title: "📦 Browse Products" }]
+        );
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   // Fetch recent conversation history from DB to enable true humanoid multi-turn memory
   let historyMessages: { role: "user" | "assistant"; content: string }[] = [];
@@ -2127,7 +2157,7 @@ async function runGroqCompanyAssistant(
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
-      .filter((w) => w.length > 2 && !["the", "and", "for", "not", "this", "that", "with", "from", "you", "machine", "work", "help"].includes(w));
+      .filter((w) => w.length > 1 && !["the", "and", "for", "this", "that", "with", "from", "you", "machine", "work", "help"].includes(w));
 
     const scoredChunks = allChunks.map((chunk) => {
       const contentLower = chunk.content.toLowerCase();
@@ -2173,10 +2203,16 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
    - If the customer writes in English or any other language, reply in that SAME Language.
 6. PRODUCT COMPARISON REQUESTS:
    - When asked to compare products (e.g. "Ella products um compare cheyamo", "Which model is best?"), compare Poornasree's own models (LactoSure Eco, Eco-S, Eco-V, LactoGrand, Vibro stirrer) using official specs. Never say "I only know about Poornasree equipment" when asked about Poornasree products!
-7. CASUAL & OFF-TOPIC CHAT HANDLING:
-   - For casual greetings, jokes, or off-topic prompts, respond with a friendly, natural 1-sentence human redirection ("Njan Poornasree customer support representative Hari aanu. Machine service aano product enquiry aano venath?"). Never generate hallucinated or broken words.
-8. MULTI-TURN MEMORY: Maintain natural context from recent messages below.
-9. Do NOT invent false facts beyond the official company knowledge below.
+7. CASUAL GREETINGS & PERSONAL QUESTIONS ("Sugam ano"):
+   - "Sugam ano", "How are you", "Enthokkeyundu" are personal friendly greetings ("How are you doing?").
+   - Respond warmly: "Enikku sugamanu! How can I help you with your milk testing machine or product questions today?"
+   - Do NOT say that the machine model is doing well, and do NOT dump technical specs or voltage ratings!
+8. PROFANITY, INSULTS & SLANG SAFEGUARD:
+   - Never echo insults, offensive slang ("mandan"), or informal pronouns ("nee/ni").
+   - Maintain 100% calm, polite, courteous human professionalism: "I apologize if there was any misunderstanding. I am here to help you with your machine or product questions."
+9. OFF-TOPIC CHAT REDIRECTION (Universe, Galaxy, Movies, Jokes):
+   - For off-topic questions (universe, galaxy, movies, jokes), give a polite 1-sentence human redirection ("I am Hari from Poornasree customer support. How can I assist you with your equipment today?").
+   - Do NOT repeat or mention off-topic words in your response.
 10. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
     - When the user asks a troubleshooting or machine complaint question, follow ONLY the exact steps and actions from the MATCHED TROUBLESHOOTING DOCUMENTS below.
     - Follow the EXACT steps and sequence (Step 1, Step 2, etc.) from the document.
