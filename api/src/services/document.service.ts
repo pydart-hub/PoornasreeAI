@@ -502,7 +502,9 @@ export async function processDocument(
             const actionLines: string[] = [];
             let mainActionCount = 0;
             for (const ai of stepData.actionItems) {
-              if (/^\d+[\).\s]/.test(ai)) {
+              if (ai.startsWith("↳ Remark:")) {
+                actionLines.push(`      ${ai}`);
+              } else if (/^(\d+[\).\s]|•|\()/i.test(ai)) {
                 actionLines.push(`      • ${ai}`);
               } else {
                 mainActionCount++;
