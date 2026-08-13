@@ -368,7 +368,15 @@ export async function processDocument(
         const productCell = cells[2] ? String(cells[2]).trim() : "";
         const complaintCell = cells[3] ? String(cells[3]).trim() : "";
 
-        if (productCell) lastProduct = productCell;
+        if (productCell) {
+          let pNorm = productCell;
+          if (/analyzer/i.test(pNorm)) pNorm = "ANALYZER";
+          else if (/ecod/i.test(pNorm)) pNorm = "ECOD";
+          else if (/stirrer/i.test(pNorm)) pNorm = "STIRRER";
+          else if (/scale/i.test(pNorm)) pNorm = "WEIGHING SCALE";
+          else if (/printer/i.test(pNorm)) pNorm = "PRINTER";
+          lastProduct = pNorm;
+        }
         if (complaintCell) lastComplaint = complaintCell;
 
         if (!lastProduct || !lastComplaint) return;
