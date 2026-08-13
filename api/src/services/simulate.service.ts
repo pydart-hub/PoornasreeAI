@@ -1539,7 +1539,7 @@ async function routeState(
   phoneNumber: string,
   text: string,
   meta: SessionMeta,
-) {
+): Promise<any> {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
@@ -2677,9 +2677,13 @@ async function showTicketStatus(sessionId: string, phoneNumber: string, meta: Se
 }
 
 // ── COMPLAINT_ASK_SERIAL ──────────────────────────────────────────────────
-async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string): Promise<any> {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
+
+  if (upper === "VIEW_PRODUCTS" || upper === "PRODUCTS" || upper.startsWith("CAT_") || upper.startsWith("PROD_")) {
+    return routeState({ id: sessionId, state: "VIEW_PRODUCTS" }, phoneNumber, text, meta);
+  }
 
   if (upper === "SKIP" || upper === "0") {
     const clearedMeta: SessionMeta = { ...meta, machineData: null, serialNumber: undefined, tsSerialPath: false };
