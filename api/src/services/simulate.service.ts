@@ -1544,7 +1544,7 @@ async function routeState(
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "TROUBLESHOOT_RESOLVED" || upper === "RESOLVED" || (upper.includes("SOLVED") && !upper.includes("NOT"))) {
+  if (upper === "TROUBLESHOOT_RESOLVED" || upper === "RESOLVED" || upper === "SOLVED" || upper === "PROBLEM FIXED") {
     await updateSession(session.id, "MAIN_MENU", meta);
     return makeReply(
       `🎉 *Glad we could help!* Your issue has been marked as resolved.\n\nPlease select an option from the menu below if you need anything else:`,
