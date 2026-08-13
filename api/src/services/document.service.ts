@@ -416,7 +416,10 @@ export async function processDocument(
 
           let activeStep: CheckStepData | undefined;
 
-          if (check) {
+          // A cell is ONLY a Check title if it explicitly starts with CHECK / TO CHECK
+          const isRealCheckTitle = /^CHECK|^TO CHECK/i.test(check);
+
+          if (check && isRealCheckTitle) {
             activeStep = group.checksList.find(c => c.checkTitle.toLowerCase() === check.toLowerCase());
             if (!activeStep) {
               activeStep = { checkTitle: check, actionItems: [] };
