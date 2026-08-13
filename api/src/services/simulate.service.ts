@@ -2356,23 +2356,28 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 10. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
     - When MATCHED TROUBLESHOOTING DOCUMENTS exist below, follow the exact multi-check and multi-action flow from the document:
 
-      📍 *Step 1:*
-      🔍 *Check 1:* [Content from CHECK-1 in document]
-      ⚡ *Action 1:* [Main Action from ACTION-1]
-         • [Sub-setting 1, e.g. 1) RATE CHART ENABLE - ENABLE]
-         • [Sub-setting 2, e.g. 2) AUTO CHART SELECTION...]
-
-      📍 *Step 2:* (Only if CHECK-2 exists in document)
-      🔍 *Check 2:* [Content from CHECK-2 in document]
-      ⚡ *Action 1:* [Main Action from ACTION-2 list]
-
-      📍 *Step 3:* (Only if CHECK-3 exists in document)
-      🔍 *Check 3:* [Content from CHECK-3 in document]
-      ⚡ *Action 1:* [Main Action from ACTION-3 list]
-
-      📍 *Step 4:* (Include ALL remaining Check steps: Step 4, Step 5, Step 6...)
-      🔍 *Check 4:* [Content from CHECK-4 in document]
-      ⚡ *Action 1:* [Main Action from ACTION-4 list]
+      📍 *Step 1:* 
+      🔍 *Check 1:* CHECK THE RATE CHART SETTINGS ENTERED PROPERLY 
+      ⚡ *Action 1:* ENTER THE CORRECT SETTINGS
+      • 1) RATE CHART ENABLE - ENABLE
+      • 2) AUTO CHART SELECTION AND LIMIT SET - ( PURPOSE COW CHART TO BUFFALO CHART SEARCHING )
+         ↳ Remark: EG: FAT LIMIT FAT = 7.0 | BELOW FAT 7.0 RATE TAKEN FROM COW CHART AND ABOVE 7.0 FATE THE RATE TAKEN FROM BUFFALO CHART
+      • 3) HIGH-LOW FX RATE - * ENABLE *
+         ↳ Remark: A FIXED RATE ADDED IN THE RESULT FOR THE BELOW FAT LIMIT (eg: F 2.00 ) AND ABOVE FAT LIMIT (eg: F 12.00 )
+      • 4) LOW LIMIT FAT - eg: F 2.0
+         ↳ Remark: BELOW FAT 2.0 - A FIXED RATE TAKEN
+      • 5) HIGH LIMIT FAT - eg: F 12.0
+      • 6) ENTER LOW FAT FIXED RATE = ENTER THE RUPEES
+      • 7) ENTER HIGH FAT FIXED RATE = ENTER THE RUPEES
+      • 8) RATE CHART SELECTION - METHOD/IMPORT FROM PENDRIVE
+      • RATE TAKEN COMBINATION - FAT&SNF, FAT&CLR, FAT ONLY, CLR ONLY
+         ↳ Remark: ITS USE THE RATE TAKEN FROM THE FAT AND SNF READING BASIS
+      • 1) ENTER START FAT - FOR THE IMPORT FILE
+      • 2) ENTER END FAT - FOR THE IMPORT FILE
+      • 3) ENTER START SNF - FOR THE IMPORT FILE
+      • 4) ENTER END SNF - FOR THE IMPORT FILE
+      • THEN IMPORT FILE FROM USB
+         ↳ Remark: IF ANY WRONG RATE SHOWN AT THE "CHECK RATE" OPERATION --- CHECK THE "AUTO CHART IS ENABLE" AND ALSO CHECK THAT RANGE
 
     - CRITICAL DOCUMENT MAPPING & COMPLETE UN-TRUNCATED OUTPUT RULES:
       1. ABSOLUTELY DO NOT SUMMARIZE OR CONVERT STEPS INTO A PARAGRAPH! You MUST ALWAYS format the response using 📍 Step 1:, 🔍 Check 1:, ⚡ Action 1:, and • bullet points for all sub-items and ↳ Remark: for remarks!
