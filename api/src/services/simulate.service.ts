@@ -2155,8 +2155,32 @@ async function runGroqCompanyAssistant(
         return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOGRAND");
       }
 
-      // 3. General Product Catalog intent
-      if (cleanQ === "products" || cleanQ === "catalog" || cleanQ === "browse products" || cleanQ === "view_products" || cleanQ.includes("show products") || cleanQ.includes("product details")) {
+      // 3. General Product Catalog intent (English, Manglish & Malayalam Script)
+      const isCatalogQuery =
+        cleanQ === "products" ||
+        cleanQ === "catalog" ||
+        cleanQ === "view_products" ||
+        cleanQ.includes("browse product") ||
+        cleanQ.includes("show product") ||
+        cleanQ.includes("product detail") ||
+        cleanQ.includes("product list") ||
+        cleanQ.includes("product info") ||
+        cleanQ.includes("product kaanik") ||
+        cleanQ.includes("product kanik") ||
+        cleanQ.includes("product undo") ||
+        cleanQ.includes("product ond") ||
+        cleanQ.includes("product ethokke") ||
+        cleanQ.includes("products ethokke") ||
+        cleanQ.includes("products kanik") ||
+        cleanQ.includes("products kaanik") ||
+        cleanQ.includes("products undo") ||
+        cleanQ.includes("products ond") ||
+        cleanQ.includes("kaanikamo") ||
+        cleanQ.includes("kanikamo") ||
+        cleanQ.includes("മോഡലുകൾ") ||
+        cleanQ.includes("ഉല്പന്നങ്ങൾ");
+
+      if (isCatalogQuery) {
         return showProducts(targetSessionId, meta);
       }
     } catch (pErr) {
