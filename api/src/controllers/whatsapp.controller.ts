@@ -361,9 +361,9 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // Handle image uploads
-  if (msg.type === "image") {
-    await handleCustomerImage(from, msg);
+  // Handle media uploads (image, video, audio/voice, document)
+  if (msg.type === "image" || msg.type === "video" || msg.type === "audio" || msg.type === "voice" || msg.type === "document") {
+    await handleCustomerMedia(from, msg);
     return;
   }
 
@@ -540,16 +540,17 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
 
 
 
-async function handleCustomerImage(
+async function handleCustomerMedia(
   from: string,
   msg: Record<string, unknown>,
 ): Promise<void> {
-  const image = msg.image as Record<string, unknown> | undefined;
-  const mediaId = String(image?.id ?? "");
-  const caption = String(image?.caption ?? "").trim();
+  const mediaObj = (msg.image || msg.video || msg.audio || msg.voice || msg.document) as Record<string, unknown> | undefined;
+  const mediaId = String(mediaObj?.id ?? "");
+  const caption = String(mediaObj?.caption ?? "").trim();
+  const mediaType = String(msg.type ?? "image");
 
   if (!mediaId) {
-    await WhatsAppService.sendMessage(from, "⚠️ Could not read the image. Please try again.");
+    await WhatsAppService.sendMessage(from, "⚠️ Could not read the attachment. Please try again.");
     return;
   }
 
@@ -567,18 +568,27 @@ async function handleCustomerImage(
     if (!metaUrlRes.ok) throw new Error(`Media URL fetch failed: ${metaUrlRes.status}`);
     const metaUrlJson = (await metaUrlRes.json()) as { url?: string; mime_type?: string };
     const downloadUrl = metaUrlJson.url;
-    const mimeType    = metaUrlJson.mime_type ?? "image/jpeg";
+    const mimeType    = metaUrlJson.mime_type ?? (mediaType === "video" ? "video/mp4" : mediaType === "audio" || mediaType === "voice" ? "audio/ogg" : "image/jpeg");
     if (!downloadUrl) throw new Error("No download URL in Meta response");
 
-    // Step 2: Download the image binary
+    // Step 2: Download the media binary
     const imgRes = await fetch(downloadUrl, {
       headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
     });
-    if (!imgRes.ok) throw new Error(`Image download failed: ${imgRes.status}`);
+    if (!imgRes.ok) throw new Error(`Media download failed: ${imgRes.status}`);
     const buffer = Buffer.from(await imgRes.arrayBuffer());
 
     // Step 3: Save to disk
-    const ext      = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+    let ext = "bin";
+    if (mimeType.includes("png")) ext = "png";
+    else if (mimeType.includes("webp")) ext = "webp";
+    else if (mimeType.includes("jpeg") || mimeType.includes("jpg")) ext = "jpg";
+    else if (mimeType.includes("mp4")) ext = "mp4";
+    else if (mimeType.includes("webm")) ext = "webm";
+    else if (mimeType.includes("ogg")) ext = "ogg";
+    else if (mimeType.includes("mp3")) ext = "mp3";
+    else if (mimeType.includes("pdf")) ext = "pdf";
+
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-wa.${ext}`;
     const dir      = path.resolve(__dirname, "../../uploads/customer-uploads");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -591,7 +601,7 @@ async function handleCustomerImage(
       data: {
         phoneNumber: from,
         role: "user",
-        content: caption || "Sent an image",
+        content: caption || `Sent a ${mediaType}`,
         mediaUrl: relativeUrl,
       },
     });
@@ -605,25 +615,31 @@ async function handleCustomerImage(
       });
     }
 
-    // Step 6: Check if chatbot is paused
+    // Step 6: Check if chatbot is in complaint attachment flow or paused
     const session = await prisma.conversationSession.findFirst({
       where: { phoneNumber: from },
       orderBy: { updatedAt: "desc" },
     });
 
     if (session?.isBotPaused) {
-      // Bot is paused, support agent will handle manually. Do not respond.
       return;
     }
 
-    // If chatbot is active, respond with a helpful notification
+    // If session is in complaint media state or confirmation, route media URL directly to SimulateService!
+    if (session && (session.state === "AWAIT_COMPLAINT_MEDIA" || session.state === "CONFIRM_REGISTER_TICKET")) {
+      const result = await SimulateService.handleMessage(from, relativeUrl);
+      await deliverBotReply(from, result);
+      return;
+    }
+
+    // Default media acknowledgement
     await WhatsAppService.sendMessage(
       from,
-      "📸 Thank you for sharing the photo! Our support team has been notified. You can also describe your issue in detail or type *MENU* to see options."
+      `📎 Thank you for sharing your ${mediaType}! Our support team has been notified. You can also describe your issue in detail or type *MENU* to see options.`
     );
 
   } catch (e: unknown) {
-    console.error("[whatsapp] handleCustomerImage error:", e);
-    await WhatsAppService.sendMessage(from, "⚠️ Failed to process the image. Please try again.");
+    console.error("[whatsapp] Error processing media:", e);
+    await WhatsAppService.sendMessage(from, "⚠️ Failed to process media upload. Please try again.");
   }
 }

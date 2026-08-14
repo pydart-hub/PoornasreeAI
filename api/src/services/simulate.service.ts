@@ -3116,19 +3116,21 @@ async function handleAwaitComplaintMedia(sessionId: string, phoneNumber: string,
     return handleConfirmRegisterTicket(sessionId, phoneNumber, meta, "CONFIRM_BOOK_TICKET");
   }
 
-  if (upper === "SKIP" || upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU") {
+  if (upper === "SKIP" || upper === "REVIEW" || upper === "REVIEW_SUMMARY" || upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU") {
     return startComplaintRegistration(sessionId, phoneNumber, meta, lang);
   }
 
   const currentUrls = meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []);
   let newMediaUrl: string | undefined;
 
-  if (text.startsWith("http://") || text.startsWith("https://")) {
+  if (text.startsWith("http://") || text.startsWith("https://") || text.startsWith("/uploads/")) {
     newMediaUrl = text.trim();
   }
 
   if (newMediaUrl) {
-    currentUrls.push(newMediaUrl);
+    if (!currentUrls.includes(newMediaUrl)) {
+      currentUrls.push(newMediaUrl);
+    }
   } else if (text.length >= 3 && !upper.startsWith("ATTACH_")) {
     meta.complaint = `${meta.complaint || "Issue"}\n(Note: ${text})`;
   }
@@ -3139,7 +3141,25 @@ async function handleAwaitComplaintMedia(sessionId: string, phoneNumber: string,
     complaintMediaUrl: currentUrls[0] || meta.complaintMediaUrl,
   };
 
-  return startComplaintRegistration(sessionId, phoneNumber, updatedMeta, lang);
+  await updateSession(sessionId, "AWAIT_COMPLAINT_MEDIA", updatedMeta);
+
+  const fileCount = currentUrls.length;
+  if (fileCount === 0) {
+    return startComplaintRegistration(sessionId, phoneNumber, updatedMeta, lang);
+  }
+
+  const lastUrl = currentUrls[currentUrls.length - 1] || "";
+  const mediaTypeBadge = lastUrl.includes(".mp4") || lastUrl.includes("video") ? "📹 Video Clip" : lastUrl.includes(".ogg") || lastUrl.includes(".mp3") || lastUrl.includes("audio") ? "🎙️ Voice Note" : "📷 Photo / Attachment";
+
+  return makeReply(
+    `✅ *Attachment Received! (${fileCount} File${fileCount > 1 ? "s" : ""} Attached)* ${mediaTypeBadge}\n\n` +
+    `You can send another photo, video, or audio voice note now, or click *Review & Confirm* to review your complaint summary.`,
+    [
+      { id: "ATTACH_COMPLAINT_MEDIA", title: "➕ Add Another Media" },
+      { id: "REVIEW_SUMMARY", title: "✅ Review & Confirm" },
+      { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm Ticket" },
+    ]
+  );
 }
 
 // ── COMPLAINT_ASK_SERIAL ──────────────────────────────────────────────────
