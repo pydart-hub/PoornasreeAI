@@ -13,6 +13,8 @@ import {
   type StageSlug,
 } from "../lib/ticket-export.mapper";
 
+import { io } from "../lib/socket";
+
 export type IntegrationEvent =
   | "ticket.created"
   | "ticket.assigned"
@@ -32,6 +34,19 @@ const EVENT_STAGE: Partial<Record<IntegrationEvent, StageSlug>> = {
 
 /** Fire-and-forget webhook; never throws to callers. */
 export function notifyTicketEvent(event: IntegrationEvent, ticketId: string): void {
+  // Real-time broadcast to all connected dashboards & mobile apps
+  try {
+    if (io) {
+      io.emit("ticket:updated", { ticketId, event });
+      io.emit("ticket:new", { ticketId, event });
+      if (event === "ticket.closed") {
+        io.emit("ticket:closed", { ticketId, event });
+      }
+    }
+  } catch (err) {
+    console.error("[socket broadcast] error:", err);
+  }
+
   if (!runtime.integrationWebhookUrl()) return;
 
   void (async () => {
@@ -58,6 +73,19 @@ export function notifyTicketEventWithTicket(
   ticket: Parameters<typeof toStageExportDto>[0],
   stageOverride?: StageSlug,
 ): void {
+  // Real-time broadcast to all connected dashboards & mobile apps
+  try {
+    if (io) {
+      io.emit("ticket:updated", { ticketId: ticket.id, event });
+      io.emit("ticket:new", { ticketId: ticket.id, event });
+      if (event === "ticket.closed") {
+        io.emit("ticket:closed", { ticketId: ticket.id, event });
+      }
+    }
+  } catch (err) {
+    console.error("[socket broadcast] error:", err);
+  }
+
   if (!runtime.integrationWebhookUrl()) return;
 
   const stage = stageOverride ?? EVENT_STAGE[event] ?? STAGE_BY_STATUS[ticket.status as TicketStatus];

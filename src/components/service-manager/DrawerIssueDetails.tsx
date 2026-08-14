@@ -53,6 +53,17 @@ export function DrawerIssueDetails({ ticket }: DrawerIssueDetailsProps) {
             </div>
           </div>
         )}
+        {/* Closure reason / note */}
+        {ticket.dealerNote && (
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-2.5">
+            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase block mb-0.5">
+              Closure Note / Reason
+            </span>
+            <p className="text-xs text-emerald-900 dark:text-emerald-200 leading-relaxed whitespace-pre-wrap font-medium">
+              {ticket.dealerNote}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

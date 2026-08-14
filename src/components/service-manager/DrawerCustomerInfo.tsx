@@ -11,7 +11,7 @@ interface DrawerCustomerInfoProps {
 }
 
 export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoProps) {
-  const [addressOpen, setAddressOpen] = useState(false);
+  const [addressOpen, setAddressOpen] = useState(true);
   const issueMeta = parseTicketDescription(ticket.issueDescription || "");
   const descMeta = parseTicketDescription(ticket.problemDescription || "");
 
@@ -19,7 +19,6 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
   const phone = ticket.phoneNumber || issueMeta.phone || descMeta.phone;
 
   // Only show the registered account email when the customer relation IS the actual customer
-  // (not the admin proxy used for chat-submitted tickets where machineCustomer/issueDescription holds the real name)
   const isAdminProxy = !!(customerName && ticket.customer?.role === "admin");
   const customerEmail = isAdminProxy ? null : (ticket.customer?.email ?? null);
 
@@ -32,6 +31,36 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
     ticket.pincode ||
     issueMeta.location ||
     descMeta.location;
+
+  // Extract map URL from any available field
+  const fullTextToSearch = [
+    ticket.customerAddress,
+    ticket.issueDescription,
+    ticket.problemDescription,
+  ].filter(Boolean).join(" ");
+
+  const gmapMatch = fullTextToSearch.match(
+    /(https?:\/\/[^\s]+maps[^\s]+|https?:\/\/maps\.google[^\s]+|https?:\/\/goo\.gl[^\s]+|https?:\/\/maps\.app\.goo\.gl[^\s]+)/i
+  );
+  const gmapUrl = gmapMatch ? gmapMatch[0] : null;
+
+  const searchQuery = [
+    ticket.customerAddress?.replace(/\| Map: https?:\/\/[^\s]+/i, ""),
+    ticket.machineAddress1,
+    ticket.pincode?.place,
+    ticket.pincode?.district,
+    ticket.pincode?.state,
+    ticket.pincode?.code,
+    "India",
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const targetUrl =
+    gmapUrl ||
+    (searchQuery
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`
+      : null);
 
   if (!customerName && !phone && !hasAddress) return null;
 
@@ -50,19 +79,35 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
         {phone && (
           <a
             href={`tel:${phone}`}
-            className="inline-flex items-center gap-1.5 text-xs text-primary dark:text-blue-400 hover:underline font-medium"
+            className="inline-flex items-center gap-1.5 text-xs text-primary dark:text-blue-400 hover:underline font-medium block"
           >
             <Phone className="w-3 h-3" />
             {phone}
           </a>
         )}
 
-        {/* Email — only shown for real registered customer accounts */}
+        {/* Email */}
         {customerEmail && (
           <p className="text-xs text-content-secondary dark:text-content-dark-secondary">{customerEmail}</p>
         )}
 
-        {/* Address (collapsed by default) */}
+        {/* Prominent Always-Visible Map Location Badge */}
+        {targetUrl && (
+          <div className="pt-0.5 pb-1">
+            <a
+              href={targetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-400 dark:border-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors shadow-xs"
+            >
+              <Compass className="w-4 h-4 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
+              <span>🗺️ Google Maps Location</span>
+              <ExternalLink className="w-3 h-3 opacity-70 flex-shrink-0 ml-0.5" />
+            </a>
+          </div>
+        )}
+
+        {/* Address Details */}
         {hasAddress && (
           <div>
             <button
@@ -70,41 +115,31 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
               className="flex items-center gap-1 text-xs text-content-tertiary dark:text-content-dark-tertiary hover:text-content-secondary dark:hover:text-content-dark-secondary transition-colors"
             >
               {addressOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              {addressOpen ? "Hide Address" : "Show Address"}
+              {addressOpen ? "Hide Location Details" : "Show Location Details"}
             </button>
             {addressOpen && (
               <div className="mt-1.5 text-xs text-content-secondary dark:text-content-dark-secondary space-y-1 pl-4 border-l-2 border-line dark:border-line-dark">
                 {(ticket.customerAddress || chatAddress) && (
-                  <p className="font-medium text-content dark:text-content-dark">📍 {ticket.customerAddress || chatAddress}</p>
+                  <p className="font-medium text-content dark:text-content-dark">
+                    📍 {ticket.customerAddress || chatAddress}
+                  </p>
                 )}
                 {ticket.machineAddress1 && <p>{ticket.machineAddress1}</p>}
                 {ticket.machineAddress2 && <p>{ticket.machineAddress2}</p>}
                 {ticket.pincode && (
-                  <p>{ticket.pincode.code} · {[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state].filter(Boolean).join(", ")}</p>
+                  <p>
+                    {ticket.pincode.code} ·{" "}
+                    {[ticket.pincode.place, ticket.pincode.district, ticket.pincode.state]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
                 )}
-                {!ticket.machineAddress1 && !ticket.machineAddress2 && !ticket.pincode && (issueMeta.location || descMeta.location) && (
-                  <p>{issueMeta.location || descMeta.location}</p>
-                )}
-                {(() => {
-                  const gmapMatch = (ticket.customerAddress || ticket.issueDescription || ticket.problemDescription || "").match(/(https?:\/\/[^\s]+maps[^\s]+|https?:\/\/maps\.google[^\s]+|https?:\/\/goo\.gl[^\s]+)/i);
-                  const gmapUrl = gmapMatch ? gmapMatch[0] : null;
-                  const searchQuery = [ticket.customerAddress, ticket.machineAddress1, ticket.pincode?.place, ticket.pincode?.district, ticket.pincode?.state, ticket.pincode?.code, "India"].filter(Boolean).join(", ");
-                  const targetUrl = gmapUrl || (searchQuery ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}` : null);
-                  
-                  if (!targetUrl) return null;
-                  return (
-                    <a
-                      href={targetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-md hover:bg-emerald-200 transition-colors w-fit mt-1 shadow-xs"
-                    >
-                      <Compass className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 flex-shrink-0" />
-                      <span>Open Map 📍</span>
-                      <ExternalLink className="w-2.5 h-2.5 opacity-70 flex-shrink-0" />
-                    </a>
-                  );
-                })()}
+                {!ticket.machineAddress1 &&
+                  !ticket.machineAddress2 &&
+                  !ticket.pincode &&
+                  (issueMeta.location || descMeta.location) && (
+                    <p>{issueMeta.location || descMeta.location}</p>
+                  )}
               </div>
             )}
           </div>

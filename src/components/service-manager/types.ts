@@ -57,6 +57,7 @@ export interface ServiceTicket {
   pincode?: PincodeInfo | null;
   phoneNumber?: string | null;
   customerAddress?: string | null;
+  dealerNote?: string | null;
 }
 
 export interface Dealer {

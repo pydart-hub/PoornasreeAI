@@ -760,3 +760,25 @@ export async function dealerUpdateNote(ticketId: string, dealerUserId: string, n
     include: TICKET_INCLUDE,
   });
 }
+
+// ── closeCustomerTicket ───────────────────────────────────────────────────
+export async function closeCustomerTicket(ticketId: string, reason: string) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw Object.assign(new Error("Ticket not found"), { status: 404 });
+  if (ticket.status === TicketStatus.CLOSED) {
+    return ticket;
+  }
+
+  const updated = await prisma.ticket.update({
+    where: { id: ticketId },
+    data: {
+      status: TicketStatus.CLOSED,
+      closedAt: new Date(),
+      dealerNote: reason ? `Closed by customer. Reason: ${reason}` : "Closed by customer",
+    },
+    include: TICKET_INCLUDE,
+  });
+
+  notifyTicketEvent("ticket.closed", ticketId);
+  return updated;
+}

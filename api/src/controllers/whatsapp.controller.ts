@@ -615,11 +615,8 @@ async function handleCustomerMedia(
       });
     }
 
-    // Step 6: Check if chatbot is in complaint attachment flow or paused
-    const session = await prisma.conversationSession.findFirst({
-      where: { phoneNumber: from },
-      orderBy: { updatedAt: "desc" },
-    });
+    // Step 6: Get or create active session matching phone number (with or without 91 prefix)
+    const session = await SimulateService.getOrCreateSession(from);
 
     if (session?.isBotPaused) {
       return;
@@ -627,6 +624,7 @@ async function handleCustomerMedia(
 
     // If session is in complaint media state or confirmation, route media URL directly to SimulateService!
     if (session && (session.state === "AWAIT_COMPLAINT_MEDIA" || session.state === "CONFIRM_REGISTER_TICKET")) {
+      console.log(`[whatsapp] User ${from} (session ${session.phoneNumber}) uploaded media in state ${session.state}: ${relativeUrl}`);
       const result = await SimulateService.handleMessage(from, relativeUrl);
       await deliverBotReply(from, result);
       return;
