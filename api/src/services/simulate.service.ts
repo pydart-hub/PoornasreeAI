@@ -1672,8 +1672,59 @@ async function routeState(
     case "FEEDBACK_RATING":
       return handleFeedbackRating(session.id, meta, text);
 
-    case "FEEDBACK_SATISFIED":
-      return handleFeedbackSatisfied(session.id, meta, text);
+    case "MACHINE_CONFIRM":
+      return handleMachineConfirm(session.id, meta, text);
+
+    case "COMPLAINT_CATEGORY":
+      return handleComplaintCategory(session.id, meta, text);
+
+    case "COMPLAINT_PRODUCT":
+      return handleComplaintProduct(session.id, phoneNumber, meta, text);
+
+    case "COMPLAINT_SUBCATEGORY":
+      return handleComplaintSubcategory(session.id, phoneNumber, meta, text);
+
+    case "COMPLAINT_DESCRIBE":
+      return handleComplaintDescribe(session.id, phoneNumber, meta, text);
+
+    case "TROUBLESHOOT_STEP":
+      return handleTroubleshootStep(session.id, phoneNumber, meta, text);
+
+    case "TROUBLESHOOT_DONE_OPTIONS":
+      return handleTroubleshootDoneOptions(session.id, phoneNumber, meta, text);
+
+    case "ASK_VIDEO_TUTORIAL":
+      return handleAskVideoTutorial(session.id, phoneNumber, meta, text);
+
+    case "VIDEO_HELPED":
+      return handleVideoHelped(session.id, phoneNumber, meta, text);
+
+    case "ANOTHER_COMPLAINT_PROMPT":
+      return handleAnotherComplaintPrompt(session.id, phoneNumber, meta, text);
+
+    case "ASK_BOOK_SERVICE":
+      return handleAskBookService(session.id, phoneNumber, meta, text);
+
+    case "COMPLAINT_MANUAL_NAME":
+      return handleComplaintManualName(session.id, meta, text);
+
+    case "COMPLAINT_MANUAL_PINCODE":
+      return handleComplaintManualPincode(session.id, phoneNumber, meta, text);
+
+    case "COMPLAINT_MANUAL_PINCODE_CONFIRM":
+      return handleComplaintManualPincodeConfirm(session.id, phoneNumber, meta, text);
+
+    case "END_CUSTOMER_ADDRESS":
+      return handleEndCustomerAddress(session.id, phoneNumber, meta, text);
+
+    case "PASSTEST_CUSTOMER_NAME":
+      return handlePasstestCustomerName(session.id, phoneNumber, meta, text);
+
+    case "PASSTEST_PINCODE":
+      return handlePasstestPincode(session.id, meta, text);
+
+    case "PASSTEST_PINCODE_CONFIRM":
+      return handlePasstestPincodeConfirm(session.id, phoneNumber, meta, text);
 
     default:
       return startGreeting(phoneNumber);
