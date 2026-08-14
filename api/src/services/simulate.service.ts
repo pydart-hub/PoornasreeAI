@@ -86,6 +86,8 @@ type SessionMeta = {
   regCustomerId?: string;
   regIsDealerMachine?: boolean;
   hasSkippedRegistration?: boolean;
+  role?: string;
+  isEngineer?: boolean;
   /** Product browsing */
   selectedCategory?: string;
   selectedProductId?: string;
@@ -1242,7 +1244,40 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     return makeReply("");
   }
 
-  const meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
+  let meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
+
+  // Auto-detect if user is registered in User table (especially Engineers) if meta.role / meta.isEngineer is unpopulated
+  if (!meta.role && !meta.isEngineer) {
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+    const dbUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { whatsappNumber: { contains: last10 } },
+          { whatsappNumber: phoneNumber },
+          { whatsappNumber: "91" + last10 },
+          { whatsappNumber: "+91" + last10 },
+        ],
+      },
+      select: { id: true, firstName: true, lastName: true, role: true },
+    });
+    if (dbUser) {
+      const isEng = ["service_engineer", "service", "service_manager", "assistant_service_manager", "admin", "super_admin", "engineer"].includes(dbUser.role.toLowerCase());
+      const displayName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ").trim() || (isEng ? "Service Engineer" : "Customer");
+      meta = {
+        ...meta,
+        role: dbUser.role,
+        isEngineer: isEng,
+        regCustomerId: dbUser.id,
+        regName: displayName,
+        customerName: displayName,
+        hasSkippedRegistration: isEng ? true : meta.hasSkippedRegistration,
+      };
+      const nextState = (session.state === "REGISTER_PROMPT" || session.state === "REGISTER_SERIAL") && isEng ? "MAIN_MENU" : session.state;
+      await updateSession(session.id, nextState, meta);
+    }
+  }
+
   const lang: Lang = (meta.language ?? "en") as Lang;
 
   // ── Groq conversational agent (feature-flagged) ─────────────────────────
@@ -1487,32 +1522,47 @@ async function handleGlobalBack(
 // ── Greeting / Registration check ─────────────────────────────────────────
 export async function startGreeting(phoneNumber: string) {
   const session = await getOrCreateSession(phoneNumber);
-  const existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
+  let existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (existingMeta.language ?? "en") as Lang;
 
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
   const registeredUser = await prisma.user.findFirst({
     where: {
-      role: "customer",
       OR: [
         { whatsappNumber: { contains: last10 } },
         { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
       ],
     },
-    select: { id: true, firstName: true, lastName: true, whatsappNumber: true },
+    select: { id: true, firstName: true, lastName: true, role: true, whatsappNumber: true },
   });
 
   if (registeredUser) {
-    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || "Customer";
+    const isEng = ["service_engineer", "service", "service_manager", "assistant_service_manager", "admin", "super_admin", "engineer"].includes(registeredUser.role.toLowerCase());
+    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || (isEng ? "Service Engineer" : "Customer");
     const meta: SessionMeta = {
+      ...existingMeta,
       customerName: displayName,
       customerPhone: phoneNumber,
       regCustomerId: registeredUser.id,
       regName: displayName,
       language: existingMeta.language,
+      role: registeredUser.role,
+      isEngineer: isEng,
+      hasSkippedRegistration: isEng ? true : existingMeta.hasSkippedRegistration,
     };
     await updateSession(session.id, "MAIN_MENU", meta);
+
+    if (isEng) {
+      return makeReply(
+        `🔧 *Welcome, Service Engineer ${displayName}!*\n\nHow can I assist you today? You can search machine troubleshooting steps, query training manuals, view R&D videos, or assist customers.`,
+        undefined,
+        await getContextualMainMenuList(phoneNumber, lang)
+      );
+    }
+
     // Show welcome back WITHOUT the duplicate GREETING_HEADER prefix
     return makeReply(
       t("WELCOME_BACK", lang, { name: displayName }) +
