@@ -2570,7 +2570,10 @@ ${settings.companyAddress || ""}
 
       let buttons: ReplyButton[] | undefined = undefined;
 
-      if (activeState === "COMPLAINT_ASK_SERIAL" || activeState === "REGISTER_SERIAL") {
+      if (meta.isEngineer) {
+        // Service engineers interact via direct text & troubleshooting without buttons
+        buttons = undefined;
+      } else if (activeState === "COMPLAINT_ASK_SERIAL" || activeState === "REGISTER_SERIAL") {
         buttons = [
           { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
           { id: "SKIP", title: "⏭️ Skip Serial" },
