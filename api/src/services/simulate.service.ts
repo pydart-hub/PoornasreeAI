@@ -2248,7 +2248,12 @@ async function runGroqCompanyAssistant(
     }
   }
 
-  // Intercept explicit product, category, or catalog requests from chat
+  // Save user's query into session metadata for smart complaint registration
+  if (targetSessionId && query.length >= 3 && !query.toUpperCase().startsWith("CONFIRM_") && !query.toUpperCase().startsWith("TROUBLESHOOT_")) {
+    meta.complaint = query;
+    meta.videoSearchQuery = query;
+    await updateSession(targetSessionId, options.activeFsmState || "MAIN_MENU", meta).catch(() => {});
+  }
   if (targetSessionId) {
     try {
       const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
