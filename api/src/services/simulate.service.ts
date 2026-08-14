@@ -3013,7 +3013,8 @@ export async function startComplaintRegistration(
     const district = updatedMeta.manualDistrict || updatedMeta.regDistrict || "Ernakulam";
     const state = updatedMeta.manualState || updatedMeta.regState || "Kerala";
     const pincode = updatedMeta.manualPincode || updatedMeta.regPincode || "682001";
-    const address = updatedMeta.manualAddress || updatedMeta.regAddress || regMachine?.Address1 || "123 MG Road, Ernakulam, Kochi";
+    const rawAddress = (updatedMeta.manualAddress || updatedMeta.regAddress || regMachine?.Address1 || "").replace(/[^\x20-\x7E\n\r]/g, "").trim();
+    const address = rawAddress || "Address not provided";
     
     // Auto-fill pincode/address into manual fields if not set yet so ticket creation receives them
     if (!updatedMeta.manualPincode) updatedMeta.manualPincode = pincode;
@@ -3109,6 +3110,16 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
 
 async function handleAwaitComplaintMedia(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "CONFIRM" || upper === "CONFIRM_BOOK_TICKET" || upper === "YES" || upper === "1") {
+    return handleConfirmRegisterTicket(sessionId, phoneNumber, meta, "CONFIRM_BOOK_TICKET");
+  }
+
+  if (upper === "SKIP" || upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU") {
+    return startComplaintRegistration(sessionId, phoneNumber, meta, lang);
+  }
+
   const currentUrls = meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []);
   let newMediaUrl: string | undefined;
 
@@ -3118,6 +3129,8 @@ async function handleAwaitComplaintMedia(sessionId: string, phoneNumber: string,
 
   if (newMediaUrl) {
     currentUrls.push(newMediaUrl);
+  } else if (text.length >= 3 && !upper.startsWith("ATTACH_")) {
+    meta.complaint = `${meta.complaint || "Issue"}\n(Note: ${text})`;
   }
 
   const updatedMeta: SessionMeta = {
