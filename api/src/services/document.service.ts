@@ -34,6 +34,44 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   throw new Error("pdf-parse: no usable export found");
 }
 
+function formatTrainingDataSteps(rawStr: string): string {
+  if (!rawStr) return "";
+  const lines = rawStr.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const formattedLines: string[] = [];
+  let stepCount = 0;
+
+  for (const line of lines) {
+    // Check if line is a numbered step: e.g. "1. CHECK THE FUSE -> REPLACE FUSE."
+    const stepMatch = line.match(/^(\d+)[\.\)]\s*(.*)/);
+    if (stepMatch) {
+      stepCount++;
+      const content = stepMatch[2].trim();
+      
+      if (content.includes("->")) {
+        const parts = content.split("->").map(p => p.trim());
+        const checkText = parts[0];
+        const actionText = parts.slice(1).join(" -> ");
+        formattedLines.push(`📍 *Step ${stepCount}:*`);
+        formattedLines.push(`🔍 *Check ${stepCount}:* ${checkText}`);
+        formattedLines.push(`⚡ *Action 1:* ${actionText}`);
+      } else {
+        formattedLines.push(`📍 *Step ${stepCount}:*`);
+        formattedLines.push(`🔍 *Check ${stepCount}:* ${content}`);
+        formattedLines.push(`⚡ *Action 1:* ${content}`);
+      }
+    } else if (line.startsWith("•") || line.startsWith("-")) {
+      formattedLines.push(`   ${line}`);
+    }
+  }
+
+  if (stepCount > 0) {
+    formattedLines.push(`\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`);
+    return formattedLines.join("\n");
+  }
+
+  return rawStr; // Fallback to original string if not numbered
+}
+
 // ── Text extraction for non-JSON files ───────────────────────────────
 
 async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
@@ -635,10 +673,13 @@ export async function processDocument(
           .filter((p) => p.length > 0);
         const primaryTitle = patternsList[0] || tag.replace(/_/g, " ");
 
+        // Format Training Data steps into identical structured Check & Action format as CHATBOT_DATAS
+        const structuredResponse = formatTrainingDataSteps(stepsStr);
+
         intents.push({
           tag,
           patterns: patternsList,
-          responses: [stepsStr],
+          responses: [structuredResponse],
           role: documentType,
           complaint: primaryTitle,
         });
