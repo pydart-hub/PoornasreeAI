@@ -1605,11 +1605,7 @@ async function routeState(
   }
 
   if (upper === "TROUBLESHOOT_UNRESOLVED" || upper === "UNRESOLVED" || upper.includes("NOT SOLVED") || upper.includes("NOT FIXED") || upper.includes("UNCATALOGED")) {
-    await updateSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
-    return makeReply(
-      t("SERIAL_PROMPT", lang),
-      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
-    );
+    return startComplaintRegistration(session.id, phoneNumber, meta, lang);
   }
 
   if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
@@ -1620,11 +1616,7 @@ async function routeState(
   switch (session.state) {
     case "AGENT_CHAT":
       if (upper === "BOOK_SERVICE" || upper.includes("BOOK SERVICE") || upper.includes("COMPLAINT") || upper === "2") {
-        await updateSession(session.id, "COMPLAINT_ASK_SERIAL", meta);
-        return makeReply(
-          t("SERIAL_PROMPT", lang),
-          [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
-        );
+        return startComplaintRegistration(session.id, phoneNumber, meta, lang);
       }
       await updateSession(session.id, "MAIN_MENU", meta);
       return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
@@ -1725,6 +1717,9 @@ async function routeState(
 
     case "PASSTEST_PINCODE_CONFIRM":
       return handlePasstestPincodeConfirm(session.id, phoneNumber, meta, text);
+
+    case "CONFIRM_REGISTER_TICKET":
+      return handleConfirmRegisterTicket(session.id, phoneNumber, meta, text);
 
     default:
       return startGreeting(phoneNumber);
@@ -2920,6 +2915,161 @@ async function showTicketStatus(sessionId: string, phoneNumber: string, meta: Se
 
   await updateSession(sessionId, "CHECK_STATUS", meta);
   return makeReply(`📋 *Your Tickets (${tickets.length}):*\n\n` + lines.join("\n\n"), [getMenuButton(lang)]);
+}
+
+// ── Smart Complaint Registration Entry Point ──────────────────────────────
+export async function startComplaintRegistration(
+  sessionId: string,
+  phoneNumber: string,
+  meta: SessionMeta,
+  lang: Lang,
+  overrideComplaint?: string
+): Promise<any> {
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+  // 1. Lookup registered user in User DB if not already linked
+  let registeredUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true, role: true, whatsappNumber: true },
+  });
+
+  let regSerial = meta.regSerialNumber || meta.serialNumber;
+  let regMachine = meta.regMachineData || meta.machineData;
+  let regName = meta.regName || meta.customerName || registeredUser?.firstName;
+
+  // If no serial number yet, check past tickets for this user in DB
+  if (!regSerial && registeredUser) {
+    const pastTicket = await prisma.ticket.findFirst({
+      where: {
+        OR: [
+          { phoneNumber: phoneNumber },
+          { phoneNumber: registeredUser.whatsappNumber || "" },
+          { phoneNumber: { contains: last10 } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { machineSerialNumber: true, machineName: true, customerAddress: true },
+    });
+    if (pastTicket?.machineSerialNumber) {
+      regSerial = pastTicket.machineSerialNumber;
+      regMachine = {
+        serial_no: pastTicket.machineSerialNumber,
+        m_model: pastTicket.machineName || "Machine",
+        customer: [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" "),
+        Address1: pastTicket.customerAddress || undefined,
+      } as PasstestMachine;
+    }
+  }
+
+  // Preserve prior complaint or query from chat
+  const effectiveComplaint = overrideComplaint || meta.complaint || meta.videoSearchQuery;
+
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    regSerialNumber: regSerial,
+    regMachineData: regMachine,
+    serialNumber: regSerial || meta.serialNumber,
+    machineData: regMachine || meta.machineData,
+    complaint: effectiveComplaint,
+    customerName: regName || meta.customerName,
+  };
+
+  // IF UNREGISTERED and NO MACHINE SERIAL: Prompt for Serial Number with Skip option
+  if (!regSerial && !updatedMeta.regMachineData && !updatedMeta.machineData) {
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", updatedMeta);
+    return makeReply(
+      t("SERIAL_PROMPT", lang),
+      [
+        { id: "SKIP", title: "⏭️ Skip Serial" },
+        getCancelButton(lang),
+        getMenuButton(lang),
+      ]
+    );
+  }
+
+  // REGISTERED CUSTOMER OR MACHINE ALREADY FOUND!
+  // If issue is ALREADY known from troubleshooting chat, show Instant Confirmation Summary screen!
+  if (effectiveComplaint && effectiveComplaint.length >= 3) {
+    const productName = updatedMeta.selectedProduct || regMachine?.m_model || "Machine";
+    const locDisplay = pincodeLocationDisplay(updatedMeta);
+
+    await updateSession(sessionId, "CONFIRM_REGISTER_TICKET", updatedMeta);
+
+    return makeReply(
+      `📝 *Confirm Complaint Registration:*\n\n` +
+      `👤 *Customer Name:* ${updatedMeta.customerName || "Customer"}\n` +
+      `📦 *Product:* ${productName} (Serial: ${regSerial || "N/A"})\n` +
+      `📝 *Issue Description:* ${effectiveComplaint}\n` +
+      `📍 *Location:* ${locDisplay}\n\n` +
+      `Would you like to confirm and book service for this complaint?`,
+      [
+        { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm & Book Service" },
+        { id: "EDIT_COMPLAINT_DESC", title: "✏️ Change Complaint" },
+        getMenuButton(lang),
+      ]
+    );
+  }
+
+  // Machine is known, but issue description is missing -> prompt for complaint category/product
+  const listRows = await fetchComplaintListRows(lang, regMachine?.m_model, undefined, updatedMeta.productCategory);
+  const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+  const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
+
+  await updateSession(sessionId, nextState, updatedMeta);
+  return makeReply(
+    t("DESCRIBE_COMPLAINT", lang),
+    undefined,
+    listRows.length > 1 ? { buttonText: hasSubCategories ? (lang === "hi" ? "श्रेणी चुनें 📝" : "Select Category 📝") : (lang === "hi" ? "शिकायत चुनें 📝" : "Select Complaint 📝"), rows: listRows } : undefined
+  );
+}
+
+async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "CONFIRM_BOOK_TICKET" || upper === "1" || upper.includes("CONFIRM") || upper.includes("BOOK") || upper.includes("YES")) {
+    if (meta.tsSerialPath && meta.machineData) {
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+    }
+    if (!endCustomerName(meta) || !meta.manualPincode) {
+      return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
+    }
+    if (!meta.manualAddress?.trim()) {
+      await updateSession(sessionId, "END_CUSTOMER_ADDRESS", meta);
+      return makeReply(t("ENTER_ADDRESS", lang));
+    }
+    return executePasstestTicketCreation(sessionId, phoneNumber, meta);
+  }
+
+  if (upper === "EDIT_COMPLAINT_DESC" || upper === "2" || upper.includes("EDIT") || upper.includes("CHANGE")) {
+    const listRows = await fetchComplaintListRows(lang, meta.selectedProduct || meta.machineData?.m_model, undefined, meta.productCategory);
+    const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
+    const nextState = hasSubCategories ? "COMPLAINT_SUBCATEGORY" : "COMPLAINT_DESCRIBE";
+    const updatedMeta = { ...meta, complaint: undefined };
+    await updateSession(sessionId, nextState, updatedMeta);
+    return makeReply(
+      t("DESCRIBE_COMPLAINT", lang),
+      undefined,
+      listRows.length > 1 ? { buttonText: hasSubCategories ? "Select Category 📝" : "Select Complaint 📝", rows: listRows } : undefined
+    );
+  }
+
+  return makeReply(
+    t_extra("SELECT_VALID", lang),
+    [
+      { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm & Book Service" },
+      { id: "EDIT_COMPLAINT_DESC", title: "✏️ Change Complaint" },
+      getMenuButton(lang),
+    ]
+  );
 }
 
 // ── COMPLAINT_ASK_SERIAL ──────────────────────────────────────────────────
