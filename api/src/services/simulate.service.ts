@@ -1201,7 +1201,10 @@ export function getMainMenuList(lang: Lang, options?: { hasTickets?: boolean }):
   };
 }
 
-export async function getContextualMainMenuList(phoneNumber: string, lang: Lang): Promise<ReplyList> {
+export async function getContextualMainMenuList(phoneNumber: string, lang: Lang, isEngineer?: boolean): Promise<ReplyList | undefined> {
+  if (isEngineer) {
+    return undefined; // Service engineers interact via direct AI chat & troubleshooting without customer menu buttons
+  }
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
   const ticketCount = await prisma.ticket.count({
@@ -1557,9 +1560,7 @@ export async function startGreeting(phoneNumber: string) {
 
     if (isEng) {
       return makeReply(
-        `🔧 *Welcome, Service Engineer ${displayName}!*\n\nHow can I assist you today? You can search machine troubleshooting steps, query training manuals, view R&D videos, or assist customers.`,
-        undefined,
-        await getContextualMainMenuList(phoneNumber, lang)
+        `🔧 *Welcome, Service Engineer ${displayName}!*\n\nHow can I assist you today? You can search machine troubleshooting steps, query training manuals, view R&D videos, or assist customers.`
       );
     }
 
