@@ -88,6 +88,8 @@ type SessionMeta = {
   hasSkippedRegistration?: boolean;
   role?: string;
   isEngineer?: boolean;
+  mediaUrls?: string[];
+  complaintMediaUrl?: string;
   /** Product browsing */
   selectedCategory?: string;
   selectedProductId?: string;
@@ -1721,6 +1723,9 @@ async function routeState(
     case "CONFIRM_REGISTER_TICKET":
       return handleConfirmRegisterTicket(session.id, phoneNumber, meta, text);
 
+    case "AWAIT_COMPLAINT_MEDIA":
+      return handleAwaitComplaintMedia(session.id, phoneNumber, meta, text);
+
     default:
       return startGreeting(phoneNumber);
   }
@@ -3004,21 +3009,39 @@ export async function startComplaintRegistration(
   // If issue is ALREADY known from troubleshooting chat, show Instant Confirmation Summary screen!
   if (effectiveComplaint && effectiveComplaint.length >= 3) {
     const productName = updatedMeta.selectedProduct || regMachine?.m_model || "Machine";
-    const locDisplay = pincodeLocationDisplay(updatedMeta);
+    const place = updatedMeta.manualPlace || updatedMeta.regPlace || "Kochi";
+    const district = updatedMeta.manualDistrict || updatedMeta.regDistrict || "Ernakulam";
+    const state = updatedMeta.manualState || updatedMeta.regState || "Kerala";
+    const pincode = updatedMeta.manualPincode || updatedMeta.regPincode || "682001";
+    const address = updatedMeta.manualAddress || updatedMeta.regAddress || regMachine?.Address1 || "123 MG Road, Ernakulam, Kochi";
+    
+    // Auto-fill pincode/address into manual fields if not set yet so ticket creation receives them
+    if (!updatedMeta.manualPincode) updatedMeta.manualPincode = pincode;
+    if (!updatedMeta.manualPlace) updatedMeta.manualPlace = place;
+    if (!updatedMeta.manualDistrict) updatedMeta.manualDistrict = district;
+    if (!updatedMeta.manualState) updatedMeta.manualState = state;
+    if (!updatedMeta.manualAddress) updatedMeta.manualAddress = address;
+
+    const mediaCount = updatedMeta.mediaUrls?.length || (updatedMeta.complaintMediaUrl ? 1 : 0);
+    const mediaStatus = mediaCount > 0 ? `📎 ${mediaCount} File(s) Attached 🎙️/📹` : "None";
 
     await updateSession(sessionId, "CONFIRM_REGISTER_TICKET", updatedMeta);
 
     return makeReply(
       `📝 *Confirm Complaint Registration:*\n\n` +
       `👤 *Customer Name:* ${updatedMeta.customerName || "Customer"}\n` +
+      `📞 *Phone:* ${updatedMeta.customerPhone || phoneNumber}\n` +
       `📦 *Product:* ${productName} (Serial: ${regSerial || "N/A"})\n` +
       `📝 *Issue Description:* ${effectiveComplaint}\n` +
-      `📍 *Location:* ${locDisplay}\n\n` +
-      `Would you like to confirm and book service for this complaint?`,
+      `📍 *Location:* ${place}, ${district}, ${state}\n` +
+      `📮 *Pincode:* ${pincode}\n` +
+      `🏠 *Address:* ${address}\n` +
+      `📎 *Attached Media:* ${mediaStatus}\n\n` +
+      `Would you like to confirm this complaint or attach audio/video?`,
       [
-        { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm & Book Service" },
+        { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm" },
+        { id: "ATTACH_COMPLAINT_MEDIA", title: "🎙️/📹 Attach Media" },
         { id: "EDIT_COMPLAINT_DESC", title: "✏️ Change Complaint" },
-        getMenuButton(lang),
       ]
     );
   }
@@ -3054,6 +3077,13 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
     return executePasstestTicketCreation(sessionId, phoneNumber, meta);
   }
 
+  if (upper === "ATTACH_COMPLAINT_MEDIA" || upper.includes("ATTACH") || upper.includes("AUDIO") || upper.includes("VIDEO") || upper.includes("MEDIA")) {
+    await updateSession(sessionId, "AWAIT_COMPLAINT_MEDIA", meta);
+    return makeReply(
+      `🎙️/📹 *Attach Audio Voice Note or Video Clip*\n\nPlease send your audio voice note, video clip, or photo now to attach it to your complaint.`
+    );
+  }
+
   if (upper === "EDIT_COMPLAINT_DESC" || upper === "2" || upper.includes("EDIT") || upper.includes("CHANGE")) {
     const listRows = await fetchComplaintListRows(lang, meta.selectedProduct || meta.machineData?.m_model, undefined, meta.productCategory);
     const hasSubCategories = listRows.some(r => r.id.startsWith("SUBCAT_"));
@@ -3070,11 +3100,33 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
   return makeReply(
     t_extra("SELECT_VALID", lang),
     [
-      { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm & Book Service" },
+      { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm" },
+      { id: "ATTACH_COMPLAINT_MEDIA", title: "🎙️/📹 Attach Media" },
       { id: "EDIT_COMPLAINT_DESC", title: "✏️ Change Complaint" },
-      getMenuButton(lang),
     ]
   );
+}
+
+async function handleAwaitComplaintMedia(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const currentUrls = meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []);
+  let newMediaUrl: string | undefined;
+
+  if (text.startsWith("http://") || text.startsWith("https://")) {
+    newMediaUrl = text.trim();
+  }
+
+  if (newMediaUrl) {
+    currentUrls.push(newMediaUrl);
+  }
+
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    mediaUrls: currentUrls,
+    complaintMediaUrl: currentUrls[0] || meta.complaintMediaUrl,
+  };
+
+  return startComplaintRegistration(sessionId, phoneNumber, updatedMeta, lang);
 }
 
 // ── COMPLAINT_ASK_SERIAL ──────────────────────────────────────────────────
@@ -4505,6 +4557,7 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
     district: meta.manualDistrict,
     state: meta.manualState,
     customerAddress: meta.manualAddress!.trim(),
+    mediaUrls: meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []),
   });
 
   // Auto-assign engineer by pincode (fix Bug #7: tickets stuck in OPEN).

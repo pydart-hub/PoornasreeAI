@@ -137,6 +137,7 @@ export async function createTicket(data: {
   district?:          string;
   state?:             string;
   customerAddress?:   string;
+  mediaUrls?:         string[];
 }) {
   const ticketNumber = generateTicketNumber();
 
@@ -247,6 +248,7 @@ export async function createTicket(data: {
       district:            data.district?.trim() || null,
       state:               data.state?.trim() || null,
       customerAddress:     data.customerAddress?.trim() || null,
+      mediaUrls:           data.mediaUrls && data.mediaUrls.length > 0 ? data.mediaUrls : [],
       passtestMatched,
       status,
     },
