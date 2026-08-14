@@ -4781,6 +4781,7 @@ export type SimulateReply = {
   message: string;
   buttons?: ReplyButton[];
   list?: ReplyList;
+  listMenu?: ReplyList;
   images?: ProductImage[];
   /** Plain-text follow-up (e.g. video links) sent after interactive replies on WhatsApp. */
   followUpMessage?: string;
@@ -4793,7 +4794,7 @@ function makeReply(
   images?: ProductImage[],
   followUpMessage?: string,
 ): SimulateReply {
-  return { message, buttons, list, images, followUpMessage };
+  return { message, buttons, list, listMenu: list, images, followUpMessage };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

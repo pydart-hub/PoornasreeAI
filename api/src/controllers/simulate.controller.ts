@@ -48,7 +48,7 @@ export async function handleMessage(req: Request, res: Response): Promise<void> 
     // Check if the phone number belongs to a service engineer
     const cleanFrom = phone.replace(/\D/g, "");
     const allEngineers = await prisma.user.findMany({
-      where: { role: "service_engineer" },
+      where: { role: { in: ["service_engineer", "service", "service_manager", "assistant_service_manager", "admin", "super_admin", "engineer"] } },
       select: { id: true, firstName: true, whatsappNumber: true },
     });
     const engineer = allEngineers.find(e => {

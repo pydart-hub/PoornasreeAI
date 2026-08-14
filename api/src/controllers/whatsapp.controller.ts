@@ -506,8 +506,8 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
     }
   }
 
-  if (result.list?.rows?.length) {
-    const sent = await WhatsAppService.sendInteractiveList(to, result.message, result.list.buttonText, result.list.rows);
+  if (result.listMenu?.rows?.length) {
+    const sent = await WhatsAppService.sendInteractiveList(to, result.message, result.listMenu.buttonText, result.listMenu.rows);
     if (!sent) {
       console.warn("[whatsapp] Interactive list delivery failed — falling back to plain text");
       await WhatsAppService.sendMessage(to, result.message);
