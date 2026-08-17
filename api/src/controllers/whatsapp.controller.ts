@@ -450,8 +450,24 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     orderBy: { updatedAt: "desc" },
   });
 
-  if (session?.isBotPaused) {
-    // Bot is paused, don't run the FSM. Human is watching.
+  const upperText = (text || "").toUpperCase().trim();
+  const isSupportTrigger =
+    upperText === "4" ||
+    upperText === "SPEAK_SUPPORT" ||
+    upperText === "TALK_AGENT" ||
+    upperText === "TALK_TO_SUPPORT" ||
+    upperText === "SPEAK_TO_SUPPORT" ||
+    upperText === "SUPPORT" ||
+    upperText.includes("SPEAK TO SUPPORT") ||
+    upperText.includes("TALK TO SUPPORT") ||
+    upperText.includes("TALK TO AGENT") ||
+    upperText.includes("TALK TO HUMAN") ||
+    upperText.includes("CONNECT TO SUPPORT") ||
+    upperText.includes("CUSTOMER SUPPORT") ||
+    upperText.includes("CUSTOMER CARE");
+
+  if (session?.isBotPaused && !isSupportTrigger) {
+    // Bot is paused and this is regular customer chat, don't run the FSM. Human is watching.
     // Refresh the 2-minute inactivity countdown so support agent has time to respond.
     touchSupportActivity(from);
     return;
