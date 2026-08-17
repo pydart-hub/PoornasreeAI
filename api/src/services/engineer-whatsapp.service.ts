@@ -48,19 +48,29 @@ export function clearPending(phone: string): void {
 
 /**
  * Checks if a given phone number belongs to an active service_engineer.
+ * Matches all standard formats (+91, 91, 0, 10 digits, formatted spaces/dashes).
  */
 export async function isServiceEngineer(rawPhone: string) {
   const norm = normalizeWhatsappNumber(rawPhone);
   if (!norm) return null;
 
-  const phoneVariants = [
-    rawPhone,
-    norm,
-    norm.startsWith("91") && norm.length === 12 ? norm.slice(2) : norm,
-    norm.startsWith("91") && norm.length === 12 ? `+${norm}` : norm,
-  ];
+  const tenDigits = norm.length >= 10 ? norm.slice(-10) : norm;
 
-  return prisma.user.findFirst({
+  const phoneVariants = Array.from(
+    new Set([
+      rawPhone,
+      norm,
+      tenDigits,
+      `+91${tenDigits}`,
+      `91${tenDigits}`,
+      `0${tenDigits}`,
+      norm.startsWith("91") && norm.length === 12 ? norm.slice(2) : norm,
+      norm.startsWith("91") && norm.length === 12 ? `+${norm}` : norm,
+    ]),
+  );
+
+  // 1. First attempt exact match on common formats
+  let user = await prisma.user.findFirst({
     where: {
       role: "service_engineer",
       OR: [
@@ -77,6 +87,28 @@ export async function isServiceEngineer(rawPhone: string) {
       email: true,
     },
   });
+
+  // 2. Fallback: match if whatsappNumber ends with the same 10 digits
+  if (!user && tenDigits.length === 10) {
+    user = await prisma.user.findFirst({
+      where: {
+        role: "service_engineer",
+        whatsappNumber: {
+          endsWith: tenDigits,
+        },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        whatsappNumber: true,
+        email: true,
+      },
+    });
+  }
+
+  return user;
 }
 
 /**
@@ -236,13 +268,16 @@ export async function handleEngineerMessage(
     upper === "MENU" ||
     upper === "START" ||
     upper === "HOME" ||
-    upper === "HEY"
+    upper === "HEY" ||
+    upper === "GREETINGS" ||
+    upper === "MAIN MENU" ||
+    upper === "ENG_MENU"
   ) {
     await sendEngineerMessage(
       from,
-      `👋 *Hi ${engineer.firstName}!*\nWelcome to the Poornasree Service Engineer Portal.\n\nWhat would you like to do?`,
+      `👋 *Hi ${engineer.firstName}!*\nWelcome to the *Poornasree Service Engineer Portal*.\n\nManage your service tickets, troubleshoot machine issues, and complete customer OTP verifications right here on WhatsApp.\n\nWhat would you like to do?`,
       [
-        { id: "TICKETS", title: "📋 My Tickets" },
+        { id: "TICKETS", title: "📋 View Tickets" },
         { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
         { id: "STATUS", title: "📊 Status Summary" },
       ],
@@ -250,15 +285,21 @@ export async function handleEngineerMessage(
     return;
   }
 
-  // ── 4. View Active Tickets List ("TICKETS" / "MY TICKETS" / "1") ──
+  // ── 4. View Active Tickets List ("TICKETS" / "VIEW TICKETS" / "MY TICKETS" / "1") ──
   if (
     upper === "TICKETS" ||
+    upper === "VIEW TICKETS" ||
     upper === "MY TICKETS" ||
     upper === "1" ||
     upper === "ALL TICKETS" ||
-    upper === "LIST"
+    upper === "LIST" ||
+    upper === "ENG_TICKETS" ||
+    upper === "JOBS" ||
+    upper.startsWith("PAGE:")
   ) {
-    await handleListTickets(from, engineer);
+    const pageMatch = upper.match(/PAGE:(\d+)/);
+    const page = pageMatch ? parseInt(pageMatch[1], 10) : 0;
+    await handleListTickets(from, engineer, page);
     return;
   }
 
@@ -634,7 +675,9 @@ export async function handleEngineerMessage(
 async function handleListTickets(
   from: string,
   engineer: { id: string; firstName: string },
+  page: number = 0,
 ): Promise<void> {
+  const PAGE_SIZE = 8;
   const tickets = (await prisma.ticket.findMany({
     where: {
       assignedEngineerId: engineer.id,
@@ -642,24 +685,37 @@ async function handleListTickets(
     },
     select: { ...ENGINEER_ACTIVE_TICKET_SELECT, id: true },
     orderBy: { updatedAt: "desc" },
-    take: 10,
+    skip: page * PAGE_SIZE,
+    take: PAGE_SIZE + 1,
   })) as EngineerTicketRow[];
 
-  if (tickets.length === 0) {
+  if (tickets.length === 0 && page === 0) {
     await sendEngineerMessage(
       from,
       `📋 *My Tickets*\n\nHi ${engineer.firstName}, you have no pending tickets assigned right now! 🎉`,
       [
         { id: "STATUS", title: "📊 Status Summary" },
+        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
         { id: "HELP", title: "❓ Help" },
       ],
     );
     return;
   }
 
-  // If only 1 ticket, show its full detail card and actions directly
-  if (tickets.length === 1) {
-    const t = tickets[0];
+  if (tickets.length === 0 && page > 0) {
+    await sendEngineerMessage(from, "No more active tickets found on this page.", [
+      { id: "PAGE:0", title: "⬅️ First Page" },
+      { id: "MENU", title: "🏠 Main Menu" },
+    ]);
+    return;
+  }
+
+  const hasNext = tickets.length > PAGE_SIZE;
+  const displayTickets = tickets.slice(0, PAGE_SIZE);
+
+  // If only 1 ticket on first page, show its full detail card and actions directly
+  if (displayTickets.length === 1 && page === 0 && !hasNext) {
+    const t = displayTickets[0];
     setActiveTicket(from, t.ticketNumber);
     await sendTicketActionButtons(from, t, engineer.id, {
       includeDetails: true,
@@ -669,7 +725,7 @@ async function handleListTickets(
   }
 
   // Multiple tickets: present an interactive list picker
-  const rows = tickets.map((t) => {
+  const rows: { id: string; title: string; description: string }[] = displayTickets.map((t) => {
     const customerName = resolveTicketCustomerName(t) || "Customer";
     const place = t.pincode?.place || t.machineAddress1 || "";
     let statusIcon = "🔵";
@@ -682,20 +738,36 @@ async function handleListTickets(
     };
   });
 
-  const listText = tickets
+  if (page > 0) {
+    rows.push({
+      id: `PAGE:${page - 1}`,
+      title: "⬅️ Previous Page",
+      description: `View previous page`,
+    });
+  }
+
+  if (hasNext) {
+    rows.push({
+      id: `PAGE:${page + 1}`,
+      title: "➡️ Next Page",
+      description: `View more tickets`,
+    });
+  }
+
+  const listText = displayTickets
     .map((t, idx) => {
       const customerName = resolveTicketCustomerName(t) || "Customer";
       const place = t.pincode?.place || "—";
       let statusIcon = "🔵";
       if (t.status === "IN_PROGRESS") statusIcon = "🟡";
       if (t.status === "PENDING_OTP") statusIcon = "🟠";
-      return `${idx + 1}. ${statusIcon} *${t.ticketNumber}* (${t.status})\n   👤 ${customerName} · 📍 ${place}`;
+      return `${page * PAGE_SIZE + idx + 1}. ${statusIcon} *${t.ticketNumber}* (${t.status})\n   👤 ${customerName} · 📍 ${place}`;
     })
     .join("\n\n");
 
   await sendEngineerMessage(
     from,
-    `📋 *Active Tickets (${tickets.length}):*\n\n${listText}\n\nSelect a ticket to view details and start work:`,
+    `📋 *Active Tickets (${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + displayTickets.length}):*\n\n${listText}\n\nSelect a ticket to view details and start work:`,
     undefined,
     {
       buttonText: "Select Ticket",
