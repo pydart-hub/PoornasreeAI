@@ -2313,26 +2313,38 @@ export async function handleCustomerSupportRequest(
 
   try {
     console.log(`[simulate] Dispatching WhatsApp support alert to ${normalizedSupportPhone}...`);
-    // Attempt template send first (works outside 24h conversational window)
-    const templateSent = await WhatsAppService.sendTemplate(normalizedSupportPhone, {
-      name: "engineer_ticket_assigned",
+    // Attempt dedicated customer support template first, with utility fallback
+    let templateSent = await WhatsAppService.sendTemplate(normalizedSupportPhone, {
+      name: "customer_support_alert_v1",
       languageCode: "en",
       bodyParameters: [
-        "Support Team",
-        "Live Chat Request",
         customerName.replace(/[\n\r\t]/g, " ").trim().slice(0, 100),
         customerPhone.replace(/[\n\r\t]/g, " ").trim().slice(0, 50),
-        "Support Dashboard",
-        "Customer is waiting for support. Please check dashboard."
-      ]
+        timeStr,
+      ],
     });
+
+    if (!templateSent) {
+      templateSent = await WhatsAppService.sendTemplate(normalizedSupportPhone, {
+        name: "engineer_ticket_assigned",
+        languageCode: "en",
+        bodyParameters: [
+          "Support Team",
+          "Live Chat Request",
+          customerName.replace(/[\n\r\t]/g, " ").trim().slice(0, 100),
+          customerPhone.replace(/[\n\r\t]/g, " ").trim().slice(0, 50),
+          "Support Dashboard",
+          "Customer is waiting for support. Please check dashboard.",
+        ],
+      });
+    }
 
     if (!templateSent) {
       console.log(`[simulate] Template not sent, falling back to direct session message...`);
       await WhatsAppService.sendMessage(normalizedSupportPhone, supportAlertMsg);
     } else {
       console.log(`[simulate] Template alert successfully dispatched to ${normalizedSupportPhone}`);
-      // Also send rich details
+      // Also send rich details if conversational window allows
       await WhatsAppService.sendMessage(normalizedSupportPhone, supportAlertMsg).catch(() => {});
     }
   } catch (err) {
