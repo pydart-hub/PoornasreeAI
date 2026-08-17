@@ -43,6 +43,7 @@ import {
 } from "./chatbotSettings.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 import * as WhatsAppService from "./whatsapp.service";
+import { touchSupportActivity } from "./support-inactivity.service";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -98,6 +99,9 @@ type SessionMeta = {
   /** Product browsing */
   selectedCategory?: string;
   selectedProductId?: string;
+  /** Live Support */
+  isWaitingForSupport?: boolean;
+  supportRequestedAt?: string;
 };
 
 // ── Language type ─────────────────────────────────────────────────────────
@@ -1437,6 +1441,34 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     return startTicketCloseFlow(session.id, phoneNumber, meta, lang);
   }
 
+  // Explicit global intent matching for Talk to Support / Customer Care
+  const isSupportIntent =
+    upper === "SPEAK_SUPPORT" ||
+    upper === "TALK_AGENT" ||
+    upper === "TALK_TO_SUPPORT" ||
+    upper === "SPEAK_TO_SUPPORT" ||
+    upper === "SUPPORT" ||
+    (upper === "4" && session.state === "MAIN_MENU") ||
+    upper.includes("SPEAK TO SUPPORT") ||
+    upper.includes("TALK TO SUPPORT") ||
+    upper.includes("TALK TO AGENT") ||
+    upper.includes("TALK TO HUMAN") ||
+    upper.includes("CONNECT TO SUPPORT") ||
+    upper.includes("CONNECT SUPPORT") ||
+    upper.includes("CUSTOMER SUPPORT") ||
+    upper.includes("CUSTOMER CARE") ||
+    upper.includes("HUMAN AGENT") ||
+    upper.includes("SPEAK WITH SUPPORT") ||
+    upper.includes("NEED SUPPORT") ||
+    upper.includes("സപ്പോർട്ട്") ||
+    upper.includes("സഹായം") ||
+    upper.includes("सपोर्ट") ||
+    upper.includes("कस्टमर केयर");
+
+  if (isSupportIntent && session.state !== "FEEDBACK_RATING" && session.state !== "FEEDBACK_SATISFIED") {
+    return handleCustomerSupportRequest(session.id, phoneNumber, meta, lang);
+  }
+
   // Product browsing buttons and VIEW_PRODUCTS always bypass state locks and go directly to product handlers
   const isProductNavButton =
     upper === "VIEW_PRODUCTS" ||
@@ -2224,6 +2256,100 @@ async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, me
   });
 }
 
+const SUPPORT_NOTIFIED_MSGS: Record<string, string> = {
+  en: "👋 *Our Customer Support Team has been notified!*\n\nHey there, a live support executive has been alerted and will join this chat shortly. Please feel free to type your query or issue below.\n\n_If you wish to return to the AI assistant at any time, tap [🏠 Main Menu]._ ",
+  ml: "👋 *ഞങ്ങളുടെ കസ്റ്റമർ സപ്പോർട്ട് ടീമിനെ അറിയിച്ചിട്ടുണ്ട്!*\n\nഒരു സപ്പോർട്ട് എക്സിക്യൂട്ടീവ് ഉടൻ തന്നെ നിങ്ങളുമായി സംസാരിക്കും. ദയവായി നിങ്ങളുടെ സംശയം താഴെ ടൈപ്പ് ചെയ്യുക.\n\n_AI അസിസ്റ്റന്റിലേക്ക് തിരികെ പോകാൻ [🏠 Main Menu] ക്ലിക്ക് ചെയ്യുക._",
+  hi: "👋 *हमारी कस्टमर सपोर्ट टीम को सूचित कर दिया गया है!*\n\nएक सपोर्ट एजेंट जल्द ही आपसे जुड़ेगा। कृपया अपनी समस्या नीचे लिखें।\n\n_AI सहायक पर वापस जाने के लिए [🏠 Main Menu] पर टैप करें।_",
+  ta: "👋 *எங்கள் வாடிக்கையாளர் ஆதரவு குழுவிற்கு தெரிவிக்கப்பட்டுள்ளது!*\n\nநேரலை ஆதரவு நிர்வாகி விரைவில் உங்களுடன் இணைவார். தயவுசெய்து உங்கள் கேள்வியை கீழே பதிவிடவும்.\n\n_AI உதவியாளரிடம் திரும்ப [🏠 Main Menu] ஐத் தட்டவும்._",
+  kn: "👋 *ನಮ್ಮ ಗ್ರಾಹಕ ಬೆಂಬಲ ತಂಡಕ್ಕೆ ತಿಳಿಸಲಾಗಿದೆ!*\n\nಲೈವ್ ಬೆಂಬಲ ಪ್ರತಿನಿಧಿ ಶೀಘ್ರದಲ್ಲೇ ನಿಮ್ಮೊಂದಿಗೆ ಸಂಪರ್ಕ ಸಾಧಿಸುತ್ತಾರೆ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಕೆಳಗೆ ಟೈಪ್ ಮಾಡಿ.\n\n_AI ಸಹಾಯಕಕ್ಕೆ ಹಿಂತಿರುಗಲು [🏠 Main Menu] ಒತ್ತಿರಿ._",
+  te: "👋 *మా కస్టమర్ సపోర్ట్ బృందానికి తెలియజేయబడింది!*\n\nలైవ్ సపోర్ట్ ఎగ్జిక్యూటివ్ త్వరలో మిమ్మల్ని సంప్రదిస్తారు. దయచేసి మీ సందేహాన్ని క్రింద టైప్ చేయండి.\n\n_AI అసిస్టెంట్‌కి తిరిగి వెళ్లడానికి [🏠 Main Menu] నొక్కండి._",
+  mr: "👋 *आमच्या ग्राहक सपोर्ट टीमला सूचित केले आहे!*\n\nएक सपोर्ट प्रतिनिधी लवकरच आपल्याशी बोलेल. कृपया आपला प्रश्न खाली टाइप करा.\n\n_AI सहाय्यकाकडे परत जाण्यासाठी [🏠 Main Menu] टॅप करा._",
+  bn: "👋 *আমাদের কাস্টমার সাপোর্ট টিমকে জানানো হয়েছে!*\n\nএকজন সাপোর্ট প্রতিনিধি শীঘ্রই আপনার সাথে কথা বলবেন। অনুগ্রহ করে নিচে আপনার সমস্যা লিখুন।\n\n_AI সহকারীতে ফিরতে [🏠 Main Menu] চাপুন।_",
+};
+
+export async function handleCustomerSupportRequest(
+  sessionId: string,
+  phoneNumber: string,
+  meta: SessionMeta,
+  lang: Lang = "en"
+) {
+  const customerName = meta.customerName || meta.regName || "Customer";
+  const customerPhone = meta.customerPhone || phoneNumber;
+  const timeStr = new Date().toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  // 1. Fetch support phone from settings (e.g. 9400916291)
+  const support = await getWhatsAppSupportSettings();
+  const rawSupportPhone = support.supportPhone || "+91 94009 61291";
+  const normalizedSupportPhone =
+    WhatsAppService.normalizeWhatsappNumber(rawSupportPhone) ||
+    rawSupportPhone.replace(/\D/g, "");
+
+  // 2. Pause bot for this customer and mark waiting status
+  const updatedMeta: SessionMeta = {
+    ...meta,
+    isWaitingForSupport: true,
+    supportRequestedAt: new Date().toISOString(),
+  };
+
+  await prisma.conversationSession.update({
+    where: { id: sessionId },
+    data: {
+      isBotPaused: true,
+      state: "WAITING_FOR_SUPPORT",
+      metadata: updatedMeta as object,
+    },
+  });
+
+  // Start the 2-minute inactivity timer
+  touchSupportActivity(phoneNumber);
+
+  // 3. Send WhatsApp Alert to the configured Admin Support Phone
+  const supportAlertMsg = `🚨 *Live Customer Support Request*\n\nHey Support Team, a customer is waiting for you on the support dashboard!\n\n👤 *Customer:* ${customerName}\n📱 *Phone:* ${customerPhone}\n⏰ *Time:* ${timeStr} IST\n\n👉 Please check your dashboard:\nhttps://ai.poornasreecloud.com/support-dashboard`;
+
+  try {
+    console.log(`[simulate] Dispatching WhatsApp support alert to ${normalizedSupportPhone}...`);
+    await WhatsAppService.sendMessage(normalizedSupportPhone, supportAlertMsg);
+  } catch (err) {
+    console.error(`[simulate] Failed to send support WhatsApp alert to ${normalizedSupportPhone}:`, err);
+  }
+
+  // 4. Save system audit log in SimulateMessage
+  const systemMsg = await prisma.simulateMessage.create({
+    data: {
+      phoneNumber,
+      role: "system",
+      content: `Customer requested live support. Admin support team alerted at ${normalizedSupportPhone}`,
+    },
+  });
+
+  // 5. Broadcast real-time Socket.IO events to customer support dashboard
+  if (io) {
+    io.to("customer_support").emit("support-chat:customer-waiting", {
+      phoneNumber,
+      name: customerName,
+      requestedAt: new Date().toISOString(),
+    });
+    io.to("customer_support").emit("support-chat:bot-status", {
+      phoneNumber,
+      isBotPaused: true,
+      reason: "customer_requested_support",
+    });
+    io.to("customer_support").emit("support-chat:message", {
+      phoneNumber,
+      message: systemMsg,
+    });
+  }
+
+  // 6. Return friendly localized reply to customer with Main Menu button
+  const replyText = SUPPORT_NOTIFIED_MSGS[lang] || SUPPORT_NOTIFIED_MSGS.en;
+  return makeReply(replyText, [getMenuButton(lang)]);
+}
+
 async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: string, meta: SessionMeta, lang: Lang) {
   const name = meta.regName || "Customer";
   await updateSession(sessionId, "MAIN_MENU", meta);
@@ -2250,41 +2376,8 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   if (choice === "3" || upperChoice === "COMPLAINT_STATUS" || upperChoice === "TICKETS" || upperChoice.includes("STATUS")) {
     return showTicketStatus(sessionId, phoneNumber, meta);
   }
-  if (choice === "4" || upperChoice === "SPEAK_SUPPORT" || upperChoice === "SUPPORT" || upperChoice === "TALK_AGENT" || upperChoice.includes("SPEAK TO SUPPORT")) {
-    await updateSession(sessionId, "COMPLETED", meta);
-    const support = await getWhatsAppSupportSettings();
-    const contact = formatSupportContactBlock(support);
-    // Send WhatsApp notification to support contact
-    const customerName = meta.customerName || "Not Provided";
-    const customerPhone = meta.customerPhone || phoneNumber;
-    const notificationText = `🚨 *Live Chat Request*\n\nA customer wants to speak with support.\n👤 *Name:* ${customerName}\n📱 *Phone:* ${customerPhone}\n\nPlease log into the dashboard, pause the chatbot for this user, and chat manually.`;
-
-    try {
-      console.log(`[simulate] Sending live chat support notification to ${support.supportPhone} via template...`);
-      const sentTemplate = await WhatsAppService.sendTemplate(support.supportPhone, {
-        name: "engineer_ticket_assigned",
-        languageCode: "en",
-        bodyParameters: [
-          "Support Team",
-          "Live Chat Request",
-          customerName.replace(/[\n\r\t]/g, " ").trim().slice(0, 100),
-          customerPhone.replace(/[\n\r\t]/g, " ").trim().slice(0, 50),
-          "WhatsApp Chatbot",
-          "Wants to connect with support. Please log into the dashboard, pause the chatbot, and reply manually."
-        ]
-      });
-
-      if (!sentTemplate) {
-        console.warn("[simulate] Template notification failed, sending plain text fallback...");
-        await WhatsAppService.sendMessage(support.supportPhone, notificationText);
-      } else {
-        console.log("[simulate] Template notification sent successfully.");
-      }
-    } catch (err) {
-      console.error("[simulate] Failed to send support WhatsApp notification:", err);
-    }
-
-    return makeReply(t("SPEAK_TO_SUPPORT", lang, { contact }), [getMenuButton(lang)]);
+  if (choice === "4" || upperChoice === "SPEAK_SUPPORT" || upperChoice === "SUPPORT" || upperChoice === "TALK_AGENT" || upperChoice === "TALK_TO_SUPPORT" || upperChoice.includes("SPEAK TO SUPPORT") || upperChoice.includes("TALK TO SUPPORT")) {
+    return handleCustomerSupportRequest(sessionId, phoneNumber, meta, lang);
   }
   if (choice === "5" || upperChoice === "CHANGE_LANG" || upperChoice === "CHANGE_LANGUAGE" || upperChoice === "LANGUAGE") {
     await updateSession(sessionId, "CHANGE_LANGUAGE", meta);

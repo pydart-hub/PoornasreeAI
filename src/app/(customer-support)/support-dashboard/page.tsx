@@ -39,7 +39,9 @@ import {
   Clock,
   ExternalLink,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  Bell,
+  PhoneCall
 } from "lucide-react";
 
 interface SessionData {
@@ -51,6 +53,8 @@ interface SessionData {
   machineId: string | null;
   metadata: any;
   isBotPaused: boolean;
+  isWaitingForSupport?: boolean;
+  supportRequestedAt?: string | null;
   supportAgentId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -174,6 +178,28 @@ const safeFormatRelativeTime = (dateStr: string | null | undefined) => {
   return formatRelativeTime(d);
 };
 
+const playNotificationChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+    osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.24); // D6
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.6);
+  } catch {
+    /* AudioContext may be suspended before user gesture */
+  }
+};
+
 export default function SupportDashboard() {
   const router = useRouter();
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -193,7 +219,7 @@ export default function SupportDashboard() {
   const [toggling, setToggling] = useState(false);
 
   // New UI/UX states
-  const [activeTab, setActiveTab] = useState<"all" | "manual" | "bot">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "waiting" | "manual" | "bot">("all");
   const [contextOpen, setContextOpen] = useState(true);
   const [customerContext, setCustomerContext] = useState<CustomerContextData | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
@@ -313,10 +339,46 @@ export default function SupportDashboard() {
       }
     });
 
+    // Handle real-time customer waiting for support alert
+    sock.on("support-chat:customer-waiting", (data: { phoneNumber: string; name?: string; requestedAt: string }) => {
+      playNotificationChime();
+      addToast(`🔔 Customer Waiting: ${data.name || data.phoneNumber} is waiting for live support!`, "warning");
+
+      setSessions((prev) => {
+        const idx = prev.findIndex((s) => s.phoneNumber === data.phoneNumber);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            isBotPaused: true,
+            isWaitingForSupport: true,
+            supportRequestedAt: data.requestedAt,
+            updatedAt: new Date().toISOString(),
+          };
+          // Move waiting customer directly to top of queue
+          const [item] = updated.splice(idx, 1);
+          updated.unshift(item);
+          return updated;
+        } else {
+          fetchSessions();
+          return prev;
+        }
+      });
+    });
+
     // Handle real-time bot pause/resume status (including 2-minute inactivity auto-resume)
     sock.on("support-chat:bot-status", (data: { phoneNumber: string; isBotPaused: boolean; reason?: string }) => {
       setSessions((prev) =>
-        prev.map((s) => (s.phoneNumber === data.phoneNumber ? { ...s, isBotPaused: data.isBotPaused } : s))
+        prev.map((s) =>
+          s.phoneNumber === data.phoneNumber
+            ? {
+                ...s,
+                isBotPaused: data.isBotPaused,
+                // Clear waiting status once bot resumes
+                ...(data.isBotPaused === false ? { isWaitingForSupport: false } : {}),
+              }
+            : s
+        )
       );
 
       if (data.reason === "inactivity_timeout") {
@@ -329,6 +391,7 @@ export default function SupportDashboard() {
     return () => {
       sock.off("support-chat:message");
       sock.off("support-chat:bot-status");
+      sock.off("support-chat:customer-waiting");
       closeSocket();
     };
   }, [user, activePhone, fetchSessions, addToast]);
@@ -411,8 +474,11 @@ export default function SupportDashboard() {
     }
   };
 
+  const waitingCount = sessions.filter((s) => s.isWaitingForSupport).length;
+
   const filteredSessions = sessions.filter((s) => {
-    if (activeTab === "manual") return s.isBotPaused;
+    if (activeTab === "waiting") return s.isWaitingForSupport;
+    if (activeTab === "manual") return s.isBotPaused && !s.isWaitingForSupport;
     if (activeTab === "bot") return !s.isBotPaused;
     return true;
   });
@@ -460,21 +526,35 @@ export default function SupportDashboard() {
              </div>
              
              {/* WhatsApp Filters Capsule Pills */}
-             <div className="px-3 py-2 bg-white dark:bg-[#111b21] flex gap-2 text-xs border-b border-[#e9edef] dark:border-[#222d34] transition-colors duration-200">
-                {(["all", "manual", "bot"] as const).map((tab) => {
-                  const label = tab === "all" ? "All" : tab === "manual" ? "Manual" : "Bot Active";
+             <div className="px-3 py-2 bg-white dark:bg-[#111b21] flex gap-1.5 text-xs border-b border-[#e9edef] dark:border-[#222d34] transition-colors duration-200 overflow-x-auto scrollbar-none">
+                {(["all", "waiting", "manual", "bot"] as const).map((tab) => {
+                  const label =
+                    tab === "all"
+                      ? "All"
+                      : tab === "waiting"
+                      ? `Waiting (${waitingCount})`
+                      : tab === "manual"
+                      ? "Manual"
+                      : "Bot Active";
                   const isActive = activeTab === tab;
                   return (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       className={cn(
-                        "px-3 py-1 rounded-full transition-all font-medium text-xs border-0",
+                        "px-2.5 py-1 rounded-full transition-all font-medium text-xs border-0 shrink-0 flex items-center gap-1",
                         isActive
-                          ? "bg-[#e7f7ef] dark:bg-[#0a332c] text-[#008069] dark:text-[#00a884] font-semibold"
+                          ? tab === "waiting"
+                            ? "bg-rose-500 text-white font-bold shadow-sm"
+                            : "bg-[#e7f7ef] dark:bg-[#0a332c] text-[#008069] dark:text-[#00a884] font-semibold"
+                          : tab === "waiting" && waitingCount > 0
+                          ? "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold animate-pulse"
                           : "bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-gray-200 dark:hover:bg-[#2a3942]"
                       )}
                     >
+                      {tab === "waiting" && waitingCount > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                      )}
                       {label}
                     </button>
                   );
@@ -506,7 +586,12 @@ export default function SupportDashboard() {
                             <span className="text-sm font-semibold text-[#111b21] dark:text-[#e9edef] truncate max-w-[130px]">{s.name}</span>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {s.isBotPaused ? (
+                            {s.isWaitingForSupport ? (
+                              <span className="text-[8px] bg-rose-500/15 border border-rose-500/40 text-rose-600 dark:text-rose-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide animate-pulse flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                Waiting
+                              </span>
+                            ) : s.isBotPaused ? (
                               <span className="text-[8px] bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Manual</span>
                             ) : (
                               <span className="text-[8px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide">Bot</span>
@@ -598,6 +683,16 @@ export default function SupportDashboard() {
                    </div>
                    
                    <div className="flex items-center gap-2">
+                      {activeSession.isWaitingForSupport && (
+                        <div
+                          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 animate-pulse"
+                          title="Customer requested live human support"
+                        >
+                          <Bell className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                          <span>Customer Waiting</span>
+                        </div>
+                      )}
+
                       {activeSession.isBotPaused && secondsRemaining !== null && (
                         <div
                           className={cn(

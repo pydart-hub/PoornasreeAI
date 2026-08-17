@@ -45,10 +45,14 @@ router.get("/sessions", async (req: Request, res: Response) => {
           orderBy: { createdAt: "desc" },
         });
 
+        const meta = (session.metadata as Record<string, unknown>) || {};
+
         return {
           ...session,
           name: name || session.phoneNumber,
           lastMessage,
+          isWaitingForSupport: Boolean(meta.isWaitingForSupport),
+          supportRequestedAt: (meta.supportRequestedAt as string) || null,
         };
       })
     );
@@ -168,6 +172,23 @@ router.post("/send-message/:phoneNumber", async (req: Request, res: Response) =>
 
     // Refresh the 2-minute activity countdown timer for this support session
     touchSupportActivity(phoneNumber);
+
+    // Clear waiting status once support responds
+    const activeSess = await prisma.conversationSession.findFirst({
+      where: { phoneNumber },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (activeSess) {
+      const meta = (activeSess.metadata as Record<string, unknown>) || {};
+      if (meta.isWaitingForSupport) {
+        await prisma.conversationSession.update({
+          where: { id: activeSess.id },
+          data: {
+            metadata: { ...meta, isWaitingForSupport: false } as object,
+          },
+        });
+      }
+    }
 
     // Save message to DB
     const message = await prisma.simulateMessage.create({
