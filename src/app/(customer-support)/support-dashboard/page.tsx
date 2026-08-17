@@ -198,6 +198,7 @@ export default function SupportDashboard() {
   const [customerContext, setCustomerContext] = useState<CustomerContextData | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -306,20 +307,61 @@ export default function SupportDashboard() {
       if (data.phoneNumber === activePhone) {
         setMessages(p => p.some(m => m.id === data.message.id) ? p : [...p, data.message]);
       } else {
-
         if (data.message.role === "user") {
           addToast(`New message from ${data.phoneNumber}`, "info");
         }
       }
     });
 
+    // Handle real-time bot pause/resume status (including 2-minute inactivity auto-resume)
+    sock.on("support-chat:bot-status", (data: { phoneNumber: string; isBotPaused: boolean; reason?: string }) => {
+      setSessions((prev) =>
+        prev.map((s) => (s.phoneNumber === data.phoneNumber ? { ...s, isBotPaused: data.isBotPaused } : s))
+      );
+
+      if (data.reason === "inactivity_timeout") {
+        if (data.phoneNumber === activePhone) {
+          addToast(`Chatbot for ${data.phoneNumber} automatically turned ON (2 min inactivity timeout)`, "info");
+        }
+      }
+    });
+
     return () => {
       sock.off("support-chat:message");
+      sock.off("support-chat:bot-status");
       closeSocket();
     };
   }, [user, activePhone, fetchSessions, addToast]);
 
   const activeSession = sessions.find((s) => s.phoneNumber === activePhone) ?? null;
+
+  // ── 2-Minute Inactivity Auto-Turn-On Countdown Timer ──
+  useEffect(() => {
+    if (!activeSession?.isBotPaused || messages.length === 0) {
+      setSecondsRemaining(null);
+      return;
+    }
+
+    const updateRemaining = () => {
+      const lastMsg = messages[messages.length - 1];
+      const lastTime = lastMsg
+        ? new Date(lastMsg.createdAt).getTime()
+        : new Date(activeSession.updatedAt).getTime();
+      const elapsedSec = Math.floor((Date.now() - lastTime) / 1000);
+      const rem = Math.max(0, 120 - elapsedSec);
+      setSecondsRemaining(rem);
+    };
+
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [activeSession?.isBotPaused, activeSession?.updatedAt, messages]);
+
+  const formatCountdown = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   const handleToggleBot = async () => {
     if (!activeSession || toggling) return;
@@ -556,15 +598,30 @@ export default function SupportDashboard() {
                    </div>
                    
                    <div className="flex items-center gap-2">
-                     <Button 
-                       variant={activeSession.isBotPaused ? "primary" : "danger"} 
-                       size="sm"
-                       onClick={handleToggleBot}
-                       disabled={toggling}
-                       icon={activeSession.isBotPaused ? <Power className="w-3.5 h-3.5"/> : <PowerOff className="w-3.5 h-3.5" />}
-                     >
-                       {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : activeSession.isBotPaused ? "Turn On Bot" : "Pause Bot"}
-                     </Button>
+                      {activeSession.isBotPaused && secondsRemaining !== null && (
+                        <div
+                          className={cn(
+                            "hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all",
+                            secondsRemaining <= 30
+                              ? "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-800/50 animate-pulse"
+                              : "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/40"
+                          )}
+                          title="Chatbot will automatically turn back ON if no messages are sent for 2 minutes"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Auto-ON in {formatCountdown(secondsRemaining)}</span>
+                        </div>
+                      )}
+
+                      <Button 
+                        variant={activeSession.isBotPaused ? "primary" : "danger"} 
+                        size="sm"
+                        onClick={handleToggleBot}
+                        disabled={toggling}
+                        icon={activeSession.isBotPaused ? <Power className="w-3.5 h-3.5"/> : <PowerOff className="w-3.5 h-3.5" />}
+                      >
+                        {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : activeSession.isBotPaused ? "Turn On Bot" : "Pause Bot"}
+                      </Button>
 
                      <button
                        onClick={() => setContextOpen(!contextOpen)}

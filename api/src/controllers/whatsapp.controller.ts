@@ -11,6 +11,7 @@ import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
 import { transcribeAudioWithGroq } from "../services/groq.service";
+import { touchSupportActivity } from "../services/support-inactivity.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -451,6 +452,8 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   if (session?.isBotPaused) {
     // Bot is paused, don't run the FSM. Human is watching.
+    // Refresh the 2-minute inactivity countdown so support agent has time to respond.
+    touchSupportActivity(from);
     return;
   }
 

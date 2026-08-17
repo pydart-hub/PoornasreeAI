@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import * as WhatsAppService from "../services/whatsapp.service";
 import { io } from "../lib/socket";
+import { touchSupportActivity, clearSupportActivity } from "../services/support-inactivity.service";
 
 const router = Router();
 
@@ -107,6 +108,9 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
 
     // Send automated greeting when the agent takes over
     if (botState) {
+      // Start the 2-minute auto-turn-on countdown timer
+      touchSupportActivity(phoneNumber);
+
       const greetingMsg = "Hello, our customer support agent is now live and ready to assist you. Please feel free to ask your questions or clarify any doubts.";
       await WhatsAppService.sendMessage(phoneNumber, greetingMsg);
       
@@ -124,6 +128,9 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
           message: sentMsgRecord,
         });
       }
+    } else {
+      // Agent manually turned bot back ON - clear any pending auto-timeout
+      clearSupportActivity(phoneNumber);
     }
 
     if (!session) {
@@ -158,6 +165,9 @@ router.post("/send-message/:phoneNumber", async (req: Request, res: Response) =>
     if (!content) {
       return res.status(400).json({ error: "Content is required" });
     }
+
+    // Refresh the 2-minute activity countdown timer for this support session
+    touchSupportActivity(phoneNumber);
 
     // Save message to DB
     const message = await prisma.simulateMessage.create({

@@ -29,6 +29,7 @@ import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
 import { loadRuntimeConfig } from "./services/runtime-config.service";
+import { startSupportInactivityMonitor } from "./services/support-inactivity.service";
 
 const app = express();
 
@@ -138,6 +139,9 @@ httpServer.listen(env.PORT, async () => {
 
   // Ensure Qdrant collection exists
   await ensureCollection();
+
+  // Start the 2-minute customer support inactivity monitor
+  startSupportInactivityMonitor();
 
   // Index training.json intents into Qdrant in the background.
   // Runs non-blocking so a slow Ollama startup doesn't delay the HTTP server.
