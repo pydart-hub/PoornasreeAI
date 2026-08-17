@@ -2313,7 +2313,28 @@ export async function handleCustomerSupportRequest(
 
   try {
     console.log(`[simulate] Dispatching WhatsApp support alert to ${normalizedSupportPhone}...`);
-    await WhatsAppService.sendMessage(normalizedSupportPhone, supportAlertMsg);
+    // Attempt template send first (works outside 24h conversational window)
+    const templateSent = await WhatsAppService.sendTemplate(normalizedSupportPhone, {
+      name: "engineer_ticket_assigned",
+      languageCode: "en",
+      bodyParameters: [
+        "Support Team",
+        "Live Chat Request",
+        customerName.replace(/[\n\r\t]/g, " ").trim().slice(0, 100),
+        customerPhone.replace(/[\n\r\t]/g, " ").trim().slice(0, 50),
+        "Support Dashboard",
+        "Customer is waiting for support. Please check dashboard."
+      ]
+    });
+
+    if (!templateSent) {
+      console.log(`[simulate] Template not sent, falling back to direct session message...`);
+      await WhatsAppService.sendMessage(normalizedSupportPhone, supportAlertMsg);
+    } else {
+      console.log(`[simulate] Template alert successfully dispatched to ${normalizedSupportPhone}`);
+      // Also send rich details
+      await WhatsAppService.sendMessage(normalizedSupportPhone, supportAlertMsg).catch(() => {});
+    }
   } catch (err) {
     console.error(`[simulate] Failed to send support WhatsApp alert to ${normalizedSupportPhone}:`, err);
   }

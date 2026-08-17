@@ -703,20 +703,23 @@ export default function SupportDashboard() {
                         </div>
                       )}
 
-                      {activeSession.isBotPaused && secondsRemaining !== null && (
-                        <div
-                          className={cn(
-                            "hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all",
-                            secondsRemaining <= 30
-                              ? "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-800/50 animate-pulse"
-                              : "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/40"
-                          )}
-                          title="Chatbot will automatically turn back ON if no messages are sent for 2 minutes"
-                        >
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Auto-ON in {formatCountdown(secondsRemaining)}</span>
-                        </div>
-                      )}
+                      {activeSession.isBotPaused ? (
+                         <div
+                           className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40"
+                           title="Chatbot is paused — human support is in control"
+                         >
+                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                           <span>Manual Mode</span>
+                         </div>
+                       ) : (
+                         <div
+                           className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40"
+                           title="AI Chatbot is active"
+                         >
+                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                           <span>AI Bot Active</span>
+                         </div>
+                       )}
 
                       <Button 
                         variant={activeSession.isBotPaused ? "primary" : "danger"} 
