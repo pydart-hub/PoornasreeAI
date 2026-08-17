@@ -63,6 +63,9 @@ export async function notifyEngineerTicketAssigned(ticketId: string): Promise<vo
     ticket.problemDescription ||
     "—";
 
+  const sanitizeParam = (val: string, maxLen = 120): string =>
+    (val || "").replace(/[\n\r\t]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen) || "—";
+
   console.log(`[engineer-ticket-wa] Sending assignment notification for ${ticket.ticketNumber} to ${wa}`);
 
   // 1. Try sending official WhatsApp template if available (utility category)
@@ -72,12 +75,12 @@ export async function notifyEngineerTicketAssigned(ticketId: string): Promise<vo
         name: "engineer_ticket_assigned",
         languageCode: "en",
         bodyParameters: [
-          ticket.assignedEngineer.firstName || "Engineer",
-          ticket.ticketNumber,
-          customerName,
-          phone,
-          location,
-          complaint.slice(0, 100),
+          sanitizeParam(ticket.assignedEngineer.firstName || "Engineer", 40),
+          sanitizeParam(ticket.ticketNumber, 40),
+          sanitizeParam(customerName, 40),
+          sanitizeParam(phone, 30),
+          sanitizeParam(location, 60),
+          sanitizeParam(complaint, 100),
         ],
       });
     } catch {
