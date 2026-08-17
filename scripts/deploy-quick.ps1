@@ -45,21 +45,21 @@ function Test-LocalEnvIsNotDevOnly {
 
     if ($corsVal -match 'localhost') {
         Write-Host ""
-        Write-Host " ⚠️  WARNING: Your local .env has CORS_ORIGIN=$corsVal" -ForegroundColor Yellow
+        Write-Host " [WARN] WARNING: Your local .env has CORS_ORIGIN=$corsVal" -ForegroundColor Yellow
         Write-Host "    This looks like a LOCAL DEV environment file." -ForegroundColor Yellow
         Write-Host "    The server's production .env should have CORS_ORIGIN=https://ai.poornasreecloud.com" -ForegroundColor Yellow
         $warned = $true
     }
     if ($jwtVal -eq $devJwt) {
         Write-Host ""
-        Write-Host " ⚠️  WARNING: Your local .env contains the DEVELOPMENT JWT_SECRET." -ForegroundColor Yellow
+        Write-Host " [WARN] WARNING: Your local .env contains the DEVELOPMENT JWT_SECRET." -ForegroundColor Yellow
         Write-Host "    The production server uses a different JWT_SECRET that encrypts DB secrets." -ForegroundColor Yellow
         Write-Host "    NEVER overwrite the server .env with this file." -ForegroundColor Yellow
         $warned = $true
     }
     if ($warned) {
         Write-Host ""
-        Write-Host "    This deploy script does NOT copy .env to the server — you are safe." -ForegroundColor DarkGray
+        Write-Host "    This deploy script does NOT copy .env to the server - you are safe." -ForegroundColor DarkGray
         Write-Host "    But if you have recently synced .env to the server, verify with:" -ForegroundColor DarkGray
         Write-Host "    ssh poornasree-v4 'grep JWT_SECRET /root/poornasree-ai/.env'" -ForegroundColor DarkGray
         Write-Host "    Expected: RF9JUeGQjKo2EzrnDB1Ipiyh4APVWgMS" -ForegroundColor DarkGray
@@ -99,7 +99,7 @@ function Invoke-GitCommitAndPush {
         $branch = (git rev-parse --abbrev-ref HEAD).Trim()
         git push -u origin "HEAD"
         if ($LASTEXITCODE -ne 0) { throw "git push failed" }
-        Write-Host " Pushed $branch → origin" -ForegroundColor Green
+        Write-Host " Pushed $branch -> origin" -ForegroundColor Green
         Write-Host ""
     } finally {
         Pop-Location
