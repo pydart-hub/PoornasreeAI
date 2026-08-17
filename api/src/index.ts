@@ -23,6 +23,7 @@ import simulateRoutes from "./routes/simulate.routes";
 import superAdminRoutes from "./routes/super-admin.routes";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
+import { listTrainingVideos, searchTrainingVideosHandler } from "./controllers/engineer-training-video.controller";
 import { protect } from "./middleware/auth";
 import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
@@ -59,6 +60,10 @@ app.get("/api/branding", getBranding);
 
 // R&D videos list (authenticated — engineers + admin)
 app.get("/api/rd-videos", protect, listRdVideos);
+
+// Engineer Training videos list & AI search (authenticated — engineers + admin)
+app.get("/api/training-videos", protect, listTrainingVideos);
+app.get("/api/training-videos/search", protect, searchTrainingVideosHandler);
 
 // ── Authenticated routes ──────────────────────────────────────────────────
 // IMPORTANT: specific prefixes MUST be mounted before the broad "/api" mount,

@@ -44,6 +44,7 @@ import TestCustomerPanel from "@/components/admin/TestCustomerPanel";
 import BrandingTab from "@/components/admin/BrandingTab";
 import TroubleshootingTemplatesTab from "@/components/admin/TroubleshootingTemplatesTab";
 import ManualComplaintsTab from "@/components/admin/ManualComplaintsTab";
+import EngineerTrainingVideosTab from "@/components/admin/EngineerTrainingVideosTab";
 
 import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
 
@@ -67,7 +68,7 @@ function getRoleBadge(role: string) {
 type MainTab = "dashboard" | "whatsapp" | "training" | "users" | "support" | "analytics";
 
 type WhatsAppSubTab = "settings" | "analytics" | "customers";
-type TrainingSubTab = "documents" | "videos" | "rdvideos" | "troubleshooting";
+type TrainingSubTab = "documents" | "trainingvideos" | "videos" | "rdvideos" | "troubleshooting";
 type UsersSubTab = "system-users";
 type SupportSubTab = "tickets" | "complaints" | "products";
 type AnalyticsSubTab = "analytics" | "branding" | "test-panel";
@@ -428,9 +429,10 @@ export default function AdminPage() {
 
   const trainingNavItems: SubNavItem<TrainingSubTab>[] = [
     { key: "documents", label: "Training Documents", icon: FileText, count: documents.length },
+    { key: "trainingvideos", label: "Engineer Training Videos", icon: GraduationCap },
     { key: "videos", label: "Customer Videos", icon: Youtube, count: videos.length },
     { key: "rdvideos", label: "Engineer & R&D Videos", icon: Film },
-    { key: "troubleshooting", label: "Templates & Guides", icon: GraduationCap },
+    { key: "troubleshooting", label: "Templates & Guides", icon: LayoutDashboard },
   ];
 
   const usersNavItems: SubNavItem<UsersSubTab>[] = [
@@ -568,6 +570,7 @@ export default function AdminPage() {
             />
           )}
 
+          {trainingSubTab === "trainingvideos" && <EngineerTrainingVideosTab />}
           {trainingSubTab === "rdvideos" && <RdVideosTab />}
           {trainingSubTab === "troubleshooting" && <TroubleshootingTemplatesTab />}
         </div>
