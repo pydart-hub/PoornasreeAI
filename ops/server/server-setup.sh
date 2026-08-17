@@ -17,8 +17,15 @@ git checkout AIpoorna
 git reset --hard origin/AIpoorna
 
 echo "=== [3/4] Creating .env files ==="
+# ⚠️  IMPORTANT: The JWT_SECRET below is the AES-GCM encryption key for all secrets
+# stored in the SystemSetting DB table (WhatsApp tokens, Groq key, etc.).
+# NEVER change this value on a live server — doing so corrupts all stored secrets.
+# NEVER copy the local dev .env to this server — it uses a different JWT_SECRET.
+# See docs/DEPLOY-RUNBOOK.md for full details.
 cat > /root/poornasree-ai/.env << 'ENVEOF'
 # Docker Compose environment
+# ⚠️  DO NOT OVERWRITE THIS FILE WITH YOUR LOCAL DEV .env
+# ⚠️  JWT_SECRET must stay as-is — it is the AES encryption key for DB secrets
 POSTGRES_USER=poorna_user
 POSTGRES_PASSWORD=poorna_secure_pass_2026
 POSTGRES_DB=poornasree_ai

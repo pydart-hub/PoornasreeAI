@@ -35,6 +35,17 @@ npx ts-node --transpile-only src/scripts/ensure-super-admin.ts
 
 - `DATABASE_URL` — required to boot
 - `JWT_SECRET` — required to boot (also used to encrypt secret settings in DB)
+- `POSTGRES_PASSWORD` — required for DB container
+
+> ⚠️ **CRITICAL — JWT_SECRET is an encryption key, not just an auth secret.**
+> Secrets saved via this dashboard (WhatsApp tokens, Groq key) are AES-GCM encrypted
+> using a key derived from `JWT_SECRET`. If `JWT_SECRET` ever changes on the server,
+> **all stored secrets become permanently unreadable** and the bot will stop responding.
+> 
+> - **Never change `JWT_SECRET` on the production server.**
+> - **Never copy the local dev `.env` to the server** (they have different `JWT_SECRET` values).
+> - The production `JWT_SECRET` is: `RF9JUeGQjKo2EzrnDB1Ipiyh4APVWgMS`
+> - See `docs/DEPLOY-RUNBOOK.md` for the full emergency recovery procedure.
 
 ## Import existing `.env` keys
 

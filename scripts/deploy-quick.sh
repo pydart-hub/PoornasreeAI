@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORTANT: This script NEVER touches /root/poornasree-ai/.env on the server.
+# The production .env is managed manually on the VPS only.
+# See docs/DEPLOY-RUNBOOK.md → "CRITICAL: Production .env Rules"
+# ─────────────────────────────────────────────────────────────────────────────
 # Old-server VPS build deploy (commit+push → git pull → docker compose build → restart).
 # Usage:
 #   ./scripts/deploy-quick.sh                 # web only (~8-15 min)
@@ -31,6 +36,49 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
+
+# ── Guard: detect if local .env looks like a dev file ────────────────────────
+# The production server .env must NEVER be overwritten with local dev values.
+# This check catches accidental dev→prod env copy by looking for localhost URLs.
+check_local_env_is_not_dev_only() {
+  local env_file="$REPO_ROOT/.env"
+  if [[ ! -f "$env_file" ]]; then return 0; fi
+
+  local cors_val
+  cors_val=$(grep -E '^CORS_ORIGIN=' "$env_file" | cut -d= -f2- | tr -d '"')
+  local jwt_val
+  jwt_val=$(grep -E '^JWT_SECRET=' "$env_file" | cut -d= -f2- | tr -d '"')
+
+  local warned=0
+  if echo "$cors_val" | grep -qi 'localhost'; then
+    echo ""
+    echo "⚠️  WARNING: Your local .env has CORS_ORIGIN=$cors_val"
+    echo "   This looks like a LOCAL DEV environment file."
+    echo "   The server's production .env should have CORS_ORIGIN=https://ai.poornasreecloud.com"
+    warned=1
+  fi
+
+  # Known dev JWT_SECRET (the one that ships with the local .env template)
+  local dev_jwt="36bb67b0d739464ae4d982e671113d97652a896f5e58b57e99b35a170f84fdbe"
+  if [[ "$jwt_val" == "$dev_jwt" ]]; then
+    echo ""
+    echo "⚠️  WARNING: Your local .env contains the DEVELOPMENT JWT_SECRET."
+    echo "   The production server uses a different JWT_SECRET that encrypts DB secrets."
+    echo "   NEVER overwrite the server .env with this file."
+    warned=1
+  fi
+
+  if [[ "$warned" -eq 1 ]]; then
+    echo ""
+    echo "   This deploy script does NOT copy .env to the server — you are safe."
+    echo "   But if you have recently run any command that synced .env to the server,"
+    echo "   verify with: ssh $SSH_HOST 'grep JWT_SECRET /root/poornasree-ai/.env'"
+    echo "   Expected value: RF9JUeGQjKo2EzrnDB1Ipiyh4APVWgMS"
+    echo ""
+  fi
+}
+
+check_local_env_is_not_dev_only
 
 commit_and_push() {
   cd "$REPO_ROOT"

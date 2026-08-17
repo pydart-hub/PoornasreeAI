@@ -1,4 +1,9 @@
 # Forwards to ops/deploy/deploy-quick.ps1 (kept for backward compatibility)
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORTANT: This script NEVER touches /root/poornasree-ai/.env on the server.
+# The production .env is managed manually on the VPS only.
+# See docs/DEPLOY-RUNBOOK.md → "CRITICAL: Production .env Rules"
+# ─────────────────────────────────────────────────────────────────────────────
 # Before deploy: commit any local changes and push to origin so the VPS can pull them.
 #
 # Usage:
@@ -23,6 +28,46 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+
+# ── Guard: detect if local .env looks like a dev file ────────────────────────
+# The production server .env must NEVER be overwritten with local dev values.
+function Test-LocalEnvIsNotDevOnly {
+    $envFile = Join-Path $RepoRoot ".env"
+    if (-not (Test-Path $envFile)) { return }
+
+    $envContent  = Get-Content $envFile -ErrorAction SilentlyContinue
+    $corsLine    = $envContent | Where-Object { $_ -match '^CORS_ORIGIN=' } | Select-Object -First 1
+    $jwtLine     = $envContent | Where-Object { $_ -match '^JWT_SECRET='  } | Select-Object -First 1
+    $corsVal     = if ($corsLine)  { ($corsLine  -split '=', 2)[1].Trim('"') } else { "" }
+    $jwtVal      = if ($jwtLine)   { ($jwtLine   -split '=', 2)[1].Trim('"') } else { "" }
+    $devJwt      = "36bb67b0d739464ae4d982e671113d97652a896f5e58b57e99b35a170f84fdbe"
+    $warned      = $false
+
+    if ($corsVal -match 'localhost') {
+        Write-Host ""
+        Write-Host " ⚠️  WARNING: Your local .env has CORS_ORIGIN=$corsVal" -ForegroundColor Yellow
+        Write-Host "    This looks like a LOCAL DEV environment file." -ForegroundColor Yellow
+        Write-Host "    The server's production .env should have CORS_ORIGIN=https://ai.poornasreecloud.com" -ForegroundColor Yellow
+        $warned = $true
+    }
+    if ($jwtVal -eq $devJwt) {
+        Write-Host ""
+        Write-Host " ⚠️  WARNING: Your local .env contains the DEVELOPMENT JWT_SECRET." -ForegroundColor Yellow
+        Write-Host "    The production server uses a different JWT_SECRET that encrypts DB secrets." -ForegroundColor Yellow
+        Write-Host "    NEVER overwrite the server .env with this file." -ForegroundColor Yellow
+        $warned = $true
+    }
+    if ($warned) {
+        Write-Host ""
+        Write-Host "    This deploy script does NOT copy .env to the server — you are safe." -ForegroundColor DarkGray
+        Write-Host "    But if you have recently synced .env to the server, verify with:" -ForegroundColor DarkGray
+        Write-Host "    ssh poornasree-v4 'grep JWT_SECRET /root/poornasree-ai/.env'" -ForegroundColor DarkGray
+        Write-Host "    Expected: RF9JUeGQjKo2EzrnDB1Ipiyh4APVWgMS" -ForegroundColor DarkGray
+        Write-Host ""
+    }
+}
+
+Test-LocalEnvIsNotDevOnly
 
 function Invoke-GitCommitAndPush {
     param([string]$Message)
