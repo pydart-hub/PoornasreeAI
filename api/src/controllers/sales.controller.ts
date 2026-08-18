@@ -179,6 +179,12 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
     if (!(await requireCustomerTarget(id, res))) return;
 
     await prisma.$transaction(async (tx) => {
+      await tx.ticket.updateMany({ where: { dealerId: id }, data: { dealerId: null } });
+      await tx.ticket.updateMany({ where: { assignedDealerId: id }, data: { assignedDealerId: null } });
+      await tx.ticket.updateMany({ where: { assignedManagerId: id }, data: { assignedManagerId: null } });
+      await tx.ticket.updateMany({ where: { assignedEngineerId: id }, data: { assignedEngineerId: null } });
+
+      await tx.workReport.deleteMany({ where: { dealerId: id } });
       await tx.supportMessage.deleteMany({ where: { senderId: id } });
       await tx.trainingFeedback.deleteMany({ where: { createdById: id } });
       await tx.document.deleteMany({ where: { uploadedById: id } });

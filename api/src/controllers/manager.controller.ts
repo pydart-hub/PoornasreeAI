@@ -442,6 +442,7 @@ export async function deleteEngineer(req: Request, res: Response): Promise<void>
         where: { assignedEngineerId: engineerId },
         data: { assignedEngineerId: null },
       });
+      await tx.workReport.deleteMany({ where: { dealerId: engineerId } });
       await tx.supportMessage.deleteMany({ where: { senderId: engineerId } });
       await tx.trainingFeedback.deleteMany({ where: { createdById: engineerId } });
       await tx.document.deleteMany({ where: { uploadedById: engineerId } });
@@ -1193,13 +1194,26 @@ export async function deleteAssistantManager(req: Request, res: Response): Promi
       return;
     }
 
-    // Re-parent the assistant's engineers to the calling service manager before deleting
-    await prisma.user.updateMany({
-      where: { managerId: assistantId, role: "service_engineer" },
-      data: { managerId },
-    });
+    await prisma.$transaction(async (tx) => {
+      // Re-parent the assistant's engineers to the calling service manager before deleting
+      await tx.user.updateMany({
+        where: { managerId: assistantId, role: "service_engineer" },
+        data: { managerId },
+      });
 
-    await prisma.user.delete({ where: { id: assistantId } });
+      await tx.ticket.updateMany({ where: { assignedManagerId: assistantId }, data: { assignedManagerId: null } });
+      await tx.ticket.updateMany({ where: { assignedEngineerId: assistantId }, data: { assignedEngineerId: null } });
+      await tx.ticket.updateMany({ where: { dealerId: assistantId }, data: { dealerId: null } });
+      await tx.ticket.updateMany({ where: { assignedDealerId: assistantId }, data: { assignedDealerId: null } });
+
+      await tx.workReport.deleteMany({ where: { dealerId: assistantId } });
+      await tx.supportMessage.deleteMany({ where: { senderId: assistantId } });
+      await tx.trainingFeedback.deleteMany({ where: { createdById: assistantId } });
+      await tx.document.deleteMany({ where: { uploadedById: assistantId } });
+      await tx.rdVideo.deleteMany({ where: { uploadedById: assistantId } });
+
+      await tx.user.delete({ where: { id: assistantId } });
+    });
 
     res.json({ message: "Assistant manager deleted" });
   } catch (err) {
