@@ -2403,8 +2403,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return showProducts(sessionId, meta);
   }
   if (choice === "2" || upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT" || upperChoice.includes("COMPLAINT REG")) {
-    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", meta);
-    return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    return startComplaintRegistration(sessionId, phoneNumber, meta, lang);
   }
   if (choice === "3" || upperChoice === "COMPLAINT_STATUS" || upperChoice === "TICKETS" || upperChoice.includes("STATUS")) {
     return showTicketStatus(sessionId, phoneNumber, meta);
@@ -2417,11 +2416,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
   if (upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT_REGISTER" || upperChoice === "BOOK_SERVICE") {
-    await updateSession(sessionId, "REGISTER_PROMPT", meta);
-    return makeReply(t("REGISTER_WELCOME", lang), [
-      { id: "REGISTER_MACHINE", title: "📝 Register Machine" },
-      { id: "SKIP", title: "⏭️ Skip for Now" },
-    ]);
+    return startComplaintRegistration(sessionId, phoneNumber, meta, lang);
   }
   if (upperChoice === "COMPACT_ADAPTER") {
     return runGroqCompanyAssistant(phoneNumber, "Compact Adapter output voltage troubleshooting", meta, { sessionId });
