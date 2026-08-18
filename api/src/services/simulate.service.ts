@@ -3483,6 +3483,11 @@ export async function startComplaintRegistration(
             description: iss.problemType || "Common issue",
           })),
           {
+            id: "CHANGE_SERIAL",
+            title: "🔄 Register Another Product",
+            description: "Enter serial number for another machine",
+          },
+          {
             id: "COMPLAINT_OTHER",
             title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
             description: "Describe issue in text",
@@ -3498,7 +3503,8 @@ export async function startComplaintRegistration(
   return makeReply(
     `📦 *Machine:* ${prodInfo}${serialInfo}\n\n` +
     `📝 *Please select an issue from the list below, or type your complaint directly:*\n\n` +
-    `Example: _LED blinking, not heating, display not working, T2 error_`,
+    `Example: _LED blinking, not heating, display not working, T2 error_\n\n` +
+    `💡 _To register a complaint for another product, select "Register Another Product" from the list or reply "Different Machine"._`,
     [
       { id: "CHANGE_SERIAL", title: "🔄 Different Machine" },
       getMenuButton(lang),
@@ -4092,6 +4098,32 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   const lang: Lang = (meta.language ?? "en") as Lang;
   let complaintText = text.trim();
   let selectedTemplate: any = null;
+
+  const upperText = complaintText.toUpperCase();
+  const isChangeMachine =
+    complaintText === "CHANGE_SERIAL" ||
+    complaintText === "DIFFERENT_MACHINE" ||
+    upperText.includes("DIFFERENT MACHINE") ||
+    upperText.includes("ANOTHER PRODUCT") ||
+    upperText.includes("ANOTHER MACHINE") ||
+    upperText.includes("OTHER PRODUCT") ||
+    upperText.includes("CHANGE SERIAL") ||
+    upperText.includes("REGISTER ANOTHER");
+
+  if (isChangeMachine) {
+    const clearedMeta: SessionMeta = {
+      ...meta,
+      regSerialNumber: undefined,
+      regMachineData: undefined,
+      serialNumber: undefined,
+      machineData: undefined,
+      tsSerialPath: false,
+    };
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", clearedMeta);
+    return makeReply(
+      `🔧 *Enter Machine Serial Number:*\n\nPlease enter the serial number of the machine you are registering a complaint for.`
+    );
+  }
 
   const isOtherOption =
     complaintText === "COMPLAINT_OTHER" ||
