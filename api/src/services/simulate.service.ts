@@ -3462,18 +3462,48 @@ export async function startComplaintRegistration(
   }
 
   // Machine is known, but issue description is missing -> prompt user directly to tell their issue with [🔄 Different Machine] option
+  // Machine is known, but issue description is missing -> prompt user with complaint options list OR free-text input
   const prodInfo = regMachine?.m_model || updatedMeta.selectedProduct || "Machine";
   const serialInfo = regSerial ? ` (Serial: ${regSerial})` : "";
 
-  await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+  let complaintList: ReplyList | undefined;
+  try {
+    const issues = await prisma.documentIssue.findMany({
+      where: { isActive: true, audience: { in: ["customer", "both"] } },
+      select: { id: true, title: true, problemType: true },
+      take: 10,
+    });
+    if (issues.length > 0) {
+      complaintList = {
+        buttonText: lang === "hi" ? "समस्या चुनें 📋" : (lang === "ta" ? "பிரச்சனை தேர்வு 📋" : "Select Issue 📋"),
+        rows: [
+          ...issues.map((iss) => ({
+            id: `COMPLAINT_${iss.id}`,
+            title: iss.title.length > 24 ? iss.title.slice(0, 21) + "..." : iss.title,
+            description: iss.problemType || "Common issue",
+          })),
+          {
+            id: "COMPLAINT_OTHER",
+            title: lang === "hi" ? "अन्य (टाइप करें)" : "Other (type manually)",
+            description: "Describe issue in text",
+          },
+        ],
+      };
+    }
+  } catch (err) {
+    console.error("[simulate] fetch complaint issues error:", err);
+  }
+
+  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
   return makeReply(
     `📦 *Machine:* ${prodInfo}${serialInfo}\n\n` +
-    `📝 *Please describe the issue you are facing with your machine:*\n\n` +
+    `📝 *Please select an issue from the list below, or type your complaint directly:*\n\n` +
     `Example: _LED blinking, not heating, display not working, T2 error_`,
     [
       { id: "CHANGE_SERIAL", title: "🔄 Different Machine" },
       getMenuButton(lang),
-    ]
+    ],
+    complaintList
   );
 }
 
