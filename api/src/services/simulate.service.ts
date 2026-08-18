@@ -4195,8 +4195,11 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
 
   await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
 
+  const introMsg = lang === "hi" ? "🛠️ *समाधान चरण:*\n\n" : (lang === "ta" ? "🛠️ *தீர்வு படிகள்:*\n\n" : "🛠️ *Troubleshooting Steps:*\n\n");
+  const questionMsg = lang === "hi" ? "\n\nक्या इससे आपकी समस्या हल हो गई?" : (lang === "ta" ? "\n\nஇது உங்கள் சிக்கலைத் தீர்த்ததா?" : "\n\nDid this resolve your issue?");
+
   return makeReply(
-    t("STEPS_FOUND", lang, { steps: translatedStepsText }),
+    `${introMsg}${translatedStepsText}${questionMsg}`,
     [
       getYesResolvedButton(lang),
       getNotResolvedButton(lang),
@@ -4353,6 +4356,10 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
     }
     await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
     return makeReply(t("ENTER_NAME", lang));
+  }
+
+  if (text.trim().length >= 3 && !upper.includes("MENU")) {
+    return handleComplaintDescribe(sessionId, phoneNumber, meta, text);
   }
 
   return makeReply(
