@@ -4165,8 +4165,8 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   }
 
   const steps = template.steps
-    .map((s: { stepContent: string }) => s.stepContent)
-    .filter(isActionableStep);
+    .map((s: { stepContent: string }) => s.stepContent.trim())
+    .filter((s: string) => s.length > 0);
 
   if (steps.length === 0) {
     if (videos.length > 0) {
@@ -4290,34 +4290,13 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  const isResolved =
-    upper === "RESOLVED" ||
-    upper === "YES" ||
-    upper.includes("RESOLVED") ||
-    upper.includes("हल हुआ") ||
-    upper.includes("தீர்க்கப்பட்டது") ||
-    upper.includes("ಪರಿಹರಿಸಲಾಗಿದೆ") ||
-    upper.includes("सुटली") ||
-    upper.includes("పరిష్కరించబడింది") ||
-    upper.includes("সমাধান হয়েছে");
-
-  if (isResolved) {
-    await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
-    return makeReply(
-      t("ISSUE_RESOLVED", lang) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
-      [
-        getYesAnotherIssueButton(lang),
-        getNoButton(lang),
-        getMenuButton(lang)
-      ]
-    );
-  }
-
   // "Not Resolved" → show Book Service or Main Menu
   const isNotResolved =
     upper === "NOT_RESOLVED" ||
     upper === "NO" ||
     upper.includes("NOT RESOLVED") ||
+    upper.includes("NOT_RESOLVED") ||
+    upper.includes("UNRESOLVED") ||
     upper.includes("हल नहीं") ||
     upper.includes("தீர்க்கப்படவில்லை") ||
     upper.includes("ಪರಿಹರಿಸಲಾಗಿಲ್ಲ") ||
@@ -4346,6 +4325,30 @@ async function handleTroubleshootDoneOptions(sessionId: string, phoneNumber: str
         getBookServiceButton(lang),
         getMenuButton(lang),
       ],
+    );
+  }
+
+  const isResolved =
+    (upper === "RESOLVED" ||
+      upper === "YES" ||
+      upper.includes("RESOLVED") ||
+      upper.includes("हल हुआ") ||
+      upper.includes("தீர்க்கப்பட்டது") ||
+      upper.includes("ಪರಿಹರಿಸಲಾಗಿದೆ") ||
+      upper.includes("सुटली") ||
+      upper.includes("పరిష్కరించబడింది") ||
+      upper.includes("সমাধান হয়েছে")) &&
+    !upper.includes("NOT");
+
+  if (isResolved) {
+    await updateSession(sessionId, "ANOTHER_COMPLAINT_PROMPT", meta);
+    return makeReply(
+      t("ISSUE_RESOLVED", lang) + "\n\n" + t_extra("DO_YOU_HAVE_ANOTHER", lang),
+      [
+        getYesAnotherIssueButton(lang),
+        getNoButton(lang),
+        getMenuButton(lang)
+      ]
     );
   }
 
