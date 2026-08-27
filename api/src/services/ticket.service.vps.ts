@@ -9,6 +9,7 @@ import prisma from "../lib/prisma";
 import { enrichTicketFromSerial, resolveDealerFromPasstestCustomer } from "./dealerMatch.service";
 import * as WhatsAppService from "./whatsapp.service";
 import { notifyTicketEvent } from "./integration-webhook.service";
+import { notifyEngineerTicketAssigned } from "./engineer-ticket-notification.service";
 
 export const activeOtps = new Map<string, { code: string; expiresAt: Date }>();
 
@@ -117,6 +118,7 @@ export async function autoAssignEngineer(
   });
 
   if (result.count === 1) {
+    notifyEngineerTicketAssigned(ticketId).catch(() => {});
     return { assigned: true, engineerId: bestEngineer.id };
   }
 
@@ -334,11 +336,9 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
       include: TICKET_INCLUDE,
     });
     notifyTicketEvent("ticket.assigned", ticketId);
-    try {
-      // @ts-ignore
-      const { notifyEngineerTicketAssigned } = await import("./engineer-ticket-notification.service");
-      notifyEngineerTicketAssigned(ticketId).catch(() => {});
-    } catch {}
+    notifyEngineerTicketAssigned(ticketId).catch((err) =>
+      console.error("[ticket.service.vps] notifyEngineerTicketAssigned error:", err),
+    );
     return updated;
   }
 

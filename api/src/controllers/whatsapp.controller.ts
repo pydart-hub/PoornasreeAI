@@ -11,6 +11,12 @@ import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
 import { transcribeAudioWithGroq } from "../services/groq.service";
+import { touchSupportActivity } from "../services/support-inactivity.service";
+import {
+  isServiceEngineer,
+  handleEngineerMessage,
+  handleEngineerMedia,
+} from "../services/engineer-whatsapp.service";
 
 // ── Deduplication ─────────────────────────────────────────────────────────
 // Meta can retry webhook deliveries.  Keep a short-lived set of processed
@@ -369,8 +375,15 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
+  // Check if sender is a registered service engineer
+  const engineer = await isServiceEngineer(from);
+
   // Handle media uploads (image, video, audio/voice, document)
   if (msg.type === "image" || msg.type === "video" || msg.type === "audio" || msg.type === "voice" || msg.type === "document") {
+    if (engineer && (msg.type === "image" || msg.type === "document")) {
+      await handleEngineerMedia(from, msg, engineer);
+      return;
+    }
     await handleCustomerMedia(from, msg);
     return;
   }
@@ -418,7 +431,11 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // ── Route all inbound messages directly to SimulateService ──
+  // ── If sender is a Service Engineer, route to Engineer WhatsApp Engine ──
+  if (engineer) {
+    await handleEngineerMessage(from, text, engineer);
+    return;
+  }
 
   // ── Customer flow — existing FSM ──
 
@@ -457,8 +474,26 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     orderBy: { updatedAt: "desc" },
   });
 
-  if (session?.isBotPaused) {
-    // Bot is paused, don't run the FSM. Human is watching.
+  const upperText = (text || "").toUpperCase().trim();
+  const isSupportTrigger =
+    upperText === "4" ||
+    upperText === "SPEAK_SUPPORT" ||
+    upperText === "TALK_AGENT" ||
+    upperText === "TALK_TO_SUPPORT" ||
+    upperText === "SPEAK_TO_SUPPORT" ||
+    upperText === "SUPPORT" ||
+    upperText.includes("SPEAK TO SUPPORT") ||
+    upperText.includes("TALK TO SUPPORT") ||
+    upperText.includes("TALK TO AGENT") ||
+    upperText.includes("TALK TO HUMAN") ||
+    upperText.includes("CONNECT TO SUPPORT") ||
+    upperText.includes("CUSTOMER SUPPORT") ||
+    upperText.includes("CUSTOMER CARE");
+
+  if (session?.isBotPaused && !isSupportTrigger) {
+    // Bot is paused and this is regular customer chat, don't run the FSM. Human is watching.
+    // Refresh the 2-minute inactivity countdown so support agent has time to respond.
+    touchSupportActivity(from);
     return;
   }
 

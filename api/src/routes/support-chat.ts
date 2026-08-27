@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import * as WhatsAppService from "../services/whatsapp.service";
 import { io } from "../lib/socket";
+import { touchSupportActivity, clearSupportActivity } from "../services/support-inactivity.service";
 
 const router = Router();
 
@@ -44,10 +45,14 @@ router.get("/sessions", async (req: Request, res: Response) => {
           orderBy: { createdAt: "desc" },
         });
 
+        const meta = (session.metadata as Record<string, unknown>) || {};
+
         return {
           ...session,
           name: name || session.phoneNumber,
           lastMessage,
+          isWaitingForSupport: Boolean(meta.isWaitingForSupport),
+          supportRequestedAt: (meta.supportRequestedAt as string) || null,
         };
       })
     );
@@ -107,6 +112,9 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
 
     // Send automated greeting when the agent takes over
     if (botState) {
+      // Start the 2-minute auto-turn-on countdown timer
+      touchSupportActivity(phoneNumber);
+
       const greetingMsg = "Hello, our customer support agent is now live and ready to assist you. Please feel free to ask your questions or clarify any doubts.";
       await WhatsAppService.sendMessage(phoneNumber, greetingMsg);
       
@@ -124,6 +132,9 @@ router.post("/toggle-bot/:phoneNumber", async (req: Request, res: Response) => {
           message: sentMsgRecord,
         });
       }
+    } else {
+      // Agent manually turned bot back ON - clear any pending auto-timeout
+      clearSupportActivity(phoneNumber);
     }
 
     if (!session) {
@@ -157,6 +168,26 @@ router.post("/send-message/:phoneNumber", async (req: Request, res: Response) =>
 
     if (!content) {
       return res.status(400).json({ error: "Content is required" });
+    }
+
+    // Refresh the 2-minute activity countdown timer for this support session
+    touchSupportActivity(phoneNumber);
+
+    // Clear waiting status once support responds
+    const activeSess = await prisma.conversationSession.findFirst({
+      where: { phoneNumber },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (activeSess) {
+      const meta = (activeSess.metadata as Record<string, unknown>) || {};
+      if (meta.isWaitingForSupport) {
+        await prisma.conversationSession.update({
+          where: { id: activeSess.id },
+          data: {
+            metadata: { ...meta, isWaitingForSupport: false } as object,
+          },
+        });
+      }
     }
 
     // Save message to DB

@@ -23,11 +23,13 @@ import simulateRoutes from "./routes/simulate.routes";
 import superAdminRoutes from "./routes/super-admin.routes";
 import { getBranding } from "./controllers/branding.controller";
 import { listRdVideos } from "./controllers/rd-video.controller";
+import { listTrainingVideos, searchTrainingVideosHandler } from "./controllers/engineer-training-video.controller";
 import { protect } from "./middleware/auth";
 import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
 import { loadRuntimeConfig } from "./services/runtime-config.service";
+import { startSupportInactivityMonitor } from "./services/support-inactivity.service";
 
 const app = express();
 
@@ -59,6 +61,10 @@ app.get("/api/branding", getBranding);
 
 // R&D videos list (authenticated — engineers + admin)
 app.get("/api/rd-videos", protect, listRdVideos);
+
+// Engineer Training videos list & AI search (authenticated — engineers + admin)
+app.get("/api/training-videos", protect, listTrainingVideos);
+app.get("/api/training-videos/search", protect, searchTrainingVideosHandler);
 
 // ── Authenticated routes ──────────────────────────────────────────────────
 // IMPORTANT: specific prefixes MUST be mounted before the broad "/api" mount,
@@ -133,6 +139,9 @@ httpServer.listen(env.PORT, async () => {
 
   // Ensure Qdrant collection exists
   await ensureCollection();
+
+  // Start the 2-minute customer support inactivity monitor
+  startSupportInactivityMonitor();
 
   // Index training.json intents into Qdrant in the background.
   // Runs non-blocking so a slow Ollama startup doesn't delay the HTTP server.

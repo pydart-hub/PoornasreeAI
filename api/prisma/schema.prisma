@@ -529,7 +529,7 @@ model WorkReport {
   updatedAt              DateTime @updatedAt
 
   ticket                 Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  dealer                 User             @relation("DealerWorkReports", fields: [dealerId], references: [id])
+  dealer                 User             @relation("DealerWorkReports", fields: [dealerId], references: [id], onDelete: Cascade)
   parts                  ReplacedPart[]
   images                 WorkReportImage[]
 }
