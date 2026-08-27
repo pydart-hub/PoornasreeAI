@@ -296,13 +296,56 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       }
     }
 
+    // Collect all phone lookup variants
+    const phoneVariants = new Set<string>();
+    if (user.whatsappNumber) {
+      phoneVariants.add(user.whatsappNumber);
+      const clean = user.whatsappNumber.replace(/\D/g, "");
+      if (clean) {
+        phoneVariants.add(clean);
+        phoneVariants.add(`91${clean}`);
+        phoneVariants.add(`+91${clean}`);
+        if (clean.length >= 10) {
+          const last10 = clean.slice(-10);
+          phoneVariants.add(last10);
+          phoneVariants.add(`91${last10}`);
+          phoneVariants.add(`+91${last10}`);
+        }
+      }
+    }
+    const lookupPhones = [...phoneVariants];
+
     // Delete in a transaction, manually removing/unlinking related records that lack
     // onDelete: Cascade in the schema to avoid FK constraint violations.
     await prisma.$transaction(async (tx) => {
+      // Find all tickets associated with this customer ID or phone number variants
+      const customerTickets = await tx.ticket.findMany({
+        where: {
+          OR: [
+            { customerId: id },
+            ...(lookupPhones.length > 0 ? [{ phoneNumber: { in: lookupPhones } }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      const ticketIds = customerTickets.map((t) => t.id);
+
+      if (ticketIds.length > 0) {
+        // Delete work reports on these tickets
+        await tx.workReport.deleteMany({ where: { ticketId: { in: ticketIds } } });
+        // Delete the tickets
+        await tx.ticket.deleteMany({ where: { id: { in: ticketIds } } });
+      }
+
       // Unassign engineer from any support requests (engineerId is nullable)
       await tx.supportRequest.updateMany({
         where: { engineerId: id },
         data: { engineerId: null },
+      });
+
+      // Delete support requests initiated by this customer
+      await tx.supportRequest.deleteMany({
+        where: { customerId: id },
       });
 
       // Unassign user from tickets where they are set as dealer, assigned dealer, assigned manager, or assigned engineer
@@ -332,22 +375,21 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       // Delete R&D videos uploaded by this user
       await tx.rdVideo.deleteMany({ where: { uploadedById: id } });
 
-      // Clear any WhatsApp conversation session associated with this user's phone number
-      if (user.whatsappNumber) {
-        const cleanPhone = user.whatsappNumber.replace(/\D/g, "");
-        const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+      // Clear any WhatsApp conversation session and simulate messages associated with this user's phone number
+      if (lookupPhones.length > 0) {
         await tx.conversationSession.deleteMany({
           where: {
-            OR: [
-              { phoneNumber: user.whatsappNumber },
-              { phoneNumber: { contains: last10 } },
-            ],
+            phoneNumber: { in: lookupPhones },
+          },
+        });
+        await tx.simulateMessage.deleteMany({
+          where: {
+            phoneNumber: { in: lookupPhones },
           },
         });
       }
 
-      // Delete the user — conversations, messages, customerRequests, and
-      // their nested records cascade via existing onDelete: Cascade directives.
+      // Delete the user — conversations, messages cascade via existing onDelete: Cascade directives.
       await tx.user.delete({ where: { id } });
     });
 

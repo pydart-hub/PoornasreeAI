@@ -19,58 +19,66 @@
 
 ---
 
-## 2. Active Baseline WhatsApp Features
+## 2. Active WhatsApp Production Features
 
-### 🟢 1. Machine Registration Flow (FSM Engine)
-- **Trigger**: Customer sends greeting (`Hi`, `Namaste`, `Menu`) or taps `[📝 Register Machine]`.
+### 🟢 1. Smart Complaint Registration & AI Troubleshooting
 - **Flow**:
-  1. `REGISTER_PROMPT`: Welcomes customer and presents interactive choices: `[📝 Register Machine]`, `[⏭️ Skip for Now]`, `[🌐 Select Language]`.
-  2. `REGISTER_SERIAL`: Asks for 10-digit Machine Serial Number (e.g., `ECO-2024-8841`).
-  3. `REGISTER_NAME`: Captures Customer Full Name.
-  4. `REGISTER_PINCODE`: Captures 6-digit Pincode.
-  5. `REGISTER_GMAP`: Captures Location / Google Maps Link / Address.
-- **Database Action**: Creates a new customer account in the `User` table (`role = "customer"`) and links the machine serial entity.
+  1. Customer selects **`Complaint Registration [2]`** from the main menu or types any machine breakdown query directly in chat (e.g. `"Vibro not working"`, `"T2 error"`, `"Rate chart issue"`).
+  2. Bot uses `runGroqCompanyAssistant` / Gemini RAG pipeline grounded in `CHATBOT_DATAS` to generate precise, natural sentence-case troubleshooting steps with `[ ✅ Resolved ]` and `[ ❌ Unresolved ]` buttons.
+  3. If user taps `[ ❌ Unresolved ]`:
+     - Discovers registered customer details and machine fleet.
+     - Directs to the ticket confirmation summary card.
 
 ---
 
-### 🟢 2. Multi-Language Session Switching & Persistence
+### 🟢 2. Multi-Machine Selection & Dynamic "Change Machine"
+- **Multi-Machine Discovery**:
+  - Automatically queries all previous tickets under the customer's phone number (`getCustomerRegisteredMachines`).
+  - If multiple machines exist, displays an interactive list (`SELECT_REGISTERED_MACHINE`):
+    - `🔘 1. Machine Model A (Serial X)`
+    - `🔘 2. Machine Model B (Serial Y)`
+    - `🔘 ➕ Enter Different Serial`
+- **Dynamic Change Machine Action**:
+  - Summary card includes `[ 🔄 Change Machine ]`.
+  - When typed or selected, allows entering a new serial number.
+  - Automatically validates against Passtest API (`fetchMachineBySerial`) and upserts into `prisma.machine`.
+
+---
+
+### 🟢 3. Automatic Customer Registration & Profile Recognition
+- **Returning Customers (`startGreeting`)**:
+  - Greeted immediately by name (e.g. *"Welcome back, Sombi! 👋"*) without showing redundant registration forms.
+  - Direct access to the Main Menu interactive list.
+- **New Customers (`getOrCreateCustomerUser`)**:
+  - Automatically registers a `User` account (`role = "customer"`, `whatsappNumber`) during complaint booking.
+  - Direct ticket attribution to `ticket.customerId`.
+
+---
+
+### 🟢 4. Meta WhatsApp 1024-Character Auto-Overflow Engine
+- Resolves Meta's strict 1024-character limit on interactive messages.
+- If troubleshooting text > 1000 characters:
+  1. Delivers complete text guide as a standard text message (up to 4096 characters).
+  2. Immediately delivers interactive action buttons (`[ ✅ Resolved ]`, `[ ❌ Unresolved ]`).
+
+---
+
+### 🟢 5. Multi-Language Session Switching & Persistence
 - **Supported Languages**: English (`en`), Hindi (`hi`), Malayalam (`ml`), Tamil (`ta`), Kannada (`kn`), Telugu (`te`), Marathi (`mr`), Bengali (`bn`).
-- **Trigger**: User types a language name (e.g., `"Malayalam"`, `"Hindi me bolo"`) or taps `[🌐 Select Language]`.
-- **System Action**:
-  - Updates `ConversationSession.metadata` in PostgreSQL with `meta.language = "ml"`.
-  - Sets `explicitLanguage = true`.
-  - Dynamic translation of state prompts and button titles into the selected language.
+- Dynamic translation across state prompts, action buttons, and ticket confirmation summaries.
 
 ---
 
-### 🟢 3. Groq Speech-to-Text & Flagship LLM Integration
-- **Voice Note Audio Transcription (Active Live)**:
-  - **Location**: [`api/src/services/groq.service.ts`](file:///Users/pydart/Projects/PoornasreeAI-1/api/src/services/groq.service.ts) ➔ `transcribeAudioWithGroq()`
-  - **Model**: `whisper-large-v3-turbo`
-  - **Function**: Automatically transcribes WhatsApp `.ogg` voice notes into text (supporting Malayalam, Hindi, Tamil, Telugu, English, etc.) and routes transcribed text into the session handler.
-- **LLM Engine**: Configured to Meta's flagship **`llama-3.3-70b-versatile`** across all runtime settings.
+### 🟢 6. Voice Note Audio Transcription (Groq Whisper)
+- Automatically transcribes `.ogg` voice notes in real-time (`whisper-large-v3-turbo`) across Indian languages and executes troubleshooting.
 
 ---
 
-### 🟢 4. Human Support Agent Handoff (Live Chat Takeover)
-- **Trigger**: Customer taps `[💬 Talk to us]` or `[💬 Talk to Support]`.
-- **System Action**: Sets `isBotPaused = true` and broadcasts real-time Socket.IO events to `/admin?tab=livechat` for human support takeover.
+### 🟢 7. Human Support Agent Handoff (Live Chat Takeover)
+- Sets `isBotPaused = true` and broadcasts Socket.IO events to `/admin?tab=livechat` for real-time staff takeover.
 
 ---
 
-### 🟢 5. Customer Image Upload Handling
-- **Location**: [`api/src/controllers/whatsapp.controller.ts`](file:///Users/pydart/Projects/PoornasreeAI-1/api/src/controllers/whatsapp.controller.ts) ➔ `handleCustomerImage()`
-- **Flow**: Downloads image binary from Meta Graph API, saves file to `/uploads/customer-uploads/`, and broadcasts attachment link to Admin Live Chat dashboard.
-
----
-
-## 3. Purged Legacy Modules
-- **Secondary Agents**: Deleted `whatsapp-agent.service.ts`, `dealer-whatsapp.service.ts`, `engineer-whatsapp.service.ts`, `engineer-ticket-notification.service.ts`, `dealer-ticket-notification.service.ts`, `session-cleanup.service.ts`, `customer-clear.service.ts`.
-- **Troubleshoot FSM**: Purged `TROUBLESHOOT_STEP`, `TROUBLESHOOT_DONE_OPTIONS`, `ASK_VIDEO_TUTORIAL`, `VIDEO_HELPED`, `ASK_BOOK_SERVICE`, `COMPLAINT_PRODUCT`, `COMPLAINT_SUBCATEGORY`, `COMPLAINT_DESCRIBE` from `simulate.service.ts`.
-- **Legacy Classifiers**: Purged `complaint-classifier.service.ts` and `engineer-training-video.service.ts`.
-
----
-
-## 4. Current Operational Status
-- **Baseline**: Clean, minimal, high-performance codebase compiling with 0 errors.
-- **Next Development Step**: **Standing by for user instructions before building new features.**
+## 3. Current Operational Status
+- **Build Status**: Compiling with 0 errors (`tsc --noEmit` clean).
+- **Stack Connectivity**: Active Cloudflare / ngrok webhook tunnel, persistent PostgreSQL tunnel on port `5433`, live Meta Graph API integration.

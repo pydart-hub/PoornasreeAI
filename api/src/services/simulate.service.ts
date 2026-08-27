@@ -91,6 +91,7 @@ type SessionMeta = {
   regCustomerId?: string;
   regIsDealerMachine?: boolean;
   hasSkippedRegistration?: boolean;
+  machineCount?: string | number;
   role?: string;
   isEngineer?: boolean;
   mediaUrls?: string[];
@@ -144,6 +145,36 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     te: "📝 ఇప్పుడే నమోదు చేయండి",
     bn: "📝 এখনই নিবন্ধন করুন",
     ml: "📝 ഇപ്പോൾ രജിസ്റ്റർ ചെയ്യുക",
+  },
+  REGISTER_MACHINE_COUNT_PROMPT: {
+    en: "🔢 *How many machines do you have?*\n\nPlease select or type the number of machines you own:",
+    hi: "🔢 *आपके पास कितनी मशीनें हैं?*\n\nकृपया अपनी मशीनों की संख्या चुनें या टाइप करें:",
+    ta: "🔢 *உங்களிடம் எத்தனை இயந்திரங்கள் உள்ளன?*\n\nஉங்கள் இயந்திரங்களின் எண்ணிக்கையைத் தேர்ந்தெடுக்கவும் அல்லது தட்டச்சு செய்யவும்:",
+    kn: "🔢 *ನಿಮ್ಮ ಬಳಿ ಎಷ್ಟು ಯಂತ್ರಗಳಿವೆ?*\n\nದಯವಿಟ್ಟು ನಿಮ್ಮ ಯಂತ್ರಗಳ ಸಂಖ್ಯೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ ಅಥವಾ ಟೈಪ್ ಮಾಡಿ:",
+    mr: "🔢 *आपल्याकडे किती मशीन्स आहेत?*\n\nकृपया आपल्या मशीनची संख्या निवडा किंवा टाइप करा:",
+    te: "🔢 *మీ వద్ద ఎన్ని యంత్రాలు ఉన్నాయి?*\n\nదయచేసి మీ యంత్రాల సంఖ్యను ఎంచుకోండి లేదా టైప్ చేయండి:",
+    bn: "🔢 *আপনার কাছে কতগুলি মেশিন আছে?*\n\nঅনুগ্রহ করে আপনার মেশিনের সংখ্যা নির্বাচন করুন বা লিখুন:",
+    ml: "🔢 *നിങ്ങൾക്ക് എത്ര മെഷീനുകൾ ഉണ്ട്?*\n\nദയവായി മെഷീനുകളുടെ എണ്ണം തിരഞ്ഞെടുക്കുക അല്ലെങ്കിൽ ടൈപ്പ് ചെയ്യുക:",
+  },
+  COUNT_ONE_BUTTON: {
+    en: "1️⃣ 1 Machine",
+    hi: "1️⃣ 1 मशीन",
+    ta: "1️⃣ 1 இயந்திரம்",
+    kn: "1️⃣ 1 ಯಂತ್ರ",
+    mr: "1️⃣ 1 मशीन",
+    te: "1️⃣ 1 యంత్రం",
+    bn: "1️⃣ 1টি মেশিন",
+    ml: "1️⃣ 1 മെഷീൻ",
+  },
+  COUNT_MULTI_BUTTON: {
+    en: "🔢 More than 1",
+    hi: "🔢 1 से अधिक",
+    ta: "🔢 1-க்கு மேல்",
+    kn: "🔢 1 ಕ್ಕಿಂತ ಹೆಚ್ಚು",
+    mr: "🔢 1 पेक्षा जास्त",
+    te: "🔢 1 కంటే ఎక్కువ",
+    bn: "🔢 1-এর বেশি",
+    ml: "🔢 ഒന്നിൽ കൂടുതൽ",
   },
   REGISTER_SERIAL_PROMPT: {
     en: "📝 *Registration — Step 1 of 4*\n\n🔧 Please enter your machine *serial number*.\n\n_(You can find it on the machine label or warranty card)_\n\nIf you don't have one, press *Skip*.",
@@ -1336,6 +1367,7 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     session.state === "CHECK_STATUS" ||
     session.state === "CHANGE_LANGUAGE" ||
     session.state === "ASK_PHONE" ||
+    session.state === "REGISTER_MACHINE_COUNT" ||
     session.state === "REGISTER_SERIAL" ||
     session.state === "REGISTER_NAME" ||
     session.state === "REGISTER_PINCODE" ||
@@ -1345,6 +1377,7 @@ export async function handleMessage(phoneNumber: string, message: string, messag
   const fsmButtonIds = new Set([
     "1", "2", "3", "4", "5",
     "REGISTER", "SKIP", "CANCEL", "SELECT_LANG", "MENU", "MAIN MENU", "YES", "NO",
+    "COUNT_1", "COUNT_MULTI",
     "LANG_EN", "LANG_HI", "LANG_TA", "LANG_ML", "LANG_KN", "LANG_MR", "LANG_TE", "LANG_BN",
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
@@ -1352,13 +1385,17 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     "TROUBLESHOOT_RESOLVED", "TROUBLESHOOT_UNRESOLVED", "RESOLVED", "UNRESOLVED"
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
-    await updateSession(session.id, "REGISTER_SERIAL", { language: meta.language });
+    await updateSession(session.id, "REGISTER_MACHINE_COUNT", { language: meta.language });
     return makeReply(
-      t("REGISTER_SERIAL_PROMPT", lang),
-      [getCancelButton(lang), getMenuButton(lang)]
+      t("REGISTER_MACHINE_COUNT_PROMPT", lang),
+      [
+        { id: "COUNT_1", title: t("COUNT_ONE_BUTTON", lang) },
+        { id: "COUNT_MULTI", title: t("COUNT_MULTI_BUTTON", lang) },
+        getCancelButton(lang),
+        getMenuButton(lang),
+      ]
     );
   }
-  // Explicit intent matching for Register Complaint & Close Ticket
   const isRegisterComplaintIntent =
     upper.includes("REGISTER COMPLAINT") ||
     upper.includes("BOOK COMPLAINT") ||
@@ -1369,7 +1406,12 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     upper === "BOOK_SERVICE";
 
   if (isRegisterComplaintIntent) {
-    return startComplaintRegistration(session.id, phoneNumber, meta, lang);
+    await updateSession(session.id, "COMPLAINT_DESCRIBE", meta);
+    return makeReply(
+      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      [getMenuButton(lang)]
+    );
   }
 
   const isChangeMachineIntent =
@@ -1451,6 +1493,13 @@ export async function handleMessage(phoneNumber: string, message: string, messag
   }
 
   if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
+    // If the button corresponds to troubleshooting results, update metadata
+    if (upper === "TROUBLESHOOT_RESOLVED" || upper === "TROUBLESHOOT_UNRESOLVED") {
+      await updateSession(session.id, session.state, {
+        ...meta,
+        complaint: meta.lastIssueQuery,
+      }).catch(() => {});
+    }
     return routeState(session, phoneNumber, text, meta);
   }
 
@@ -1599,22 +1648,37 @@ export async function startGreeting(phoneNumber: string) {
         { whatsappNumber: "+91" + last10 },
       ],
     },
-    select: { id: true, firstName: true, lastName: true, role: true, whatsappNumber: true },
+    select: { id: true, firstName: true, lastName: true, role: true, whatsappNumber: true, pincodeId: true },
   });
 
+  // ONLY treat as registered if active User record exists in DB
   if (registeredUser) {
     const isEng = ["service_engineer", "service", "service_manager", "assistant_service_manager", "admin", "super_admin", "engineer"].includes(registeredUser.role.toLowerCase());
-    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || (isEng ? "Service Engineer" : "Customer");
+    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || "Customer";
+
+    const savedProfile = await loadSavedEndCustomer(phoneNumber).catch(() => null);
+
     const meta: SessionMeta = {
       ...existingMeta,
       customerName: displayName,
       customerPhone: phoneNumber,
       regCustomerId: registeredUser.id,
       regName: displayName,
+      manualName: displayName,
+      manualPincode: savedProfile?.manualPincode || existingMeta.manualPincode,
+      regPincode: savedProfile?.manualPincode || existingMeta.regPincode,
+      manualPlace: savedProfile?.manualPlace || existingMeta.manualPlace,
+      regPlace: savedProfile?.manualPlace || existingMeta.regPlace,
+      manualDistrict: savedProfile?.manualDistrict || existingMeta.manualDistrict,
+      regDistrict: savedProfile?.manualDistrict || existingMeta.regDistrict,
+      manualState: savedProfile?.manualState || existingMeta.manualState,
+      regState: savedProfile?.manualState || existingMeta.regState,
+      manualAddress: savedProfile?.manualAddress || existingMeta.manualAddress,
+      regAddress: savedProfile?.manualAddress || existingMeta.regAddress,
       language: existingMeta.language,
-      role: registeredUser.role,
+      role: registeredUser.role || "customer",
       isEngineer: isEng,
-      hasSkippedRegistration: isEng ? true : existingMeta.hasSkippedRegistration,
+      hasSkippedRegistration: true,
     };
     await updateSession(session.id, "MAIN_MENU", meta);
 
@@ -1624,7 +1688,7 @@ export async function startGreeting(phoneNumber: string) {
       );
     }
 
-    // Show welcome back WITHOUT the duplicate GREETING_HEADER prefix
+    // Show welcome back directly with Main Menu
     return makeReply(
       t("WELCOME_BACK", lang, { name: displayName }) +
       "\n\n" +
@@ -1634,6 +1698,7 @@ export async function startGreeting(phoneNumber: string) {
     );
   }
 
+  // Unregistered user / Deleted customer: Clear stale meta and prompt for registration
   await updateSession(session.id, "REGISTER_PROMPT", { language: existingMeta.language });
   return makeReply(
     t("REGISTER_WELCOME", lang),
@@ -1709,6 +1774,9 @@ async function routeState(
     case "REGISTER_PROMPT":
       return handleRegisterPrompt(session.id, phoneNumber, meta, text);
 
+    case "REGISTER_MACHINE_COUNT":
+      return handleRegisterMachineCount(session.id, phoneNumber, meta, text);
+
     case "REGISTER_SERIAL":
       return handleRegisterSerial(session.id, phoneNumber, meta, text);
 
@@ -1777,6 +1845,9 @@ async function routeState(
 
     case "PASSTEST_PINCODE_CONFIRM":
       return handlePasstestPincodeConfirm(session.id, phoneNumber, meta, text);
+
+    case "SELECT_REGISTERED_MACHINE":
+      return handleSelectRegisteredMachine(session.id, phoneNumber, meta, text);
 
     case "CONFIRM_REGISTER_TICKET":
       return handleConfirmRegisterTicket(session.id, phoneNumber, meta, text);
@@ -1881,8 +1952,16 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
   }
 
   if (upper === "REGISTER" || upper === "REGISTER_MACHINE") {
-    await updateSession(sessionId, "REGISTER_SERIAL", meta);
-    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+    await updateSession(sessionId, "REGISTER_MACHINE_COUNT", meta);
+    return makeReply(
+      t("REGISTER_MACHINE_COUNT_PROMPT", lang),
+      [
+        { id: "COUNT_1", title: t("COUNT_ONE_BUTTON", lang) },
+        { id: "COUNT_MULTI", title: t("COUNT_MULTI_BUTTON", lang) },
+        getCancelButton(lang),
+        getMenuButton(lang),
+      ]
+    );
   }
 
   if (upper === "SKIP" || upper === "SKIP_REGISTER" || upper === "0") {
@@ -1897,6 +1976,92 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
   return handleMainMenu(sessionId, phoneNumber, autoMeta, text);
 }
 
+async function handleRegisterMachineCount(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
+  }
+  if (upper === "CANCEL" || upper.includes("CANCEL")) {
+    return cancelRegistrationToMainMenu(sessionId, meta, lang);
+  }
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    await updateSession(sessionId, "REGISTER_PROMPT", meta);
+    return makeReply(
+      t("REGISTER_WELCOME", lang),
+      [
+        { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+        getSkipButton(lang),
+        getLangSelectButton(lang),
+      ]
+    );
+  }
+
+  const isOne =
+    upper === "COUNT_1" ||
+    upper === "1" ||
+    upper === "ONE" ||
+    upper.includes("1 MACHINE") ||
+    upper.includes("ONE MACHINE") ||
+    upper.includes("1 മെഷീൻ") ||
+    upper.includes("1 मशीन");
+
+  const isMulti =
+    upper === "COUNT_MULTI" ||
+    upper.includes("MORE") ||
+    upper.includes("MULTI") ||
+    upper.includes("ഒന്നിൽ കൂടുതൽ") ||
+    upper.includes("1 से अधिक") ||
+    /^[2-9]\d*$/.test(upper) ||
+    upper.includes("2") ||
+    upper.includes("3") ||
+    upper.includes("TWO") ||
+    upper.includes("THREE");
+
+  if (isOne) {
+    const updatedMeta: SessionMeta = { ...meta, machineCount: "1" };
+    await updateSession(sessionId, "REGISTER_SERIAL", updatedMeta);
+    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+  }
+
+  if (isMulti || upper === "SKIP" || upper === "0") {
+    const parsedNum = upper.match(/\d+/)?.[0] || "multiple";
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      machineCount: parsedNum,
+      regSerialNumber: undefined,
+      regMachineData: undefined,
+    };
+    await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
+    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+  }
+
+  const num = parseInt(upper, 10);
+  if (!isNaN(num)) {
+    if (num === 1) {
+      const updatedMeta: SessionMeta = { ...meta, machineCount: "1" };
+      await updateSession(sessionId, "REGISTER_SERIAL", updatedMeta);
+      return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+    } else {
+      const updatedMeta: SessionMeta = { ...meta, machineCount: String(num), regSerialNumber: undefined };
+      await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
+      return makeReply(t("REGISTER_NAME_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+    }
+  }
+
+  return makeReply(
+    t("REGISTER_MACHINE_COUNT_PROMPT", lang),
+    [
+      { id: "COUNT_1", title: t("COUNT_ONE_BUTTON", lang) },
+      { id: "COUNT_MULTI", title: t("COUNT_MULTI_BUTTON", lang) },
+      getCancelButton(lang),
+      getMenuButton(lang),
+    ]
+  );
+}
+
 async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
@@ -1908,6 +2073,18 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
   // CANCEL exits registration entirely → Main Menu
   if (upper === "CANCEL" || upper.includes("CANCEL")) {
     return cancelRegistrationToMainMenu(sessionId, meta, lang);
+  }
+  if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
+    await updateSession(sessionId, "REGISTER_MACHINE_COUNT", meta);
+    return makeReply(
+      t("REGISTER_MACHINE_COUNT_PROMPT", lang),
+      [
+        { id: "COUNT_1", title: t("COUNT_ONE_BUTTON", lang) },
+        { id: "COUNT_MULTI", title: t("COUNT_MULTI_BUTTON", lang) },
+        getCancelButton(lang),
+        getMenuButton(lang),
+      ]
+    );
   }
   // SKIP advances to next step (Name prompt)
   if (upper === "SKIP" || upper === "SKIP_REGISTER" || upper === "0") {
@@ -1985,8 +2162,20 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
   }
   if (isGlobalBackCommand(upper) || isGlobalBackCommand(text)) {
-    await updateSession(sessionId, "REGISTER_SERIAL", meta);
-    return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+    if (meta.machineCount === "1" || meta.machineCount === 1) {
+      await updateSession(sessionId, "REGISTER_SERIAL", meta);
+      return makeReply(t("REGISTER_SERIAL_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+    }
+    await updateSession(sessionId, "REGISTER_MACHINE_COUNT", meta);
+    return makeReply(
+      t("REGISTER_MACHINE_COUNT_PROMPT", lang),
+      [
+        { id: "COUNT_1", title: t("COUNT_ONE_BUTTON", lang) },
+        { id: "COUNT_MULTI", title: t("COUNT_MULTI_BUTTON", lang) },
+        getCancelButton(lang),
+        getMenuButton(lang),
+      ]
+    );
   }
   // CANCEL exits registration entirely → Main Menu
   if (upper === "CANCEL" || upper.includes("CANCEL")) {
@@ -2244,8 +2433,12 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return showProducts(sessionId, meta);
   }
   if (choice === "2" || upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT" || upperChoice.includes("COMPLAINT REG")) {
-    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", meta);
-    return makeReply(t("SERIAL_PROMPT", lang), [getSkipButton(lang), getMenuButton(lang)]);
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+    return makeReply(
+      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      [getMenuButton(lang)]
+    );
   }
   if (choice === "3" || upperChoice === "COMPLAINT_STATUS" || upperChoice === "TICKETS" || upperChoice.includes("STATUS")) {
     return showTicketStatus(sessionId, phoneNumber, meta);
@@ -2309,7 +2502,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
 }
 
 /** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers conversation history & FSM state, and answers like a humanoid assistant */
-async function runGroqCompanyAssistant(
+export async function runGroqCompanyAssistant(
   phoneNumber: string,
   query: string,
   meta: SessionMeta,
@@ -2319,8 +2512,29 @@ async function runGroqCompanyAssistant(
   const botName = settings.botName?.trim() || "Hari";
   const lang: Lang = (meta.language ?? "en") as Lang;
   const activeState = options.activeFsmState || meta.previousFsmState || "MAIN_MENU";
-  const customerName = meta.customerName || meta.regName || "";
-  const namePrompt = customerName ? `The customer's name is ${customerName}. Address them by their name naturally when appropriate.` : "";
+
+  // Verify registered customer against User table (strict source of truth)
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+  const registeredUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true, role: true },
+  });
+
+  const verifiedCustomerName = registeredUser
+    ? [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim()
+    : "";
+
+  const namePrompt = verifiedCustomerName
+    ? `The customer's name is ${verifiedCustomerName}. Address them by their name naturally when appropriate.`
+    : "The customer is not registered. Do NOT use any assumed customer name.";
   const lowerQuery = query.toLowerCase();
 
   // Retrieve or create active conversation session ID
@@ -2365,31 +2579,54 @@ async function runGroqCompanyAssistant(
       const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
       const cleanQ = lowerQuery.trim();
 
-      // 1. Check if user typed or clicked a specific product model name
-      const matchedProduct = activeProducts.find((p) => {
-        const pNameLower = p.name.toLowerCase();
-        if (cleanQ === pNameLower) return true;
-        if (cleanQ.includes(pNameLower)) return true;
-        if (pNameLower.includes("v3") && (cleanQ.includes("v3") || cleanQ.includes("eco v3"))) return true;
-        if (pNameLower.includes("vibro") && cleanQ.includes("vibro")) return true;
-        if (pNameLower.includes("exd") && cleanQ.includes("exd")) return true;
-        if (pNameLower.includes("amcu") && cleanQ.includes("amcu")) return true;
-        if (pNameLower.includes("lite") && cleanQ.includes("lite")) return true;
-        if (pNameLower.includes("s pro") && cleanQ.includes("s pro")) return true;
-        if (pNameLower.includes("sd") && cleanQ.includes("sd")) return true;
-        return false;
-      });
+      const isIssueQuery =
+        cleanQ.includes("not working") ||
+        cleanQ.includes("not on") ||
+        cleanQ.includes("issue") ||
+        cleanQ.includes("error") ||
+        cleanQ.includes("problem") ||
+        cleanQ.includes("repair") ||
+        cleanQ.includes("fault") ||
+        cleanQ.includes("damage") ||
+        cleanQ.includes("fail") ||
+        cleanQ.includes("complaint") ||
+        cleanQ.includes("blinking") ||
+        cleanQ.includes("vibrating") ||
+        cleanQ.includes("vibration") ||
+        cleanQ.includes("noise") ||
+        cleanQ.includes("leak") ||
+        cleanQ.includes("variation") ||
+        cleanQ.includes("help") ||
+        cleanQ.includes("കേടായി") ||
+        cleanQ.includes("പരാതി");
 
-      if (matchedProduct) {
-        return handleProductDetail(targetSessionId, phoneNumber, meta, `PROD_${matchedProduct.id}`);
-      }
+      if (!isIssueQuery) {
+        // 1. Check if user typed or clicked a specific product model name
+        const matchedProduct = activeProducts.find((p) => {
+          const pNameLower = p.name.toLowerCase();
+          if (cleanQ === pNameLower) return true;
+          if (cleanQ.includes(pNameLower)) return true;
+          if (pNameLower.includes("v3") && (cleanQ.includes("v3") || cleanQ.includes("eco v3"))) return true;
+          if (pNameLower.includes("vibro") && cleanQ.includes("vibro")) return true;
+          if (pNameLower.includes("exd") && cleanQ.includes("exd")) return true;
+          if (pNameLower.includes("amcu") && cleanQ.includes("amcu")) return true;
+          if (pNameLower.includes("lite") && cleanQ.includes("lite")) return true;
+          if (pNameLower.includes("s pro") && cleanQ.includes("s pro")) return true;
+          if (pNameLower.includes("sd") && cleanQ.includes("sd")) return true;
+          return false;
+        });
 
-      // 2. Check if user specified a category
-      if (cleanQ.includes("lactosure") || cleanQ === "eco" || cleanQ.includes("eco series")) {
-        return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOSURE");
-      }
-      if (cleanQ.includes("lactogrand") || cleanQ.includes("grand")) {
-        return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOGRAND");
+        if (matchedProduct) {
+          return handleProductDetail(targetSessionId, phoneNumber, meta, `PROD_${matchedProduct.id}`);
+        }
+
+        // 2. Check if user specified a category
+        if (cleanQ.includes("lactosure") || cleanQ === "eco" || cleanQ.includes("eco series")) {
+          return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOSURE");
+        }
+        if (cleanQ.includes("lactogrand") || cleanQ.includes("grand")) {
+          return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOGRAND");
+        }
       }
 
       // 3. General Product Catalog intent (English, Manglish & Malayalam Script)
@@ -2457,6 +2694,179 @@ async function runGroqCompanyAssistant(
       /* ignore */
     }
   }
+
+  // ── Helper to Clean & Deduplicate Leaked Future Checks from Remarks ──────
+  function sanitizeTroubleshootingChunks(content: string): string {
+    if (!content) return "";
+    const lines = content.split("\n");
+    const checks: { title: string; actions: string[] }[] = [];
+    let currentCheck: { title: string; actions: string[] } | null = null;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^\d+\.\s*check/i.test(trimmed) || /^check\s*\d*:/i.test(trimmed)) {
+        currentCheck = { title: trimmed.toUpperCase(), actions: [] };
+        checks.push(currentCheck);
+      } else if (currentCheck && (trimmed.includes("Action") || trimmed.includes("->") || trimmed.includes("→"))) {
+        currentCheck.actions.push(trimmed.toUpperCase());
+      }
+    }
+
+    const cleanedLines: string[] = [];
+    let currentCheckIndex = 0;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (/^\d+\.\s*check/i.test(trimmed) || /^check\s*\d*:/i.test(trimmed)) {
+        currentCheckIndex++;
+        cleanedLines.push(line);
+        continue;
+      }
+
+      // Only filter out remarks that strictly duplicate a future check title
+      const isRemark = trimmed.includes("Remark:") || trimmed.includes("↳ Remark:");
+      if (isRemark && checks.length > currentCheckIndex) {
+        const futureChecks = checks.slice(currentCheckIndex);
+        const isLeaked = futureChecks.some((fc) => {
+          const words = fc.title.replace(/[^A-Z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 4);
+          return words.length > 0 && words.every((w) => line.toUpperCase().includes(w));
+        });
+
+        if (isLeaked && !line.includes("EG:") && !line.includes("ASCII") && !line.includes("CODE") && !line.includes("FAT") && !line.includes("WEIGHT") && !line.includes("RATE")) {
+          continue;
+        }
+      }
+
+      cleanedLines.push(line);
+    }
+
+    return cleanedLines.join("\n");
+  }
+
+  // ── Helper to Convert Text into Natural Sentence Casing ───────────
+  function toSentenceCase(str: string): string {
+    if (!str) return "";
+    const preserveAcronyms = new Set([
+      "T2", "USB", "GSM", "SIM", "LED", "ASCII", "L-PLUG", "AC", "DC", "PCB",
+      "KG", "LTR", "SNF", "CLR", "FAT", "POT", "LCD", "ID", "ECO", "ECO-V", "V3", "V4"
+    ]);
+
+    const emojiNumbers = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+    let stepCounter = 0;
+
+    const lines = str.split("\n");
+    const resultLines: string[] = [];
+    let prevNormalized = "";
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      const norm = trimmed.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      // Deduplicate consecutive lines that say the exact same text
+      if (norm.length > 5 && norm === prevNormalized) {
+        continue;
+      }
+
+      // If line is empty or artificial Step header like "📍 *Step 1:*"
+      if (/^📍\s*\*Step\s*\d+:?\*\s*$/i.test(line)) {
+        continue;
+      }
+
+      // If line is "📍 *Step N:* If none of the above..."
+      const fallbackStepMatch = line.match(/^📍\s*\*Step\s*\d+:?\*\s*(If none.+)$/i);
+      if (fallbackStepMatch) {
+        resultLines.push(`\n_${convertTextToSentenceCase(fallbackStepMatch[1].trim(), preserveAcronyms)}_`);
+        continue;
+      }
+
+      // If line has Check tag like "🔍 *Check 1:* <Title>"
+      const checkMatch = line.match(/^\s*🔍\s*\*Check\s*(\d+):?\*\s*(.*)$/i);
+      if (checkMatch) {
+        stepCounter++;
+        const numEmoji = emojiNumbers[stepCounter - 1] || `${stepCounter}.`;
+        const titleText = checkMatch[2].trim();
+        const formattedTitle = convertTextToSentenceCase(titleText, preserveAcronyms);
+        resultLines.push(`\n${numEmoji} *${formattedTitle}:*`);
+        prevNormalized = norm;
+        continue;
+      }
+
+      // If line has Action tag like "⚡ *Action 1:* <Content>"
+      const actionMatch = line.match(/^\s*⚡\s*\*Action\s*\d*:?\*\s*(.*)$/i);
+      if (actionMatch) {
+        const actionContent = actionMatch[1].trim();
+        if (actionContent) {
+          const actionNorm = actionContent.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (actionNorm.length > 5 && (actionNorm === prevNormalized || prevNormalized.includes(actionNorm) || actionNorm.includes(prevNormalized))) {
+            continue;
+          }
+          resultLines.push(`• ${convertTextToSentenceCase(actionContent, preserveAcronyms)}`);
+          prevNormalized = actionNorm;
+        }
+        continue;
+      }
+
+      // If line is secondary Action tag with text
+      const secondaryActionMatch = line.match(/^\s*⚡\s*\*Action\s*(?:[2-9]|\d{2,})\d*:?\*\s*(.+)$/i);
+      if (secondaryActionMatch) {
+        const actionContent = secondaryActionMatch[1].trim();
+        const actionNorm = actionContent.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (actionNorm.length > 5 && (actionNorm === prevNormalized || prevNormalized.includes(actionNorm) || actionNorm.includes(prevNormalized))) {
+          continue;
+        }
+        resultLines.push(`• ${convertTextToSentenceCase(actionContent, preserveAcronyms)}`);
+        prevNormalized = actionNorm;
+        continue;
+      }
+
+      const remarkMatch = line.match(/^(\s*↳\s*Remark:\s*)(.*)$/i);
+      if (remarkMatch) {
+        resultLines.push(`${remarkMatch[1]}${convertTextToSentenceCase(remarkMatch[2].trim(), preserveAcronyms)}`);
+        prevNormalized = norm;
+        continue;
+      }
+
+      const bulletMatch = line.match(/^(\s*•\s*(?:\d+\))?\s*)(.*)$/i);
+      if (bulletMatch) {
+        const bulletText = bulletMatch[2].trim();
+        const bulletNorm = bulletText.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (bulletNorm.length > 5 && (bulletNorm === prevNormalized || prevNormalized.includes(bulletNorm) || bulletNorm.includes(prevNormalized))) {
+          continue;
+        }
+        resultLines.push(`${bulletMatch[1]}${convertTextToSentenceCase(bulletText, preserveAcronyms)}`);
+        prevNormalized = bulletNorm;
+        continue;
+      }
+
+      resultLines.push(convertTextToSentenceCase(line, preserveAcronyms));
+      prevNormalized = norm;
+    }
+
+    return resultLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  function convertTextToSentenceCase(text: string, preserve: Set<string>): string {
+    if (!text) return "";
+    const letters = text.replace(/[^a-zA-Z]/g, "");
+    if (!letters) return text;
+    const upperCount = (text.match(/[A-Z]/g) || []).length;
+    if (upperCount / letters.length < 0.6) {
+      return text;
+    }
+    const words = text.split(/\s+/);
+    return words
+      .map((w, idx) => {
+        const cleanWord = w.replace(/[^a-zA-Z0-9\-]/g, "").toUpperCase();
+        if (preserve.has(cleanWord)) return w;
+        if (idx === 0) {
+          return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        }
+        return w.toLowerCase();
+      })
+      .join(" ");
+  }
+
   // ── Adapter Disambiguation Interceptor ───────────────────────────
   const isAdapterQuery = lowerQuery.includes("adapter") || lowerQuery.includes("അഡാപ്റ്റർ") || lowerQuery.includes("എഡാപ്റ്റർ");
   const specifiesCompact = lowerQuery.includes("compact") || lowerQuery.includes("കോംപാക്ട്");
@@ -2496,35 +2906,100 @@ async function runGroqCompanyAssistant(
     const isServiceUser = (meta as any).isEngineer || (meta as any).role === "service_engineer" || (meta as any).role === "service";
     const targetDocTypes = isServiceUser ? ["service", "customer", "both"] : ["customer", "both"];
 
+    // Normalize alphanumeric query (e.g. "t2error" -> "t2 error", "e1problem" -> "e1 problem")
+    const cleanQ = query
+      .toLowerCase()
+      .replace(/([a-zA-Z]+[0-9]+)([a-zA-Z]+)/g, "$1 $2")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .trim();
+
+    const stopWords = new Set([
+      "the", "and", "for", "this", "that", "with", "from", "you", "machine", "work", "help",
+      "fault", "showing", "got", "get", "getting", "is", "in", "on",
+      "at", "to", "a", "an", "my", "our", "please", "how", "what", "why", "me", "having", "not", "no"
+    ]);
+    const queryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
+
+    // 1. Check DocumentIssue templates first (exact official troubleshooting checklists)
+    const allIssues = await prisma.documentIssue.findMany({
+      where: { isActive: true },
+      include: { steps: { orderBy: { stepNumber: "asc" } } },
+    });
+
+    let bestIssue: any = null;
+    let bestIssueScore = 0;
+    for (const issue of allIssues) {
+      const text = (issue.title + " " + issue.problemType + " " + (issue.description || "")).toLowerCase();
+      const issueTokens = text.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
+      let score = 0;
+      if (text.includes(cleanQ) && cleanQ.length >= 2) score += 15;
+      for (const w of queryWords) {
+        for (const it of issueTokens) {
+          if (w === it) {
+            score += (w.length >= 4 ? 4 : 3);
+          } else if (it.includes(w) || w.includes(it)) {
+            score += 2;
+          } else if (w.length >= 4 && it.length >= 4) {
+            // Levenshtein distance <= 2 for typos like "sampe" -> "sample"
+            let dist = 0;
+            const lenDiff = Math.abs(w.length - it.length);
+            if (lenDiff <= 2) {
+              let diffs = 0;
+              const minLen = Math.min(w.length, it.length);
+              for (let i = 0; i < minLen; i++) {
+                if (w[i] !== it[i]) diffs++;
+              }
+              diffs += lenDiff;
+              if (diffs <= 2) score += 2;
+            }
+          }
+        }
+      }
+      if (score > bestIssueScore && score >= 2) {
+        bestIssueScore = score;
+        bestIssue = issue;
+      }
+    }
+
+    // 1. Search DocumentChunk for rich knowledge with strict audience isolation
     const allChunks = await prisma.documentChunk.findMany({
       where: { document: { documentType: { in: targetDocTypes } } },
       include: { document: true },
     });
 
-    const queryWords = query
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 1 && !["the", "and", "for", "this", "that", "with", "from", "you", "machine", "work", "help"].includes(w));
+    const allQueryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2);
 
     const scoredChunks = allChunks.map((chunk) => {
       const contentLower = chunk.content.toLowerCase();
       let score = 0;
-      for (const w of queryWords) {
-        if (contentLower.includes(w)) score += 1;
+      if (contentLower.includes(cleanQ)) score += 30;
+      let matchedWords = 0;
+      for (const w of allQueryWords) {
+        if (contentLower.includes(w)) {
+          matchedWords++;
+          score += (w.length >= 4 ? 4 : 2);
+        }
       }
-      return { chunk, score };
-    });
+      if (matchedWords === allQueryWords.length && allQueryWords.length > 0) score += 15;
+      if (chunk.content.includes("Check") && (chunk.content.includes("Action") || chunk.content.includes("→") || chunk.content.includes("->"))) score += 6;
+      if (chunk.content.includes("↳ Remark:") || chunk.content.includes("Remark")) score += 5;
+      if (chunk.content.includes("•")) score += 5;
+      return { chunk, score, length: chunk.content.length };
+    }).filter((c) => c.score >= 4).sort((a, b) => b.score - a.score || b.length - a.length);
 
-    scoredChunks.sort((a, b) => b.score - a.score);
-    const minScoreRequired = queryWords.length >= 3 ? 2 : 1;
-    const topMatches = scoredChunks.filter((item) => item.score >= minScoreRequired).slice(0, 3);
+    const topMatches = scoredChunks.slice(0, 3);
 
     if (topMatches.length > 0) {
       hasExactDocMatch = true;
       matchedDocKnowledge = topMatches
-        .map((m) => `[MATCHED OFFICIAL TROUBLESHOOTING DOCUMENT: ${m.chunk.document.title}]\n${m.chunk.content}`)
+        .map((m) => `[MATCHED OFFICIAL TROUBLESHOOTING DOCUMENT: ${m.chunk.document.title}]\n${sanitizeTroubleshootingChunks(m.chunk.content)}`)
         .join("\n\n");
+    } else if (bestIssue && bestIssue.steps.length > 0) {
+      hasExactDocMatch = true;
+      const formattedSteps = bestIssue.steps
+        .map((s: any) => `Step ${s.stepNumber}:\n${s.stepContent}`)
+        .join("\n\n");
+      matchedDocKnowledge = `[MATCHED OFFICIAL TROUBLESHOOTING TEMPLATE: ${bestIssue.title}]\n${sanitizeTroubleshootingChunks(formattedSteps)}`;
     }
   } catch (err) {
     console.error("[groq-company-assistant] Failed to load document troubleshooting chunks:", err);
@@ -2540,96 +3015,119 @@ async function runGroqCompanyAssistant(
 Answer the customer's question directly, concisely, and naturally using the official knowledge below. ${namePrompt}
 
 HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
-1. RESPOND LIKE A REAL HUMAN: Write short, direct, natural 1-2 sentence replies. Talk like a real person replying on WhatsApp.
-2. ABSOLUTELY NO BOT TRAILING SIGNATURES: Do NOT append phone numbers (${settings.supportPhone}), emails, or contact footers unless the customer specifically asks for contact details.
-3. ABSOLUTELY NO UNWANTED SALES PITCHES OR PROMPTS: Do NOT append repetitive sales pitches ("Would you like to browse products or register?"), formal intros ("Namaste! I am Hari official AI assistant..."), or trailing prompts. Just answer their question directly.
-4. ABSOLUTELY NO UNWANTED DATA DUMPING: Do NOT dump company capacity, employee count, ISO details, or unrequested catalog specs. Only answer what was asked.
-5. MIRROR THE CUSTOMER'S EXACT LANGUAGE AND WRITING STYLE FAITHFULLY:
+1. FOR GENERAL CONVERSATIONS & INQUIRIES (Greetings, Company info, office locations, general product queries): Write short, direct, natural 1-2 sentence replies. Talk like a real person replying on WhatsApp.
+2. FOR TECHNICAL TROUBLESHOOTING & ERROR COMPLAINTS (When MATCHED TROUBLESHOOTING DOCUMENTS exist below): ALWAYS follow Rule 10! You MUST ALWAYS format the response using 📍 *Step 1:*, 🔍 *Check 1:*, ⚡ *Action 1:*, • bullet points for all sub-items, and ↳ Remark: for remarks! NEVER summarize troubleshooting steps into a paragraph!
+3. ABSOLUTELY NO BOT TRAILING SIGNATURES: Do NOT append phone numbers (${settings.supportPhone}), emails, or contact footers unless the customer specifically asks for contact details.
+4. ABSOLUTELY NO UNWANTED SALES PITCHES OR PROMPTS: Do NOT append repetitive sales pitches ("Would you like to browse products or register?"), formal intros ("Namaste! I am Hari official AI assistant..."), or trailing prompts. Just answer their question directly.
+5. ABSOLUTELY NO UNWANTED DATA DUMPING: Do NOT dump company capacity, employee count, ISO details, or unrequested catalog specs. Only answer what was asked.
+6. MIRROR THE CUSTOMER'S EXACT LANGUAGE AND WRITING STYLE FAITHFULLY:
    - If the customer asks to switch script or font (e.g. "Malayalam font use chey", "Malayalam text il samsarikamo", "Hindi me bolo"), IMMEDIATELY write all replies in that requested script/language!
    - If the customer writes in Romanized transliteration (Manglish, Hinglish, Tanglish), reply in the SAME Romanized transliteration.
    - If the customer writes in Native Script (Malayalam, Hindi Devanagari, Tamil, etc.), reply in the SAME Native Script.
    - If the customer writes in English or any other language, reply in that SAME Language.
-6. PRODUCT COMPARISON REQUESTS:
+7. PRODUCT COMPARISON REQUESTS:
    - When asked to compare products (e.g. "Ella products um compare cheyamo", "Which model is best?"), compare Poornasree's own models (LactoSure Eco, Eco-S, Eco-V, LactoGrand, Vibro stirrer) using official specs. Never say "I only know about Poornasree equipment" when asked about Poornasree products!
-7. CASUAL GREETINGS & PERSONAL QUESTIONS ("Sugam ano"):
+8. CASUAL GREETINGS & PERSONAL QUESTIONS ("Sugam ano"):
    - "Sugam ano", "How are you", "Enthokkeyundu" are personal friendly greetings ("How are you doing?").
    - Respond warmly: "Enikku sugamanu! How can I help you with your milk testing machine or product questions today?"
    - Do NOT say that the machine model is doing well, and do NOT dump technical specs or voltage ratings!
-8. PROFANITY, INSULTS & SLANG SAFEGUARD:
+9. PROFANITY, INSULTS & SLANG SAFEGUARD:
    - Never echo insults, offensive slang ("mandan"), or informal pronouns ("nee/ni").
    - Maintain 100% calm, polite, courteous human professionalism: "I apologize if there was any misunderstanding. I am here to help you with your machine or product questions."
-9. OFF-TOPIC CHAT REDIRECTION (Universe, Galaxy, Movies, Jokes):
-   - For off-topic questions (universe, galaxy, movies, jokes), give a polite 1-sentence human redirection ("I am Hari from Poornasree customer support. How can I assist you with your equipment today?").
-   - Do NOT repeat or mention off-topic words in your response.
-10. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
-    - When MATCHED TROUBLESHOOTING DOCUMENTS exist below, follow the exact multi-check and multi-action flow from the document:
+10. OFF-TOPIC CHAT REDIRECTION (Universe, Galaxy, Movies, Jokes):
+    - For off-topic questions (universe, galaxy, movies, jokes), give a polite 1-sentence human redirection ("I am Hari from Poornasree customer support. How can I assist you with your equipment today?").
+    - Do NOT repeat or mention off-topic words in your response.
+11. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
+    - When MATCHED TROUBLESHOOTING DOCUMENTS exist below, follow the exact multi-check and multi-action flow from the document in clean, natural sentence case:
 
       📍 *Step 1:* 
-      🔍 *Check 1:* CHECK THE RATE CHART SETTINGS ENTERED PROPERLY 
-      ⚡ *Action 1:* ENTER THE CORRECT SETTINGS
-      • 1) RATE CHART ENABLE - ENABLE
-      • 2) AUTO CHART SELECTION AND LIMIT SET - ( PURPOSE COW CHART TO BUFFALO CHART SEARCHING )
-         ↳ Remark: EG: FAT LIMIT FAT = 7.0 | BELOW FAT 7.0 RATE TAKEN FROM COW CHART AND ABOVE 7.0 FATE THE RATE TAKEN FROM BUFFALO CHART
-      • 3) HIGH-LOW FX RATE - * ENABLE *
-         ↳ Remark: A FIXED RATE ADDED IN THE RESULT FOR THE BELOW FAT LIMIT (eg: F 2.00 ) AND ABOVE FAT LIMIT (eg: F 12.00 )
-      • 4) LOW LIMIT FAT - eg: F 2.0
-         ↳ Remark: BELOW FAT 2.0 - A FIXED RATE TAKEN
-      • 5) HIGH LIMIT FAT - eg: F 12.0
-      • 6) ENTER LOW FAT FIXED RATE = ENTER THE RUPEES
-      • 7) ENTER HIGH FAT FIXED RATE = ENTER THE RUPEES
-      • 8) RATE CHART SELECTION - METHOD/IMPORT FROM PENDRIVE
-      • RATE TAKEN COMBINATION - FAT&SNF, FAT&CLR, FAT ONLY, CLR ONLY
-         ↳ Remark: ITS USE THE RATE TAKEN FROM THE FAT AND SNF READING BASIS
-      • 1) ENTER START FAT - FOR THE IMPORT FILE
-      • 2) ENTER END FAT - FOR THE IMPORT FILE
-      • 3) ENTER START SNF - FOR THE IMPORT FILE
-      • 4) ENTER END SNF - FOR THE IMPORT FILE
-      • THEN IMPORT FILE FROM USB
-         ↳ Remark: IF ANY WRONG RATE SHOWN AT THE "CHECK RATE" OPERATION --- CHECK THE "AUTO CHART IS ENABLE" AND ALSO CHECK THAT RANGE
+      🔍 *Check 1:* Check the rate chart settings entered properly 
+      ⚡ *Action 1:* Enter the correct settings
+      • 1) Rate chart enable - Enable
+      • 2) Auto chart selection and limit set - (Purpose: cow chart to buffalo chart searching)
+         ↳ Remark: Eg: Fat limit = 7.0. Below fat 7.0 rate taken from cow chart and above 7.0 taken from buffalo chart
+      • 3) High-Low FX rate - Enable
+         ↳ Remark: A fixed rate added in the result for below fat limit (eg: F 2.00) and above fat limit (eg: F 12.00)
+      • 4) Low limit fat - Eg: F 2.0
+         ↳ Remark: Below fat 2.0 - A fixed rate taken
+      • 5) High limit fat - Eg: F 12.0
+      • 6) Enter low fat fixed rate - Enter the rupees
+      • 7) Enter high fat fixed rate - Enter the rupees
+      • 8) Rate chart selection - Method / import from pendrive
+      • Rate taken combination - Fat & SNF, Fat & CLR, Fat only, CLR only
+         ↳ Remark: Uses the rate taken on Fat and SNF reading basis
+      • 1) Enter start fat - For the import file
+      • 2) Enter end fat - For the import file
+      • 3) Enter start SNF - For the import file
+      • 4) Enter end SNF - For the import file
+      • Then import file from USB
+         ↳ Remark: If any wrong rate shown at "Check Rate" operation, check if "Auto Chart is Enable" and verify range
 
       OR for Weighing Scale:
 
       📍 *Step 1:* 
-      🔍 *Check 1:* CHECK THE REQUIRED SETTINGS IS APPLIED 
-      ⚡ *Action 1:* SET THE REQUIRED SETTINGS VALUES
-      • 1) "WEIGHT IN COLLECTION" WEIGHT TAKEN IN THE TIME OF TEST-BEFORE/AFTER
-         ↳ Remark: WEIGHT VALUE TAKEN BEFORE OR AFTER THE SAMPLE TEST | ITS WORKING ONLY REMOTE MODE
-      • 2) "WEIGHT DETECT FROM" - FROM SCALE/ MANUAL
-         ↳ Remark: WEIGHT TAKEN FROM WEIGHN SCALE OR MANUAL ENTER
-      • 3) KG TO LITRE
-         ↳ Remark: KILOGRAM DATA TO LITRE CONVERTION ENEBLE/DISABLE
-      • 4) TARE - NO TARE,BEFORE AND AFTER COLLECTION
-         ↳ Remark: AUTOMATIC SCALE TARE ACTION
-      • 5) BAUD RATE & DATATYPE
-      • 6) READ DELAY
-         ↳ Remark: SCALE DATA SENDING TIME ITERVEL = SET AT NORMALLY 0.50 SECOND
+      🔍 *Check 1:* Check the required settings is applied 
+      ⚡ *Action 1:* Set the required settings values
+      • 1) "Weight in Collection" weight taken at the time of test (Before/After)
+         ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode
+      • 2) "Weight Detect From" - From scale / Manual
+         ↳ Remark: Weight taken from weighing scale or manual enter
+      • 3) KG to Litre
+         ↳ Remark: Kilogram data to litre conversion enable/disable
+      • 4) Tare - No tare, before and after collection
+         ↳ Remark: Automatic scale tare action
+      • 5) Baud rate & datatype
+      • 6) Read delay
+         ↳ Remark: Scale data sending time interval = Normally set at 0.50 second
 
       📍 *Step 2:* 
-      🔍 *Check 2:* CHECK THE ANALYSER TO WEIGHNING SCALE DATA CABLE CONNECTIVITY 
-      ⚡ *Action 1:* PROPERLY CONNECT OR REPLACE THE CABLE 
-      • 1) SERIAL "BAUD RATE" AUTO DETECTION/MANUAL SELECTION
-         ↳ Remark: 1) AUTO SELECTION = TO ENTER THE REFERENCE WEIGHT DATA FROM THE SCALE SHOWING DISPLAY | EG: THE SCALE DISPLAY SHOWN 123.45 LTR...
-      • 2) MANUAL SELECTION - TOTAL 10-TYPE SELECTABLE MODELS AND 1-NOS (11 TH) MANUAL SETTABLE MODEL
-         ↳ Remark: DOWN KEY USE TO SELECT THE "BAUD RATE" AND UP KEY USED TO SELECT THE "TYPES OF MODELS"
-      • 1) FIRST ENTER THE START CHARACTER CODE
-         ↳ Remark: THE CHARACTER CODE TABLE SHOWN AT THE NEXT SHEET ( ASCII CODE ) = EG: SCALE SERIAL PORT DATA IS "L00123.45 0D 0A" | "L" CHARACTER CODE IS = 076 | TO ENTER THE 076 DATA INTO THE START CHARCOD AREA
-      • 2) NEXT ENTER THE " END CHARCODE "
-         ↳ Remark: " 0D " IS THE END CODE = THE ENTERED CODE VALUE IS " 013 "
-      • 3) NEXT ENTER THE " CHAR COUNT "
-         ↳ Remark: EG: "L00123.45 0D 0A" THE CHARECTERS ARE THE "00123.45" TOTAL COUNT = 7
-      • 4) NEXT IS THE DECIMAL POINT COUNT
-         ↳ Remark: EG: "L00123.45 0D 0A" THE DECIMAL POINT VALUES ARE "45" COUNT=2
+      🔍 *Check 2:* Check the analyser to weighing scale data cable connectivity 
+      ⚡ *Action 1:* Properly connect or replace the cable 
+      • 1) Serial "Baud Rate" auto detection / manual selection
+         ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)
+      • 2) Manual selection - Total 10 selectable models and 1 manual settable model
+         ↳ Remark: DOWN key used to select Baud Rate and UP key used to select Types of Models
+      • 1) First enter the start character code
+         ↳ Remark: ASCII code table: Eg: Scale serial data is "L00123.45 0D 0A" -> "L" code is 076 -> Enter 076 in Start Charcode
+      • 2) Next enter the End Charcode
+         ↳ Remark: "0D" is end code -> Enter value 013
+      • 3) Next enter the Char Count
+         ↳ Remark: Eg: "00123.45" total count = 7
+      • 4) Next enter decimal point count
+         ↳ Remark: Eg: Decimal point values "45" count = 2
+
+      OR for General Errors (e.g. T2 Error, Adapter, Vibro, Temperature, Sensor):
+
+      📍 *Step 1:* 
+      🔍 *Check 1:* Check the leakage/block in sample sucking sections 
+      ⚡ *Action 1:* Check the silicon tube for damage or bend
+      • 1) Check if inlet pipe is broken or blocked
+         ↳ Remark: Replace inlet pipe if damaged
+      • 2) Check inlet tube to preheater silicon tube
+         ↳ Remark: Replace or tie silicon tube
+
+      📍 *Step 2:* 
+      🔍 *Check 2:* Check the L-plug properly inserted 
+      ⚡ *Action 1:* Check the O-ring
+      • 1) Check L-plug for damage and inspect O-ring quality
+         ↳ Remark: Replace L-plug or O-ring
+
+      📍 *Step 3:*
+      If none of the above steps help, please contact Poornasree Customer Care for further assistance.
 
     - CRITICAL DOCUMENT MAPPING & COMPLETE UN-TRUNCATED OUTPUT RULES:
-      1. ABSOLUTELY DO NOT SUMMARIZE OR CONVERT STEPS INTO A PARAGRAPH! You MUST ALWAYS format the response using 📍 Step 1:, 🔍 Check 1:, ⚡ Action 1:, and • bullet points for all sub-items and ↳ Remark: for remarks!
-      2. YOU MUST OUTPUT EVERY SINGLE CHECK STEP FROM THE DOCUMENT (Check 1, Check 2, Check 3, Check 4, Check 5...). If the matched document contains 5 Checks, YOUR RESPONSE MUST CONTAIN ALL 5 CHECKS AS STEP 1, STEP 2, STEP 3, STEP 4, AND STEP 5!
-      3. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). Sub-numbered configuration settings (e.g. '1) WEIGHT IN COLLECTION', '2) WEIGHT DETECT FROM', '1) SERIAL BAUD RATE...') MUST be indented as sub-bullets under Action 1 (• 1) "WEIGHT IN COLLECTION"...). DO NOT format sub-settings or remarks as separate main Actions (Action 2, Action 3, Action 4).
-      4. ABSOLUTELY NO TRUNCATION: You MUST output EVERY SINGLE Check (Check 1 to N), EVERY Action line (Action 1, Action 2...), and EVERY sub-bullet item from the matched document without omitting, shortening, or cutting off a single line!
-      5. STRICT REMARKS FORMATTING: ANY LINE THAT CONTAINS REMARKS, EXPLANATIONS, OR EXAMPLES (e.g. "ITS WORKING ONLY REMOTE MODE", "EG: THE SCALE DISPLAY SHOWN...", "AFTER ENTER THE VALUE...", "AFTER THE DETECTION...", "DOWN KEY USE TO...", "THE CHARACTER CODE...", "0D IS THE END CODE", "CHARACTERS ARE...", "DECIMAL POINT VALUES ARE...") MUST BE FORMATTED AS AN INDENTED "↳ Remark:" LINE UNDER ITS CORRESPONDING SUB-POINT! ABSOLUTELY DO NOT FORMAT REMARKS AS "• Action 2:", "• Action 3:", OR MAIN ACTION LINES!
-      6. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
-      7. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
-      8. Follow ONLY the exact steps and sequence from the matched document.
-      9. ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.${uncatalogedRule}
+      1. ABSOLUTELY DO NOT SUMMARIZE OR CONVERT STEPS INTO A PARAGRAPH! You MUST ALWAYS format the response using 📍 *Step 1:*, 🔍 *Check 1:*, ⚡ *Action 1:*, and • bullet points for all sub-items and ↳ Remark: for remarks!
+      2. NATURAL SENTENCE CASING DIRECTIVE: Write all check titles, actions, sub-bullets, and remarks in natural, clean sentence case (e.g. 'Check the fuse', 'Replace the fuse', 'Check the power supply'). NEVER write full sentences or bullet titles in ALL-CAPS / UPPERCASE (except for standard abbreviations/acronyms like USB, GSM, LED, ASCII, L-PLUG, T2).
+      3. MANDATORY CHECK & ACTION PAIR: Every single Step (Step 1, Step 2, Step 3...) MUST contain BOTH a 🔍 *Check* line AND at least one ⚡ *Action* line (⚡ *Action 1:* ...). ABSOLUTELY NEVER output a 🔍 *Check* without its corresponding ⚡ *Action*!
+      4. YOU MUST OUTPUT EVERY SINGLE CHECK STEP FROM THE DOCUMENT (Check 1, Check 2, Check 3, Check 4, Check 5...). If the matched document contains 5 Checks, YOUR RESPONSE MUST CONTAIN ALL 5 CHECKS AS STEP 1, STEP 2, STEP 3, STEP 4, AND STEP 5!
+      5. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). Sub-numbered configuration settings (e.g. '1) Weight in collection', '2) Weight detect from', '1) Serial baud rate...') MUST be indented as sub-bullets under Action 1 (• 1) "Weight in collection"...). DO NOT format sub-settings or remarks as separate main Actions (Action 2, Action 3, Action 4).
+      6. ABSOLUTELY NO TRUNCATION: You MUST output EVERY SINGLE Check (Check 1 to N), EVERY Action line (Action 1, Action 2...), and EVERY sub-bullet item from the matched document without omitting, shortening, or cutting off a single line!
+      7. STRICT REMARKS FORMATTING: ANY LINE THAT CONTAINS REMARKS, EXPLANATIONS, OR EXAMPLES (e.g. "Works only in remote mode", "Eg: The scale display shown...", "ASCII code is 076...") MUST BE FORMATTED AS AN INDENTED "↳ Remark:" LINE UNDER ITS CORRESPONDING SUB-POINT! ABSOLUTELY DO NOT FORMAT REMARKS AS "• Action 2:", "• Action 3:", OR MAIN ACTION LINES!
+      8. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
+      9. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
+      10. Follow ONLY the exact steps and sequence from the matched document.
+      11. ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.
+      12. ABSOLUTELY NO DUPLICATE REMARKS OR LEAKED FUTURE CHECKS: A Step must NEVER output a "↳ Remark:" that simply mentions, repeats, or previews the next check (e.g. "Check the power supply", "Check the adapter", "Check the sensor and tube") or future replacement actions! If a check step has no unique explanatory notes, parameters, examples (Eg: ...), or ASCII codes, DO NOT output any "↳ Remark:" line under that step. Output only 📍 *Step N:*, 🔍 *Check N:*, and ⚡ *Action 1:*!${uncatalogedRule}
 
 --- MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS ---
 ${matchedDocKnowledge || "No specific troubleshooting document match found."}
@@ -2659,7 +3157,8 @@ ${settings.companyAddress || ""}
       conversationPayload.push({ role: "user", content: query });
     }
 
-    const reply = await llmChat(conversationPayload, { maxTokens: 1000, temperature: 0.5 });
+    const rawReply = await llmChat(conversationPayload, { maxTokens: 4000, temperature: 0.5 });
+    const reply = rawReply ? toSentenceCase(rawReply.trim()) : "";
 
     if (reply && reply.trim()) {
       const lowerQuery = query.toLowerCase();
@@ -2944,10 +3443,10 @@ async function handleProductDetail(sessionId: string, phoneNumber: string, meta:
   };
   const targetLanguage = langNames[lang] ?? "English";
 
-  // Use Groq to generate a product description in the customer's language
+  // Use unified LLM to generate a product description in the customer's language
   let description = product.detail ?? "";
   try {
-    const { groqChat } = await import("./groq.service");
+    const { llmChat } = await import("./llm.service");
     const systemPrompt = `You are a product description specialist for Poornasree Equipments, a dairy equipment company.
 The customer's preferred language is ${targetLanguage}.
 Write a compelling, friendly product description in ${targetLanguage} language only.
@@ -2959,15 +3458,15 @@ Do NOT include pricing or contact info in the description.`;
       ? `Product name: "${product.name}" (Category: ${product.category}). This product has an image at: ${imageUrl}. Generate a compelling product description in ${targetLanguage}.`
       : `Product name: "${product.name}" (Category: ${product.category}). Generate a compelling product description in ${targetLanguage}.`;
 
-    description = await groqChat(
+    description = await llmChat(
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { maxTokens: 200, temperature: 0.7 },
+      { maxTokens: 250, temperature: 0.7 },
     );
   } catch (err) {
-    console.error("[product] Groq description failed:", err);
+    console.error("[product] LLM description generation failed:", err);
     description = product.detail ?? product.name;
   }
 
@@ -3185,6 +3684,103 @@ async function showSelectedTicketDetails(sessionId: string, phoneNumber: string,
   );
 }
 
+// ── Customer Registered Machines Lookup Helper ───────────────────────────
+async function getCustomerRegisteredMachines(phoneNumber: string): Promise<{ serial: string; model: string }[]> {
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+  // Only lookup machines if customer is an active registered user in prisma.user
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (!user) return [];
+
+  const tickets = await prisma.ticket.findMany({
+    where: {
+      customerId: user.id,
+      machineSerialNumber: { not: null },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { machineSerialNumber: true, machineName: true },
+    take: 10,
+  });
+
+  const seen = new Set<string>();
+  const machines: { serial: string; model: string }[] = [];
+  for (const t of tickets) {
+    if (t.machineSerialNumber && t.machineSerialNumber.trim()) {
+      const s = t.machineSerialNumber.trim().toUpperCase();
+      if (!seen.has(s)) {
+        seen.add(s);
+        machines.push({
+          serial: t.machineSerialNumber.trim(),
+          model: t.machineName?.trim() || "Machine",
+        });
+      }
+    }
+  }
+  return machines;
+}
+
+// ── Customer User Auto-Registration Helper ────────────────────────────────
+async function getOrCreateCustomerUser(phoneNumber: string, name?: string, pincodeCodeOrId?: string): Promise<any> {
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+  let user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
+      ],
+    },
+  });
+
+  let validPincodeId: string | null = null;
+  if (pincodeCodeOrId) {
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pincodeCodeOrId)) {
+      validPincodeId = pincodeCodeOrId;
+    } else {
+      const pc = await prisma.pincode.findFirst({ where: { code: pincodeCodeOrId } });
+      if (pc) validPincodeId = pc.id;
+    }
+  }
+
+  if (!user) {
+    const uniqueEmail = `cust_${cleanPhone || Date.now()}@poornasree.local`;
+    const names = (name || "Customer").trim().split(" ");
+    user = await prisma.user.create({
+      data: {
+        email: uniqueEmail,
+        passwordHash: "NOPASSWORD_WHATSAPP_CUSTOMER",
+        firstName: names[0] || "Customer",
+        lastName: names.slice(1).join(" ") || undefined,
+        role: "customer",
+        whatsappNumber: phoneNumber,
+        pincodeId: validPincodeId,
+      },
+    });
+  } else if (validPincodeId && !user.pincodeId) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { pincodeId: validPincodeId },
+    });
+  }
+
+  return user;
+}
+
 // ── Smart Complaint Registration Entry Point ──────────────────────────────
 export async function startComplaintRegistration(
   sessionId: string,
@@ -3196,7 +3792,7 @@ export async function startComplaintRegistration(
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
 
-  // 1. Lookup registered user in User DB if not already linked
+  // 1. Lookup registered user / past customer details in DB
   let registeredUser = await prisma.user.findFirst({
     where: {
       OR: [
@@ -3209,87 +3805,140 @@ export async function startComplaintRegistration(
     select: { id: true, firstName: true, lastName: true, role: true, whatsappNumber: true },
   });
 
-  let regSerial = meta.regSerialNumber || meta.serialNumber;
-  let regMachine = meta.regMachineData || meta.machineData;
-  let regName = meta.regName || meta.customerName || registeredUser?.firstName;
+  const savedProfile = await loadSavedEndCustomer(phoneNumber).catch(() => null);
 
-  // If no serial number yet, check past tickets for this user in DB
-  if (!regSerial && registeredUser) {
-    const pastTicket = await prisma.ticket.findFirst({
-      where: {
-        OR: [
-          { phoneNumber: phoneNumber },
-          { phoneNumber: registeredUser.whatsappNumber || "" },
-          { phoneNumber: { contains: last10 } },
-        ],
+  let regName = meta.customerName || meta.manualName || savedProfile?.manualName || [registeredUser?.firstName, registeredUser?.lastName].filter(Boolean).join(" ");
+  let regPincode = meta.manualPincode || meta.regPincode || savedProfile?.manualPincode;
+  let regPlace = meta.manualPlace || meta.regPlace || savedProfile?.manualPlace;
+  let regDistrict = meta.manualDistrict || meta.regDistrict || savedProfile?.manualDistrict;
+  let regState = meta.manualState || meta.regState || savedProfile?.manualState;
+  let regAddress = meta.manualAddress || meta.regAddress || savedProfile?.manualAddress;
+  let regSerial = meta.serialNumber || meta.regSerialNumber;
+  let regMachine = meta.machineData || meta.regMachineData;
+
+  const knownMachines = await getCustomerRegisteredMachines(phoneNumber);
+
+  // If customer has multiple registered machines and none chosen yet in this flow:
+  if (knownMachines.length > 1 && !regSerial && !regMachine) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      customerName: regName,
+      manualName: regName,
+      manualPincode: regPincode,
+      regPincode: regPincode,
+      manualPlace: regPlace,
+      regPlace: regPlace,
+      manualDistrict: regDistrict,
+      regDistrict: regDistrict,
+      manualState: regState,
+      regState: regState,
+      manualAddress: regAddress,
+      regAddress: regAddress,
+      complaint: overrideComplaint || meta.complaint,
+    };
+    await updateSession(sessionId, "SELECT_REGISTERED_MACHINE", updatedMeta);
+    const rows = [
+      ...knownMachines.map((m, idx) => ({
+        id: `SELECT_MACH_${m.serial}`,
+        title: `${m.model.slice(0, 15)} (${m.serial})`,
+        description: `Registered Machine #${idx + 1}`,
+      })),
+      {
+        id: "ENTER_NEW_SERIAL",
+        title: "➕ Enter Different Serial",
+        description: "Register a new machine",
       },
-      orderBy: { createdAt: "desc" },
-      select: { machineSerialNumber: true, machineName: true, customerAddress: true },
-    });
-    if (pastTicket?.machineSerialNumber) {
-      regSerial = pastTicket.machineSerialNumber;
+    ];
+    return makeReply(
+      `📋 *We found ${knownMachines.length} machines registered under your account:*\n\n` +
+      `Please select the machine having the issue, or choose to enter a new serial number:`,
+      undefined,
+      { buttonText: "Select Machine 👇", rows }
+    );
+  }
+
+  // If only 1 past machine found and none chosen yet, default to that machine
+  if (!regSerial && knownMachines.length === 1) {
+    regSerial = knownMachines[0].serial;
+    if (!regMachine) {
       regMachine = {
-        serial_no: pastTicket.machineSerialNumber,
-        m_model: pastTicket.machineName || "Machine",
-        customer: [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" "),
-        Address1: pastTicket.customerAddress || undefined,
+        serial_no: knownMachines[0].serial,
+        m_model: knownMachines[0].model || "Machine",
+        customer: regName || "Customer",
       } as PasstestMachine;
     }
   }
 
   // Preserve prior complaint or query from chat
-  const effectiveComplaint = overrideComplaint || meta.lastIssueQuery || meta.complaint || meta.videoSearchQuery;
+  const effectiveComplaint = overrideComplaint || meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery || "Machine issue requiring service";
 
   const updatedMeta: SessionMeta = {
     ...meta,
+    customerName: regName,
+    manualName: regName,
+    manualPincode: regPincode,
+    regPincode: regPincode,
+    manualPlace: regPlace,
+    regPlace: regPlace,
+    manualDistrict: regDistrict,
+    regDistrict: regDistrict,
+    manualState: regState,
+    regState: regState,
+    manualAddress: regAddress,
+    regAddress: regAddress,
+    serialNumber: regSerial,
     regSerialNumber: regSerial,
+    machineData: regMachine,
     regMachineData: regMachine,
-    serialNumber: regSerial || meta.serialNumber,
-    machineData: regMachine || meta.machineData,
     complaint: effectiveComplaint,
-    customerName: regName || meta.customerName,
   };
 
-  // IF UNREGISTERED and NO MACHINE SERIAL: Prompt for Serial Number with Skip option
-  if (!regSerial && !updatedMeta.regMachineData && !updatedMeta.machineData) {
+  // Case A: UNREGISTERED / NO SAVED CUSTOMER DETAILS -> Ask for Name first
+  if (!regName || !regPincode) {
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", updatedMeta);
+    return makeReply(
+      `📝 *Let's register your service visit request.*\n\nPlease enter your *Name* or *Dairy Society Name*:`,
+      [getMenuButton(lang)]
+    );
+  }
+
+  // Case B: REGISTERED CUSTOMER BUT MACHINE SERIAL IS UNKNOWN -> Ask for Machine Serial Number with Skip option
+  if (!regSerial && !updatedMeta.machineData) {
+    const locSummary = [regPlace, regDistrict, regState].filter(Boolean).join(", ") || regPincode || "";
     await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", updatedMeta);
     return makeReply(
-      t("SERIAL_PROMPT", lang),
+      `📋 *We found your registered details:*\n` +
+      `👤 *Name:* ${regName}\n` +
+      `📍 *Location:* ${locSummary}${regPincode ? ` (${regPincode})` : ""}\n\n` +
+      `🔢 *Please enter your Machine Serial Number:*\n` +
+      `(e.g., 2410-0012)\n\n` +
+      `Or press *Skip* if you don't have the serial number handy.`,
       [
         { id: "SKIP", title: "⏭️ Skip Serial" },
-        getCancelButton(lang),
+        { id: "EDIT_CUSTOMER_DETAILS", title: "✏️ Change Details" },
         getMenuButton(lang),
       ]
     );
   }
 
-  // REGISTERED CUSTOMER OR MACHINE ALREADY FOUND!
-  // If issue is ALREADY known from troubleshooting chat, show Instant Confirmation Summary screen!
-  if (effectiveComplaint && effectiveComplaint.length >= 3) {
-    const productName = updatedMeta.selectedProduct || regMachine?.m_model || "Machine";
-    const place = updatedMeta.manualPlace || updatedMeta.regPlace || "Kochi";
-    const district = updatedMeta.manualDistrict || updatedMeta.regDistrict || "Ernakulam";
-    const state = updatedMeta.manualState || updatedMeta.regState || "Kerala";
-    const pincode = updatedMeta.manualPincode || updatedMeta.regPincode || "682001";
-    let gmapLink = updatedMeta.regGmapLink || updatedMeta.manualGmapLink || "";
-    if (!gmapLink) {
-      try {
-        const cleanDigits = phoneNumber.replace(/\D/g, "").slice(-10);
+  // Case C: ALL DETAILS & MACHINE ARE KNOWN -> Show Confirmation Summary Card
+  const productName = updatedMeta.selectedProduct || regMachine?.m_model || "Machine";
+  const place = regPlace || "Kochi";
+  const district = regDistrict || "Ernakulam";
+  const state = regState || "Kerala";
+  const pincode = regPincode || "682001";
+  let gmapLink = updatedMeta.regGmapLink || updatedMeta.manualGmapLink || "";
+  if (!gmapLink) {
+    try {
+      const targetCustId = registeredUser?.id || updatedMeta.regCustomerId;
+      if (targetCustId) {
         const lastTicketWithMap = await prisma.ticket.findFirst({
           where: {
+            customerId: targetCustId,
             OR: [
-              { phoneNumber: phoneNumber },
-              { phoneNumber: { contains: cleanDigits } },
-              ...(updatedMeta.regCustomerId ? [{ customerId: updatedMeta.regCustomerId }] : []),
-            ],
-            AND: [
-              {
-                OR: [
-                  { customerAddress: { contains: "http" } },
-                  { issueDescription: { contains: "http" } },
-                  { problemDescription: { contains: "http" } },
-                ],
-              },
+              { customerAddress: { contains: "http" } },
+              { issueDescription: { contains: "http" } },
+              { problemDescription: { contains: "http" } },
             ],
           },
           orderBy: { createdAt: "desc" },
@@ -3304,54 +3953,33 @@ export async function startComplaintRegistration(
             updatedMeta.regGmapLink = gmapLink;
           }
         }
-      } catch (err) {
-        console.error("[simulate] Auto-extract gmapLink error:", err);
       }
+    } catch (err) {
+      console.error("[simulate] Auto-extract gmapLink error:", err);
     }
-    const gmapDisplay = gmapLink ? gmapLink : "Not Provided";
-    
-    // Auto-fill pincode/place into manual fields if not set yet so ticket creation receives them
-    if (!updatedMeta.manualPincode) updatedMeta.manualPincode = pincode;
-    if (!updatedMeta.manualPlace) updatedMeta.manualPlace = place;
-    if (!updatedMeta.manualDistrict) updatedMeta.manualDistrict = district;
-    if (!updatedMeta.manualState) updatedMeta.manualState = state;
-
-    const mediaCount = updatedMeta.mediaUrls?.length || (updatedMeta.complaintMediaUrl ? 1 : 0);
-    const mediaStatus = mediaCount > 0 ? `📎 ${mediaCount} File(s) Attached 🎙️/📹` : "None";
-
-    await updateSession(sessionId, "CONFIRM_REGISTER_TICKET", updatedMeta);
-
-    return makeReply(
-      `📝 *Confirm Complaint Registration:*\n\n` +
-      `👤 *Customer Name:* ${updatedMeta.customerName || "Customer"}\n` +
-      `📞 *Phone:* ${updatedMeta.customerPhone || phoneNumber}\n` +
-      `📦 *Product:* ${productName} (Serial: ${regSerial || "N/A"})\n` +
-      `📝 *Issue Description:* ${effectiveComplaint}\n` +
-      `📍 *Location:* ${place}, ${district}, ${state}\n` +
-      `📮 *Pincode:* ${pincode}\n` +
-      `🗺️ *Google Maps:* ${gmapDisplay}\n` +
-      `📎 *Attached Media:* ${mediaStatus}\n\n` +
-      `Would you like to confirm this complaint or attach audio/video?`,
-      [
-        { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm" },
-        { id: "ATTACH_COMPLAINT_MEDIA", title: "🎙️/📹 Attach Media" },
-        { id: "EDIT_COMPLAINT_DESC", title: "✏️ Change Complaint" },
-      ]
-    );
   }
+  const gmapDisplay = gmapLink ? gmapLink : "Not Provided";
 
-  // Machine is known, but issue description is missing -> prompt user directly to tell their issue with [🔄 Different Machine] option
-  const prodInfo = regMachine?.m_model || updatedMeta.selectedProduct || "Machine";
-  const serialInfo = regSerial ? ` (Serial: ${regSerial})` : "";
+  const mediaCount = updatedMeta.mediaUrls?.length || (updatedMeta.complaintMediaUrl ? 1 : 0);
+  const mediaStatus = mediaCount > 0 ? `📎 ${mediaCount} File(s) Attached 🎙️/📹` : "None";
 
-  await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+  await updateSession(sessionId, "CONFIRM_REGISTER_TICKET", updatedMeta);
+
   return makeReply(
-    `📦 *Machine:* ${prodInfo}${serialInfo}\n\n` +
-    `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-    `Example: _LED blinking, not heating, display not working, T2 error_`,
+    `📝 *Confirm Complaint Registration:*\n\n` +
+    `👤 *Customer Name:* ${updatedMeta.customerName || "Customer"}\n` +
+    `📞 *Phone:* ${updatedMeta.customerPhone || phoneNumber}\n` +
+    `📦 *Product:* ${productName} (Serial: ${regSerial || "N/A"})\n` +
+    `📝 *Issue Description:* ${effectiveComplaint}\n` +
+    `📍 *Location:* ${place}, ${district}, ${state}\n` +
+    `📮 *Pincode:* ${pincode}\n` +
+    `🗺️ *Google Maps:* ${gmapDisplay}\n` +
+    `📎 *Attached Media:* ${mediaStatus}\n\n` +
+    `Would you like to confirm this complaint or change machine/details?`,
     [
-      { id: "CHANGE_SERIAL", title: "🔄 Different Machine" },
-      getMenuButton(lang),
+      { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm" },
+      { id: "CHANGE_MACHINE", title: "🔄 Change Machine" },
+      { id: "ATTACH_COMPLAINT_MEDIA", title: "🎙️/📹 Attach Media" },
     ]
   );
 }
@@ -3368,6 +3996,43 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
     return executePasstestTicketCreation(sessionId, phoneNumber, meta);
+  }
+
+  if (upper === "CHANGE_MACHINE" || upper === "CHANGE_SERIAL" || upper.includes("CHANGE MACHINE") || upper.includes("DIFFERENT MACHINE") || upper.includes("CHANGE PRODUCT")) {
+    const knownMachines = await getCustomerRegisteredMachines(phoneNumber);
+    if (knownMachines.length > 1) {
+      await updateSession(sessionId, "SELECT_REGISTERED_MACHINE", meta);
+      const rows = [
+        ...knownMachines.map((m, idx) => ({
+          id: `SELECT_MACH_${m.serial}`,
+          title: `${m.model.slice(0, 15)} (${m.serial})`,
+          description: `Registered Machine #${idx + 1}`,
+        })),
+        {
+          id: "ENTER_NEW_SERIAL",
+          title: "➕ Enter Different Serial",
+          description: "Register a new machine",
+        },
+      ];
+      return makeReply(
+        `📋 *Select Machine for this Service Request:*\n\n` +
+        `Choose from your registered machines, or enter a new serial number:`,
+        undefined,
+        { buttonText: "Select Machine 👇", rows }
+      );
+    }
+
+    const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null };
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", clearedMeta);
+    return makeReply(
+      `🔢 *Please enter the Serial Number of the machine requiring service:*\n` +
+      `(e.g., 2410-0012)\n\n` +
+      `Or press *Skip* if you don't have the serial number handy.`,
+      [
+        { id: "SKIP", title: "⏭️ Skip Serial No." },
+        getMenuButton(lang),
+      ]
+    );
   }
 
   if (upper === "ATTACH_COMPLAINT_MEDIA" || upper.includes("ATTACH") || upper.includes("AUDIO") || upper.includes("VIDEO") || upper.includes("MEDIA")) {
@@ -3391,10 +4056,63 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
     t_extra("SELECT_VALID", lang),
     [
       { id: "CONFIRM_BOOK_TICKET", title: "✅ Confirm" },
+      { id: "CHANGE_MACHINE", title: "🔄 Change Machine" },
       { id: "ATTACH_COMPLAINT_MEDIA", title: "🎙️/📹 Attach Media" },
-      { id: "EDIT_COMPLAINT_DESC", title: "✏️ Change Complaint" },
     ]
   );
+}
+
+// ── SELECT_REGISTERED_MACHINE Handler ─────────────────────────────────────
+async function handleSelectRegisteredMachine(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.toUpperCase().trim();
+
+  if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
+  if (upper === "ENTER_NEW_SERIAL" || upper === "NEW" || upper.includes("DIFFERENT") || upper.includes("NEW SERIAL")) {
+    const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null };
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", clearedMeta);
+    return makeReply(
+      `🔢 *Please enter your Machine Serial Number:*\n(e.g., 2410-0012)\n\nOr press *Skip* if you don't have the serial number handy.`,
+      [
+        { id: "SKIP", title: "⏭️ Skip Serial No." },
+        getMenuButton(lang),
+      ]
+    );
+  }
+
+  let selectedSerial = "";
+  if (upper.startsWith("SELECT_MACH_")) {
+    selectedSerial = text.slice("SELECT_MACH_".length).trim();
+  } else {
+    const knownMachines = await getCustomerRegisteredMachines(phoneNumber);
+    const num = parseInt(text.trim(), 10);
+    if (!isNaN(num) && num >= 1 && num <= knownMachines.length) {
+      selectedSerial = knownMachines[num - 1].serial;
+    } else {
+      selectedSerial = text.replace(/\s+/g, "").toUpperCase();
+    }
+  }
+
+  if (selectedSerial && selectedSerial.length >= 3) {
+    let machineData: PasstestMachine | null = null;
+    try {
+      machineData = await fetchMachineBySerial(selectedSerial);
+    } catch (e) {}
+
+    const newMeta: SessionMeta = {
+      ...meta,
+      serialNumber: selectedSerial,
+      machineData: machineData || ({ serial_no: selectedSerial, m_model: meta.selectedProduct || "Machine" } as any),
+      selectedProduct: machineData?.m_model || meta.selectedProduct,
+    };
+    return startComplaintRegistration(sessionId, phoneNumber, newMeta, lang);
+  }
+
+  return makeReply(t_extra("SELECT_VALID", lang), [getMenuButton(lang)]);
 }
 
 async function handleAwaitComplaintMedia(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
@@ -3577,8 +4295,19 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
   }
 
-  if (upper === "SKIP" || upper === "0") {
+  if (upper === "EDIT_CUSTOMER_DETAILS" || upper === "EDIT_NAME") {
+    await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", meta);
+    return makeReply(
+      `📝 *Please enter your Name or Dairy Society Name:*`,
+      [getMenuButton(lang)]
+    );
+  }
+
+  if (upper === "SKIP" || upper === "0" || upper === "SKIP_SERIAL") {
     const clearedMeta: SessionMeta = { ...meta, machineData: null, serialNumber: undefined, tsSerialPath: false };
+    if (meta.complaint && (meta.manualPincode || meta.regPincode)) {
+      return startComplaintRegistration(sessionId, phoneNumber, clearedMeta, lang);
+    }
     return showProductSelection(sessionId, clearedMeta);
   }
 
@@ -3599,7 +4328,10 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
   }
 
   if (machineData) {
-    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData, tsSerialPath: true };
+    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData, tsSerialPath: true, selectedProduct: machineData.m_model || meta.selectedProduct };
+    if (meta.complaint && (meta.manualPincode || meta.regPincode)) {
+      return startComplaintRegistration(sessionId, phoneNumber, newMeta, lang);
+    }
     await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
     return makeReply(
       t("MACHINE_FOUND", lang, {
@@ -3610,6 +4342,12 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
       }),
       getYesNoButtons(lang)
     );
+  }
+
+  // If machine was not found in Passtest API, still accept serial for the ticket registration
+  if (meta.complaint && (meta.manualPincode || meta.regPincode)) {
+    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData: null };
+    return startComplaintRegistration(sessionId, phoneNumber, newMeta, lang);
   }
 
   return makeReply(t("SERIAL_NOT_FOUND", lang, { serial }), [getSkipButton(lang), getMenuButton(lang)]);
@@ -3939,119 +4677,16 @@ async function handleComplaintSubcategory(sessionId: string, phoneNumber: string
 // ── COMPLAINT_DESCRIBE ────────────────────────────────────────────────────
 async function handleComplaintDescribe(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  let complaintText = text.trim();
-  let selectedTemplate: any = null;
+  const upper = text.trim().toUpperCase();
 
-  const isOtherOption =
-    complaintText === "COMPLAINT_OTHER" ||
-    complaintText === "Other (type manually)" ||
-    complaintText === "Describe your issue" ||
-    complaintText === "अन्य (टाइप करें)" ||
-    complaintText === "अपनी समस्या लिखकर बताएं";
-
-  // If they selected a complaint from the list
-  if (complaintText.startsWith("COMPLAINT_") || isOtherOption) {
-    if (isOtherOption) {
-      // Prompt them to type manually while staying in COMPLAINT_DESCRIBE state
-      const updatedMeta = { ...meta, customComplaintPath: true };
-      await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
-      return makeReply(t("DESCRIBE_SHORT", lang));
-    }
-    const templateId = complaintText.replace("COMPLAINT_", "");
-    selectedTemplate = await prisma.documentIssue.findUnique({
-      where: { id: templateId },
-      include: { steps: { orderBy: { stepNumber: "asc" } } },
-    });
-    if (selectedTemplate) {
-      complaintText = selectedTemplate.title;
-    } else {
-      complaintText = ""; // Not found, will prompt to describe
-    }
+  if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
   }
 
-  if (complaintText.length < 3) {
-    return makeReply(t("DESCRIBE_SHORT", lang));
-  }
-
-  const updatedMeta: SessionMeta = { ...meta, complaint: complaintText };
-  const productName = meta.selectedProduct || meta.machineData?.m_model || "";
-
-  // If this was typed manually (not selected from list), log it
-  if (!text.trim().startsWith("COMPLAINT_") && !isOtherOption) {
-    await prisma.manualComplaint.create({
-      data: {
-        phoneNumber,
-        machineName: productName || null,
-        complaint: text.trim(),
-      }
-    }).catch(e => console.error("[simulate] failed to log manual complaint:", e));
-  }
-
-  const template = selectedTemplate || (await findDocumentIssue(complaintText, productName));
-
-  // ── Video recommendations: search by complaint + product name ──────────
-  const videoSearchQuery = productName ? `${productName} ${complaintText}` : complaintText;
-  const videoMeta: SessionMeta = { ...updatedMeta, videoSearchQuery };
-  const videos = await findVideosForQuery(videoSearchQuery, 1);
-
-  if (!template || template.steps.length === 0) {
-    if (videos.length > 0) {
-      await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", videoMeta);
-      return makeReply(
-        t("NO_STEPS_BASE", lang, { complaint: complaintText }) + "\n\n" + t("ASK_VIDEO_TUTORIAL", lang),
-        [
-          { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
-          { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
-        ]
-      );
-    } else {
-      await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", videoMeta);
-      return makeReply(
-        t("NO_STEPS", lang, { complaint: complaintText }),
-        [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
-      );
-    }
-  }
-
-  const steps = template.steps
-    .map((s: { stepContent: string }) => s.stepContent)
-    .filter(isActionableStep);
-
-  if (steps.length === 0) {
-    if (videos.length > 0) {
-      await updateSession(sessionId, "ASK_VIDEO_TUTORIAL", updatedMeta);
-      return makeReply(
-        t("NO_STEPS_BASE", lang, { complaint: complaintText }) + "\n\n" + t("ASK_VIDEO_TUTORIAL", lang),
-        [
-          { id: "YES", title: lang === "hi" ? "हाँ, वीडियो दिखाएं 📹" : "Yes, Show Video 📹" },
-          { id: "NO", title: lang === "hi" ? "नहीं, सेवा बुक करें 🔧" : "No, Book Service 🔧" },
-        ]
-      );
-    } else {
-      await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
-      return makeReply(
-        t("NO_STEPS", lang, { complaint: complaintText }),
-        [{ id: "BOOK_SERVICE", title: lang === "hi" ? "सेवा बुक करें 🔧" : "Book Service 🔧" }, getMenuButton(lang)],
-      );
-    }
-  }
-
-  // Format each step as a clearly separated bullet point
-  const stepsText = steps
-    .map((s: string, i: number) => `✓ *Step ${i + 1}:*\n${s}`)
-    .join("\n\n");
-  const translatedStepsText = await translateText(stepsText, lang);
-
-  await updateSession(sessionId, "TROUBLESHOOT_DONE_OPTIONS", updatedMeta);
-
-  return makeReply(
-    t("STEPS_FOUND", lang, { steps: translatedStepsText }),
-    [
-      getYesResolvedButton(lang),
-      getNotResolvedButton(lang),
-      getBackButton(lang),
-    ]
-  );
+  const updatedMeta: SessionMeta = { ...meta, complaint: text.trim(), lastIssueQuery: text.trim() };
+  await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+  return runGroqCompanyAssistant(phoneNumber, text, updatedMeta, { sessionId, activeFsmState: "COMPLAINT_DESCRIBE" });
 }
 
 // ── TROUBLESHOOT_STEP ─────────────────────────────────────────────────────
@@ -4497,10 +5132,20 @@ async function handleEndCustomerAddress(
     manualGmapLink: gmapLink,
     regGmapLink: gmapLink || meta.regGmapLink,
   };
-  if (meta.tsSerialPath && meta.machineData) {
-    return executePasstestTicketCreation(sessionId, phoneNumber, updatedMeta);
+
+  // If machine serial number is not set yet, ask for it with a Skip button
+  if (!updatedMeta.serialNumber && !updatedMeta.machineData) {
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", updatedMeta);
+    return makeReply(
+      `🔢 *Please enter your Machine Serial Number:*\n(e.g., 2410-0012)\n\nOr press *Skip* if you don't have the serial number handy.`,
+      [
+        { id: "SKIP", title: "⏭️ Skip Serial No." },
+        getMenuButton(lang),
+      ]
+    );
   }
-  return createTicketManual(sessionId, phoneNumber, updatedMeta);
+
+  return startComplaintRegistration(sessionId, phoneNumber, updatedMeta, lang);
 }
 
 // ── End-customer details (after Book Service on Passtest path) ────────────
@@ -4519,38 +5164,47 @@ function phoneLookupVariants(phoneNumber: string): string[] {
   return [...variants];
 }
 
-/** Reuse name + pincode from a prior ticket on this WhatsApp number. */
+/** Reuse name + pincode from active User profile on this WhatsApp number ONLY. */
 async function loadSavedEndCustomer(phoneNumber: string): Promise<Partial<SessionMeta> | null> {
-  const ticket = await prisma.ticket.findFirst({
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+  // Check User table ONLY
+  const user = await prisma.user.findFirst({
     where: {
-      phoneNumber: { in: phoneLookupVariants(phoneNumber) },
-      pincodeId: { not: null },
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
+      ],
     },
-    orderBy: { createdAt: "desc" },
-    select: { issueDescription: true, customerAddress: true, pincode: true },
+    include: { pincode: true },
   });
-  if (!ticket?.pincode) return null;
 
-  const nameMatch =
-    ticket.issueDescription?.match(/End customer:\s*([^,]+)/i) ??
-    ticket.issueDescription?.match(/Service contact:\s*([^,]+)/i);
-  const name = nameMatch?.[1]?.trim();
-  if (!name) return null;
+  if (!user) return null;
 
-  const addressMatch = ticket.issueDescription?.match(/Address:\s*([^,]+)/i);
-  const savedAddress = ticket.customerAddress?.trim() || addressMatch?.[1]?.trim();
+  const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  const pc = user.pincode;
+  const place = pc?.place;
+  const district = pc?.district;
+  const state = pc?.state;
+  const code = pc?.code;
 
-  const pc = ticket.pincode;
-  const display = [pc.place, pc.district, pc.state].filter(Boolean).join(", ") || pc.code;
+  if (!name && !code) return null;
+
   return {
-    manualName: name,
-    customerName: name,
-    manualPincode: pc.code,
-    manualPlace: pc.place ?? undefined,
-    manualDistrict: pc.district ?? undefined,
-    manualState: pc.state ?? undefined,
-    pincodeDisplay: display,
-    manualAddress: savedAddress,
+    manualName: name || undefined,
+    customerName: name || undefined,
+    manualPincode: code || undefined,
+    regPincode: code || undefined,
+    manualPlace: place || undefined,
+    regPlace: place || undefined,
+    manualDistrict: district || undefined,
+    regDistrict: district || undefined,
+    manualState: state || undefined,
+    regState: state || undefined,
+    pincodeDisplay: [place, district, state].filter(Boolean).join(", ") || code || undefined,
   };
 }
 
@@ -4830,17 +5484,17 @@ export async function findDocumentIssue(
     const phraseMatch = await findByText(complaintText.trim());
     if (phraseMatch) return phraseMatch;
 
-    // 3. Try individual significant words (≥3 chars)
+    // 3. Try individual significant words (≥2 chars)
     const words = complaintText
       .split(/\s+/)
-      .filter((w: string) => w.length >= 3 && !/^(the|and|for|in|on|at|to|a|an|is|of|with|not|how|what|why|show|shown)$/i.test(w));
+      .filter((w: string) => w.length >= 2 && !/^(the|and|for|in|on|at|to|a|an|is|of|with|not|how|what|why|show|shown|issue|problem|machine)$/i.test(w));
     for (const word of words) {
       const wordMatch = await findByText(word);
       if (wordMatch) return wordMatch;
     }
 
-    // Fallback: also try all words ≥3 chars including show/shown
-    const allWords = complaintText.split(/\s+/).filter((w: string) => w.length >= 3);
+    // Fallback: also try all words ≥2 chars
+    const allWords = complaintText.split(/\s+/).filter((w: string) => w.length >= 2);
     for (const word of allWords) {
       const wordMatch = await findByText(word);
       if (wordMatch) return wordMatch;
@@ -4982,13 +5636,29 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
   }
   pincodeId = pincodeRecord.id;
 
+  // Auto-register customer as User (role: customer) if not already registered
+  const customerUser = await getOrCreateCustomerUser(
+    phoneNumber,
+    meta.customerName || meta.manualName || "Customer",
+    pincodeId
+  );
+
+  // Save/upsert machine under customer / fleet registry
+  if (serial && serial.trim()) {
+    await prisma.machine.upsert({
+      where: { serialNumber: serial.trim() },
+      create: { serialNumber: serial.trim(), modelName: productName || "Machine", isActive: true },
+      update: { modelName: productName || "Machine" },
+    }).catch(() => {});
+  }
+
   const locString = [placeName, districtName, stateName].filter(Boolean).join(", ");
   const gmapLink = meta.regGmapLink || meta.manualGmapLink || "";
   const baseAddr = meta.manualAddress?.trim() || meta.regAddress?.trim() || locString || (pincodeCode ? `Pincode: ${pincodeCode}` : "");
   const finalAddress = baseAddr ? `${baseAddr}${gmapLink ? " | Map: " + gmapLink : ""}` : gmapLink;
 
   const ticket = await TicketService.createTicket({
-    customerId: adminUser.id,
+    customerId: customerUser.id,
     problemDescription: `${productName ? productName + ": " : ""}${complaintText}`,
     issueDescription: buildEndCustomerIssueDescription(meta, dealerExtra),
     machineName: md.m_model || productName || undefined,
@@ -5002,7 +5672,7 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
     mediaUrls: meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []),
   });
 
-  // Auto-assign engineer by pincode (fix Bug #7: tickets stuck in OPEN).
+  // Auto-assign engineer by pincode
   if (pincodeId) {
     try {
       await TicketService.autoAssignEngineer(ticket.id, pincodeId);
@@ -5050,10 +5720,6 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
 // ── Ticket creation: manual entry ─────────────────────────────────────────
 async function createTicketManual(sessionId: string, phoneNumber: string, meta: SessionMeta) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  const adminUser = await prisma.user.findFirst({ where: { role: "admin" } });
-  if (!adminUser) {
-    return makeReply(t("SERVICE_UNAVAILABLE", lang));
-  }
 
   if (!endCustomerName(meta) || !meta.manualPincode || !meta.manualAddress?.trim()) {
     if (!endCustomerName(meta)) {
@@ -5087,8 +5753,24 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
     pincodeId = pincodeRecord.id;
   }
 
+  // Auto-register customer as User (role: customer) if not already registered
+  const customerUser = await getOrCreateCustomerUser(
+    phoneNumber,
+    meta.customerName || meta.manualName || "Customer",
+    pincodeId
+  );
+
+  // Save/upsert machine under customer / fleet registry
+  if (meta.serialNumber && meta.serialNumber.trim()) {
+    await prisma.machine.upsert({
+      where: { serialNumber: meta.serialNumber.trim() },
+      create: { serialNumber: meta.serialNumber.trim(), modelName: productName || "Machine", isActive: true },
+      update: { modelName: productName || "Machine" },
+    }).catch(() => {});
+  }
+
   const ticket = await TicketService.createTicket({
-    customerId: adminUser.id,
+    customerId: customerUser.id,
     problemDescription: `${productName ? productName + ": " : ""}${complaintText}`,
     issueDescription: buildEndCustomerIssueDescription(meta),
     machineName: productName || undefined,
@@ -5101,7 +5783,7 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
     customerAddress: `${meta.manualAddress?.trim() || [meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ")}${(meta.regGmapLink || meta.manualGmapLink) ? " | Map: " + (meta.regGmapLink || meta.manualGmapLink) : ""}`,
   });
 
-  // Auto-assign engineer by pincode (fix Bug #7: tickets stuck in OPEN).
+  // Auto-assign engineer by pincode
   if (pincodeId) {
     try {
       await TicketService.autoAssignEngineer(ticket.id, pincodeId);

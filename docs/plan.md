@@ -26,41 +26,45 @@ Customer (WhatsApp)
 ↓
 Message received (Webhook)
 ↓
-Session created (phone + serial)
+Session & Profile Discovery
+* Returning customer recognized by name → Main Menu
+* First-time caller → New Customer Welcome
 ↓
-REGISTRATION
-
-* Ask serial number
-* Validate machine
-  ↓
-  PROBLEM INPUT
-* User describes issue
-  ↓
-  PROBLEM CLASSIFICATION (AI/RAG)
-* Identify problemType (NOT steps)
-  ↓
-  TROUBLESHOOTING ENGINE (Structured)
-* Step 1 → user response
-* Step 2 → user response
-* Step N
-  ↓
-  Resolved?
-  YES → END (no ticket)
-  NO / HELP → CREATE TICKET
-  ↓
-  PINCODE ROUTING
-  ↓
-  SERVICE MANAGER (assign engineer)
-  ↓
-  ENGINEER HANDLING
-  ↓
-  OTP VERIFICATION (customer)
-  ↓
-  TICKET CLOSED
-  ↓
-  AUTO FEEDBACK (WhatsApp rating)
-  ↓
-  METRICS STORED
+COMPLAINT REGISTRATION / ISSUE INQUIRY
+* User describes issue or selects Complaint Registration
+↓
+AI TROUBLESHOOTING ENGINE (Groq / Gemini RAG)
+* Generates Check, Action, and Remarks in natural sentence case
+* Interactive buttons attached: [ ✅ Resolved ] and [ ❌ Unresolved ]
+↓
+Resolved?
+* YES → Session complete, issue logged as resolved
+* NO [ ❌ Unresolved ] → Dynamic Ticket Escalation
+↓
+MACHINE FLEET & PROFILE DISCOVERY
+* Single Machine → Populates confirmation card
+* Multiple Machines → Interactive Selection List (Model A, Model B, ➕ New Serial)
+* Option to Change Machine at any time ([ 🔄 Change Machine ])
+↓
+CUSTOMER REGISTRATION (Auto-Created for new callers)
+* Captured Name, Phone, Pincode, Address saved in `prisma.user`
+* Machine serial upserted in `prisma.machine`
+↓
+TICKET CREATION (Linked to customerId)
+↓
+PINCODE AUTO-ROUTING (Auto-assigned to Area Engineer)
+↓
+SERVICE MANAGER / DEALER NOTIFICATION (Socket.IO & WhatsApp)
+↓
+ENGINEER VISIT & HANDLING
+↓
+OTP VERIFICATION (Customer WhatsApp OTP)
+↓
+TICKET CLOSED
+↓
+AUTO FEEDBACK (Interactive WhatsApp Star Rating & Comments)
+↓
+METRICS & SLA LOGGED
 
 ────────────────────────────────────────────────────────
 

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { embedText, searchVectors } from "../services/vector.service";
 import { translateText } from "../services/translate.service";
-import { groqChat } from "../services/groq.service";
+import { llmChat } from "../services/llm.service";
 import { findVideosForQuery } from "./video.controller";
 import axios from "axios";
 import { runtime } from "../services/runtime-config.service";
@@ -122,11 +122,11 @@ async function generateRAGResponse(userQuery: string, userRole: string, language
     const prompt = [roleInstruction, "", "CONTEXT:", context, "", `QUESTION:\n${userQuery}`, "", "ANSWER (use ONLY the context above):"].join("\n");
 
     const t2 = Date.now();
-    const answer = await groqChat(
+    const answer = await llmChat(
       [{ role: "user", content: prompt }],
-      { temperature: 0.1, maxTokens: 400, timeoutMs: 20_000 }
+      { temperature: 0.1, maxTokens: 400 }
     );
-    console.log(`[RAG] Groq Llama 3.3 70B generate: ${Date.now() - t2} ms`);
+    console.log(`[RAG] LLM generate: ${Date.now() - t2} ms`);
     englishAnswer = answer || "Sorry, I wasn't able to generate a response.";
     }
 

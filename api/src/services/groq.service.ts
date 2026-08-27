@@ -45,7 +45,7 @@ export async function groqChat(
 
   const model = options.model ?? groqAgentModel();
   const temperature = options.temperature ?? 0.1;
-  const maxTokens = options.maxTokens ?? runtime.groqMaxTokensReply();
+  const maxTokens = options.maxTokens ?? 4000;
   const timeoutMs = options.timeoutMs ?? 45_000;
 
   const body: Record<string, unknown> = {

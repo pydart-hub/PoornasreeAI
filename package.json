@@ -6,6 +6,7 @@
     "dev": "concurrently --kill-others-on-fail --names \"API,WEB\" --prefix-colors \"cyan,magenta\" \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "next dev -p 3000",
     "dev:api": "cd api && npm run dev",
+    "reconnect": "./reconnect.sh",
     "build": "next build",
     "start": "next start -p 3000 -H 0.0.0.0",
     "lint": "next lint"

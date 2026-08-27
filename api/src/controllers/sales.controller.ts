@@ -176,12 +176,74 @@ export async function deleteUser(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (!(await requireCustomerTarget(id, res))) return;
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      res.status(404).json({ error: "Customer not found" });
+      return;
+    }
+
+    // Collect all phone lookup variants
+    const phoneVariants = new Set<string>();
+    if (user.whatsappNumber) {
+      phoneVariants.add(user.whatsappNumber);
+      const clean = user.whatsappNumber.replace(/\D/g, "");
+      if (clean) {
+        phoneVariants.add(clean);
+        phoneVariants.add(`91${clean}`);
+        phoneVariants.add(`+91${clean}`);
+        if (clean.length >= 10) {
+          const last10 = clean.slice(-10);
+          phoneVariants.add(last10);
+          phoneVariants.add(`91${last10}`);
+          phoneVariants.add(`+91${last10}`);
+        }
+      }
+    }
+    const lookupPhones = [...phoneVariants];
 
     await prisma.$transaction(async (tx) => {
+      // Find all tickets associated with this customer ID or phone number variants
+      const customerTickets = await tx.ticket.findMany({
+        where: {
+          OR: [
+            { customerId: id },
+            ...(lookupPhones.length > 0 ? [{ phoneNumber: { in: lookupPhones } }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      const ticketIds = customerTickets.map((t) => t.id);
+
+      if (ticketIds.length > 0) {
+        // Delete work reports on these tickets
+        await tx.workReport.deleteMany({ where: { ticketId: { in: ticketIds } } });
+        // Delete the tickets
+        await tx.ticket.deleteMany({ where: { id: { in: ticketIds } } });
+      }
+
       await tx.supportMessage.deleteMany({ where: { senderId: id } });
       await tx.trainingFeedback.deleteMany({ where: { createdById: id } });
       await tx.document.deleteMany({ where: { uploadedById: id } });
+
+      // Delete support requests initiated by this customer
+      await tx.supportRequest.deleteMany({
+        where: { customerId: id },
+      });
+
+      // Clear any WhatsApp conversation session and simulate messages associated with this user's phone number
+      if (lookupPhones.length > 0) {
+        await tx.conversationSession.deleteMany({
+          where: {
+            phoneNumber: { in: lookupPhones },
+          },
+        });
+        await tx.simulateMessage.deleteMany({
+          where: {
+            phoneNumber: { in: lookupPhones },
+          },
+        });
+      }
+
       await tx.user.delete({ where: { id } });
     });
 

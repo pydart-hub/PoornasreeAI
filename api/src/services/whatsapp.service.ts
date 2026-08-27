@@ -133,15 +133,12 @@ export async function sendTemplate(to: string, options: SendTemplateOptions): Pr
   return !!result?.messages?.[0]?.id;
 }
 
-/** Mark an incoming customer message as "read" in WhatsApp (blue checkmarks ✓✓) and show animated typing indicator ("typing..."). */
+/** Mark an incoming customer message as "read" in WhatsApp (blue checkmarks ✓✓). */
 export async function markMessageAsRead(messageId: string): Promise<boolean> {
   if (!messageId || !isConfigured()) return false;
   const result = await postWhatsAppMessage("status_update", {
     status: "read",
     message_id: messageId,
-    typing_indicator: {
-      type: "text",
-    },
   });
   return !!result;
 }
@@ -154,6 +151,31 @@ export async function sendTypingIndicator(messageId: string): Promise<boolean> {
 
 /** Send a plain-text WhatsApp message. `to` should be international digits (e.g. 919876543210). */
 export async function sendMessage(to: string, text: string): Promise<boolean> {
+  if (!text) return false;
+  if (text.length > 3800) {
+    // Split into chunks along newline boundaries to stay well within Meta's 4096 char limit
+    const chunks: string[] = [];
+    let current = "";
+    for (const line of text.split("\n")) {
+      if ((current + "\n" + line).length > 3800) {
+        if (current) chunks.push(current.trim());
+        current = line;
+      } else {
+        current = current ? current + "\n" + line : line;
+      }
+    }
+    if (current) chunks.push(current.trim());
+    let allOk = true;
+    for (const chunk of chunks) {
+      const res = await postWhatsAppMessage(to, {
+        type: "text",
+        text: { body: chunk, preview_url: true },
+      });
+      if (!res?.messages?.[0]?.id) allOk = false;
+    }
+    return allOk;
+  }
+
   const result = await postWhatsAppMessage(to, {
     type: "text",
     text: { body: text, preview_url: true },
@@ -182,6 +204,15 @@ export async function sendInteractiveButtons(
     return false;
   }
 
+  // Meta Cloud API enforces a strict max 1024 chars on interactive.body.text
+  let interactiveBody = body;
+  if (body.length > 1000) {
+    // 1. Send the full detailed message first via plain text (supports up to 4096 chars)
+    await sendMessage(to, body);
+    // 2. Present the interactive buttons with a concise prompt
+    interactiveBody = "Did the above steps resolve your issue? Please select an option below 👇";
+  }
+
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   const actions: WaButtonAction[] = buttons.slice(0, 3).map((b) => {
@@ -208,7 +239,7 @@ export async function sendInteractiveButtons(
         type: "interactive",
         interactive: {
           type: "button",
-          body: { text: body },
+          body: { text: interactiveBody },
           action: { buttons: actions },
         },
       }),
@@ -219,7 +250,7 @@ export async function sendInteractiveButtons(
       console.error(`[whatsapp] Interactive send failed (${res.status}):`, JSON.stringify(err));
       return false;
     } else {
-      console.log(`[whatsapp] Sent buttons → ${to}: ${body.slice(0, 60)}…`);
+      console.log(`[whatsapp] Sent buttons → ${to}: ${interactiveBody.slice(0, 60)}…`);
       return true;
     }
   } catch (err) {
@@ -243,6 +274,13 @@ export async function sendInteractiveList(
     return false;
   }
 
+  // Meta Cloud API enforces a strict max 1024 chars on interactive.body.text
+  let interactiveBody = body;
+  if (body.length > 1000) {
+    await sendMessage(to, body);
+    interactiveBody = "Please select an option from the list below 👇";
+  }
+
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
@@ -259,7 +297,7 @@ export async function sendInteractiveList(
         type: "interactive",
         interactive: {
           type: "list",
-          body: { text: body },
+          body: { text: interactiveBody },
           action: {
             button: cleanButtonText,
             sections: [

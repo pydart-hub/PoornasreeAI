@@ -47,7 +47,7 @@ export async function llmChat(
   try {
     return await groqChat(
       messages.map((m) => ({ role: m.role, content: m.content })),
-      { ...options, maxTokens: options.maxTokens ?? 1000, temperature: options.temperature ?? 0.5 },
+      { ...options, maxTokens: options.maxTokens ?? 4000, temperature: options.temperature ?? 0.5 },
     );
   } catch (groqErr) {
     console.error("[llm-service] Groq LLM fallback also failed:", groqErr);
@@ -55,8 +55,16 @@ export async function llmChat(
   }
 }
 
+const GEMINI_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3.7-flash",
+  "gemini-3.5-flash",
+  "gemini-3.1-flash-lite",
+];
+
 /**
- * Call Google Gemini REST API (gemini-flash-latest / gemini-3.6-flash).
+ * Call Google Gemini REST API (gemini-3.6-flash / gemini-2.5-flash-lite / gemini-3.7-flash).
  */
 export async function geminiChat(
   messages: LlmMessage[],
@@ -76,7 +84,7 @@ export async function geminiChat(
     contents: contents.length > 0 ? contents : [{ role: "user", parts: [{ text: "Hello" }] }],
     generationConfig: {
       temperature: options.temperature ?? 0.5,
-      maxOutputTokens: options.maxTokens ?? 1000,
+      maxOutputTokens: options.maxTokens ?? 4000,
     },
   };
 
@@ -86,26 +94,32 @@ export async function geminiChat(
     };
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+  let lastError = "";
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        lastError = `Gemini ${model} HTTP ${res.status}: ${errText.slice(0, 200)}`;
+        continue;
+      }
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(`Gemini API HTTP ${res.status}: ${errText.slice(0, 300)}`);
+      const data = (await res.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      if (text) return text;
+    } catch (err) {
+      lastError = (err as Error).message;
+    }
   }
 
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-  if (!text) {
-    throw new Error("Empty response from Gemini API");
-  }
-  return text;
+  throw new Error(lastError || "Failed to generate response from Gemini API");
 }

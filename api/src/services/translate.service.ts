@@ -1,4 +1,4 @@
-import { groqChat, isGroqConfigured } from "./groq.service";
+import { llmChat } from "./llm.service";
 
 const LANG_NAMES: Record<string, string> = {
   hi: "Hindi", mr: "Marathi", bn: "Bengali", te: "Telugu", ta: "Tamil", kn: "Kannada", ml: "Malayalam"
@@ -20,7 +20,7 @@ export function toSentenceCase(text: string): string {
 }
 
 /**
- * Translates English text to a target language using Groq Flagship LLM (Llama 3.3 70B).
+ * Translates English text to a target language using unified LLM.
  * For English ("en"), it formats the string to sentence case.
  */
 export async function translateText(text: string, langCode: string): Promise<string> {
@@ -29,10 +29,6 @@ export async function translateText(text: string, langCode: string): Promise<str
   }
 
   const langName = LANG_NAMES[langCode] || langCode;
-
-  if (!isGroqConfigured()) {
-    return text;
-  }
 
   const translationPrompt = `Translate the following text to ${langName}.
 Output ONLY the ${langName} translation. Do not include any English or extra commentary.
@@ -44,14 +40,14 @@ ${langName} Translation:`;
 
   try {
     const t0 = Date.now();
-    const translated = await groqChat(
+    const translated = await llmChat(
       [{ role: "user", content: translationPrompt }],
-      { temperature: 0.1, maxTokens: 400, timeoutMs: 15_000 }
+      { temperature: 0.1, maxTokens: 400 }
     );
-    console.log(`[Translate] Groq Llama 3.3 70B translateText to ${langName}: ${Date.now() - t0} ms`);
+    console.log(`[Translate] LLM translateText to ${langName}: ${Date.now() - t0} ms`);
     return translated || text;
   } catch (e: unknown) {
-    console.error(`[Translate] Groq translation failed:`, e);
+    console.error(`[Translate] LLM translation failed:`, e);
     return text;
   }
 }
