@@ -90,21 +90,24 @@ async function refreshCache(): Promise<void> {
 // while the old summary used lowercase. Both are handled via ?? fallbacks.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalize(raw: any): PasstestMachine {
+  const rawWarranty = (raw.warranty_months ?? raw.WARRANTY ?? "").toString().replace(/[^0-9]/g, "");
+  const warrantyNum = rawWarranty ? parseInt(rawWarranty, 10) : 0;
+
   return {
-    serial_no:       raw.serial_no       ?? raw.SerialNo      ?? raw.m_ser_no ?? "",
-    m_model:         raw.m_model         ?? "",
-    m_version:       raw.m_version       ?? "",
-    m_build:         raw.m_build         ?? "",
-    product_code:    raw.product_code    ?? "",
-    test_result:     raw.test_result     ?? raw.pass_reject   ?? "",
-    tested_at:       raw.tested_at       ?? raw.datetime      ?? "",
-    inspected_by:    raw.inspected_by    ?? "",
-    customer:        raw.customer        ?? raw.Customer      ?? "",
-    Address1:        raw.Address1        ?? "",
-    Address2:        raw.Address2        ?? "",
-    invoice_no:      raw.invoice_no      ?? raw.InvNo         ?? "",
-    invoice_date:    raw.invoice_date    ?? raw.InvDate       ?? "",
-    warranty_months: raw.warranty_months ?? raw.WARRANTY      ?? 0,
+    serial_no:       (raw.serial_no       ?? raw.SerialNo      ?? raw.m_ser_no ?? "").toString().trim(),
+    m_model:         (raw.m_model         ?? "").toString().trim(),
+    m_version:       (raw.m_version       ?? "").toString().trim(),
+    m_build:         (raw.m_build         ?? "").toString().trim(),
+    product_code:    (raw.product_code    ?? "").toString().trim(),
+    test_result:     (raw.test_result     ?? raw.pass_reject   ?? "").toString().trim(),
+    tested_at:       (raw.tested_at       ?? raw.datetime      ?? "").toString().trim(),
+    inspected_by:    (raw.inspected_by    ?? "").toString().trim(),
+    customer:        (raw.customer        ?? raw.Customer      ?? "").toString().trim(),
+    Address1:        (raw.Address1        ?? "").toString().trim(),
+    Address2:        (raw.Address2        ?? "").toString().trim(),
+    invoice_no:      (raw.invoice_no      ?? raw.InvNo         ?? "").toString().trim(),
+    invoice_date:    (raw.invoice_date    ?? raw.InvDate       ?? "").toString().trim(),
+    warranty_months: warrantyNum,
   };
 }
 

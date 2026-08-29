@@ -129,37 +129,12 @@ export async function resumeBotDueToInactivity(phoneNumber: string): Promise<voi
 
     console.log(`[support-inactivity] Auto-resumed chatbot for ${cleanPhone} after 2 min timeout.`);
 
-    // 2. Determine customer language preference
-    const meta = (session.metadata as Record<string, unknown>) || {};
-    const lang = typeof meta.language === "string" && TIMEOUT_NOTIFICATIONS[meta.language]
-      ? meta.language
-      : "en";
-
-    const copy = TIMEOUT_NOTIFICATIONS[lang] || TIMEOUT_NOTIFICATIONS.en;
-
-    // 3. Send WhatsApp notification with interactive buttons
-    const interactiveButtons: WhatsAppService.WaButton[] = [
-      { id: "talk_to_support", title: copy.supportBtn },
-      { id: "menu", title: copy.menuBtn },
-    ];
-
-    const sentInteractive = await WhatsAppService.sendInteractiveButtons(
-      cleanPhone,
-      copy.body,
-      interactiveButtons
-    );
-
-    if (!sentInteractive) {
-      // Fallback to plain text if interactive buttons are unavailable
-      await WhatsAppService.sendMessage(cleanPhone, copy.body).catch(() => {});
-    }
-
-    // 4. Save system audit record in database
+    // 2. Save system audit record in database
     const systemMsg = await prisma.simulateMessage.create({
       data: {
         phoneNumber: cleanPhone,
         role: "system",
-        content: "Chatbot automatically resumed after 2 minutes of support inactivity",
+        content: "Chatbot automatically resumed after 2 minutes of support inactivity (silent resume)",
       },
     });
 

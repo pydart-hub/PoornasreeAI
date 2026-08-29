@@ -51,6 +51,8 @@ type SessionMeta = {
   customerPhone?: string;
   serialNumber?: string;
   machineData?: PasstestMachine | null;
+  candidateSerial?: string;
+  candidateMachineData?: PasstestMachine | null;
   manualName?: string;
   manualPlace?: string;
   manualPincode?: string;
@@ -107,6 +109,54 @@ type SessionMeta = {
 
 // ── Language type ─────────────────────────────────────────────────────────
 type Lang = "en" | "hi" | "ta" | "kn" | "mr" | "te" | "bn" | "ml";
+
+export function isGreetingOrSmallTalk(text: string): boolean {
+  if (!text || typeof text !== "string") return true;
+  const clean = text.trim().toLowerCase().replace(/[^\w\s]/g, "");
+  if (clean.length < 2) return true;
+
+  const smallTalkExact = new Set([
+    "hi", "hello", "hey", "hii", "heyy", "hola", "namaste", "vanakkam", "namaskaram",
+    "how are you", "how r u", "how are u", "how r you", "how do you do", "how it going",
+    "whats up", "what is up", "sup", "what are you doing",
+    "good morning", "good afternoon", "good evening", "good night", "gm", "gn", "ga", "ge",
+    "thank you", "thanks", "thx", "thank u", "dhanyawad", "nandi", "shukriya", "dhanyavadhaalu",
+    "ok", "okay", "k", "kk", "yes", "no", "fine", "cool", "super", "nice", "great", "welcome", "alright",
+    "who are you", "who r u", "what is your name", "whats your name", "who made you",
+    "where is your office", "where are you located", "location", "address", "company address",
+    "bye", "see you", "tata", "goodbye", "help", "menu", "start"
+  ]);
+
+  if (smallTalkExact.has(clean)) return true;
+
+  const greetingPatterns = [
+    /^(hi+|hello+|hey+|hola|namaste|vanakkam|namaskaram)\b/i,
+    /^how (are|r) (you|u)/i,
+    /^good (morning|afternoon|evening|night)/i,
+    /^(thanks|thank you|thx)\b/i,
+    /^who (are|r) (you|u)/i,
+    /^what is (your|ur) name/i,
+  ];
+
+  return greetingPatterns.some(p => p.test(clean));
+}
+
+export function isTechnicalIssueQuery(text: string): boolean {
+  if (!text || typeof text !== "string") return false;
+  if (isGreetingOrSmallTalk(text)) return false;
+  const clean = text.trim().toLowerCase();
+
+  const issueKeywords = [
+    "error", "t1", "t2", "t3", "not working", "not on", "issue", "problem", "repair", "fault",
+    "damage", "fail", "complaint", "blinking", "vibrating", "vibration", "noise", "leak",
+    "variation", "stopped", "stuck", "slow", "sound", "display", "light", "heat", "smell",
+    "speed", "power", "switch", "sensor", "pump", "stirrer", "fuse", "board", "weighing",
+    "scale", "reading", "calibration", "sample", "hot sample", "cold sample", "cleaning",
+    "acid", "alkali", "adapter", "battery", "charger", "เคด", "കേടായി", "പരാതി", "തകരാർ"
+  ];
+
+  return issueKeywords.some(kw => clean.includes(kw));
+}
 
 // ── Bilingual translations (English / हिंदी) ──────────────────────────────
 const TRANSLATIONS: Record<string, Record<Lang, string>> = {
@@ -1386,7 +1436,8 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     "BOOK_SERVICE", "TALK_AGENT", "SPEAK TO SUPPORT",
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
     "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG",
-    "TROUBLESHOOT_RESOLVED", "TROUBLESHOOT_UNRESOLVED", "RESOLVED", "UNRESOLVED"
+    "TROUBLESHOOT_RESOLVED", "TROUBLESHOOT_UNRESOLVED", "RESOLVED", "UNRESOLVED",
+    "CONFIRM_MACHINE_YES", "CONFIRM_MACHINE_NO"
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
     await updateSession(session.id, "REGISTER_MACHINE_COUNT", { language: meta.language });
@@ -1525,12 +1576,14 @@ export async function handleMessage(phoneNumber: string, message: string, messag
   }
 
   if (fsmButtonIds.has(upper) && !inLegacyTransactional) {
-    // If the button corresponds to troubleshooting results, update metadata
+    // If the button corresponds to troubleshooting results, update metadata only if it is a valid technical issue
     if (upper === "TROUBLESHOOT_RESOLVED" || upper === "TROUBLESHOOT_UNRESOLVED") {
-      await updateSession(session.id, session.state, {
-        ...meta,
-        complaint: meta.lastIssueQuery,
-      }).catch(() => {});
+      if (meta.lastIssueQuery && !isGreetingOrSmallTalk(meta.lastIssueQuery) && isTechnicalIssueQuery(meta.lastIssueQuery)) {
+        await updateSession(session.id, session.state, {
+          ...meta,
+          complaint: meta.lastIssueQuery,
+        }).catch(() => {});
+      }
     }
     return routeState(session, phoneNumber, text, meta);
   }
@@ -1762,6 +1815,28 @@ async function routeState(
   }
 
   if (upper === "TROUBLESHOOT_UNRESOLVED" || upper === "UNRESOLVED" || upper.includes("NOT SOLVED") || upper.includes("NOT FIXED") || upper.includes("UNCATALOGED")) {
+    const inTroubleshootOrComplaint =
+      session.state.startsWith("TROUBLESHOOT_") ||
+      session.state.startsWith("COMPLAINT_") ||
+      session.state === "ASK_VIDEO_TUTORIAL" ||
+      session.state === "VIDEO_HELPED" ||
+      session.state === "ASK_BOOK_SERVICE";
+
+    const rawComplaint = meta.complaint || meta.lastIssueQuery;
+    const hasValidIssue = rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint);
+
+    if (!inTroubleshootOrComplaint || !hasValidIssue) {
+      // User tapped an old/stale button or there is no active issue description
+      await updateSession(session.id, "MAIN_MENU", { ...meta, complaint: undefined, lastIssueQuery: undefined });
+      return makeReply(
+        `Would you like to register a service complaint for your machine?`,
+        [
+          { id: "COMPLAINT_REG", title: "📝 Register Complaint" },
+          getMenuButton(lang),
+        ]
+      );
+    }
+
     return startComplaintRegistration(session.id, phoneNumber, meta, lang);
   }
 
@@ -1825,7 +1900,7 @@ async function routeState(
       return handleFeedbackRating(session.id, meta, text);
 
     case "MACHINE_CONFIRM":
-      return handleMachineConfirm(session.id, meta, text);
+      return handleMachineConfirm(session.id, phoneNumber, meta, text);
 
     case "COMPLAINT_CATEGORY":
       return handleComplaintCategory(session.id, meta, text);
@@ -2094,6 +2169,53 @@ async function handleRegisterMachineCount(sessionId: string, phoneNumber: string
   );
 }
 
+// ── Machine Details Message Formatter ────────────────────────────────────
+function formatMachineDetailsCard(machine: PasstestMachine, options?: { isConfirmation?: boolean; dealerName?: string; lang?: Lang }): string {
+  const isConfirmation = options?.isConfirmation ?? false;
+  const dealerName = options?.dealerName;
+  const parts: string[] = [];
+
+  parts.push(`✅ *Machine Found!*\n`);
+  if (machine.m_model) {
+    parts.push(`🔧 *Model:* ${machine.m_model}`);
+  }
+  if (machine.serial_no) {
+    parts.push(`🔢 *Serial:* ${machine.serial_no}`);
+  }
+  if (dealerName) {
+    parts.push(`🏪 *Dealer:* ${dealerName}`);
+  }
+  if (machine.customer && machine.customer !== dealerName) {
+    parts.push(`🏢 *Registered To:* ${machine.customer}`);
+  }
+  const addressParts = [machine.Address1, machine.Address2]
+    .map(s => s?.trim().replace(/,+$/, ""))
+    .filter(Boolean);
+  if (addressParts.length > 0) {
+    parts.push(`📍 *Location:* ${addressParts.join(", ")}`);
+  }
+  if (machine.invoice_no) {
+    parts.push(`🧾 *Invoice No:* ${machine.invoice_no}`);
+  }
+  if (machine.invoice_date) {
+    const cleanDate = machine.invoice_date.split(" ")[0].replace(/T.*/, "");
+    if (cleanDate && cleanDate !== "0000-00-00") {
+      parts.push(`📅 *Invoice Date:* ${cleanDate}`);
+    }
+  }
+  if (machine.warranty_months && machine.warranty_months > 0) {
+    parts.push(`🛡️ *Warranty:* ${machine.warranty_months} Months`);
+  }
+
+  if (isConfirmation) {
+    parts.push(`\nAre these machine details correct?`);
+  } else {
+    parts.push(`\nWe will use these details for your registration.\n\nPress *Continue* to proceed.`);
+  }
+
+  return parts.join("\n");
+}
+
 async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
@@ -2163,14 +2285,14 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
       };
       await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
 
-      const templateKey = isDealerMachine ? "REGISTER_MACHINE_FOUND_DEALER" : "REGISTER_MACHINE_FOUND";
+      const detailsMsg = formatMachineDetailsCard(machine, {
+        dealerName: dealerDisplayName || (isDealerMachine ? machine.customer : undefined),
+        isConfirmation: false,
+        lang,
+      });
 
       return makeReply(
-        t(templateKey, lang, {
-          dealerName: dealerDisplayName || machine.customer || "N/A",
-          model: machine.m_model || "N/A",
-          serial: machine.serial_no,
-        }),
+        detailsMsg,
         [{ id: "CONTINUE", title: t("REGISTER_CONTINUE_BUTTON", lang) }, getBackButton(lang)]
       );
     }
@@ -2592,7 +2714,8 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return showProducts(sessionId, meta);
   }
   if (choice === "2" || upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT" || upperChoice.includes("COMPLAINT REG")) {
-    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined };
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
       `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
@@ -2673,7 +2796,7 @@ export async function runGroqCompanyAssistant(
     }
   }
 
-  // Save user's query into session metadata for smart complaint registration (excluding language commands & button actions)
+  // Save user's query into session metadata ONLY if it is a real technical machine issue (not greetings/small talk)
   const isMetaOrLanguageCmd =
     query.toUpperCase().includes("MALAYALAM") ||
     query.toUpperCase().includes("HINDI") ||
@@ -2685,6 +2808,8 @@ export async function runGroqCompanyAssistant(
     targetSessionId &&
     query.length >= 2 &&
     !isMetaOrLanguageCmd &&
+    !isGreetingOrSmallTalk(query) &&
+    isTechnicalIssueQuery(query) &&
     !query.toUpperCase().startsWith("CONFIRM_") &&
     !query.toUpperCase().startsWith("TROUBLESHOOT_") &&
     !query.toUpperCase().startsWith("ATTACH_") &&
@@ -2696,7 +2821,19 @@ export async function runGroqCompanyAssistant(
     meta.lastIssueQuery = query.trim();
     await updateSession(targetSessionId, options.activeFsmState || "MAIN_MENU", meta).catch(() => {});
   }
-  if (targetSessionId) {
+  const inComplaintOrTroubleshootState =
+    activeState === "COMPLAINT_DESCRIBE" ||
+    activeState === "COMPLAINT_ASK_SERIAL" ||
+    activeState === "TROUBLESHOOT_STEP" ||
+    activeState.startsWith("COMPLAINT_") ||
+    activeState.startsWith("TROUBLESHOOT_") ||
+    options.activeFsmState === "COMPLAINT_DESCRIBE" ||
+    options.activeFsmState === "COMPLAINT_ASK_SERIAL" ||
+    options.activeFsmState === "TROUBLESHOOT_STEP" ||
+    Boolean(options.activeFsmState?.startsWith("COMPLAINT_")) ||
+    Boolean(options.activeFsmState?.startsWith("TROUBLESHOOT_"));
+
+  if (targetSessionId && !inComplaintOrTroubleshootState) {
     try {
       const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
       const cleanQ = lowerQuery.trim();
@@ -2719,22 +2856,37 @@ export async function runGroqCompanyAssistant(
         cleanQ.includes("leak") ||
         cleanQ.includes("variation") ||
         cleanQ.includes("help") ||
+        cleanQ.includes("running") ||
+        cleanQ.includes("showing") ||
+        cleanQ.includes("shwoing") ||
+        cleanQ.includes("stopped") ||
+        cleanQ.includes("stuck") ||
+        cleanQ.includes("slow") ||
+        cleanQ.includes("sound") ||
+        cleanQ.includes("off") ||
+        cleanQ.includes("display") ||
+        cleanQ.includes("light") ||
+        cleanQ.includes("heat") ||
+        cleanQ.includes("smell") ||
+        cleanQ.includes("speed") ||
+        cleanQ.includes("power") ||
+        cleanQ.includes("switch") ||
         cleanQ.includes("കേടായി") ||
         cleanQ.includes("പരാതി");
 
       if (!isIssueQuery) {
-        // 1. Check if user typed or clicked a specific product model name
+        // 1. Check if user typed or clicked a specific product model name to view/browse
         const matchedProduct = activeProducts.find((p) => {
           const pNameLower = p.name.toLowerCase();
           if (cleanQ === pNameLower) return true;
-          if (cleanQ.includes(pNameLower)) return true;
-          if (pNameLower.includes("v3") && (cleanQ.includes("v3") || cleanQ.includes("eco v3"))) return true;
-          if (pNameLower.includes("vibro") && cleanQ.includes("vibro")) return true;
-          if (pNameLower.includes("exd") && cleanQ.includes("exd")) return true;
-          if (pNameLower.includes("amcu") && cleanQ.includes("amcu")) return true;
-          if (pNameLower.includes("lite") && cleanQ.includes("lite")) return true;
-          if (pNameLower.includes("s pro") && cleanQ.includes("s pro")) return true;
-          if (pNameLower.includes("sd") && cleanQ.includes("sd")) return true;
+          if (cleanQ === `show ${pNameLower}` || cleanQ === `about ${pNameLower}` || cleanQ === `${pNameLower} details` || cleanQ === `${pNameLower} price` || cleanQ === `${pNameLower} info` || cleanQ === `${pNameLower} catalog`) return true;
+          if (pNameLower.includes("v3") && (cleanQ === "v3" || cleanQ === "eco v3" || cleanQ === "show v3" || cleanQ === "show eco v3")) return true;
+          if (pNameLower.includes("vibro") && (cleanQ === "vibro" || cleanQ === "vibro stirrer" || cleanQ === "show vibro" || cleanQ === "about vibro" || cleanQ === "vibro details" || cleanQ === "vibro price" || cleanQ === "vibro catalog")) return true;
+          if (pNameLower.includes("exd") && (cleanQ === "exd" || cleanQ === "show exd" || cleanQ === "about exd")) return true;
+          if (pNameLower.includes("amcu") && (cleanQ === "amcu" || cleanQ === "show amcu" || cleanQ === "about amcu")) return true;
+          if (pNameLower.includes("lite") && (cleanQ === "lite" || cleanQ === "lactosure lite" || cleanQ === "show lite")) return true;
+          if (pNameLower.includes("s pro") && (cleanQ === "s pro" || cleanQ === "lactosure s pro" || cleanQ === "show s pro")) return true;
+          if (pNameLower.includes("sd") && (cleanQ === "sd" || cleanQ === "lactosure sd" || cleanQ === "show sd")) return true;
           return false;
         });
 
@@ -2743,10 +2895,10 @@ export async function runGroqCompanyAssistant(
         }
 
         // 2. Check if user specified a category
-        if (cleanQ.includes("lactosure") || cleanQ === "eco" || cleanQ.includes("eco series")) {
+        if (cleanQ === "lactosure" || cleanQ === "eco" || cleanQ === "eco series" || cleanQ === "show lactosure" || cleanQ === "lactosure products") {
           return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOSURE");
         }
-        if (cleanQ.includes("lactogrand") || cleanQ.includes("grand")) {
+        if (cleanQ === "lactogrand" || cleanQ === "grand" || cleanQ === "show lactogrand" || cleanQ === "lactogrand products") {
           return handleProductCategory(targetSessionId, phoneNumber, meta, "CAT_LACTOGRAND");
         }
       }
@@ -3383,7 +3535,7 @@ ${settings.companyAddress || ""}
           { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
           { id: "SKIP", title: "⏭️ Skip Serial" },
         ];
-      } else if (isServiceIntent || (hasExactDocMatch && isTroubleshootingContent)) {
+      } else if (isServiceIntent || (hasExactDocMatch && isTroubleshootingContent) || inComplaintOrTroubleshootState || isTroubleshootingContent) {
         // Show Resolved / Unresolved buttons ONLY on troubleshooting & machine issue queries
         buttons = [
           { id: "TROUBLESHOOT_RESOLVED", title: "✅ Resolved" },
@@ -3991,8 +4143,21 @@ export async function startComplaintRegistration(
     }
   }
 
-  // Preserve prior complaint or query from chat
-  const effectiveComplaint = overrideComplaint || meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery || "Machine issue requiring service";
+  // Preserve prior complaint or query from chat ONLY if it is a real technical issue
+  const rawComplaint = overrideComplaint || meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
+  const hasValidComplaint = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
+
+  if (!hasValidComplaint) {
+    // If no valid machine issue description exists, prompt customer to describe their issue first
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+    return makeReply(
+      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      [getMenuButton(lang)]
+    );
+  }
+
+  const effectiveComplaint = rawComplaint!.trim();
 
   const updatedMeta: SessionMeta = {
     ...meta,
@@ -4172,6 +4337,12 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
       `Example: _LED blinking, not heating, display not working, T2 error_`,
       [getMenuButton(lang)]
     );
+  }
+
+  if (isGreetingOrSmallTalk(text) || (!upper.startsWith("CONFIRM_") && !upper.startsWith("CHANGE_") && !upper.startsWith("ATTACH_") && text.length > 2)) {
+    const updatedMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined };
+    await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+    return runGroqCompanyAssistant(phoneNumber, text, updatedMeta, { sessionId });
   }
 
   return makeReply(
@@ -4450,29 +4621,33 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
   }
 
   if (machineData) {
-    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData, tsSerialPath: true, selectedProduct: machineData.m_model || meta.selectedProduct };
-    if (meta.complaint && (meta.manualPincode || meta.regPincode)) {
-      return startComplaintRegistration(sessionId, phoneNumber, newMeta, lang);
-    }
-    await updateSession(sessionId, "MACHINE_CONFIRM", newMeta);
+    const candidateMeta: SessionMeta = {
+      ...meta,
+      candidateSerial: machineData.serial_no || serial,
+      candidateMachineData: machineData,
+      tsSerialPath: true,
+    };
+    await updateSession(sessionId, "MACHINE_CONFIRM", candidateMeta);
+
+    const detailsMsg = formatMachineDetailsCard(machineData, {
+      isConfirmation: true,
+      lang,
+    });
+
     return makeReply(
-      t("MACHINE_FOUND", lang, {
-        customer: machineData.customer || "N/A",
-        model: machineData.m_model || "N/A",
-        serial,
-        address: [machineData.Address1, machineData.Address2].filter(Boolean).join(", ") || "N/A",
-      }),
-      getYesNoButtons(lang)
+      detailsMsg,
+      [
+        { id: "CONFIRM_MACHINE_YES", title: "✅ Yes, Correct" },
+        { id: "CONFIRM_MACHINE_NO", title: "❌ No, Incorrect" },
+      ]
     );
   }
 
-  // If machine was not found in Passtest API, still accept serial for the ticket registration
-  if (meta.complaint && (meta.manualPincode || meta.regPincode)) {
-    const newMeta: SessionMeta = { ...meta, serialNumber: serial, machineData: null };
-    return startComplaintRegistration(sessionId, phoneNumber, newMeta, lang);
-  }
-
-  return makeReply(t("SERIAL_NOT_FOUND", lang, { serial }), [getSkipButton(lang), getMenuButton(lang)]);
+  // If machine was not found in Passtest API, strictly reject and do not accept fake serials
+  return makeReply(
+    `❌ Serial number *${serial}* was not found in our records.\n\nPlease check your machine label and enter a valid serial number, or press *Skip* if you do not know the serial number.`,
+    [getSkipButton(lang), getMenuButton(lang)]
+  );
 }
 
 // ── Complaint types list helper ───────────────────────────────────────────
@@ -4601,21 +4776,77 @@ async function fetchComplaintListRows(lang: Lang, productName?: string, subCateg
 
 
 // ── MACHINE_CONFIRM ───────────────────────────────────────────────────────
-async function handleMachineConfirm(sessionId: string, meta: SessionMeta, text: string) {
+async function handleMachineConfirm(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
-  if (text === "1" || /^yes/i.test(text)) {
-    await updateSession(sessionId, "MAIN_MENU", meta);
+  const upper = text.toUpperCase().trim();
+
+  const isYes =
+    upper === "CONFIRM_MACHINE_YES" ||
+    upper === "YES" ||
+    upper === "1" ||
+    upper.includes("YES") ||
+    upper.includes("CORRECT");
+
+  const isNo =
+    upper === "CONFIRM_MACHINE_NO" ||
+    upper === "NO" ||
+    upper === "2" ||
+    upper.includes("NO") ||
+    upper.includes("INCORRECT");
+
+  if (isYes) {
+    const verifiedSerial = meta.candidateSerial || meta.serialNumber;
+    const verifiedMachine = meta.candidateMachineData || meta.machineData;
+
+    const confirmedMeta: SessionMeta = {
+      ...meta,
+      serialNumber: verifiedSerial,
+      machineData: verifiedMachine,
+      regSerialNumber: verifiedSerial,
+      regMachineData: verifiedMachine,
+      selectedProduct: verifiedMachine?.m_model || meta.selectedProduct,
+      candidateSerial: undefined,
+      candidateMachineData: undefined,
+      tsSerialPath: true,
+    };
+
+    // If complaint description already exists, proceed to complaint registration
+    if (confirmedMeta.complaint && !isGreetingOrSmallTalk(confirmedMeta.complaint)) {
+      return startComplaintRegistration(sessionId, phoneNumber, confirmedMeta, lang);
+    }
+
+    // Otherwise, advance to COMPLAINT_DESCRIBE
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", confirmedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `Example: _LED blinking, not heating, display not working, T2 error_`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
       [getMenuButton(lang)]
     );
   }
-  if (text === "2" || /^no/i.test(text)) {
-    const clearedMeta: SessionMeta = { ...meta, serialNumber: undefined, machineData: null, tsSerialPath: false };
-    return showProductSelection(sessionId, clearedMeta);
+
+  if (isNo) {
+    const clearedMeta: SessionMeta = {
+      ...meta,
+      serialNumber: undefined,
+      machineData: null,
+      candidateSerial: undefined,
+      candidateMachineData: undefined,
+      tsSerialPath: false,
+    };
+    await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", clearedMeta);
+    return makeReply(
+      `🔧 *Please enter the correct serial number from your machine label:*\n\n(e.g., 251052615102)\n\nOr press *Skip* if you don't have the serial number handy.`,
+      [getSkipButton(lang), getMenuButton(lang)]
+    );
   }
-  return makeReply(t("SELECT_VALID", lang), [...getYesNoButtons(lang), getBackButton(lang)]);
+
+  return makeReply(
+    t("SELECT_VALID", lang),
+    [
+      { id: "CONFIRM_MACHINE_YES", title: "✅ Yes, Correct" },
+      { id: "CONFIRM_MACHINE_NO", title: "❌ No, Incorrect" },
+    ]
+  );
 }
 
 // ── Product catalogue helpers ─────────────────────────────────────────────
@@ -5109,11 +5340,12 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
 
   // If user types a freeform question/issue instead of clicking Yes/No button:
   if (text.length >= 2 && !upper.startsWith("ANOTHER_")) {
+    const isTech = isTechnicalIssueQuery(text);
     const updatedMeta: SessionMeta = {
       ...meta,
-      complaint: text.trim(),
-      videoSearchQuery: text.trim(),
-      lastIssueQuery: text.trim(),
+      complaint: isTech ? text.trim() : undefined,
+      videoSearchQuery: isTech ? text.trim() : undefined,
+      lastIssueQuery: isTech ? text.trim() : undefined,
       tsSteps: undefined,
       tsCurrentStep: undefined,
     };
