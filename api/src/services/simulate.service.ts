@@ -152,7 +152,13 @@ export function isTechnicalIssueQuery(text: string): boolean {
     "variation", "stopped", "stuck", "slow", "sound", "display", "light", "heat", "smell",
     "speed", "power", "switch", "sensor", "pump", "stirrer", "fuse", "board", "weighing",
     "scale", "reading", "calibration", "sample", "hot sample", "cold sample", "cleaning",
-    "acid", "alkali", "adapter", "battery", "charger", "เคด", "കേടായി", "പരാതി", "തകരാർ"
+    "acid", "alkali", "adapter", "battery", "charger", "showing", "shwoing", "shown", "show",
+    "details", "farmer", "print", "printer", "wifi", "wi-fi", "connect", "connectivity",
+    "bluetooth", "update", "date", "time", "rate", "chart", "pen-drive", "pendrive", "usb",
+    "gsm", "cloud", "flicker", "flickering", "broken", "fix", "help", "running", "off",
+    "voltage", "current", "output", "input", "dead", "zero", "result", "restart", "burn",
+    "water", "air", "milk", "stir", "not", "no", "cant", "cannot", "won't", "wont",
+    "เคด", "കേടായി", "പരാതി", "തകരാർ", "സഹായം", "ശരിയാക്കാൻ", "കാണിക്കുന്നില്ല"
   ];
 
   return issueKeywords.some(kw => clean.includes(kw));
@@ -1453,14 +1459,31 @@ export async function handleMessage(phoneNumber: string, message: string, messag
   }
   const isRegisterComplaintIntent =
     upper.includes("REGISTER COMPLAINT") ||
+    upper.includes("REGISTER A COMPLAINT") ||
     upper.includes("BOOK COMPLAINT") ||
     upper.includes("NEW COMPLAINT") ||
     upper.includes("REGISTER TICKET") ||
     upper.includes("COMPLAINT REGISTER") ||
+    upper.includes("COMPLAINT REGISTRATION") ||
+    upper.includes("COMPLAINT REG") ||
+    upper === "COMPLAINT" ||
+    upper === "COMPLAINTS" ||
     upper === "COMPLAINT_REG" ||
-    upper === "BOOK_SERVICE";
+    upper === "BOOK_SERVICE" ||
+    upper.includes("പരാതി") ||
+    upper.includes("शिकायत") ||
+    upper.includes("புகார்") ||
+    upper.includes("ದೂರು") ||
+    upper.includes("ఫిర్యాదు");
 
   if (isRegisterComplaintIntent) {
+    const rawComplaint = meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
+    const hasValidIssue = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
+
+    if (hasValidIssue && rawComplaint) {
+      return startComplaintRegistration(session.id, phoneNumber, meta, lang, rawComplaint.trim());
+    }
+
     await updateSession(session.id, "COMPLAINT_DESCRIBE", meta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
@@ -1815,26 +1838,11 @@ async function routeState(
   }
 
   if (upper === "TROUBLESHOOT_UNRESOLVED" || upper === "UNRESOLVED" || upper.includes("NOT SOLVED") || upper.includes("NOT FIXED") || upper.includes("UNCATALOGED")) {
-    const inTroubleshootOrComplaint =
-      session.state.startsWith("TROUBLESHOOT_") ||
-      session.state.startsWith("COMPLAINT_") ||
-      session.state === "ASK_VIDEO_TUTORIAL" ||
-      session.state === "VIDEO_HELPED" ||
-      session.state === "ASK_BOOK_SERVICE";
+    const rawComplaint = meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
+    const hasValidIssue = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
 
-    const rawComplaint = meta.complaint || meta.lastIssueQuery;
-    const hasValidIssue = rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint);
-
-    if (!inTroubleshootOrComplaint || !hasValidIssue) {
-      // User tapped an old/stale button or there is no active issue description
-      await updateSession(session.id, "MAIN_MENU", { ...meta, complaint: undefined, lastIssueQuery: undefined });
-      return makeReply(
-        `Would you like to register a service complaint for your machine?`,
-        [
-          { id: "COMPLAINT_REG", title: "📝 Register Complaint" },
-          getMenuButton(lang),
-        ]
-      );
+    if (hasValidIssue && rawComplaint) {
+      return startComplaintRegistration(session.id, phoneNumber, meta, lang, rawComplaint.trim());
     }
 
     return startComplaintRegistration(session.id, phoneNumber, meta, lang);
@@ -1843,6 +1851,19 @@ async function routeState(
   if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
     await updateSession(session.id, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
+  if (upper.startsWith("PROD_")) {
+    return handleProductDetail(session.id, phoneNumber, meta, text);
+  }
+  if (upper.startsWith("CAT_")) {
+    return handleProductCategory(session.id, phoneNumber, meta, text);
+  }
+  if (upper === "VIEW_PRODUCTS" || upper === "PRODUCTS") {
+    return handleProductBrowse(session.id, phoneNumber, meta, text);
+  }
+  if (upper === "BACK_CATEGORIES") {
+    return handleProductBrowse(session.id, phoneNumber, meta, text);
   }
 
   switch (session.state) {
@@ -2713,7 +2734,28 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   if (choice === "1" || upperChoice === "VIEW_PRODUCTS" || upperChoice === "PRODUCTS") {
     return showProducts(sessionId, meta);
   }
-  if (choice === "2" || upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT" || upperChoice.includes("COMPLAINT REG")) {
+  if (
+    choice === "2" ||
+    upperChoice === "COMPLAINT_REG" ||
+    upperChoice === "COMPLAINT" ||
+    upperChoice === "COMPLAINTS" ||
+    upperChoice.includes("COMPLAINT REG") ||
+    upperChoice.includes("COMPLAINT REGISTER") ||
+    upperChoice.includes("COMPLAINT REGISTRATION") ||
+    upperChoice.includes("REGISTER COMPLAINT") ||
+    upperChoice.includes("BOOK COMPLAINT") ||
+    upperChoice.includes("പരാതി") ||
+    upperChoice.includes("शिकायत") ||
+    upperChoice.includes("புகார்") ||
+    upperChoice.includes("ದೂರು")
+  ) {
+    const rawComplaint = meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
+    const hasValidIssue = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
+
+    if (hasValidIssue && rawComplaint) {
+      return startComplaintRegistration(sessionId, phoneNumber, meta, lang, rawComplaint.trim());
+    }
+
     const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
@@ -2744,6 +2786,47 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
 
   // Free-text query (not matching strict menu digits/buttons) -> Groq Conversational Assistant using DB company & product knowledge
   return runGroqCompanyAssistant(phoneNumber, text, meta, { sessionId });
+}
+
+// ── In-Memory Caches with 60s TTL for High Chatbot Throughput ─────────────
+let cachedActiveProducts: { data: any[]; expiresAt: number } | null = null;
+async function getCachedActiveProducts() {
+  const now = Date.now();
+  if (cachedActiveProducts && cachedActiveProducts.expiresAt > now) {
+    return cachedActiveProducts.data;
+  }
+  const data = await prisma.product.findMany({ where: { isActive: true } });
+  cachedActiveProducts = { data, expiresAt: now + 60_000 };
+  return data;
+}
+
+let cachedDocIssues: { data: any[]; expiresAt: number } | null = null;
+async function getCachedDocumentIssues() {
+  const now = Date.now();
+  if (cachedDocIssues && cachedDocIssues.expiresAt > now) {
+    return cachedDocIssues.data;
+  }
+  const data = await prisma.documentIssue.findMany({
+    where: { isActive: true },
+    include: { steps: { orderBy: { stepNumber: "asc" } } },
+  });
+  cachedDocIssues = { data, expiresAt: now + 60_000 };
+  return data;
+}
+
+let cachedDocChunks: { key: string; data: any[]; expiresAt: number } | null = null;
+async function getCachedDocumentChunks(targetDocTypes: string[]) {
+  const now = Date.now();
+  const key = targetDocTypes.slice().sort().join(",");
+  if (cachedDocChunks && cachedDocChunks.key === key && cachedDocChunks.expiresAt > now) {
+    return cachedDocChunks.data;
+  }
+  const data = await prisma.documentChunk.findMany({
+    where: { document: { documentType: { in: targetDocTypes } } },
+    include: { document: true },
+  });
+  cachedDocChunks = { key, data, expiresAt: now + 60_000 };
+  return data;
 }
 
 /** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers conversation history & FSM state, and answers like a humanoid assistant */
@@ -2835,7 +2918,7 @@ export async function runGroqCompanyAssistant(
 
   if (targetSessionId && !inComplaintOrTroubleshootState) {
     try {
-      const activeProducts = await prisma.product.findMany({ where: { isActive: true } });
+      const activeProducts = await getCachedActiveProducts();
       const cleanQ = lowerQuery.trim();
 
       const isIssueQuery =
@@ -3195,10 +3278,7 @@ export async function runGroqCompanyAssistant(
     const queryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
 
     // 1. Check DocumentIssue templates first (exact official troubleshooting checklists)
-    const allIssues = await prisma.documentIssue.findMany({
-      where: { isActive: true },
-      include: { steps: { orderBy: { stepNumber: "asc" } } },
-    });
+    const allIssues = await getCachedDocumentIssues();
 
     let bestIssue: any = null;
     let bestIssueScore = 0;
@@ -3236,10 +3316,7 @@ export async function runGroqCompanyAssistant(
     }
 
     // 1. Search DocumentChunk for rich knowledge with strict audience isolation
-    const allChunks = await prisma.documentChunk.findMany({
-      where: { document: { documentType: { in: targetDocTypes } } },
-      include: { document: true },
-    });
+    const allChunks = await getCachedDocumentChunks(targetDocTypes);
 
     const allQueryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2);
 
@@ -3431,7 +3508,7 @@ ${settings.companyAddress || ""}
       conversationPayload.push({ role: "user", content: query });
     }
 
-    const rawReply = await llmChat(conversationPayload, { maxTokens: 4000, temperature: 0.5 });
+    const rawReply = await llmChat(conversationPayload, { maxTokens: 1200, temperature: 0.5 });
     const reply = rawReply ? toSentenceCase(rawReply.trim()) : "";
 
     if (reply && reply.trim()) {
@@ -3541,6 +3618,12 @@ ${settings.companyAddress || ""}
           { id: "TROUBLESHOOT_RESOLVED", title: "✅ Resolved" },
           { id: "TROUBLESHOOT_UNRESOLVED", title: "❌ Unresolved" },
         ];
+        meta.complaint = query.trim();
+        meta.lastIssueQuery = query.trim();
+        meta.videoSearchQuery = query.trim();
+        if (targetSessionId || options.sessionId) {
+          await updateSession(targetSessionId || options.sessionId || "", activeState, meta).catch(() => {});
+        }
       } else if (isProductIntent) {
         buttons = [
           { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
@@ -3703,7 +3786,7 @@ async function handleProductDetail(sessionId: string, phoneNumber: string, meta:
     return handleProductBrowse(sessionId, phoneNumber, meta, "");
   }
 
-  await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", { ...meta, selectedProductId: productId });
+  await updateSession(sessionId, "MAIN_MENU", { ...meta, selectedProductId: productId });
 
   const baseUrl = runtime.frontendUrl().replace(/\/$/, "");
   const imageUrl = product.imageUrl
@@ -3778,18 +3861,16 @@ Do NOT include pricing or contact info in the description.`;
     ? [{ url: imageUrl, caption: "" }]
     : [];
 
-  const rows = otherProducts.map(op => ({
-    id: `PROD_${op.id}`,
-    title: op.name,
-    description: op.price ? `💰 ${op.price}` : categoryLabel(op.category),
-  }));
-  rows.push({ id: "BACK_CATEGORIES", title: "⬅️ Back to Categories", description: "View all product categories" });
-  rows.push({ id: "BACK_MAIN", title: "⬅️ Main Menu", description: "Return to main menu" });
+  const buttons: ReplyButton[] = [
+    { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
+    { id: "COMPLAINT_REG", title: "📝 Book Complaint" },
+    { id: "MENU", title: "🏠 Main Menu" },
+  ];
 
   return makeReply(
     msg,
+    buttons,
     undefined,
-    { buttonText: "Explore Products 📋", rows },
     images.length > 0 ? images : undefined,
   );
 }
@@ -4031,9 +4112,11 @@ async function getOrCreateCustomerUser(phoneNumber: string, name?: string, pinco
     }
   }
 
+  const cleanName = (name || "").trim();
+  const names = (cleanName && cleanName.toLowerCase() !== "customer" ? cleanName : "Customer").split(" ");
+
   if (!user) {
     const uniqueEmail = `cust_${cleanPhone || Date.now()}@poornasree.local`;
-    const names = (name || "Customer").trim().split(" ");
     user = await prisma.user.create({
       data: {
         email: uniqueEmail,
@@ -4045,11 +4128,21 @@ async function getOrCreateCustomerUser(phoneNumber: string, name?: string, pinco
         pincodeId: validPincodeId,
       },
     });
-  } else if (validPincodeId && !user.pincodeId) {
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { pincodeId: validPincodeId },
-    });
+  } else {
+    const shouldUpdateName = Boolean(
+      cleanName &&
+      cleanName.toLowerCase() !== "customer" &&
+      (user.firstName === "Customer" || user.firstName !== names[0])
+    );
+    if (shouldUpdateName || (validPincodeId && !user.pincodeId)) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(shouldUpdateName ? { firstName: names[0], lastName: names.slice(1).join(" ") || null } : {}),
+          ...(validPincodeId && !user.pincodeId ? { pincodeId: validPincodeId } : {}),
+        },
+      });
+    }
   }
 
   return user;
@@ -6033,15 +6126,6 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
     mediaUrls: meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []),
   });
 
-  // Auto-assign engineer by pincode
-  if (pincodeId) {
-    try {
-      await TicketService.autoAssignEngineer(ticket.id, pincodeId);
-    } catch (err) {
-      console.error("[simulate] autoAssignEngineer failed:", err);
-    }
-  }
-
   if (ticket.ownerType === "DEALER" && ticket.ownerId) {
     io?.to(`dealer:${ticket.ownerId}`).emit("ticket:new", ticket);
   } else {
@@ -6143,15 +6227,6 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
     state: meta.manualState,
     customerAddress: `${meta.manualAddress?.trim() || [meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ")}${(meta.regGmapLink || meta.manualGmapLink) ? " | Map: " + (meta.regGmapLink || meta.manualGmapLink) : ""}`,
   });
-
-  // Auto-assign engineer by pincode
-  if (pincodeId) {
-    try {
-      await TicketService.autoAssignEngineer(ticket.id, pincodeId);
-    } catch (err) {
-      console.error("[simulate] autoAssignEngineer failed:", err);
-    }
-  }
 
   io?.to("managers").emit("ticket:new", ticket);
 

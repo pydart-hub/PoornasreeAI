@@ -19,13 +19,21 @@ export function toSentenceCase(text: string): string {
   return lower.replace(/(^\s*\w|[\.\!\?]\s*\w)/g, (c) => c.toUpperCase());
 }
 
+const translationCache = new Map<string, string>();
+
 /**
  * Translates English text to a target language using unified LLM.
  * For English ("en"), it formats the string to sentence case.
+ * Uses an in-memory cache to return recurring step translations instantly.
  */
 export async function translateText(text: string, langCode: string): Promise<string> {
   if (!langCode || langCode === "en") {
     return toSentenceCase(text);
+  }
+
+  const cacheKey = `${langCode}:${text.trim()}`;
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey)!;
   }
 
   const langName = LANG_NAMES[langCode] || langCode;
@@ -45,7 +53,16 @@ ${langName} Translation:`;
       { temperature: 0.1, maxTokens: 400 }
     );
     console.log(`[Translate] LLM translateText to ${langName}: ${Date.now() - t0} ms`);
-    return translated || text;
+    const result = translated || text;
+    if (result) {
+      if (translationCache.size > 2000) {
+        // Clear oldest entries if cache exceeds 2000 items
+        const firstKey = translationCache.keys().next().value;
+        if (firstKey) translationCache.delete(firstKey);
+      }
+      translationCache.set(cacheKey, result);
+    }
+    return result;
   } catch (e: unknown) {
     console.error(`[Translate] LLM translation failed:`, e);
     return text;

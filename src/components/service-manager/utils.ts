@@ -72,25 +72,55 @@ export function parseTicketDescription(desc: string) {
   };
 }
 
-/** Prefer Passtest / parsed chat name; never show admin proxy account as customer. */
-export function resolveTicketCustomerName(ticket: {
-  machineCustomer?: string | null;
+export function resolveTicketContactPerson(ticket: {
   issueDescription?: string | null;
   problemDescription?: string | null;
   customer?: { firstName?: string | null; lastName?: string | null; role?: string } | null;
 }): string | null {
   const issueMeta = parseTicketDescription(ticket.issueDescription ?? "");
   const descMeta = parseTicketDescription(ticket.problemDescription ?? "");
-  const name =
-    ticket.machineCustomer?.trim() ||
-    issueMeta.customerName ||
-    descMeta.customerName;
-  if (name) return name;
-  if (ticket.customer?.role === "admin") return null;
+  if (issueMeta.customerName && issueMeta.customerName.toLowerCase() !== "customer") {
+    return issueMeta.customerName;
+  }
+  if (descMeta.customerName && descMeta.customerName.toLowerCase() !== "customer") {
+    return descMeta.customerName;
+  }
+  if (ticket.customer && ticket.customer.role !== "admin") {
+    const first = ticket.customer.firstName?.trim();
+    if (first && first.toLowerCase() !== "customer") {
+      const last = ticket.customer.lastName?.trim();
+      return last ? `${first} ${last}` : first;
+    }
+  }
+  return null;
+}
+
+export function resolveTicketOrganization(ticket: {
+  machineCustomer?: string | null;
+}): string | null {
+  const org = ticket.machineCustomer?.trim();
+  return org || null;
+}
+
+export function resolveTicketCustomerName(ticket: {
+  machineCustomer?: string | null;
+  issueDescription?: string | null;
+  problemDescription?: string | null;
+  customer?: { firstName?: string | null; lastName?: string | null; role?: string } | null;
+}): string | null {
+  const person = resolveTicketContactPerson(ticket);
+  const org = resolveTicketOrganization(ticket);
+  if (person && org && person.toLowerCase() !== org.toLowerCase()) {
+    return `${person} (${org})`;
+  }
+  if (person) return person;
+  if (org) return org;
   const first = ticket.customer?.firstName?.trim();
-  if (!first) return null;
-  const last = ticket.customer?.lastName?.trim();
-  return last ? `${first} ${last}` : first;
+  if (first && ticket.customer?.role !== "admin") {
+    const last = ticket.customer?.lastName?.trim();
+    return last ? `${first} ${last}` : first;
+  }
+  return null;
 }
 
 /** Chat tickets store the real complaint in problemDescription; issueDescription is metadata. */

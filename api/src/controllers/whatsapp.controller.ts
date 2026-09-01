@@ -499,13 +499,10 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // Send status: read immediately (blue ticks ✓✓)
   if (messageId) {
-    await WhatsAppService.markMessageAsRead(messageId).catch(() => {});
+    WhatsAppService.markMessageAsRead(messageId).catch(() => {});
   }
 
   const result = await SimulateService.handleMessage(from, text, messageId);
-
-  // Human typing delay (800ms) for natural conversational feel
-  await new Promise((resolve) => setTimeout(resolve, 800));
 
   await deliverBotReply(from, result);
 }

@@ -76,6 +76,7 @@ function Start-SshDbTunnel {
 Write-Host ""
 Write-Host "[1/5] Cleaning up existing tunnel and server processes..." -ForegroundColor Yellow
 Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name "ssh" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Stop-PortProcess -Port 4000
 Stop-PortProcess -Port 5433
 Start-Sleep -Seconds 1
@@ -224,13 +225,19 @@ Write-Host ""
 try {
     while ($true) {
         if ($sshProcess.HasExited) {
-            Write-Host "   [!] SSH Tunnel disconnected. Auto-reconnecting to VPS DB..." -ForegroundColor Yellow
+            Write-Host "   [!] SSH Tunnel disconnected. Reconnecting to VPS DB..." -ForegroundColor Yellow
+            Get-Process -Name "ssh" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             Stop-PortProcess -Port 5433
+            Start-Sleep -Seconds 1
             $sshProcess = Start-SshDbTunnel
+            Start-Sleep -Seconds 2
         }
         if ($cfProcess.HasExited) {
             Write-Host "   [!] Cloudflare tunnel disconnected. Auto-restarting tunnel..." -ForegroundColor Yellow
+            Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
             $cfProcess = Start-Process -FilePath $cfExe -ArgumentList "tunnel --protocol http2 --url http://127.0.0.1:4000" -RedirectStandardOutput $tmpLogOut -RedirectStandardError $tmpLogErr -WindowStyle Hidden -PassThru
+            Start-Sleep -Seconds 2
         }
         Start-Sleep -Seconds 5
     }
@@ -239,6 +246,8 @@ try {
     if ($cfProcess -and -not $cfProcess.HasExited) { $cfProcess.Kill() }
     if ($sshProcess -and -not $sshProcess.HasExited) { $sshProcess.Kill() }
     if ($apiProcess -and -not $apiProcess.HasExited) { $apiProcess.Kill() }
+    Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process -Name "ssh" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Stop-PortProcess -Port 4000
     Stop-PortProcess -Port 5433
     Write-Host "   [+] Cleanup complete." -ForegroundColor Green

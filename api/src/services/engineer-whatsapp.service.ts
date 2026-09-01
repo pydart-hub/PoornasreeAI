@@ -6,6 +6,7 @@ import prisma from "../lib/prisma";
 import { normalizeWhatsappNumber } from "./whatsapp.service";
 import * as WhatsAppService from "./whatsapp.service";
 import * as TicketService from "./ticket.service";
+import * as TroubleshootingService from "./troubleshooting.service";
 import { searchTrainingVideos } from "./engineer-training-video.service";
 import { getCatalogForRole, prefilterCatalog } from "./training-catalog.service";
 import {
@@ -22,8 +23,8 @@ import {
 import { resolveTicketCustomerName } from "../lib/ticket-customer";
 
 interface PendingAction {
-  type: "diagnose" | "work_done" | "part" | "verify_otp";
-  ticketNumber: string;
+  type: "diagnose" | "work_done" | "part" | "verify_otp" | "ts_serial" | "ts_respond";
+  ticketNumber: string; // For ts_serial: problemType, for ts_respond: sessionId
 }
 
 // In-memory active ticket and pending action tracking per engineer phone
@@ -236,6 +237,68 @@ export async function handleEngineerMessage(
         await handleVerifyOtp(from, engineer, ticketNumber, codeMatch[0]);
         return;
       }
+    } else if (type === "ts_serial") {
+      // Engineer entered a serial number (or SKIP) for guided troubleshooting
+      clearPending(from);
+      const serial = upper === "SKIP" ? "UNKNOWN" : text;
+      const problemType = ticketNumber; // stored problemType in ticketNumber field
+      try {
+        const result = await TroubleshootingService.startSession(from, serial, problemType);
+        setPending(from, "ts_respond", result.session.id);
+        await sendEngineerMessage(
+          from,
+          `🔍 *Guided Troubleshooting Started*\n\n${result.message}`,
+          [
+            { id: `${ENG_PREFIX.TS_QUIT}`, title: "❌ Exit Guide" },
+          ],
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Could not start troubleshooting";
+        await sendEngineerMessage(from, `⚠️ ${msg}`, [
+          { id: ENG_PREFIX.TS_GUIDE, title: "🔍 Try Again" },
+          { id: "MENU", title: "🏠 Main Menu" },
+        ]);
+      }
+      return;
+    } else if (type === "ts_respond") {
+      // Engineer replied YES/NO/HELP to a troubleshooting step
+      clearPending(from);
+      const sessionId = ticketNumber; // stored sessionId in ticketNumber field
+      try {
+        const result = await TroubleshootingService.handleResponse(sessionId, text);
+        if (result.done) {
+          // Session completed or escalated
+          const ticketInfo = (result as any).ticketNumber
+            ? `\n\n📋 Support ticket *${(result as any).ticketNumber}* has been created.`
+            : "";
+          await sendEngineerMessage(
+            from,
+            `${result.message}${ticketInfo}`,
+            [
+              { id: ENG_PREFIX.TS_GUIDE, title: "🔍 New Guide" },
+              { id: "TICKETS", title: "📋 My Tickets" },
+              { id: "MENU", title: "🏠 Main Menu" },
+            ],
+          );
+        } else {
+          // More steps remain — keep pending
+          setPending(from, "ts_respond", sessionId);
+          await sendEngineerMessage(
+            from,
+            `🔍 ${result.message}`,
+            [
+              { id: `${ENG_PREFIX.TS_QUIT}`, title: "❌ Exit Guide" },
+            ],
+          );
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Troubleshooting error";
+        await sendEngineerMessage(from, `⚠️ ${msg}`, [
+          { id: ENG_PREFIX.TS_GUIDE, title: "🔍 Retry" },
+          { id: "MENU", title: "🏠 Main Menu" },
+        ]);
+      }
+      return;
     }
   }
 
@@ -263,22 +326,20 @@ export async function handleEngineerMessage(
 
   // ── 3. Greeting & Main Menu ──
   if (
-    upper === "HI" ||
+    /^H(I+|E+Y+|E+LLO+|A+I+)$/i.test(upper) ||
     upper === "HELLO" ||
     upper === "MENU" ||
     upper === "START" ||
     upper === "HOME" ||
-    upper === "HEY" ||
     upper === "GREETINGS" ||
     upper === "MAIN MENU" ||
     upper === "ENG_MENU"
   ) {
     await sendEngineerMessage(
       from,
-      `👋 *Hi ${engineer.firstName}!*\nWelcome to the *Poornasree Service Engineer Portal*.\n\nManage your service tickets, troubleshoot machine issues, and complete customer OTP verifications right here on WhatsApp.\n\nWhat would you like to do?`,
+      `👋 *Hi ${engineer.firstName}!*\nWelcome to the *Poornasree Service Engineer Portal*.\n\nManage your service tickets and get instant troubleshooting help right here on WhatsApp.\n\n💡 _Type any machine problem (e.g. "vibro not working", "low voltage") to get instant troubleshooting steps._`,
       [
         { id: "TICKETS", title: "📋 View Tickets" },
-        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
         { id: "STATUS", title: "📊 Status Summary" },
       ],
     );
@@ -601,14 +662,14 @@ export async function handleEngineerMessage(
     return;
   }
 
-  // ── 18. Troubleshoot / Training Videos ──
-  if (upper === "TROUBLESHOOT" || upper === "TRAINING" || upper === "2") {
+  // ── 18. Troubleshoot keyword — redirect to type-based help ──
+  if (upper === "TROUBLESHOOT" || upper === "TRAINING" || upper === "2" || upper === ENG_PREFIX.TS_GUIDE || upper === ENG_PREFIX.TS_VIDEOS) {
     await sendEngineerMessage(
       from,
-      `🔍 *Technical Knowledge & Video Search*\n\nYou can ask any technical question directly (e.g. *"how to calibrate sensor channels"*, *"vibro low vibration"*).\n\nOr choose a quick topic:`,
+      `🔍 *Troubleshooting Help*\n\nJust type your machine problem directly and I'll find the troubleshooting steps and training videos for you!\n\n_Examples:_\n• *"vibro not working"*\n• *"low voltage"*\n• *"no display"*\n• *"wifi not connecting"*`,
       [
         { id: "TICKETS", title: "📋 My Tickets" },
-        { id: "HELP", title: "❓ Help" },
+        { id: "STATUS", title: "📊 Status Summary" },
       ],
     );
     return;
@@ -618,17 +679,19 @@ export async function handleEngineerMessage(
   if (upper === "HELP" || upper === "COMMANDS") {
     await sendEngineerMessage(
       from,
-      `📖 *Poornasree Engineer Commands:*\n\n` +
+      `📖 *Poornasree Engineer Help:*\n\n` +
+        `💡 *Troubleshooting:* Just type any machine problem!\n` +
+        `_(e.g. "vibro not working", "low voltage", "no display")_\n\n` +
+        `📋 *Ticket Commands:*\n` +
         `• *TICKETS* — View active assigned tickets\n` +
         `• *START <TKT>* — Mark ticket In Progress\n` +
         `• *DIAGNOSE <TKT> <notes>* — Set diagnosed root cause\n` +
         `• *NOTE <TKT> <notes>* — Add work done notes\n` +
         `• *PART <TKT> name | part# | qty* — Add replaced part\n` +
         `• *OTP <TKT>* — Send OTP to customer\n` +
-        `• *RESEND <TKT>* — Resend OTP code\n` +
         `• *VERIFY <TKT> <code>* (or send 4 digits) — Close ticket\n` +
         `• *STATUS* — Summary of your tickets\n` +
-        `• *Send Photo* — Upload arrival or finished machine photo`,
+        `• *Send Photo* — Upload machine photo`,
       [
         { id: "TICKETS", title: "📋 My Tickets" },
         { id: "STATUS", title: "📊 Status Summary" },
@@ -638,33 +701,56 @@ export async function handleEngineerMessage(
     return;
   }
 
-  // ── 20. Technical Query / Semantic Fallback ──
-  if (text.length > 3) {
-    const videoMatches = await searchTrainingVideos(text, 2).catch(() => []);
-    if (videoMatches.length > 0) {
-      const videoLines = videoMatches
-        .map((v) => `🎬 *${v.title}*\n👉 ${v.youtubeUrl}`)
-        .join("\n\n");
+  // ── 20. Smart Fallback: Combined troubleshooting steps + training videos ──
+  if (text.length > 2) {
+    // Search both simultaneously
+    const [troubleshootMatch, videoMatches] = await Promise.all([
+      findEngineerTroubleshooting(text),
+      searchTrainingVideos(text, 2).catch(() => []),
+    ]);
+
+    const hasSteps = !!troubleshootMatch?.formatted;
+    const hasVideos = videoMatches.length > 0;
+
+    if (hasSteps || hasVideos) {
+      const parts: string[] = [];
+
+      if (hasSteps) {
+        parts.push(troubleshootMatch!.formatted);
+      }
+
+      if (hasVideos) {
+        const videoLines = videoMatches
+          .map((v) => `🎬 *${v.title}*\n👉 ${v.youtubeUrl}`)
+          .join("\n\n");
+        parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}🎓 *Related Training Videos:*\n\n${videoLines}`);
+      }
+
       await sendEngineerMessage(
         from,
-        `💡 *Relevant Technical Training Videos:*\n\n${videoLines}\n\nType *TICKETS* to return to your jobs.`,
+        parts.join("") + "\n\n_Type another machine problem anytime, or tap below:_",
         [
           { id: "TICKETS", title: "📋 My Tickets" },
-          { id: "HELP", title: "❓ Help" },
+          { id: "STATUS", title: "📊 Status Summary" },
         ],
       );
       return;
     }
   }
 
-  // Default Fallback
+  // ── 20b. Typo-tolerant command matching ──
+  const fuzzyMatch = fuzzyMatchCommand(upper);
+  if (fuzzyMatch) {
+    return handleEngineerMessage(from, fuzzyMatch, engineer);
+  }
+
+  // ── Default Fallback ──
   await sendEngineerMessage(
     from,
-    `Hi ${engineer.firstName}, I didn't recognize that command.\n\nType *TICKETS* to view your active jobs, or choose:`,
+    `Hi ${engineer.firstName}, I couldn't find a match for *"${text.length > 40 ? text.slice(0, 37) + "..." : text}"*.\n\n💡 _Try typing a machine problem (e.g. "vibro not working", "no display", "low voltage") to get troubleshooting steps._`,
     [
       { id: "TICKETS", title: "📋 My Tickets" },
       { id: "STATUS", title: "📊 Status Summary" },
-      { id: "HELP", title: "❓ Help" },
     ],
   );
 }
@@ -941,4 +1027,177 @@ export async function handleEngineerMedia(
       ],
     );
   }
+}
+
+// ── Helper: Format troubleshooting steps neatly ───────────────────────────
+function formatTroubleshootingSteps(title: string, rawContent: string): string {
+  const text = rawContent
+    .replace(/\n\s*\d+\.\s*If none of the above steps help.*?$/gim, "")
+    .replace(/If none of the above steps help.*?$/gim, "")
+    .replace(/Book a service visit.*?$/gim, "")
+    .replace(/Please raise a service request.*?$/gim, "")
+    .trim();
+
+  const lines = text.split("\n");
+  const formattedLines: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const numMatch = trimmed.match(/^(\d+)[\.\)]\s*(.*)/i);
+    if (numMatch) {
+      formattedLines.push(`📍 *Step ${numMatch[1]}:* ${numMatch[2]}`);
+    } else if (/^To (fix|troubleshoot|resolve)/i.test(trimmed)) {
+      formattedLines.push(`🔧 *${trimmed}*`);
+    } else {
+      formattedLines.push(trimmed);
+    }
+  }
+
+  const body = formattedLines.join("\n\n");
+  return `🔍 *${title}*\n_Troubleshooting Guide_\n\n${body}`;
+}
+
+// ── Helper: Search Document Chunks & Service Catalog for troubleshooting ──
+// Accurately matches against admin-uploaded documents (DocumentChunks) and service technical guides.
+async function findEngineerTroubleshooting(
+  query: string,
+): Promise<{ title: string; formatted: string } | null> {
+  const cleanQ = query.toLowerCase().trim();
+  const qTokens = cleanQ.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
+  if (qTokens.length === 0) return null;
+
+  // 1. Search Service Catalog entries (role: "service" takes top priority)
+  const catalog = await getCatalogForRole("service");
+  const serviceCatalog = catalog.filter((e) => e.role === "service" || e.source === "document_issue");
+
+  let bestEntry: (typeof catalog)[0] | null = null;
+  let bestScore = 0;
+
+  for (const e of serviceCatalog) {
+    let score = 0;
+    if (e.role === "service") score += 50;
+
+    const patterns = (e.patterns || []).map((p) => p.toLowerCase());
+    for (const p of patterns) {
+      if (p === cleanQ) score += 200;
+      else if (p.includes(cleanQ) || cleanQ.includes(p)) score += 100;
+    }
+
+    const titleLower = e.title.toLowerCase();
+    if (titleLower === cleanQ) score += 150;
+    else if (titleLower.includes(cleanQ) || cleanQ.includes(titleLower)) score += 80;
+
+    const allText = `${e.title} ${(e.patterns || []).join(" ")} ${e.content}`.toLowerCase();
+    let matched = 0;
+    for (const w of qTokens) {
+      if (allText.includes(w)) matched++;
+    }
+    if (matched === qTokens.length) score += 60;
+    else score += matched * 10;
+
+    if (/->|REPLACE|CHECK THE|ADJUST/i.test(e.content)) {
+      score += 30;
+    }
+
+    if (score > bestScore && score >= 35) {
+      bestScore = score;
+      bestEntry = e;
+    }
+  }
+
+  // 2. Also search DocumentChunks from admin-uploaded service documents
+  const serviceChunks = await prisma.documentChunk.findMany({
+    where: { document: { documentType: { in: ["service", "both"] } } },
+    select: { content: true, document: { select: { title: true } } },
+  });
+
+  let bestChunk: (typeof serviceChunks)[0] | null = null;
+  let bestChunkScore = 0;
+  for (const chunk of serviceChunks) {
+    const cLower = chunk.content.toLowerCase();
+    let score = 0;
+    if (cLower.includes(cleanQ)) score += 120;
+    let matched = 0;
+    for (const w of qTokens) {
+      if (cLower.includes(w)) matched++;
+    }
+    if (matched === qTokens.length) score += 70;
+    else score += matched * 10;
+
+    if (/->|REPLACE|CHECK THE/i.test(chunk.content)) {
+      score += 30;
+    }
+
+    if (score > bestChunkScore && score >= 45) {
+      bestChunkScore = score;
+      bestChunk = chunk;
+    }
+  }
+
+  let finalTitle = "";
+  let finalContent = "";
+
+  if (bestChunk && bestChunkScore > bestScore) {
+    finalTitle = bestChunk.document?.title || "Technical Guide";
+    finalContent = bestChunk.content;
+  } else if (bestEntry) {
+    finalTitle = bestEntry.title || "Troubleshooting Guide";
+    finalContent = bestEntry.content;
+  } else if (bestChunk) {
+    finalTitle = bestChunk.document?.title || "Technical Guide";
+    finalContent = bestChunk.content;
+  } else {
+    return null;
+  }
+
+  return {
+    title: finalTitle,
+    formatted: formatTroubleshootingSteps(finalTitle, finalContent),
+  };
+}
+
+// ── Helper: Simple edit distance (Levenshtein, capped at 3 for perf) ────
+function simpleEditDistance(a: string, b: string): number {
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// ── Helper: Fuzzy command matching for typos ─────────────────────────────
+// Maps common misspellings to known commands. Returns the canonical command or null.
+function fuzzyMatchCommand(input: string): string | null {
+  const COMMANDS: Record<string, string[]> = {
+    TICKETS: ["TIVKET", "TIVKETS", "TIKET", "TIKETS", "TICKT", "TIKKETS", "TIKKET", "TICETS", "TCKETS", "TICKES", "TOKETS"],
+    STATUS:  ["STAUS", "STATSU", "STATIS", "SATUS", "STAUTS", "SUMARY", "SUMMRY", "STATUSS"],
+    TROUBLESHOOT: ["TROBLESHOT", "TRUBLESHOOT", "TRUBBLESHOOT", "TROUBESHOOT", "TROUBLESHOT", "TROUBLSHOOT"],
+    HELP:    ["HLEP", "HALP", "HLP", "HEPL", "HELPP"],
+    MENU:    ["MANU", "MENUE", "MANU", "MNEU"],
+  };
+
+  // Check known typo list first (fast path)
+  for (const [canonical, typos] of Object.entries(COMMANDS)) {
+    if (typos.includes(input)) return canonical;
+  }
+
+  // Edit distance fallback for unlisted typos
+  const canonicals = Object.keys(COMMANDS);
+  for (const cmd of canonicals) {
+    const dist = simpleEditDistance(input, cmd);
+    if (dist <= 2 && input.length >= 3) return cmd;
+  }
+
+  return null;
 }

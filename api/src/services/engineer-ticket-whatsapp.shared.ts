@@ -9,6 +9,8 @@ import {
   formatCustomerPhoneDisplay,
   getTicketComplaintText,
   resolveTicketCustomerName,
+  resolveTicketContactPerson,
+  resolveTicketOrganization,
   resolveTicketCustomerPhone,
 } from "../lib/ticket-customer";
 
@@ -25,6 +27,16 @@ export const ENG_PREFIX = {
   WARR_NO: "ENG_WARR_NO:",
   RPT: "ENG_RPT:",
   TEST_CLOSE: "ENG_TEST_CLOSE:",
+  TS_GUIDE: "ENG_TS_GUIDE",
+  TS_PROB: "ENG_TS_PROB:",
+  TS_VIDEOS: "ENG_TS_VIDEOS",
+  TS_QUIT: "ENG_TS_QUIT",
+  PARTS_PRICING: "ENG_PARTS_PRICING",
+  ASSIGN_STATUS: "ENG_ASSIGN_STATUS:",
+  NEW_TICKETS: "ENG_NEW_TICKETS",
+  ACTIVE_TICKETS: "ENG_ACTIVE_TICKETS",
+  MY_TICKETS: "ENG_MY_TICKETS",
+  MENU: "ENG_MENU",
 } as const;
 
 export const ENGINEER_ACTIVE_TICKET_SELECT = {
@@ -83,7 +95,8 @@ export function formatTicketDetailMessage(
   t: EngineerTicketRow,
   opts?: { heading?: string },
 ): string {
-  const customerName = resolveTicketCustomerName(t) || "Customer";
+  const contactPerson = resolveTicketContactPerson(t);
+  const organization = resolveTicketOrganization(t);
   const rawPhone = resolveTicketCustomerPhone(t);
   const phone = formatCustomerPhoneDisplay(rawPhone);
   const place = t.pincode?.place || t.machineAddress1 || "—";
@@ -106,7 +119,9 @@ export function formatTicketDetailMessage(
   const lines = [
     opts?.heading ?? `📋 *Ticket ${t.ticketNumber}* (${t.status})`,
     ``,
-    `👤 *Customer:* ${customerName}`,
+    ...(contactPerson ? [`👤 *Contact Person:* ${contactPerson}`] : []),
+    ...(organization && organization !== contactPerson ? [`🏢 *Society/Dealer:* ${organization}`] : []),
+    ...(!contactPerson && !organization ? [`👤 *Customer:* Customer`] : []),
     `📞 *Phone:* ${phone}`,
     ...(t.customerAddress ? [`🏠 *Address:* ${t.customerAddress}`] : []),
     `📍 *Location:* ${place} (${pincode})`,

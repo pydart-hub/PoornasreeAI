@@ -28,6 +28,8 @@ import {
   X,
   AlertCircle,
   ListChecks,
+  User,
+  Building2,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
 import {
@@ -441,8 +443,12 @@ export default function WorkExecutionScreen() {
   const parsed = parseDescription(ticket.problemDescription);
   const parsedIssue = parseDescription(ticket.issueDescription ?? "");
   const issueText = ticket.issueDescription || (parsed.isStructured ? parsed.customerName : ticket.problemDescription);
-  const customerName = ticket.machineCustomer || parsedIssue.customerName || parsed.customerName
-    || (ticket.customer ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
+  const contactPerson = parsedIssue.customerName || parsed.customerName
+    || (ticket.customer && ticket.customer.role !== "admin" && ticket.customer.firstName !== "Customer" ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
+  const organization = ticket.machineCustomer?.trim() || null;
+  const customerDisplay = contactPerson && organization && contactPerson.toLowerCase() !== organization.toLowerCase()
+    ? `${contactPerson} (${organization})`
+    : (contactPerson || organization);
   const locationFull = [
     ticket.machineAddress1, ticket.machineAddress2,
     ticket.pincode?.place, ticket.pincode?.district, ticket.pincode?.state,
@@ -497,10 +503,27 @@ export default function WorkExecutionScreen() {
                 )}
               </div>
             )}
-            {(customerName || phoneNumber) && (
+            {(contactPerson || organization || customerDisplay || phoneNumber) && (
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs text-gray-600 min-w-0">
-                  <span className="truncate">👤 {customerName || "Customer"}</span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  {contactPerson && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-800 font-semibold truncate">
+                      <User className="w-3 h-3 text-gray-500 shrink-0" />
+                      <span className="truncate">👤 Contact Person: {contactPerson}</span>
+                    </div>
+                  )}
+                  {organization && organization !== contactPerson && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium truncate">
+                      <Building2 className="w-3 h-3 text-gray-400 shrink-0" />
+                      <span className="truncate">🏢 Society/Dealer: {organization}</span>
+                    </div>
+                  )}
+                  {!contactPerson && !organization && customerDisplay && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-700 font-medium truncate">
+                      <User className="w-3 h-3 text-gray-400 shrink-0" />
+                      <span className="truncate">👤 {customerDisplay}</span>
+                    </div>
+                  )}
                 </div>
                 {phoneNumber && (
                   <a href={`tel:${phoneNumber}`}

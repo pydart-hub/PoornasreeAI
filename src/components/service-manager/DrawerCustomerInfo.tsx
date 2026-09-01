@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Compass, ExternalLink, Phone } from "lucide-react";
 import type { ServiceTicket } from "./types";
-import { parseTicketDescription, resolveTicketCustomerName } from "./utils";
+import { parseTicketDescription, resolveTicketCustomerName, resolveTicketContactPerson, resolveTicketOrganization } from "./utils";
 
 interface DrawerCustomerInfoProps {
   ticket: ServiceTicket;
@@ -15,6 +15,8 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
   const issueMeta = parseTicketDescription(ticket.issueDescription || "");
   const descMeta = parseTicketDescription(ticket.problemDescription || "");
 
+  const contactPerson = resolveTicketContactPerson(ticket);
+  const organization = resolveTicketOrganization(ticket);
   const customerName = resolvedName || resolveTicketCustomerName(ticket);
   const phone = ticket.phoneNumber || issueMeta.phone || descMeta.phone;
 
@@ -69,9 +71,29 @@ export function DrawerCustomerInfo({ ticket, resolvedName }: DrawerCustomerInfoP
       <h4 className="text-[10px] font-semibold text-content-tertiary dark:text-content-dark-tertiary uppercase tracking-wider mb-2">
         Customer
       </h4>
-      <div className="space-y-2">
-        {/* Name */}
-        {customerName && (
+      <div className="space-y-2.5">
+        {/* Contact Person */}
+        {contactPerson && (
+          <div>
+            <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary uppercase font-semibold tracking-wider block mb-0.5">Contact Person</span>
+            <p className="text-sm font-semibold text-content dark:text-content-dark flex items-center gap-1.5">
+              <span>👤</span> {contactPerson}
+            </p>
+          </div>
+        )}
+
+        {/* Society / Organization */}
+        {organization && organization !== contactPerson && (
+          <div>
+            <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary uppercase font-semibold tracking-wider block mb-0.5">Society / Dealer</span>
+            <p className="text-xs font-medium text-content-secondary dark:text-content-dark-secondary flex items-center gap-1.5">
+              <span>🏢</span> {organization}
+            </p>
+          </div>
+        )}
+
+        {/* Fallback Name */}
+        {!contactPerson && !organization && customerName && (
           <p className="text-sm font-medium text-content dark:text-content-dark">{customerName}</p>
         )}
 

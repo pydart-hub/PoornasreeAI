@@ -18,16 +18,24 @@ const DEFAULT_GEMINI_KEYS = [
   ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join(""),
 ].filter(Boolean) as string[];
 
-/**
- * Unified LLM Chat dispatch function.
- * Uses active LLM Provider ("gemini" by default or "groq") configured in Admin DB Settings.
- * Automatically falls back to Groq if Gemini API returns error or is unconfigured.
- */
+// In-memory short cache for support settings in LLM dispatcher
+let cachedSettings: { data: any; expiresAt: number } | null = null;
+
+async function getCachedSupportSettings() {
+  const now = Date.now();
+  if (cachedSettings && cachedSettings.expiresAt > now) {
+    return cachedSettings.data;
+  }
+  const data = await getWhatsAppSupportSettings().catch(() => ({} as any));
+  cachedSettings = { data, expiresAt: now + 30_000 };
+  return data;
+}
+
 export async function llmChat(
   messages: LlmMessage[],
   options: LlmChatOptions = {},
 ): Promise<string> {
-  const settings = await getWhatsAppSupportSettings().catch(() => ({} as any));
+  const settings = await getCachedSupportSettings();
   const provider = (settings.activeLlmProvider || "gemini").toLowerCase().trim();
   const dbGeminiKey = settings.geminiApiKey?.trim();
   const keysToTry = dbGeminiKey ? Array.from(new Set([dbGeminiKey, ...DEFAULT_GEMINI_KEYS])) : DEFAULT_GEMINI_KEYS;
@@ -47,7 +55,7 @@ export async function llmChat(
   try {
     return await groqChat(
       messages.map((m) => ({ role: m.role, content: m.content })),
-      { ...options, maxTokens: options.maxTokens ?? 4000, temperature: options.temperature ?? 0.5 },
+      { ...options, maxTokens: options.maxTokens ?? 1200, temperature: options.temperature ?? 0.5 },
     );
   } catch (groqErr) {
     console.error("[llm-service] Groq LLM fallback also failed:", groqErr);
@@ -56,15 +64,12 @@ export async function llmChat(
 }
 
 const GEMINI_MODELS = [
-  "gemini-3.6-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-3.7-flash",
-  "gemini-3.5-flash",
   "gemini-3.1-flash-lite",
+  "gemini-3.5-flash",
 ];
 
 /**
- * Call Google Gemini REST API (gemini-3.6-flash / gemini-2.5-flash-lite / gemini-3.7-flash).
+ * Call Google Gemini REST API (gemini-2.0-flash / gemini-1.5-flash).
  */
 export async function geminiChat(
   messages: LlmMessage[],
@@ -84,7 +89,7 @@ export async function geminiChat(
     contents: contents.length > 0 ? contents : [{ role: "user", parts: [{ text: "Hello" }] }],
     generationConfig: {
       temperature: options.temperature ?? 0.5,
-      maxOutputTokens: options.maxTokens ?? 4000,
+      maxOutputTokens: options.maxTokens ?? 1200,
     },
   };
 
@@ -98,11 +103,15 @@ export async function geminiChat(
   for (const model of GEMINI_MODELS) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
+
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   Briefcase,
   Home,
   User,
+  Building2,
   LogOut,
   Wrench,
   PanelLeftClose,
@@ -210,8 +211,12 @@ export default function ServiceDashboard() {
     const parsedIssue = parseDescription(ticket.issueDescription ?? "");
     const statusCfg = STATUS_CONFIG[ticket.status];
     const issueText = ticket.problemDescription || null;
-    const customerName = ticket.machineCustomer || parsedIssue.customerName || parsed.customerName
-      || (ticket.customer ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
+    const contactPerson = parsedIssue.customerName || parsed.customerName
+      || (ticket.customer && ticket.customer.role !== "admin" && ticket.customer.firstName !== "Customer" ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
+    const organization = ticket.machineCustomer?.trim() || null;
+    const customerDisplay = contactPerson && organization && contactPerson.toLowerCase() !== organization.toLowerCase()
+      ? `${contactPerson} (${organization})`
+      : (contactPerson || organization);
     const locationShort = [
       [ticket.pincode?.place, ticket.pincode?.district].filter(Boolean).join(", "),
       ticket.pincode?.code,
@@ -265,10 +270,22 @@ export default function ServiceDashboard() {
               <span className="truncate">{locationShort}</span>
             </div>
           )}
-          {customerName && (
+          {contactPerson && (
+            <div className="flex items-center gap-1.5">
+              <User className="w-3 h-3 shrink-0 text-gray-500" />
+              <span className="text-xs text-gray-800 font-semibold truncate">👤 {contactPerson}</span>
+            </div>
+          )}
+          {organization && organization !== contactPerson && (
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3 h-3 shrink-0 text-gray-400" />
+              <span className="text-xs text-gray-600 font-medium truncate">🏢 {organization}</span>
+            </div>
+          )}
+          {!contactPerson && !organization && customerDisplay && (
             <div className="flex items-center gap-1.5">
               <User className="w-3 h-3 shrink-0 text-gray-400" />
-              <span className="text-sm text-gray-700 font-medium truncate">{customerName}</span>
+              <span className="text-sm text-gray-700 font-medium truncate">{customerDisplay}</span>
             </div>
           )}
           {ticket.machineName && (
