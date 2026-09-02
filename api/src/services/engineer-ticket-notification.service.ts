@@ -1,103 +1,21 @@
 // ── Outbound WhatsApp Service for Engineer Ticket Assignment Alerts ─────────
 
 import prisma from "../lib/prisma";
-import {
-  formatCustomerPhoneDisplay,
-  getTicketComplaintText,
-  resolveTicketCustomerName,
-  resolveTicketCustomerPhone,
-} from "../lib/ticket-customer";
-import * as WhatsAppService from "./whatsapp.service";
+import { resolveTicketCustomerName } from "../lib/ticket-customer";
 import {
   formatTicketDetailMessage,
-  sendTicketActionButtons,
   sendEngineerMessage,
   type EngineerTicketRow,
+  ENG_PREFIX,
 } from "./engineer-ticket-whatsapp.shared";
 
 /**
- * Notifies the assigned service engineer on WhatsApp when a ticket is assigned/reassigned.
+ * Notification on ticket assignment has been disabled per user requirement.
+ * This is now a no-op so no WhatsApp messages or templates are sent to engineers on ticket assignment.
  */
-export async function notifyEngineerTicketAssigned(ticketId: string): Promise<void> {
-  const ticket = await prisma.ticket.findUnique({
-    where: { id: ticketId },
-    select: {
-      id: true,
-      ticketNumber: true,
-      status: true,
-      problemDescription: true,
-      issueDescription: true,
-      machineName: true,
-      machineSerialNumber: true,
-      machineCustomer: true,
-      machineAddress1: true,
-      machineAddress2: true,
-      customerAddress: true,
-      phoneNumber: true,
-      createdAt: true,
-      updatedAt: true,
-      assignedEngineerId: true,
-      customer: { select: { id: true, firstName: true, lastName: true, role: true } },
-      pincode: { select: { id: true, code: true, place: true, district: true, state: true } },
-      assignedManager: { select: { id: true, firstName: true, lastName: true } },
-      assignedEngineer: {
-        select: { id: true, firstName: true, lastName: true, whatsappNumber: true },
-      },
-    },
-  });
-
-  if (!ticket?.assignedEngineer?.whatsappNumber) {
-    console.warn(`[engineer-ticket-wa] No WhatsApp number for engineer on ticket ${ticket?.ticketNumber ?? ticketId}`);
-    return;
-  }
-
-  const wa = ticket.assignedEngineer.whatsappNumber;
-  const customerName = resolveTicketCustomerName(ticket) || "Customer";
-  const rawPhone = resolveTicketCustomerPhone(ticket);
-  const phone = formatCustomerPhoneDisplay(rawPhone);
-  const place = ticket.pincode?.place || ticket.machineAddress1 || "—";
-  const pincode = ticket.pincode?.code ?? "—";
-  const location = `${place} · ${pincode}`;
-  const complaint =
-    getTicketComplaintText(ticket.problemDescription, ticket.issueDescription) ||
-    ticket.problemDescription ||
-    "—";
-
-  const sanitizeParam = (val: string, maxLen = 120): string =>
-    (val || "").replace(/[\n\r\t]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen) || "—";
-
-  console.log(`[engineer-ticket-wa] Sending assignment notification for ${ticket.ticketNumber} to ${wa}`);
-
-  // 1. Try sending official WhatsApp template if available (utility category)
-  if (WhatsAppService.isConfigured()) {
-    try {
-      await WhatsAppService.sendTemplate(wa, {
-        name: "engineer_ticket_assigned",
-        languageCode: "en",
-        bodyParameters: [
-          sanitizeParam(ticket.assignedEngineer.firstName || "Engineer", 40),
-          sanitizeParam(ticket.ticketNumber, 40),
-          sanitizeParam(customerName, 40),
-          sanitizeParam(phone, 30),
-          sanitizeParam(location, 60),
-          sanitizeParam(complaint, 100),
-        ],
-      });
-    } catch {
-      // Non-fatal: will fall back to direct session message
-    }
-  }
-
-  // 2. Send formatted ticket details & action buttons
-  const detail = formatTicketDetailMessage(ticket as EngineerTicketRow, {
-    heading: `🆕 *NEW SERVICE TICKET ASSIGNED*`,
-  });
-
-  await sendEngineerMessage(
-    wa,
-    `${detail}\n\nTap a button below or type *TICKETS* at any time to view active tickets.`,
-  );
-  await sendTicketActionButtons(wa, ticket as EngineerTicketRow, ticket.assignedEngineer.id);
+export async function notifyEngineerTicketAssigned(_ticketId: string): Promise<void> {
+  // Ticket assignment notification to engineer disabled per system requirement
+  return;
 }
 
 /**

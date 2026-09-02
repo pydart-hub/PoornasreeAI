@@ -44,6 +44,7 @@ import {
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 import * as WhatsAppService from "./whatsapp.service";
 import { touchSupportActivity } from "./support-inactivity.service";
+import { getCatalogForRole } from "./training-catalog.service";
 
 // ── Session metadata shape ────────────────────────────────────────────────
 type SessionMeta = {
@@ -81,6 +82,7 @@ type SessionMeta = {
   skipEndCustomerConfirm?: boolean;
   customComplaintPath?: boolean;
   videoSearchQuery?: string;
+  hasSkippedSerial?: boolean;
   /** Registration flow (new customer first-time sign-up) */
   regSerialNumber?: string;
   regMachineData?: PasstestMachine | null;
@@ -145,6 +147,26 @@ export function isTechnicalIssueQuery(text: string): boolean {
   if (!text || typeof text !== "string") return false;
   if (isGreetingOrSmallTalk(text)) return false;
   const clean = text.trim().toLowerCase();
+
+  // Exclude system commands, button IDs, navigation phrases, and menu selections
+  const nonIssueCommands = new Set([
+    "complaint_status", "complaint_reg", "complaint_register", "check_status", "ticket_status",
+    "check_ticket_status", "view_tickets", "view_products", "speak_support", "talk_agent",
+    "talk_to_support", "speak_to_support", "change_lang", "change_language", "main_menu",
+    "menu", "skip", "cancel", "register", "book_service", "resolved", "unresolved",
+    "troubleshoot_resolved", "troubleshoot_unresolved", "confirm_book_ticket", "change_machine",
+    "attach_complaint_media", "complaint status", "register complaint", "check status",
+    "new complaint", "complaint registration", "view tickets", "view products", "main menu"
+  ]);
+  if (nonIssueCommands.has(clean) || nonIssueCommands.has(clean.replace(/\s+/g, "_"))) return false;
+
+  // Single generic words without symptom details are commands/intents, not issue descriptions
+  const singleGenericWords = new Set([
+    "complaint", "complaints", "issue", "issues", "problem", "problems",
+    "ticket", "tickets", "status", "repair", "help", "menu", "support",
+    "details", "show", "showing", "shown"
+  ]);
+  if (singleGenericWords.has(clean)) return false;
 
   const issueKeywords = [
     "error", "t1", "t2", "t3", "not working", "not on", "issue", "problem", "repair", "fault",
@@ -1477,14 +1499,8 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     upper.includes("ఫిర్యాదు");
 
   if (isRegisterComplaintIntent) {
-    const rawComplaint = meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
-    const hasValidIssue = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
-
-    if (hasValidIssue && rawComplaint) {
-      return startComplaintRegistration(session.id, phoneNumber, meta, lang, rawComplaint.trim());
-    }
-
-    await updateSession(session.id, "COMPLAINT_DESCRIBE", meta);
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
+    await updateSession(session.id, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
       `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
@@ -1527,7 +1543,13 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     upper.includes("MY COMPLAINT") ||
     upper === "CHECK_STATUS" ||
     upper === "TICKET_STATUS" ||
-    upper === "CHECK_TICKET_STATUS";
+    upper === "CHECK_TICKET_STATUS" ||
+    upper === "COMPLAINT_STATUS" ||
+    upper === "VIEW_TICKETS" ||
+    upper === "TICKETS" ||
+    upper === "3" ||
+    upper.includes("COMPLAINT_STATUS") ||
+    upper.includes("CHECK_STATUS");
 
   if (isCheckTicketStatusIntent) {
     return showTicketStatus(session.id, phoneNumber, meta);
@@ -1787,6 +1809,9 @@ export async function startGreeting(phoneNumber: string) {
       role: registeredUser.role || "customer",
       isEngineer: isEng,
       hasSkippedRegistration: true,
+      complaint: undefined,
+      lastIssueQuery: undefined,
+      videoSearchQuery: undefined,
     };
     await updateSession(session.id, "MAIN_MENU", meta);
 
@@ -2749,14 +2774,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     upperChoice.includes("புகார்") ||
     upperChoice.includes("ದೂರು")
   ) {
-    const rawComplaint = meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
-    const hasValidIssue = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
-
-    if (hasValidIssue && rawComplaint) {
-      return startComplaintRegistration(sessionId, phoneNumber, meta, lang, rawComplaint.trim());
-    }
-
-    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined };
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
@@ -2775,7 +2793,13 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
   if (upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT_REGISTER" || upperChoice === "BOOK_SERVICE") {
-    return startComplaintRegistration(sessionId, phoneNumber, meta, lang);
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
+    return makeReply(
+      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      [getMenuButton(lang)]
+    );
   }
   if (upperChoice === "COMPACT_ADAPTER") {
     return runGroqCompanyAssistant(phoneNumber, "Compact Adapter output voltage troubleshooting", meta, { sessionId });
@@ -2827,6 +2851,38 @@ async function getCachedDocumentChunks(targetDocTypes: string[]) {
   });
   cachedDocChunks = { key, data, expiresAt: now + 60_000 };
   return data;
+}
+
+function normalizeQueryTypos(str: string): string {
+  if (!str) return "";
+  let s = str.toLowerCase();
+
+  const typoMap: [RegExp, string][] = [
+    [/\b(n|nd)\b/gi, "and"],
+    [/\b(sow|sowing|soing|shwing|showng|shwoing|shwng|shwong)\b/gi, "showing"],
+    [/\b(sown|sowed|shwn)\b/gi, "shown"],
+    [/\b(disply|dsiplay|dplay|dispaly|disp)\b/gi, "display"],
+    [/\b(vibratin|vibrat|vibro|vibrtor|vibrationg)\b/gi, "vibrating"],
+    [/\b(readng|rading|reding|redng|readin)\b/gi, "reading"],
+    [/\b(eror|erorr|erorrs|prblm|problm|prblem)\b/gi, "error"],
+    [/\b(chargr|adptr|adaptr|adaptor|adpter)\b/gi, "adapter"],
+    [/\b(analyser|analyzr|analizer|analysr)\b/gi, "analyzer"],
+    [/\b(weighin|waghing|scle|scal)\b/gi, "scale"],
+    [/\b(calibrat|calibrtion|calbration)\b/gi, "calibration"],
+    [/\b(tempratur|tempreture|temprature|temp)\b/gi, "temperature"],
+    [/\b(cleanin|clening|cleang)\b/gi, "cleaning"],
+    [/\b(leakg|leekage|leakege|lekage)\b/gi, "leakage"],
+    [/\b(prnt|prnter|prntng)\b/gi, "printer"],
+    [/\b(batery|battry|batry)\b/gi, "battery"],
+    [/\b(tim|tme)\b/gi, "time"],
+    [/\b(dat|dte)\b/gi, "date"],
+  ];
+
+  for (const [pattern, replacement] of typoMap) {
+    s = s.replace(pattern, replacement);
+  }
+
+  return s;
 }
 
 /** Groq LLM Assistant that ingests dynamic DB company, owner & product catalog settings, remembers conversation history & FSM state, and answers like a humanoid assistant */
@@ -2942,6 +2998,7 @@ export async function runGroqCompanyAssistant(
         cleanQ.includes("running") ||
         cleanQ.includes("showing") ||
         cleanQ.includes("shwoing") ||
+        cleanQ.includes("sowing") ||
         cleanQ.includes("stopped") ||
         cleanQ.includes("stuck") ||
         cleanQ.includes("slow") ||
@@ -2954,6 +3011,9 @@ export async function runGroqCompanyAssistant(
         cleanQ.includes("speed") ||
         cleanQ.includes("power") ||
         cleanQ.includes("switch") ||
+        cleanQ.includes("date") ||
+        cleanQ.includes("time") ||
+        cleanQ.includes("clock") ||
         cleanQ.includes("കേടായി") ||
         cleanQ.includes("പരാതി");
 
@@ -3105,7 +3165,7 @@ export async function runGroqCompanyAssistant(
     if (!str) return "";
     const preserveAcronyms = new Set([
       "T2", "USB", "GSM", "SIM", "LED", "ASCII", "L-PLUG", "AC", "DC", "PCB",
-      "KG", "LTR", "SNF", "CLR", "FAT", "POT", "LCD", "ID", "ECO", "ECO-V", "V3", "V4"
+      "KG", "LTR", "SNF", "CLR", "FAT", "POT", "LCD", "ID", "ECO", "ECO-V", "V3", "V4", "RTC"
     ]);
 
     const emojiNumbers = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
@@ -3263,8 +3323,9 @@ export async function runGroqCompanyAssistant(
     const isServiceUser = (meta as any).isEngineer || (meta as any).role === "service_engineer" || (meta as any).role === "service";
     const targetDocTypes = isServiceUser ? ["service", "customer", "both"] : ["customer", "both"];
 
-    // Normalize alphanumeric query (e.g. "t2error" -> "t2 error", "e1problem" -> "e1 problem")
-    const cleanQ = query
+    // Normalize alphanumeric query and correct common user typos
+    const normalizedRaw = normalizeQueryTypos(query);
+    const cleanQ = normalizedRaw
       .toLowerCase()
       .replace(/([a-zA-Z]+[0-9]+)([a-zA-Z]+)/g, "$1 $2")
       .replace(/[^a-z0-9\s]/g, " ")
@@ -3315,15 +3376,27 @@ export async function runGroqCompanyAssistant(
       }
     }
 
-    // 1. Search DocumentChunk for rich knowledge with strict audience isolation
+    // 2. Search DocumentChunk for rich knowledge with strict audience isolation
     const allChunks = await getCachedDocumentChunks(targetDocTypes);
-
     const allQueryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2);
 
     const scoredChunks = allChunks.map((chunk) => {
       const contentLower = chunk.content.toLowerCase();
+      const firstLine = contentLower.split("\n")[0];
       let score = 0;
+
+      // Heavy priority on Topic/Title match in chunk header
+      for (const w of allQueryWords) {
+        if (firstLine.includes(w)) {
+          score += 10;
+        } else if (contentLower.includes(w)) {
+          score += 3;
+        }
+      }
+
+      if (firstLine.includes(cleanQ)) score += 40;
       if (contentLower.includes(cleanQ)) score += 30;
+
       let matchedWords = 0;
       for (const w of allQueryWords) {
         if (contentLower.includes(w)) {
@@ -3352,6 +3425,52 @@ export async function runGroqCompanyAssistant(
         .join("\n\n");
       matchedDocKnowledge = `[MATCHED OFFICIAL TROUBLESHOOTING TEMPLATE: ${bestIssue.title}]\n${sanitizeTroubleshootingChunks(formattedSteps)}`;
     }
+
+    // 3. Search Training Catalog Intents (chatbot-training.json, customer-training.json) as backup source
+    if (!hasExactDocMatch) {
+      try {
+        const catalogEntries = await getCatalogForRole(isServiceUser ? "service" : "customer");
+        let bestCatalogEntry: any = null;
+        let bestCatalogScore = 0;
+
+        for (const entry of catalogEntries) {
+          if (entry.source === "company" && !entry.tag.startsWith("chatbot_analyzer_") && !entry.tag.startsWith("chatbot_vibro_") && !entry.tag.startsWith("chatbot_charger_") && !entry.tag.startsWith("chatbot_compact_")) {
+            continue;
+          }
+          const text = (entry.title + " " + entry.patterns.join(" ") + " " + entry.content).toLowerCase();
+          const tokens = text.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
+
+          let score = 0;
+          if (text.includes(cleanQ) && cleanQ.length >= 3) score += 20;
+          for (const p of entry.patterns) {
+            const pLower = p.toLowerCase();
+            if (cleanQ.includes(pLower) || pLower.includes(cleanQ)) score += 15;
+          }
+
+          for (const w of queryWords) {
+            for (const it of tokens) {
+              if (w === it) {
+                score += (w.length >= 4 ? 4 : 3);
+              } else if (it.includes(w) || w.includes(it)) {
+                score += 2;
+              }
+            }
+          }
+
+          if (score > bestCatalogScore && score >= 8) {
+            bestCatalogScore = score;
+            bestCatalogEntry = entry;
+          }
+        }
+
+        if (bestCatalogEntry) {
+          hasExactDocMatch = true;
+          matchedDocKnowledge = `[MATCHED OFFICIAL TROUBLESHOOTING KNOWLEDGE: ${bestCatalogEntry.title}]\n${bestCatalogEntry.content}`;
+        }
+      } catch (catErr) {
+        console.error("[groq-company-assistant] Catalog lookup error:", catErr);
+      }
+    }
   } catch (err) {
     console.error("[groq-company-assistant] Failed to load document troubleshooting chunks:", err);
   }
@@ -3369,7 +3488,11 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 1. FOR GENERAL CONVERSATIONS & INQUIRIES (Greetings, Company info, office locations, general product queries): Write short, direct, natural 1-2 sentence replies. Talk like a real person replying on WhatsApp.
 2. FOR TECHNICAL TROUBLESHOOTING & ERROR COMPLAINTS (When MATCHED TROUBLESHOOTING DOCUMENTS exist below): ALWAYS follow Rule 10! You MUST ALWAYS format the response using 📍 *Step 1:*, 🔍 *Check 1:*, ⚡ *Action 1:*, • bullet points for all sub-items, and ↳ Remark: for remarks! NEVER summarize troubleshooting steps into a paragraph!
 3. ABSOLUTELY NO BOT TRAILING SIGNATURES: Do NOT append phone numbers (${settings.supportPhone}), emails, or contact footers unless the customer specifically asks for contact details.
-4. ABSOLUTELY NO UNWANTED SALES PITCHES OR PROMPTS: Do NOT append repetitive sales pitches ("Would you like to browse products or register?"), formal intros ("Namaste! I am Hari official AI assistant..."), or trailing prompts. Just answer their question directly.
+4. ABSOLUTELY NO RE-INTRODUCTIONS, FORMAL INTROS, OR REPETITIVE PROMPTS:
+   - NEVER introduce yourself ("I am Hari...", "Namaste! I am Hari...", "Hi [Name], I am Hari from Poornasree customer support...") if a conversation is already in progress or when the customer has described an issue!
+   - NEVER start troubleshooting or clarifying replies with formal persona greetings.
+   - Jump straight to answering the question or giving the troubleshooting steps directly.
+   - Do NOT append repetitive sales pitches ("Would you like to browse products or register?").
 5. ABSOLUTELY NO UNWANTED DATA DUMPING: Do NOT dump company capacity, employee count, ISO details, or unrequested catalog specs. Only answer what was asked.
 6. MIRROR THE CUSTOMER'S EXACT LANGUAGE AND WRITING STYLE FAITHFULLY:
    - If the customer asks to switch script or font (e.g. "Malayalam font use chey", "Malayalam text il samsarikamo", "Hindi me bolo"), IMMEDIATELY write all replies in that requested script/language!
@@ -3447,7 +3570,7 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
       • 4) Next enter decimal point count
          ↳ Remark: Eg: Decimal point values "45" count = 2
 
-      OR for General Errors (e.g. T2 Error, Adapter, Vibro, Temperature, Sensor):
+      OR for General Errors (e.g. T2 Error, Date and Time, Adapter, Vibro, Temperature, Sensor):
 
       📍 *Step 1:* 
       🔍 *Check 1:* Check the leakage/block in sample sucking sections 
@@ -3543,6 +3666,10 @@ ${settings.companyAddress || ""}
         lowerQuery.includes("noise") ||
         lowerQuery.includes("stopped") ||
         lowerQuery.includes("engineer") ||
+        lowerQuery.includes("date") ||
+        lowerQuery.includes("time") ||
+        lowerQuery.includes("clock") ||
+        lowerQuery.includes("sowing") ||
         lowerQuery.includes("കേടായി") ||
         lowerQuery.includes("പരാതി");
 
@@ -3576,19 +3703,21 @@ ${settings.companyAddress || ""}
         lowerQuery.includes("വില");
 
       let buttons: ReplyButton[] | undefined = undefined;
-      const isTroubleshootingContent =
-        reply.includes("Step") ||
-        reply.includes("Check") ||
-        reply.includes("Action") ||
-        reply.includes("Replace") ||
-        reply.includes("Customer Care") ||
-        reply.includes("Clean") ||
-        reply.includes("Inspect") ||
-        reply.includes("Ensure") ||
-        reply.includes("fuse") ||
-        reply.includes("power") ||
-        reply.includes("വിശദാംശങ്ങൾ") ||
-        reply.includes("പരിഹരിക്കാൻ");
+
+      const hasActionableTroubleshootingSteps =
+        (reply.includes("Step 1") || reply.includes("Step") || reply.includes("Check 1") || reply.includes("Check") || reply.includes("📍") || reply.includes("🔍") || reply.includes("⚡") || reply.includes("1.") || reply.includes("1️⃣") || reply.includes("Settings →") || reply.includes("Settings")) &&
+        (reply.includes("Action") || reply.includes("•") || reply.includes("Settings") || reply.includes("Replace") || reply.includes("Clean") || reply.includes("Inspect") || reply.includes("Ensure") || reply.includes("Check") || reply.includes("turn ON") || reply.includes("manually enter"));
+
+      const isAskingQuestion =
+        reply.trim().endsWith("?") ||
+        reply.toLowerCase().includes("please let me know your machine model") ||
+        reply.toLowerCase().includes("which model") ||
+        reply.toLowerCase().includes("machine model") ||
+        reply.toLowerCase().includes("share your") ||
+        reply.toLowerCase().includes("enter your serial") ||
+        reply.toLowerCase().includes("മോഡൽ ഏതാണ്");
+
+      const isLegitimateTroubleshooting = hasActionableTroubleshootingSteps && !isAskingQuestion;
 
       const isCheckTicketStatus =
         lowerQuery.includes("check ticket") ||
@@ -3612,8 +3741,8 @@ ${settings.companyAddress || ""}
           { id: "COMPLAINT_REG", title: "📝 Enter Serial" },
           { id: "SKIP", title: "⏭️ Skip Serial" },
         ];
-      } else if (isServiceIntent || (hasExactDocMatch && isTroubleshootingContent) || inComplaintOrTroubleshootState || isTroubleshootingContent) {
-        // Show Resolved / Unresolved buttons ONLY on troubleshooting & machine issue queries
+      } else if (isLegitimateTroubleshooting) {
+        // Show Resolved / Unresolved buttons ONLY when actionable troubleshooting steps are provided
         buttons = [
           { id: "TROUBLESHOOT_RESOLVED", title: "✅ Resolved" },
           { id: "TROUBLESHOOT_UNRESOLVED", title: "❌ Unresolved" },
@@ -3624,6 +3753,9 @@ ${settings.companyAddress || ""}
         if (targetSessionId || options.sessionId) {
           await updateSession(targetSessionId || options.sessionId || "", activeState, meta).catch(() => {});
         }
+      } else if (isAskingQuestion && (inComplaintOrTroubleshootState || isServiceIntent)) {
+        // When asking for clarifying info like machine model during complaint/troubleshooting
+        buttons = [getMenuButton(lang)];
       } else if (isProductIntent) {
         buttons = [
           { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
@@ -4180,10 +4312,10 @@ export async function startComplaintRegistration(
   let regDistrict = meta.manualDistrict || meta.regDistrict || savedProfile?.manualDistrict;
   let regState = meta.manualState || meta.regState || savedProfile?.manualState;
   let regAddress = meta.manualAddress || meta.regAddress || savedProfile?.manualAddress;
-  let regSerial = meta.serialNumber || meta.regSerialNumber;
-  let regMachine = meta.machineData || meta.regMachineData;
+  let regSerial = meta.hasSkippedSerial ? undefined : (meta.serialNumber || meta.regSerialNumber);
+  let regMachine = meta.hasSkippedSerial ? null : (meta.machineData || meta.regMachineData);
 
-  const knownMachines = await getCustomerRegisteredMachines(phoneNumber);
+  const knownMachines = meta.hasSkippedSerial ? [] : await getCustomerRegisteredMachines(phoneNumber);
 
   // If customer has multiple registered machines and none chosen yet in this flow:
   if (knownMachines.length > 1 && !regSerial && !regMachine) {
@@ -4242,7 +4374,8 @@ export async function startComplaintRegistration(
 
   if (!hasValidComplaint) {
     // If no valid machine issue description exists, prompt customer to describe their issue first
-    await updateSession(sessionId, "COMPLAINT_DESCRIBE", meta);
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
       `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
@@ -4271,6 +4404,7 @@ export async function startComplaintRegistration(
     machineData: regMachine,
     regMachineData: regMachine,
     complaint: effectiveComplaint,
+    hasSkippedSerial: meta.hasSkippedSerial,
   };
 
   // Case A: UNREGISTERED / NO SAVED CUSTOMER DETAILS -> Ask for Name first
@@ -4282,8 +4416,8 @@ export async function startComplaintRegistration(
     );
   }
 
-  // Case B: REGISTERED CUSTOMER BUT MACHINE SERIAL IS UNKNOWN -> Ask for Machine Serial Number with Skip option
-  if (!regSerial && !updatedMeta.machineData) {
+  // Case B: REGISTERED CUSTOMER BUT MACHINE SERIAL IS UNKNOWN -> Ask for Machine Serial Number with Skip option (unless already skipped)
+  if (!regSerial && !updatedMeta.machineData && !meta.hasSkippedSerial) {
     const locSummary = [regPlace, regDistrict, regState].filter(Boolean).join(", ") || regPincode || "";
     await updateSession(sessionId, "COMPLAINT_ASK_SERIAL", updatedMeta);
     return makeReply(
@@ -4456,6 +4590,18 @@ async function handleSelectRegisteredMachine(sessionId: string, phoneNumber: str
   if (upper === "CANCEL" || upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU" || upper === "BACK_MAIN") {
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
+  if (upper === "SKIP" || upper === "0" || upper === "SKIP_SERIAL" || upper === "SKIP SERIAL" || upper.includes("SKIP")) {
+    const clearedMeta: SessionMeta = {
+      ...meta,
+      serialNumber: undefined,
+      regSerialNumber: undefined,
+      machineData: null,
+      hasSkippedSerial: true,
+      tsSerialPath: false,
+    };
+    return startComplaintRegistration(sessionId, phoneNumber, clearedMeta, lang);
   }
 
   if (upper === "ENTER_NEW_SERIAL" || upper === "NEW" || upper.includes("DIFFERENT") || upper.includes("NEW SERIAL")) {
@@ -4689,8 +4835,15 @@ async function handleComplaintAskSerial(sessionId: string, phoneNumber: string, 
     );
   }
 
-  if (upper === "SKIP" || upper === "0" || upper === "SKIP_SERIAL") {
-    const clearedMeta: SessionMeta = { ...meta, machineData: null, serialNumber: undefined, tsSerialPath: false };
+  if (upper === "SKIP" || upper === "0" || upper === "SKIP_SERIAL" || upper.includes("SKIP")) {
+    const clearedMeta: SessionMeta = {
+      ...meta,
+      machineData: null,
+      serialNumber: undefined,
+      regSerialNumber: undefined,
+      hasSkippedSerial: true,
+      tsSerialPath: false,
+    };
     if (meta.complaint && (meta.manualPincode || meta.regPincode)) {
       return startComplaintRegistration(sessionId, phoneNumber, clearedMeta, lang);
     }
@@ -5083,7 +5236,7 @@ async function handleComplaintProduct(sessionId: string, phoneNumber: string, me
   }
 
   const updatedMeta = { ...meta, selectedProduct };
-  await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
 
   return makeReply(
     `📝 *Please describe the issue you are facing with your ${selectedProduct}:*\n\n` +
@@ -5111,7 +5264,7 @@ async function handleComplaintSubcategory(sessionId: string, phoneNumber: string
   }
 
   const updatedMeta = { ...meta, complaintSubcategory: subCategory };
-  await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
 
   return makeReply(
     `📝 *Please describe the issue you are facing with your machine:*\n\n` +
@@ -5131,7 +5284,7 @@ async function handleComplaintDescribe(sessionId: string, phoneNumber: string, m
   }
 
   const updatedMeta: SessionMeta = { ...meta, complaint: text.trim(), lastIssueQuery: text.trim() };
-  await updateSession(sessionId, "MAIN_MENU", updatedMeta);
+  await updateSession(sessionId, "COMPLAINT_DESCRIBE", updatedMeta);
   return runGroqCompanyAssistant(phoneNumber, text, updatedMeta, { sessionId, activeFsmState: "COMPLAINT_DESCRIBE" });
 }
 
@@ -5402,6 +5555,42 @@ async function handleVideoHelped(sessionId: string, phoneNumber: string, meta: S
 async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
+
+  // 1. Direct button navigation for Complaint Status
+  if (
+    upper === "COMPLAINT_STATUS" ||
+    upper === "CHECK_STATUS" ||
+    upper === "TICKET_STATUS" ||
+    upper === "VIEW_TICKETS" ||
+    upper === "3" ||
+    upper.includes("COMPLAINT_STATUS") ||
+    upper.includes("CHECK_STATUS")
+  ) {
+    return showTicketStatus(sessionId, phoneNumber, meta);
+  }
+
+  // 2. Direct button navigation for Menu / Main Menu
+  if (upper === "MENU" || upper === "MAIN_MENU" || upper === "MAIN MENU" || upper === "CANCEL") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
+  // 3. Direct button navigation for Register New Complaint
+  if (
+    upper === "COMPLAINT_REG" ||
+    upper === "COMPLAINT_REGISTER" ||
+    upper === "BOOK_SERVICE" ||
+    upper.includes("REGISTER COMPLAINT") ||
+    upper.includes("COMPLAINT REGISTRATION")
+  ) {
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
+    await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
+    return makeReply(
+      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      [getMenuButton(lang)]
+    );
+  }
 
   const isYes =
     upper === "YES" ||

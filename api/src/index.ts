@@ -130,6 +130,14 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 const httpServer = createServer(app);
 initSocket(httpServer);
 
+httpServer.on("error", (err: any) => {
+  if (err?.code === "EADDRINUSE") {
+    console.error(`🔥 [API] Port ${env.PORT} is already in use by another process.`);
+  } else {
+    console.error("🔥 [API] Server error:", err?.message ?? err);
+  }
+});
+
 // ── Start ────────────────────────────────────────
 httpServer.listen(env.PORT, async () => {
   console.log(`[${env.NODE_ENV}] API server running on http://localhost:${env.PORT}`);
@@ -147,7 +155,7 @@ httpServer.listen(env.PORT, async () => {
   // Runs non-blocking so a slow Ollama startup doesn't delay the HTTP server.
   setTimeout(() => {
     indexTrainingData().catch((err) =>
-      console.error("[training] Background indexing failed:", err?.message ?? err)
+      console.warn("[training] Background indexing notice:", err?.message ?? err)
     );
   }, 5000); // 5 s head-start for Ollama to finish loading
 });

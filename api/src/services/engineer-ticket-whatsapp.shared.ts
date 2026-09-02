@@ -110,11 +110,23 @@ export function formatTicketDetailMessage(
   const assignedBy = t.assignedManager
     ? `${t.assignedManager.firstName} ${t.assignedManager.lastName ?? ""}`.trim()
     : "—";
-  const assignedAt = t.updatedAt
-    ? t.updatedAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) +
-      ", " +
-      t.updatedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
-    : "—";
+  const d = t.updatedAt ? new Date(t.updatedAt) : (t.createdAt ? new Date(t.createdAt) : null);
+  const assignedAt =
+    d && !isNaN(d.getTime())
+      ? d.toLocaleDateString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }) +
+        ", " +
+        d.toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : "—";
 
   const lines = [
     opts?.heading ?? `📋 *Ticket ${t.ticketNumber}* (${t.status})`,

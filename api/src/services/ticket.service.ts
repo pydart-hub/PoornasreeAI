@@ -118,7 +118,6 @@ export async function autoAssignEngineer(
   });
 
   if (result.count === 1) {
-    notifyEngineerTicketAssigned(ticketId).catch(() => {});
     return { assigned: true, engineerId: bestEngineer.id };
   }
 
@@ -405,9 +404,6 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
   });
 
   notifyTicketEvent("ticket.assigned", ticketId);
-  notifyEngineerTicketAssigned(ticketId).catch((err) =>
-    console.error("[ticket.service] notifyEngineerTicketAssigned error:", err),
-  );
   return updated;
 }
 

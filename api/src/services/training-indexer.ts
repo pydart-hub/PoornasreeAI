@@ -108,6 +108,10 @@ async function indexFile(trainingPath: string): Promise<void> {
       });
       ok++;
     } catch (err: any) {
+      if (err?.code === "ENOTFOUND" || err?.code === "ECONNREFUSED" || err?.message?.includes("ENOTFOUND ollama")) {
+        console.warn(`[training] Ollama vector service not reachable (${err?.message}). Skipping vector indexing; PostgreSQL document matching and cloud LLM will be used.`);
+        return;
+      }
       console.error(`[training] Failed to index intent "${intent.tag}":`, err?.message);
     }
   }
