@@ -1503,7 +1503,7 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     await updateSession(session.id, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
       [getMenuButton(lang)]
     );
   }
@@ -2778,7 +2778,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
       [getMenuButton(lang)]
     );
   }
@@ -2797,7 +2797,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
       [getMenuButton(lang)]
     );
   }
@@ -4382,7 +4382,7 @@ export async function startComplaintRegistration(
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
       [getMenuButton(lang)]
     );
   }
@@ -5069,7 +5069,7 @@ async function handleMachineConfirm(sessionId: string, phoneNumber: string, meta
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", confirmedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
       [getMenuButton(lang)]
     );
   }
@@ -5591,7 +5591,7 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_) or send a voice note.`,
+      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
       [getMenuButton(lang)]
     );
   }
