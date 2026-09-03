@@ -318,10 +318,14 @@
       "patterns": [
         "WEIGHING SCALE NOT WORKING",
         "Scale not responding",
-        "Weight not showing"
+        "Weight not showing",
+        "Weighing scale issue",
+        "Weighing scale problem",
+        "Weighing scale",
+        "Scale issue"
       ],
       "responses": [
-        "If your weighing scale is not working with the Analyzer:\n\n1. *Check the data cable* — make sure the cable between the analyzer and the weighing scale is firmly connected at both ends. Try a different cable if available.\n\n2. *Check the scale settings* — go to Settings → Weighing Scale on the analyzer and confirm the scale is enabled and the correct port/baud rate is selected.\n\nIf the scale is still not responding, please tap *Register Complaint*. 🙏"
+        "1️⃣ *Check the required settings is applied:*\n• Set the required settings values\n• 1) \"Weight in Collection\" weight taken at the time of test (Before/After)\n   ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode\n• 2) \"Weight Detect From\" - From scale / Manual\n   ↳ Remark: Weight taken from weighing scale or manual enter\n• 3) KG to Litre\n   ↳ Remark: Kilogram data to litre conversion enable/disable\n• 4) Tare - No tare, before and after collection\n   ↳ Remark: Automatic scale tare action\n• 5) Baud rate & datatype\n• 6) Read delay\n   ↳ Remark: Scale data sending time interval = Normally set at 0.50 second\n• 1) Serial \"Baud Rate\" auto detection / manual selection\n   ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)\n\n2️⃣ *Check the analyser to weighing scale data cable connectivity:*\n• Properly connect or replace the cable\n\n3️⃣ *Check the mainboard functionality:*\n• Replace the mainboard and sensor board pair\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
       ],
       "title": "Analyzer — Weighing Scale Not Working",
       "description": "Weighing scale not working with analyzer"

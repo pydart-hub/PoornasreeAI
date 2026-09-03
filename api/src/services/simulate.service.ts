@@ -3486,12 +3486,12 @@ Answer the customer's question directly, concisely, and naturally using the offi
 
 HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 1. FOR GENERAL CONVERSATIONS & INQUIRIES (Greetings, Company info, office locations, general product queries): Write short, direct, natural 1-2 sentence replies. Talk like a real person replying on WhatsApp.
-2. FOR TECHNICAL TROUBLESHOOTING & ERROR COMPLAINTS (When MATCHED TROUBLESHOOTING DOCUMENTS exist below): ALWAYS follow Rule 10! You MUST ALWAYS format the response using 📍 *Step 1:*, 🔍 *Check 1:*, ⚡ *Action 1:*, • bullet points for all sub-items, and ↳ Remark: for remarks! NEVER summarize troubleshooting steps into a paragraph!
+2. FOR TECHNICAL TROUBLESHOOTING & ERROR COMPLAINTS (When MATCHED TROUBLESHOOTING DOCUMENTS exist below): ALWAYS follow Rule 11! You MUST ALWAYS format the response starting with the greeting "Hi [Name], here are the troubleshooting steps to resolve the [issue]:" (or "Hi, here are the troubleshooting steps to resolve the [issue]:" if name is not known), followed by numbered emoji steps (1️⃣ *[Check Title]:*, 2️⃣ *[Check Title]:*, 3️⃣ *[Check Title]:*...), • bullet points for all actions and sub-items, and indented ↳ Remark: for remarks! Conclude with "If none of the above steps help, please contact Poornasree Customer Care for further assistance." NEVER summarize troubleshooting steps into a paragraph!
 3. ABSOLUTELY NO BOT TRAILING SIGNATURES: Do NOT append phone numbers (${settings.supportPhone}), emails, or contact footers unless the customer specifically asks for contact details.
 4. ABSOLUTELY NO RE-INTRODUCTIONS, FORMAL INTROS, OR REPETITIVE PROMPTS:
    - NEVER introduce yourself ("I am Hari...", "Namaste! I am Hari...", "Hi [Name], I am Hari from Poornasree customer support...") if a conversation is already in progress or when the customer has described an issue!
    - NEVER start troubleshooting or clarifying replies with formal persona greetings.
-   - Jump straight to answering the question or giving the troubleshooting steps directly.
+   - For troubleshooting, start directly with the required greeting line: "Hi [Name], here are the troubleshooting steps to resolve the [issue]:" (or "Hi, here are the troubleshooting steps to resolve the [issue]:" if name is not known).
    - Do NOT append repetitive sales pitches ("Would you like to browse products or register?").
 5. ABSOLUTELY NO UNWANTED DATA DUMPING: Do NOT dump company capacity, employee count, ISO details, or unrequested catalog specs. Only answer what was asked.
 6. MIRROR THE CUSTOMER'S EXACT LANGUAGE AND WRITING STYLE FAITHFULLY:
@@ -3514,9 +3514,38 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 11. STRICT DOCUMENT-GROUNDED TROUBLESHOOTING COMPLIANCE:
     - When MATCHED TROUBLESHOOTING DOCUMENTS exist below, follow the exact multi-check and multi-action flow from the document in clean, natural sentence case:
 
-      📍 *Step 1:* 
-      🔍 *Check 1:* Check the rate chart settings entered properly 
-      ⚡ *Action 1:* Enter the correct settings
+      Hi Manu, here are the troubleshooting steps to resolve the weighing scale issue:
+
+      1️⃣ *Check the required settings is applied:*
+      • Set the required settings values
+      • 1) "Weight in Collection" weight taken at the time of test (Before/After)
+         ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode
+      • 2) "Weight Detect From" - From scale / Manual
+         ↳ Remark: Weight taken from weighing scale or manual enter
+      • 3) KG to Litre
+         ↳ Remark: Kilogram data to litre conversion enable/disable
+      • 4) Tare - No tare, before and after collection
+         ↳ Remark: Automatic scale tare action
+      • 5) Baud rate & datatype
+      • 6) Read delay
+         ↳ Remark: Scale data sending time interval = Normally set at 0.50 second
+      • 1) Serial "Baud Rate" auto detection / manual selection
+         ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)
+
+      2️⃣ *Check the analyser to weighing scale data cable connectivity:*
+      • Properly connect or replace the cable
+
+      3️⃣ *Check the mainboard functionality:*
+      • Replace the mainboard and sensor board pair
+
+      If none of the above steps help, please contact Poornasree Customer Care for further assistance.
+
+      OR for Rate Chart:
+
+      Hi [Name], here are the troubleshooting steps to resolve the rate chart issue:
+
+      1️⃣ *Check the rate chart settings entered properly:*
+      • Enter the correct settings
       • 1) Rate chart enable - Enable
       • 2) Auto chart selection and limit set - (Purpose: cow chart to buffalo chart searching)
          ↳ Remark: Eg: Fat limit = 7.0. Below fat 7.0 rate taken from cow chart and above 7.0 taken from buffalo chart
@@ -3537,71 +3566,39 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
       • Then import file from USB
          ↳ Remark: If any wrong rate shown at "Check Rate" operation, check if "Auto Chart is Enable" and verify range
 
-      OR for Weighing Scale:
-
-      📍 *Step 1:* 
-      🔍 *Check 1:* Check the required settings is applied 
-      ⚡ *Action 1:* Set the required settings values
-      • 1) "Weight in Collection" weight taken at the time of test (Before/After)
-         ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode
-      • 2) "Weight Detect From" - From scale / Manual
-         ↳ Remark: Weight taken from weighing scale or manual enter
-      • 3) KG to Litre
-         ↳ Remark: Kilogram data to litre conversion enable/disable
-      • 4) Tare - No tare, before and after collection
-         ↳ Remark: Automatic scale tare action
-      • 5) Baud rate & datatype
-      • 6) Read delay
-         ↳ Remark: Scale data sending time interval = Normally set at 0.50 second
-
-      📍 *Step 2:* 
-      🔍 *Check 2:* Check the analyser to weighing scale data cable connectivity 
-      ⚡ *Action 1:* Properly connect or replace the cable 
-      • 1) Serial "Baud Rate" auto detection / manual selection
-         ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)
-      • 2) Manual selection - Total 10 selectable models and 1 manual settable model
-         ↳ Remark: DOWN key used to select Baud Rate and UP key used to select Types of Models
-      • 1) First enter the start character code
-         ↳ Remark: ASCII code table: Eg: Scale serial data is "L00123.45 0D 0A" -> "L" code is 076 -> Enter 076 in Start Charcode
-      • 2) Next enter the End Charcode
-         ↳ Remark: "0D" is end code -> Enter value 013
-      • 3) Next enter the Char Count
-         ↳ Remark: Eg: "00123.45" total count = 7
-      • 4) Next enter decimal point count
-         ↳ Remark: Eg: Decimal point values "45" count = 2
+      If none of the above steps help, please contact Poornasree Customer Care for further assistance.
 
       OR for General Errors (e.g. T2 Error, Date and Time, Adapter, Vibro, Temperature, Sensor):
 
-      📍 *Step 1:* 
-      🔍 *Check 1:* Check the leakage/block in sample sucking sections 
-      ⚡ *Action 1:* Check the silicon tube for damage or bend
+      Hi [Name], here are the troubleshooting steps to resolve the [issue]:
+
+      1️⃣ *Check the leakage/block in sample sucking sections:*
+      • Check the silicon tube for damage or bend
       • 1) Check if inlet pipe is broken or blocked
          ↳ Remark: Replace inlet pipe if damaged
       • 2) Check inlet tube to preheater silicon tube
          ↳ Remark: Replace or tie silicon tube
 
-      📍 *Step 2:* 
-      🔍 *Check 2:* Check the L-plug properly inserted 
-      ⚡ *Action 1:* Check the O-ring
+      2️⃣ *Check the L-plug properly inserted:*
+      • Check the O-ring
       • 1) Check L-plug for damage and inspect O-ring quality
          ↳ Remark: Replace L-plug or O-ring
 
-      📍 *Step 3:*
       If none of the above steps help, please contact Poornasree Customer Care for further assistance.
 
     - CRITICAL DOCUMENT MAPPING & COMPLETE UN-TRUNCATED OUTPUT RULES:
-      1. ABSOLUTELY DO NOT SUMMARIZE OR CONVERT STEPS INTO A PARAGRAPH! You MUST ALWAYS format the response using 📍 *Step 1:*, 🔍 *Check 1:*, ⚡ *Action 1:*, and • bullet points for all sub-items and ↳ Remark: for remarks!
+      1. ABSOLUTELY DO NOT SUMMARIZE OR CONVERT STEPS INTO A PARAGRAPH! You MUST ALWAYS format the response starting with the greeting "Hi [Name], here are the troubleshooting steps to resolve the [issue]:" (or "Hi, here are the troubleshooting steps to resolve the [issue]:" if name is not known), followed by 1️⃣ *[Check Title]:*, 2️⃣ *[Check Title]:*, 3️⃣ *[Check Title]:*..., • bullet points for all actions and sub-items, and indented ↳ Remark: for remarks, ending with "If none of the above steps help, please contact Poornasree Customer Care for further assistance."!
       2. NATURAL SENTENCE CASING DIRECTIVE: Write all check titles, actions, sub-bullets, and remarks in natural, clean sentence case (e.g. 'Check the fuse', 'Replace the fuse', 'Check the power supply'). NEVER write full sentences or bullet titles in ALL-CAPS / UPPERCASE (except for standard abbreviations/acronyms like USB, GSM, LED, ASCII, L-PLUG, T2).
-      3. MANDATORY CHECK & ACTION PAIR: Every single Step (Step 1, Step 2, Step 3...) MUST contain BOTH a 🔍 *Check* line AND at least one ⚡ *Action* line (⚡ *Action 1:* ...). ABSOLUTELY NEVER output a 🔍 *Check* without its corresponding ⚡ *Action*!
-      4. YOU MUST OUTPUT EVERY SINGLE CHECK STEP FROM THE DOCUMENT (Check 1, Check 2, Check 3, Check 4, Check 5...). If the matched document contains 5 Checks, YOUR RESPONSE MUST CONTAIN ALL 5 CHECKS AS STEP 1, STEP 2, STEP 3, STEP 4, AND STEP 5!
-      5. Under Check 1, list ALL main actions corresponding to CHECK-1 from ACTION-1 (⚡ Action 1:...). Sub-numbered configuration settings (e.g. '1) Weight in collection', '2) Weight detect from', '1) Serial baud rate...') MUST be indented as sub-bullets under Action 1 (• 1) "Weight in collection"...). DO NOT format sub-settings or remarks as separate main Actions (Action 2, Action 3, Action 4).
-      6. ABSOLUTELY NO TRUNCATION: You MUST output EVERY SINGLE Check (Check 1 to N), EVERY Action line (Action 1, Action 2...), and EVERY sub-bullet item from the matched document without omitting, shortening, or cutting off a single line!
+      3. MANDATORY CHECK & ACTION PAIR: Every single Step (1️⃣, 2️⃣, 3️⃣...) MUST contain a bold check title followed by a colon (e.g. 1️⃣ *Check the required settings is applied:*) AND at least one action bullet (• Set the required settings values).
+      4. YOU MUST OUTPUT EVERY SINGLE CHECK STEP FROM THE DOCUMENT (1️⃣, 2️⃣, 3️⃣...). If the matched document contains 5 Checks, YOUR RESPONSE MUST CONTAIN ALL 5 CHECKS AS 1️⃣, 2️⃣, 3️⃣, 4️⃣, and 5️⃣!
+      5. Under Check 1, list ALL main actions corresponding to CHECK-1. Sub-numbered configuration settings (e.g. '1) Weight in collection', '2) Weight detect from', '1) Serial baud rate...') MUST be indented as sub-bullets under the main check (• 1) "Weight in collection"...). DO NOT format sub-settings or remarks as separate main Checks.
+      6. ABSOLUTELY NO TRUNCATION: You MUST output EVERY SINGLE Check (Check 1 to N), EVERY Action line, and EVERY sub-bullet item from the matched document without omitting, shortening, or cutting off a single line!
       7. STRICT REMARKS FORMATTING: ANY LINE THAT CONTAINS REMARKS, EXPLANATIONS, OR EXAMPLES (e.g. "Works only in remote mode", "Eg: The scale display shown...", "ASCII code is 076...") MUST BE FORMATTED AS AN INDENTED "↳ Remark:" LINE UNDER ITS CORRESPONDING SUB-POINT! ABSOLUTELY DO NOT FORMAT REMARKS AS "• Action 2:", "• Action 3:", OR MAIN ACTION LINES!
       8. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
       9. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
       10. Follow ONLY the exact steps and sequence from the matched document.
       11. ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.
-      12. ABSOLUTELY NO DUPLICATE REMARKS OR LEAKED FUTURE CHECKS: A Step must NEVER output a "↳ Remark:" that simply mentions, repeats, or previews the next check (e.g. "Check the power supply", "Check the adapter", "Check the sensor and tube") or future replacement actions! If a check step has no unique explanatory notes, parameters, examples (Eg: ...), or ASCII codes, DO NOT output any "↳ Remark:" line under that step. Output only 📍 *Step N:*, 🔍 *Check N:*, and ⚡ *Action 1:*!${uncatalogedRule}
+      12. ABSOLUTELY NO DUPLICATE REMARKS OR LEAKED FUTURE CHECKS: A Step must NEVER output a "↳ Remark:" that simply mentions, repeats, or previews the next check (e.g. "Check the power supply", "Check the adapter", "Check the sensor and tube") or future replacement actions! If a check step has no unique explanatory notes, parameters, examples (Eg: ...), or ASCII codes, DO NOT output any "↳ Remark:" line under that step. Output only the number emoji header (e.g. 2️⃣ *Check ...:* ) and the action bullet (• Replace ...)!${uncatalogedRule}
 
 --- MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS ---
 ${matchedDocKnowledge || "No specific troubleshooting document match found."}
@@ -3705,7 +3702,7 @@ ${settings.companyAddress || ""}
       let buttons: ReplyButton[] | undefined = undefined;
 
       const hasActionableTroubleshootingSteps =
-        (reply.includes("Step 1") || reply.includes("Step") || reply.includes("Check 1") || reply.includes("Check") || reply.includes("📍") || reply.includes("🔍") || reply.includes("⚡") || reply.includes("1.") || reply.includes("1️⃣") || reply.includes("Settings →") || reply.includes("Settings")) &&
+        (reply.includes("Step 1") || reply.includes("Step") || reply.includes("Check 1") || reply.includes("Check") || reply.includes("📍") || reply.includes("🔍") || reply.includes("⚡") || reply.includes("1.") || reply.includes("1️⃣") || reply.includes("2️⃣") || reply.includes("troubleshooting steps") || reply.includes("Settings →") || reply.includes("Settings")) &&
         (reply.includes("Action") || reply.includes("•") || reply.includes("Settings") || reply.includes("Replace") || reply.includes("Clean") || reply.includes("Inspect") || reply.includes("Ensure") || reply.includes("Check") || reply.includes("turn ON") || reply.includes("manually enter"));
 
       const isAskingQuestion =

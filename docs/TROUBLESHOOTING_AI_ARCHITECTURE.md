@@ -22,32 +22,44 @@ The system enforces strict document isolation between **Customers** and **Regist
 
 ## 2. Troubleshooting Response Structure (Rule 11)
 
-Every machine error or troubleshooting response is strictly formatted into the **Step / Check / Action / Remark** structure:
+Every machine error or troubleshooting response is strictly formatted into the standardized emoji-numbered structure for both Customer and Engineer:
 
 ```text
-📍 *Step 1:* 
-🔍 *Check 1:* <Check Title in UPPERCASE>
-⚡ *Action 1:* <Action Description in UPPERCASE>
-• 1) <Sub-numbered setting or sub-check>
-   ↳ Remark: <Detailed explanation, ASCII code, example values, or notes>
-• 2) <Sub-numbered setting or sub-check>
-   ↳ Remark: <Detailed explanation>
+Hi {Name}, here are the troubleshooting steps to resolve the {issue}:
 
-📍 *Step 2:* 
-🔍 *Check 2:* <Check Title in UPPERCASE>
-⚡ *Action 1:* <Action Description in UPPERCASE>
-• 1) <Sub-numbered item>
-   ↳ Remark: <Detailed explanation>
+1️⃣ *Check the required settings is applied:*
+• Set the required settings values
+• 1) "Weight in Collection" weight taken at the time of test (Before/After)
+   ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode
+• 2) "Weight Detect From" - From scale / Manual
+   ↳ Remark: Weight taken from weighing scale or manual enter
+• 3) KG to Litre
+   ↳ Remark: Kilogram data to litre conversion enable/disable
+• 4) Tare - No tare, before and after collection
+   ↳ Remark: Automatic scale tare action
+• 5) Baud rate & datatype
+• 6) Read delay
+   ↳ Remark: Scale data sending time interval = Normally set at 0.50 second
+• 1) Serial "Baud Rate" auto detection / manual selection
+   ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)
 
-📍 *Step 3:*
+2️⃣ *Check the analyser to weighing scale data cable connectivity:*
+• Properly connect or replace the cable
+
+3️⃣ *Check the mainboard functionality:*
+• Replace the mainboard and sensor board pair
+
 If none of the above steps help, please contact Poornasree Customer Care for further assistance.
 ```
 
 ### Formatting Invariants:
-1. **Mandatory Check + Action Pair**: Every step **must** have both a `🔍 *Check N:*` line and a `⚡ *Action 1:*` line.
-2. **Sub-bullets & Remarks**: Configuration sub-items (e.g. `'1) WEIGHT IN COLLECTION'`) are indented with bullet points (`•`), and explanatory notes or example values are formatted as indented `↳ Remark:` lines.
-3. **No Paragraph Summaries**: Rule 1 (brevity) is strictly restricted to general greetings/chit-chat; troubleshooting instructions are never condensed into a paragraph.
-4. **Interactive Action Buttons**: Responses attach `[ ✅ Resolved ]` and `[ ❌ Unresolved ]` buttons for user feedback and automatic ticket escalation.
+1. **Personalized Greeting**: Responses begin with `Hi {Name}, here are the troubleshooting steps to resolve the {issue}:` (or `Hi, here are the troubleshooting steps to resolve the {issue}:` if the name is not known).
+2. **Keycap Numbered Headers**: Every check is prefixed with its step emoji (`1️⃣`, `2️⃣`, `3️⃣`...) followed by the bold check title and a colon (e.g. `1️⃣ *Check the required settings is applied:*`).
+3. **Bulleted Actions**: Action items are prefixed with bullet points (`• <Action Title>`).
+4. **Sub-bullets & Remarks**: Configuration sub-items (e.g. `• 1) "Weight in Collection"...`) are indented sub-bullets, and explanatory notes or example values are formatted as indented `↳ Remark:` lines.
+5. **Standard Support Footer**: Always concludes with `If none of the above steps help, please contact Poornasree Customer Care for further assistance.`
+6. **No Paragraph Summaries**: Troubleshooting instructions are never condensed into a single plain paragraph.
+7. **Interactive Action Buttons**: Customer chat attaches `[ ✅ Resolved ]` and `[ ❌ Unresolved ]` buttons for user feedback and automatic ticket escalation.
 
 ---
 

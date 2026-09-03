@@ -38,6 +38,7 @@ function formatTrainingDataSteps(rawStr: string): string {
   if (!rawStr) return "";
   const lines = rawStr.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const formattedLines: string[] = [];
+  const numEmojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
   let stepCount = 0;
 
   for (const line of lines) {
@@ -45,21 +46,22 @@ function formatTrainingDataSteps(rawStr: string): string {
     const stepMatch = line.match(/^(\d+)[\.\)]\s*(.*)/);
     if (stepMatch) {
       stepCount++;
+      const emoji = numEmojis[stepCount - 1] || `${stepCount}️⃣`;
       const content = stepMatch[2].trim();
       
+      if (formattedLines.length > 0) formattedLines.push("");
       if (content.includes("->")) {
         const parts = content.split("->").map(p => p.trim());
         const checkText = parts[0];
         const actionText = parts.slice(1).join(" -> ");
-        formattedLines.push(`📍 *Step ${stepCount}:*`);
-        formattedLines.push(`🔍 *Check ${stepCount}:* ${checkText}`);
-        formattedLines.push(`⚡ *Action 1:* ${actionText}`);
+        formattedLines.push(`${emoji} *${checkText}:*`);
+        formattedLines.push(`• ${actionText}`);
       } else {
-        formattedLines.push(`📍 *Step ${stepCount}:*`);
-        formattedLines.push(`🔍 *Check ${stepCount}:* ${content}`);
-        formattedLines.push(`⚡ *Action 1:* ${content}`);
+        formattedLines.push(`${emoji} *${content}:*`);
       }
     } else if (line.startsWith("•") || line.startsWith("-")) {
+      formattedLines.push(`• ${line.replace(/^[•\-]\s*/, "")}`);
+    } else if (line.startsWith("↳")) {
       formattedLines.push(`   ${line}`);
     }
   }

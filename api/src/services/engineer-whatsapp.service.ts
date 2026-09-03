@@ -705,7 +705,7 @@ export async function handleEngineerMessage(
   if (text.length > 2) {
     // Search both simultaneously
     const [troubleshootMatch, videoMatches] = await Promise.all([
-      findEngineerTroubleshooting(text),
+      findEngineerTroubleshooting(text, engineer.firstName),
       searchTrainingVideos(text, 2).catch(() => []),
     ]);
 
@@ -1030,7 +1030,35 @@ export async function handleEngineerMedia(
 }
 
 // ── Helper: Format troubleshooting steps neatly ───────────────────────────
-function formatTroubleshootingSteps(title: string, rawContent: string): string {
+function formatTroubleshootingSteps(title: string, rawContent: string, engineerName?: string): string {
+  // If rawContent already starts with "Hi ... here are the troubleshooting steps", return it directly
+  if (/^Hi\s+[^,]+,\s+here are the troubleshooting steps/i.test(rawContent.trim())) {
+    return rawContent.trim();
+  }
+
+  const cleanTitle = title
+    .replace(/^To fix /i, "")
+    .replace(/^Analyzer — /i, "")
+    .replace(/\s*\([^)]*\)/g, "")
+    .trim()
+    .toLowerCase();
+
+  const issueText = cleanTitle.includes("issue") || cleanTitle.includes("error") || cleanTitle.includes("problem")
+    ? cleanTitle
+    : `${cleanTitle} issue`;
+
+  const name = engineerName ? engineerName.trim() : "there";
+  const greeting = `Hi ${name}, here are the troubleshooting steps to resolve the ${issueText}:`;
+
+  // If rawContent already contains keycap numbers (e.g. 1️⃣, 2️⃣), preserve and wrap with greeting & footer
+  if (rawContent.includes("1️⃣")) {
+    const cleanRaw = rawContent
+      .replace(/\n\s*If none of the above steps help.*?$/gim, "")
+      .replace(/If none of the above steps help.*?$/gim, "")
+      .trim();
+    return `${greeting}\n\n${cleanRaw}\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`;
+  }
+
   const text = rawContent
     .replace(/\n\s*\d+\.\s*If none of the above steps help.*?$/gim, "")
     .replace(/If none of the above steps help.*?$/gim, "")
@@ -1040,6 +1068,8 @@ function formatTroubleshootingSteps(title: string, rawContent: string): string {
 
   const lines = text.split("\n");
   const formattedLines: string[] = [];
+  const numEmojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+  let stepIndex = 0;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -1047,22 +1077,38 @@ function formatTroubleshootingSteps(title: string, rawContent: string): string {
 
     const numMatch = trimmed.match(/^(\d+)[\.\)]\s*(.*)/i);
     if (numMatch) {
-      formattedLines.push(`📍 *Step ${numMatch[1]}:* ${numMatch[2]}`);
+      stepIndex++;
+      const emoji = numEmojis[stepIndex - 1] || `${stepIndex}️⃣`;
+      const stepBody = numMatch[2].trim();
+      if (stepBody.includes("->")) {
+        const [c, ...a] = stepBody.split("->");
+        if (formattedLines.length > 0) formattedLines.push("");
+        formattedLines.push(`${emoji} *${c.trim()}:*`);
+        formattedLines.push(`• ${a.join(" -> ").trim()}`);
+      } else {
+        if (formattedLines.length > 0) formattedLines.push("");
+        formattedLines.push(`${emoji} *${stepBody}:*`);
+      }
+    } else if (trimmed.startsWith("•") || trimmed.startsWith("-")) {
+      formattedLines.push(trimmed.startsWith("•") ? trimmed : `• ${trimmed.replace(/^-\s*/, "")}`);
+    } else if (trimmed.startsWith("↳")) {
+      formattedLines.push(`   ${trimmed}`);
     } else if (/^To (fix|troubleshoot|resolve)/i.test(trimmed)) {
-      formattedLines.push(`🔧 *${trimmed}*`);
+      // skip title header
     } else {
       formattedLines.push(trimmed);
     }
   }
 
-  const body = formattedLines.join("\n\n");
-  return `🔍 *${title}*\n_Troubleshooting Guide_\n\n${body}`;
+  const body = formattedLines.join("\n");
+  return `${greeting}\n\n${body}\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`;
 }
 
 // ── Helper: Search Document Chunks & Service Catalog for troubleshooting ──
 // Accurately matches against admin-uploaded documents (DocumentChunks) and service technical guides.
 async function findEngineerTroubleshooting(
   query: string,
+  engineerName?: string,
 ): Promise<{ title: string; formatted: string } | null> {
   const cleanQ = query.toLowerCase().trim();
   const qTokens = cleanQ.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
@@ -1154,7 +1200,7 @@ async function findEngineerTroubleshooting(
 
   return {
     title: finalTitle,
-    formatted: formatTroubleshootingSteps(finalTitle, finalContent),
+    formatted: formatTroubleshootingSteps(finalTitle, finalContent, engineerName),
   };
 }
 

@@ -351,10 +351,11 @@
       "role": "customer",
       "patterns": [
         "Weighing scale not working",
-        "Scale disconnected"
+        "Scale disconnected",
+        "Weighing scale issue"
       ],
       "responses": [
-        "Please check that the weighing scale cable is securely connected to the machine. If the weighing scale is still not working, please raise a service request and our team will assist you."
+        "1️⃣ *Check the required settings is applied:*\n• Set the required settings values\n• 1) \"Weight in Collection\" weight taken at the time of test (Before/After)\n   ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode\n• 2) \"Weight Detect From\" - From scale / Manual\n   ↳ Remark: Weight taken from weighing scale or manual enter\n• 3) KG to Litre\n   ↳ Remark: Kilogram data to litre conversion enable/disable\n• 4) Tare - No tare, before and after collection\n   ↳ Remark: Automatic scale tare action\n• 5) Baud rate & datatype\n• 6) Read delay\n   ↳ Remark: Scale data sending time interval = Normally set at 0.50 second\n• 1) Serial \"Baud Rate\" auto detection / manual selection\n   ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)\n\n2️⃣ *Check the analyser to weighing scale data cable connectivity:*\n• Properly connect or replace the cable\n\n3️⃣ *Check the mainboard functionality:*\n• Replace the mainboard and sensor board pair\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
       ]
     },
     {
@@ -800,10 +801,12 @@
       "tag": "customer_analyzer_mainboard_weighing_scale",
       "role": "customer",
       "patterns": [
-        "WEIGHING SCALE NOT WORKING"
+        "WEIGHING SCALE NOT WORKING",
+        "Weighing scale issue",
+        "Weighing scale problem"
       ],
       "responses": [
-        "Please check that the weighing scale cable is securely connected to the machine. If the weighing scale is still not working, please raise a service request and our team will assist you."
+        "1️⃣ *Check the required settings is applied:*\n• Set the required settings values\n• 1) \"Weight in Collection\" weight taken at the time of test (Before/After)\n   ↳ Remark: Weight value taken before or after the sample test | Works only in remote mode\n• 2) \"Weight Detect From\" - From scale / Manual\n   ↳ Remark: Weight taken from weighing scale or manual enter\n• 3) KG to Litre\n   ↳ Remark: Kilogram data to litre conversion enable/disable\n• 4) Tare - No tare, before and after collection\n   ↳ Remark: Automatic scale tare action\n• 5) Baud rate & datatype\n• 6) Read delay\n   ↳ Remark: Scale data sending time interval = Normally set at 0.50 second\n• 1) Serial \"Baud Rate\" auto detection / manual selection\n   ↳ Remark: Auto selection = Enter the reference weight data from scale display (eg: 123.45 Ltr)\n\n2️⃣ *Check the analyser to weighing scale data cable connectivity:*\n• Properly connect or replace the cable\n\n3️⃣ *Check the mainboard functionality:*\n• Replace the mainboard and sensor board pair\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
       ]
     },
     {
