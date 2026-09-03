@@ -3190,27 +3190,33 @@ export async function runGroqCompanyAssistant(
         continue;
       }
 
-      // If line is "📍 *Step N:* If none of the above..."
-      const fallbackStepMatch = line.match(/^📍\s*\*Step\s*\d+:?\*\s*(If none.+)$/i);
-      if (fallbackStepMatch) {
-        resultLines.push(`\n_${convertTextToSentenceCase(fallbackStepMatch[1].trim(), preserveAcronyms)}_`);
+      // If line is "📍 *Step N:* If none of the above..." or starts with "If none of the above..."
+      if (/^(?:📍\s*\*Step\s*\d+:?\*\s*)?If none of the above/i.test(trimmed)) {
+        resultLines.push(`\n${trimmed}`);
         continue;
       }
 
-      // If line has Check tag like "🔍 *Check 1:* <Title>"
-      const checkMatch = line.match(/^\s*🔍\s*\*Check\s*(\d+):?\*\s*(.*)$/i);
-      if (checkMatch) {
+      // If line has Check tag like:
+      // - "🔍 *Check 1:* <Title>"
+      // - "1️⃣ *Check <Title>:*"
+      // - "1️⃣ Check <Title>:"
+      // - "1. Check 1: <Title>"
+      // - "Check 1: <Title>"
+      const checkMatch = line.match(/^\s*(?:🔍\s*\*?Check\s*\d*:?\*?|([1-9]️⃣|🔟)\s*\*?(?:Check\s*\d*:?\s*)?|(?:\d+[\.\)]\s*)?Check\s*\d*:?)\s*\*?(.*?)\*?:?\s*$/i);
+      if (checkMatch && !line.includes("here are the troubleshooting") && !line.includes("If none of the above") && !trimmed.startsWith("•") && !trimmed.startsWith("-") && !trimmed.startsWith("↳")) {
         stepCounter++;
-        const numEmoji = emojiNumbers[stepCounter - 1] || `${stepCounter}.`;
-        const titleText = checkMatch[2].trim();
-        const formattedTitle = convertTextToSentenceCase(titleText, preserveAcronyms);
+        const numEmoji = emojiNumbers[stepCounter - 1] || checkMatch[1] || `${stepCounter}️⃣`;
+        let titleText = (checkMatch[2] || "").trim();
+        if (!titleText && checkMatch[1]) titleText = line.replace(/^[1-9]️⃣|🔟/, "").replace(/[*:]/g, "").trim();
+        const cleanTitle = titleText.replace(/^Check\s*\d*:?\s*/i, "");
+        const formattedTitle = convertTextToSentenceCase(`Check ${cleanTitle}`, preserveAcronyms);
         resultLines.push(`\n${numEmoji} *${formattedTitle}:*`);
         prevNormalized = norm;
         continue;
       }
 
-      // If line has Action tag like "⚡ *Action 1:* <Content>"
-      const actionMatch = line.match(/^\s*⚡\s*\*Action\s*\d*:?\*\s*(.*)$/i);
+      // If line has Action tag like "⚡ *Action 1:* <Content>" or "- Action 1: <Content>" or "Action 1: <Content>"
+      const actionMatch = line.match(/^\s*(?:⚡\s*\*?Action\s*\d*:?\*?|-\s*Action\s*\d*:?|Action\s*\d*:?)\s*(.*)$/i);
       if (actionMatch) {
         const actionContent = actionMatch[1].trim();
         if (actionContent) {
@@ -3239,19 +3245,20 @@ export async function runGroqCompanyAssistant(
 
       const remarkMatch = line.match(/^(\s*↳\s*Remark:\s*)(.*)$/i);
       if (remarkMatch) {
-        resultLines.push(`${remarkMatch[1]}${convertTextToSentenceCase(remarkMatch[2].trim(), preserveAcronyms)}`);
+        resultLines.push(`   ↳ Remark: ${convertTextToSentenceCase(remarkMatch[2].trim(), preserveAcronyms)}`);
         prevNormalized = norm;
         continue;
       }
 
       const bulletMatch = line.match(/^(\s*•\s*(?:\d+\))?\s*)(.*)$/i);
       if (bulletMatch) {
+        const bulletPrefix = bulletMatch[1].trim();
         const bulletText = bulletMatch[2].trim();
         const bulletNorm = bulletText.toLowerCase().replace(/[^a-z0-9]/g, "");
         if (bulletNorm.length > 5 && (bulletNorm === prevNormalized || prevNormalized.includes(bulletNorm) || bulletNorm.includes(prevNormalized))) {
           continue;
         }
-        resultLines.push(`${bulletMatch[1]}${convertTextToSentenceCase(bulletText, preserveAcronyms)}`);
+        resultLines.push(`${bulletPrefix} ${convertTextToSentenceCase(bulletText, preserveAcronyms)}`);
         prevNormalized = bulletNorm;
         continue;
       }
