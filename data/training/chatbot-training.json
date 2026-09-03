@@ -127,9 +127,9 @@
         "T2 temp error"
       ],
       "responses": [
-        "If your Analyzer shows T2 / Temperature Set / Sample Not Found / Air in Milk errors, please try these:\n\n1. *Check the milk sample* — make sure the milk is fresh, properly mixed, and at room temperature (not too hot, not too cold). Re-test with a fresh sample.\n\n2. *Check the small L-plug at the bottom of the sample tube* — make sure it is properly inserted and the rubber O-ring is in place (not torn or missing). The O-ring creates the suction seal.\n\n3. *Check the silicone tube* — look at the thin silicone tube going from the sample holder to the analyzer. Make sure it is not bent sharply, pinched, or cracked.\n\n4. *Clean the sample tube* — run the analyzer's cleaning cycle 2-3 times with warm distilled water.\n\nIf the error continues, please tap *Register Complaint* — our technician will inspect the pump and tubing. 🙏"
+        "1️⃣ *Check the leakage/block in sample sucking sections:*\n• Check the silicon tube for damage or bend\n• 1) Check if inlet pipe is broken or blocked\n   ↳ Remark: Replace inlet pipe if damaged\n• 2) Check inlet tube to preheater silicon tube\n   ↳ Remark: Replace or tie silicon tube\n\n2️⃣ *Check the L-plug properly inserted:*\n• Check the O-ring\n• 1) Check L-plug for damage and inspect O-ring quality\n   ↳ Remark: Replace L-plug or O-ring\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
       ],
-      "title": "Analyzer — T2 / Sample Error",
+      "title": "Analyzer — T2 / Air in Milk Error",
       "description": "T2 / temperature / sample not found / air in milk"
     },
     {

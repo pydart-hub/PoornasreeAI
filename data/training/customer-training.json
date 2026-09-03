@@ -611,14 +611,32 @@
       ]
     },
     {
+      "tag": "customer_analyzer_t2_temp_set_error_sample_not_found_air_in_milk",
+      "role": "customer",
+      "patterns": [
+        "T2 error",
+        "T2",
+        "T2 temp set error",
+        "Sample not found",
+        "Air in milk",
+        "Air bubble in milk",
+        "T2 temp error"
+      ],
+      "responses": [
+        "1️⃣ *Check the leakage/block in sample sucking sections:*\n• Check the silicon tube for damage or bend\n• 1) Check if inlet pipe is broken or blocked\n   ↳ Remark: Replace inlet pipe if damaged\n• 2) Check inlet tube to preheater silicon tube\n   ↳ Remark: Replace or tie silicon tube\n\n2️⃣ *Check the L-plug properly inserted:*\n• Check the O-ring\n• 1) Check L-plug for damage and inspect O-ring quality\n   ↳ Remark: Replace L-plug or O-ring\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
+      ]
+    },
+    {
       "tag": "customer_analyzer_mainboard_hot_sample_error",
       "role": "customer",
       "patterns": [
         "HOT SAMPLE ERROR",
-        "Sample is too hot"
+        "Hot sample error",
+        "Sample is too hot",
+        "Hot sample"
       ],
       "responses": [
-        "The milk sample is too hot. Please wait for it to cool down below 40°C and use a fresh, cooler sample before testing again."
+        "1️⃣ *Check the test sample temperature below 40 degree:*\n• Replace the sample\n\n2️⃣ *Check the sensor board functionality:*\n• Replace the mainboard and sensor board pair\n\n3️⃣ *Check the mainboard functionality:*\n• Replace the mainboard and sensor board pair\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
       ]
     },
     {
