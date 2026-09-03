@@ -241,7 +241,14 @@ export async function markMessageAsRead(messageId: string): Promise<boolean> {
 /** Show animated WhatsApp typing indicator ("typing...") to the customer. */
 export async function sendTypingIndicator(messageId: string): Promise<boolean> {
   if (!messageId || !isConfigured()) return false;
-  return markMessageAsRead(messageId);
+  const result = await postWhatsAppMessage("status_update", {
+    status: "read",
+    message_id: messageId,
+    typing_indicator: {
+      type: "text",
+    },
+  });
+  return !!result;
 }
 
 /** Send a plain-text WhatsApp message. `to` should be international digits (e.g. 919876543210). */

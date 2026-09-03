@@ -497,9 +497,9 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // Send status: read immediately (blue ticks ✓✓)
+  // Send status: read immediately (blue ticks ✓✓) & typing indicator animation
   if (messageId) {
-    WhatsAppService.markMessageAsRead(messageId).catch(() => {});
+    WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
   }
 
   const result = await SimulateService.handleMessage(from, text, messageId);
