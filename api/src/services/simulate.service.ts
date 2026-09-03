@@ -2862,7 +2862,7 @@ function normalizeQueryTypos(str: string): string {
     [/\b(sow|sowing|soing|shwing|showng|shwoing|shwng|shwong)\b/gi, "showing"],
     [/\b(sown|sowed|shwn)\b/gi, "shown"],
     [/\b(disply|dsiplay|dplay|dispaly|disp)\b/gi, "display"],
-    [/\b(vibratin|vibrat|vibro|vibrtor|vibrationg)\b/gi, "vibrating"],
+    [/\b(vibratin|vibrat|vibrtor|vibrationg)\b/gi, "vibrating"],
     [/\b(readng|rading|reding|redng|readin)\b/gi, "reading"],
     [/\b(eror|erorr|erorrs|prblm|problm|prblem)\b/gi, "error"],
     [/\b(chargr|adptr|adaptr|adaptor|adpter)\b/gi, "adapter"],

@@ -4,12 +4,17 @@
       "tag": "customer_vibro_not_working_no_led",
       "role": "customer",
       "patterns": [
+        "NOT WORKING (NOT ON LED)",
+        "VIBRO - NOT WORKING (NOT ON LED)",
+        "Vibro not working",
+        "VIBRO not turning on",
         "VIBRO is not working and LED is not on",
         "Vibro power issue, no LED",
-        "My vibro won't turn on"
+        "My vibro won't turn on",
+        "Vibro not powering on"
       ],
       "responses": [
-        "Here are a few things you can check:\n1. Make sure the power adapter is firmly plugged into the machine and the wall outlet.\n2. Try a different power outlet.\n3. Check that the power cable is not damaged.\nIf the machine still doesn't turn on, please raise a service request and our team will assist you."
+        "1️⃣ *Check the fuse:*\n• Replace the fuse\n\n2️⃣ *Check the power supply:*\n• Replace the power supply\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance."
       ]
     },
     {
