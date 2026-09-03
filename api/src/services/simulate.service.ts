@@ -3208,7 +3208,7 @@ export async function runGroqCompanyAssistant(
         const numEmoji = emojiNumbers[stepCounter - 1] || checkMatch[1] || `${stepCounter}️⃣`;
         let titleText = (checkMatch[2] || "").trim();
         if (!titleText && checkMatch[1]) titleText = line.replace(/^[1-9]️⃣|🔟/, "").replace(/[*:]/g, "").trim();
-        const cleanTitle = titleText.replace(/^Check\s*\d*:?\s*/i, "");
+        const cleanTitle = titleText.replace(/^Check\s*\d*:?\s*/i, "").replace(/[:\s]+$/, "").trim();
         const formattedTitle = convertTextToSentenceCase(`Check ${cleanTitle}`, preserveAcronyms);
         resultLines.push(`\n${numEmoji} *${formattedTitle}:*`);
         prevNormalized = norm;
