@@ -212,7 +212,7 @@ export default function ServiceDashboard() {
     const statusCfg = STATUS_CONFIG[ticket.status];
     const issueText = ticket.problemDescription || null;
     const contactPerson = parsedIssue.customerName || parsed.customerName
-      || (ticket.customer && ticket.customer.role !== "admin" && ticket.customer.firstName !== "Customer" ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
+      || (ticket.customer && (ticket.customer as any).role !== "admin" && ticket.customer.firstName !== "Customer" ? `${ticket.customer.firstName} ${ticket.customer.lastName ?? ""}`.trim() : null);
     const organization = ticket.machineCustomer?.trim() || null;
     const customerDisplay = contactPerson && organization && contactPerson.toLowerCase() !== organization.toLowerCase()
       ? `${contactPerson} (${organization})`

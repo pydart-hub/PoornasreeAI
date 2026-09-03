@@ -2,6 +2,8 @@
 // Sends outbound messages via Meta's Graph API v21.0.
 // Uses native fetch (Node 18+) — no extra dependencies.
 
+import path from "path";
+import sharp from "sharp";
 import { runtime } from "./runtime-config.service";
 
 const API_VERSION = "v21.0";
@@ -29,6 +31,10 @@ export type SendTemplateOptions = {
   languageCode: string;
   /** Body {{1}}, {{2}}, … in order */
   bodyParameters: string[];
+  /** Optional header image URL for templates with format: IMAGE */
+  headerImageUrl?: string;
+  /** Optional Meta media ID (e.g. from uploadMediaToMeta) for guaranteed direct delivery */
+  headerMediaId?: string;
   /** Dynamic URL button suffix (template URL ends with {{1}}) */
   urlButtonIndex?: number;
   urlButtonParameter?: string;
@@ -94,11 +100,100 @@ async function postWhatsAppMessage(
 }
 
 /**
+ * Upload a media file directly to Meta Cloud API (WhatsApp Business Account).
+ * Returns the uploaded Meta media_id string, which can be passed directly
+ * into template headers or image messages without needing an external public URL.
+ * Automatically converts WebP and other non-standard image formats into standard JPEG
+ * to ensure 100% compatibility with Meta WhatsApp Cloud API.
+ */
+export async function uploadMediaToMeta(
+  buffer: Buffer,
+  mimeType: string,
+  filename: string,
+): Promise<string | null> {
+  if (!isConfigured()) {
+    console.warn("[whatsapp] WhatsApp Cloud API not configured — cannot upload media");
+    return null;
+  }
+
+  let uploadBuffer = buffer;
+  let uploadMime = mimeType;
+  let uploadName = filename;
+
+  // Meta Cloud API template headers only accept image/jpeg and image/png.
+  // WebP and other formats are rejected by Meta with error 131053 ("WebP image uploads are not currently supported").
+  // Convert any non-PNG image or WebP to high-quality JPEG:
+  if (mimeType.startsWith("image/") && (mimeType === "image/webp" || (mimeType !== "image/png" && mimeType !== "image/jpeg"))) {
+    try {
+      uploadBuffer = await sharp(buffer)
+        .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      uploadMime = "image/jpeg";
+      uploadName = `${path.parse(filename).name || "image"}.jpg`;
+      console.log(`[whatsapp] Auto-converted ${mimeType} to image/jpeg for Meta Cloud API (${uploadBuffer.length} bytes)`);
+    } catch (convErr) {
+      console.warn("[whatsapp] Image conversion to JPEG failed, using original:", convErr);
+    }
+  }
+
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/media`;
+  try {
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("type", uploadMime);
+    form.append("file", new Blob([uploadBuffer as any], { type: uploadMime }), uploadName);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${runtime.waAccessToken()}` },
+      body: form,
+    });
+    const json = (await res.json().catch(() => ({}))) as { id?: string; error?: any };
+    if (!res.ok || json.error) {
+      console.error("[whatsapp] Meta Media Upload failed:", JSON.stringify(json));
+      return null;
+    }
+    console.log(`[whatsapp] Successfully uploaded media to Meta: id=${json.id}`);
+    return json.id || null;
+  } catch (err) {
+    console.error("[whatsapp] Error uploading media to Meta:", err);
+    return null;
+  }
+}
+
+/**
  * Send an approved WhatsApp message template (required for first outbound contact).
  * Template must exist in Meta Business Manager with matching name, language, and variables.
  */
 export async function sendTemplate(to: string, options: SendTemplateOptions): Promise<boolean> {
   const components: Record<string, unknown>[] = [];
+
+  if (options.headerMediaId) {
+    components.push({
+      type: "header",
+      parameters: [
+        {
+          type: "image",
+          image: {
+            id: options.headerMediaId,
+          },
+        },
+      ],
+    });
+  } else if (options.headerImageUrl) {
+    components.push({
+      type: "header",
+      parameters: [
+        {
+          type: "image",
+          image: {
+            link: options.headerImageUrl,
+          },
+        },
+      ],
+    });
+  }
 
   if (options.bodyParameters.length > 0) {
     components.push({

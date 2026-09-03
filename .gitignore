@@ -55,3 +55,4 @@ ssh
 api/prisma/dev.db
 cloudflared.exe
 api/uploads/customer-uploads/
+api/uploads/promotions/

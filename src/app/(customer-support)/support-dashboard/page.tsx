@@ -41,8 +41,10 @@ import {
   ChevronRight,
   AlertTriangle,
   Bell,
-  PhoneCall
+  PhoneCall,
+  Megaphone
 } from "lucide-react";
+import PromotionsStudio from "@/components/support/PromotionsStudio";
 
 interface SessionData {
   id: string;
@@ -200,6 +202,13 @@ const playNotificationChime = () => {
   }
 };
 
+function isSamePhone(p1?: string | null, p2?: string | null): boolean {
+  if (!p1 || !p2) return false;
+  const d1 = p1.replace(/\D/g, "").slice(-10);
+  const d2 = p2.replace(/\D/g, "").slice(-10);
+  return Boolean(d1 && d2 && d1 === d2);
+}
+
 export default function SupportDashboard() {
   const router = useRouter();
   const { user, isLoading: authLoading, logout } = useAuth();
@@ -225,6 +234,7 @@ export default function SupportDashboard() {
   const [contextLoading, setContextLoading] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const [dashboardMode, setDashboardMode] = useState<"chat" | "promotions">("chat");
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastId = useRef(0);
@@ -314,7 +324,7 @@ export default function SupportDashboard() {
     sock.on("support-chat:message", (data: { phoneNumber: string; message: ChatMessage }) => {
       // Update sidebar latest message
       setSessions((prev) => {
-        const idx = prev.findIndex(s => s.phoneNumber === data.phoneNumber);
+        const idx = prev.findIndex(s => isSamePhone(s.phoneNumber, data.phoneNumber));
         if (idx >= 0) {
           const updated = [...prev];
           updated[idx] = { ...updated[idx], lastMessage: data.message, updatedAt: new Date().toISOString() };
@@ -330,7 +340,7 @@ export default function SupportDashboard() {
       });
       
       // Update chat messages if this chat is active (deduplicate by id)
-      if (data.phoneNumber === activePhone) {
+      if (isSamePhone(data.phoneNumber, activePhone)) {
         setMessages(p => p.some(m => m.id === data.message.id) ? p : [...p, data.message]);
       } else {
         if (data.message.role === "user") {
@@ -345,7 +355,7 @@ export default function SupportDashboard() {
       addToast(`🔔 Customer Waiting: ${data.name || data.phoneNumber} is waiting for live support!`, "warning");
 
       setSessions((prev) => {
-        const idx = prev.findIndex((s) => s.phoneNumber === data.phoneNumber);
+        const idx = prev.findIndex((s) => isSamePhone(s.phoneNumber, data.phoneNumber));
         if (idx >= 0) {
           const updated = [...prev];
           updated[idx] = {
@@ -370,7 +380,7 @@ export default function SupportDashboard() {
     sock.on("support-chat:bot-status", (data: { phoneNumber: string; isBotPaused: boolean; reason?: string }) => {
       setSessions((prev) =>
         prev.map((s) =>
-          s.phoneNumber === data.phoneNumber
+          isSamePhone(s.phoneNumber, data.phoneNumber)
             ? {
                 ...s,
                 isBotPaused: data.isBotPaused,
@@ -382,7 +392,7 @@ export default function SupportDashboard() {
       );
 
       if (data.reason === "inactivity_timeout") {
-        if (data.phoneNumber === activePhone) {
+        if (isSamePhone(data.phoneNumber, activePhone)) {
           addToast(`Chatbot for ${data.phoneNumber} automatically turned ON (2 min inactivity timeout)`, "info");
         }
       }
@@ -396,7 +406,7 @@ export default function SupportDashboard() {
     };
   }, [user, activePhone, fetchSessions, addToast]);
 
-  const activeSession = sessions.find((s) => s.phoneNumber === activePhone) ?? null;
+  const activeSession = sessions.find((s) => isSamePhone(s.phoneNumber, activePhone)) ?? null;
 
   // ── 2-Minute Inactivity Auto-Turn-On Countdown Timer ──
   useEffect(() => {
@@ -512,6 +522,36 @@ export default function SupportDashboard() {
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden">
+             {/* Mode Selector Pill in Sidebar */}
+             <div className="p-2.5 bg-[#f0f2f5] dark:bg-[#182229] border-b border-[#e9edef] dark:border-[#222d34]">
+               <div className="grid grid-cols-2 gap-1 p-1 bg-white dark:bg-[#111b21] rounded-xl border border-gray-200/60 dark:border-white/10 shadow-xs">
+                 <button
+                   onClick={() => setDashboardMode("chat")}
+                   className={cn(
+                     "flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all",
+                     dashboardMode === "chat"
+                       ? "bg-[#008069] text-white shadow-sm"
+                       : "text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-white"
+                   )}
+                 >
+                   <MessageSquare className="w-3.5 h-3.5" />
+                   <span>Chats</span>
+                 </button>
+                 <button
+                   onClick={() => setDashboardMode("promotions")}
+                   className={cn(
+                     "flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all",
+                     dashboardMode === "promotions"
+                       ? "bg-[#008069] text-white shadow-sm"
+                       : "text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-white"
+                   )}
+                 >
+                   <Megaphone className="w-3.5 h-3.5" />
+                   <span>Promos</span>
+                 </button>
+               </div>
+             </div>
+
              {/* Chats title bar */}
              <div className="px-4 py-3 bg-white dark:bg-[#111b21] flex items-center justify-between transition-colors duration-200">
                 <span className="text-sm font-bold text-[#111b21] dark:text-[#e9edef]">Chats</span>
@@ -567,7 +607,7 @@ export default function SupportDashboard() {
                   <div className="p-6 text-center text-sm text-[#667781] dark:text-white/40">No sessions match active filters.</div>
                 ) : (
                   filteredSessions.map(s => {
-                    const isActive = s.phoneNumber === activePhone;
+                    const isActive = isSamePhone(s.phoneNumber, activePhone);
                     const stateConfig = getStateConfig(s.state);
                     return (
                       <button
@@ -655,7 +695,7 @@ export default function SupportDashboard() {
             </div>
             {waitingCount > 0 && (
                <button
-                 onClick={() => setActiveTab("waiting")}
+                 onClick={() => { setDashboardMode("chat"); setActiveTab("waiting"); }}
                  className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-md transition-all animate-bounce shrink-0"
                  title="Click to view waiting customers"
                >
@@ -663,11 +703,43 @@ export default function SupportDashboard() {
                  <span>{waitingCount} Waiting</span>
                </button>
              )}
+
+            {/* Header Mode Switcher Tabs */}
+            <div className="hidden sm:flex items-center bg-gray-200/70 dark:bg-[#111b21] p-1 rounded-xl border border-gray-300/40 dark:border-white/10 shrink-0">
+              <button
+                onClick={() => setDashboardMode("chat")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all",
+                  dashboardMode === "chat"
+                    ? "bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] shadow-xs"
+                    : "text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-white"
+                )}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Support Chat</span>
+              </button>
+              <button
+                onClick={() => setDashboardMode("promotions")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all",
+                  dashboardMode === "promotions"
+                    ? "bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] shadow-xs"
+                    : "text-[#54656f] dark:text-[#8696a0] hover:text-[#111b21] dark:hover:text-white"
+                )}
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                <span>Promotions Studio</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              </button>
+            </div>
           </div>
           <ThemeToggle />
         </header>
 
-        <div className="flex-1 flex overflow-hidden">
+        {dashboardMode === "promotions" ? (
+          <PromotionsStudio onShowToast={addToast} />
+        ) : (
+          <div className="flex-1 flex overflow-hidden">
            {!activeSession ? (
              <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-6 bg-[#efeae2] dark:bg-[#0b141a]">
                 <div className="w-16 h-16 rounded-full bg-[#e7f7ef] dark:bg-[#0a332c] flex items-center justify-center animate-bounce duration-1000">
@@ -765,6 +837,14 @@ export default function SupportDashboard() {
                    {messagesLoading && messages.length === 0 ? (
                      <div className="flex justify-center p-8">
                        <Loader2 className="w-6 h-6 animate-spin text-primary dark:text-[#00a884]" />
+                     </div>
+                   ) : messages.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center h-full min-h-[250px] text-center p-8 text-[#667781] dark:text-[#8696a0]">
+                       <MessageSquare className="w-10 h-10 stroke-1 mb-2 opacity-30" />
+                       <p className="text-sm font-semibold">No messages found</p>
+                       <p className="text-xs opacity-70 mt-1 max-w-[240px]">
+                         Customer messages and agent replies will appear here in real-time.
+                       </p>
                      </div>
                    ) : (
                      messages.map((msg) => {
@@ -998,9 +1078,10 @@ export default function SupportDashboard() {
                     </div>
                  </div>
                )}
-             </div>
-           )}
-        </div>
+              </div>
+            )}
+         </div>
+        )}
       </main>
 
       {/* Lightbox / Media Viewer */}

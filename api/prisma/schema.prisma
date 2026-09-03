@@ -515,6 +515,25 @@ model BrandingCampaignLead {
   @@unique([campaignId, leadId])
 }
 
+// ── Promotion Campaign ───────────────────────────────────────────────────
+// Support team broadcast campaigns using Meta WhatsApp templates + images.
+model PromotionCampaign {
+  id             String    @id @default(uuid())
+  title          String
+  templateName   String    // e.g. "promo_product_launch_v1"
+  templateParams Json      // { "1": "value", "2": "value", ... }
+  imageUrl       String?   // attached header image URL
+  targetAudience String    @default("all") // all | engineers | customers | dealers | leads | custom
+  recipientCount Int       @default(0)
+  sentCount      Int       @default(0)
+  failedCount    Int       @default(0)
+  status         String    @default("completed") // draft | sending | completed | failed
+  results        Json?     // Array of { phone, name, status, error }
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
 // ── Work Report ──────────────────────────────────────────────────────────
 // Created by dealer (engineers using dealer credentials) during/after a ticket.
 // One-to-one with Ticket.

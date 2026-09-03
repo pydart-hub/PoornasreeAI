@@ -7,7 +7,7 @@ if (-not $RootDir) { $RootDir = (Get-Location).Path }
 $ApiDir = Join-Path $RootDir "api"
 $SecretToken = "poornasree_ai_webhook_secret_2026"
 $VpsHost = "poornasree-v4"
-$DbForward = "5433:172.18.0.2:5432"
+$DbForward = "5433:172.18.0.4:5432"
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan
