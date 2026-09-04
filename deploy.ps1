@@ -63,7 +63,7 @@ Write-Host " Server: ${User}@${Server}" -ForegroundColor Cyan
 Write-Host ""
 
 if ($Background) {
-    $startCmd = "cd '$RemoteDir' ; : > /tmp/deploy.log ; nohup bash deploy.sh $mode >> /tmp/deploy.log 2>&1 &"
+    $startCmd = "cd '$RemoteDir' ; : > /tmp/deploy.log ; nohup bash deploy.sh $mode >> /tmp/deploy.log 2>&1 `&"
     Invoke-Ssh $startCmd | Out-Null
     Write-Host "Running in background. Watch: ssh ${User}@${Server} 'tail -f /tmp/deploy.log'" -ForegroundColor Yellow
 } else {
