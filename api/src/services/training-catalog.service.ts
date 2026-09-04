@@ -130,13 +130,32 @@ async function loadDocumentIssues(): Promise<CatalogEntry[]> {
         }
         if (/vibro|stirrer/i.test(p) || /vibro|stirrer/i.test(issue.problemType)) {
           patternSet.add("Vibro");
-          patternSet.add("Vibro not working");
-          patternSet.add("Vibro nahi chal raha");
-          patternSet.add("Vibro light nahi jala");
-          patternSet.add("Vibro slow");
-          patternSet.add("Vibro low vibration");
-          patternSet.add("Vibro continuous vibration");
-          patternSet.add("Vibro button issue");
+          patternSet.add("Stirrer");
+          if (/not.*(?:work|on|power)|dead/i.test(issue.problemType) || /not.*(?:work|on|power)|dead/i.test(issue.title)) {
+            patternSet.add("Vibro not working");
+            patternSet.add("Vibro not work");
+            patternSet.add("Vibro nahi chal raha");
+            patternSet.add("Vibro light nahi jala");
+            patternSet.add("Vibro dead");
+            patternSet.add("Vibro won't turn on");
+            patternSet.add("Vibro not powering on");
+          }
+          if (/led.*(?:on.*off|flash|blink)/i.test(issue.problemType) || /led.*(?:on.*off|flash|blink)/i.test(issue.title)) {
+            patternSet.add("Vibro led on and off");
+            patternSet.add("Vibro led blinking");
+          }
+          if (/no.*vibrat/i.test(issue.problemType) || /no.*vibrat/i.test(issue.title)) {
+            patternSet.add("Vibro no vibration");
+          }
+          if (/slow/i.test(issue.problemType) || /slow/i.test(issue.title)) {
+            patternSet.add("Vibro slow");
+          }
+          if (/low.*vibrat/i.test(issue.problemType) || /low.*vibrat/i.test(issue.title)) {
+            patternSet.add("Vibro low vibration");
+          }
+          if (/continuous/i.test(issue.problemType) || /continuous/i.test(issue.title)) {
+            patternSet.add("Vibro continuous vibration");
+          }
         }
       }
 

@@ -30,6 +30,11 @@ const STOP_WORDS = new Set([
   "have", "has", "from", "but", "our", "your", "my", "his", "her",
   "they", "them", "also", "any", "all", "get", "got", "did", "does",
   "will", "been", "who", "you", "too", "use", "used", "via",
+  "in", "on", "at", "to", "of", "a", "an", "is", "it", "by", "as",
+  "be", "or", "do", "if", "so", "no", "into", "onto", "some", "more",
+  "hindi", "malayalam", "tamil", "telugu", "kannada", "bengali", "marathi",
+  "english", "hinglish", "manglish", "words", "word", "language", "languages",
+  "please", "tell", "say", "write", "translate", "translation", "repeat", "explain",
 ]);
 
 const DOMAIN_SYNONYMS: Record<string, string[]> = {
@@ -65,18 +70,19 @@ export function scoreVideoMatch(query: string, title: string, keywords: string):
 
   let score = 0;
 
-  // 1. Direct title contains whole query or vice versa
-  if (normTitle && (normTitle.includes(normQ) || normQ.includes(normTitle))) {
+  // 1. Direct title contains whole query or vice versa (minimum 4 chars to prevent preposition false matches)
+  if (normTitle && normQ.length >= 4 && (normTitle.includes(normQ) || (normQ.length >= normTitle.length && normQ.includes(normTitle)))) {
     score += 50;
   }
 
-  // 2. Direct keyword phrase match
-  if (normKw && (normKw.includes(normQ) || normQ.includes(normKw))) {
+  // 2. Direct keyword phrase match (minimum 4 chars)
+  if (normKw && normQ.length >= 4 && (normKw.includes(normQ) || (normQ.length >= normKw.length && normQ.includes(normKw)))) {
     score += 40;
   }
 
   const qWords = tokenizeQuery(normQ);
   const targetWords = tokenizeQuery(`${normTitle} ${normKw}`);
+  if (qWords.length === 0) return score;
 
   // Expand query with domain synonyms
   const expandedQWords = new Set<string>(qWords);
@@ -89,16 +95,23 @@ export function scoreVideoMatch(query: string, title: string, keywords: string):
 
   // Check word intersections
   for (const qw of expandedQWords) {
-    if (normTitle.includes(qw)) {
+    const isExactTitleWord = targetWords.some((tw) => tw === qw);
+    if (isExactTitleWord) {
       score += 15;
+    } else if (qw.length >= 4 && normTitle.includes(qw)) {
+      score += 8;
     }
-    if (normKw.includes(qw)) {
+
+    if (normKw.split(/[\s|,]+/).some((kw) => kw.trim() === qw)) {
       score += 10;
+    } else if (qw.length >= 4 && normKw.includes(qw)) {
+      score += 5;
     }
+
     for (const tw of targetWords) {
       if (tw === qw) {
         score += 8;
-      } else if (tw.includes(qw) || qw.includes(tw)) {
+      } else if (qw.length >= 4 && tw.length >= 4 && (tw.includes(qw) || qw.includes(tw))) {
         score += 4;
       }
     }

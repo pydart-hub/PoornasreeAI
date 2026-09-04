@@ -3,8 +3,14 @@
     {
       "tag": "vibro_not_working_no_led",
       "patterns": [
+        "Vibro not working",
+        "vibro not working",
+        "VIBRO not working",
         "VIBRO is not working and LED is not on",
         "Vibro power issue, no LED",
+        "Vibro power issue",
+        "Vibro not powering on",
+        "vibro dead",
         "My vibro won't turn on"
       ],
       "responses": [

@@ -14,13 +14,23 @@ import {
   ENG_PREFIX,
   ENGINEER_ACTIVE_TICKET_SELECT,
   type EngineerTicketRow,
+  type EngLang,
+  getEngineerLanguage,
+  getEngMainMenuButtons,
+  getEngLangList,
+  getMainMenuButton,
   formatTicketDetailMessage,
   sendTicketActionButtons,
   sendEngineerMessage,
   sendReportMenuList,
   attachWorkReportPhoto,
   findEngineerTicket,
+  formatTrainingVideoListMessage,
+  getTrainingVideoInteractiveList,
+  formatTrainingVideoDetail,
+  getTrainingVideoDetailButtons,
 } from "./engineer-ticket-whatsapp.shared";
+import { translateText } from "./translate.service";
 import { resolveTicketCustomerName } from "../lib/ticket-customer";
 
 interface PendingAction {
@@ -31,6 +41,7 @@ interface PendingAction {
 // In-memory active ticket and pending action tracking per engineer phone
 const activeTicketMap = new Map<string, string>();
 const pendingActionMap = new Map<string, PendingAction>();
+const lastEngineerMenuMap = new Map<string, string>();
 
 export function getActiveTicket(phone: string): string | undefined {
   return activeTicketMap.get(phone);
@@ -162,6 +173,128 @@ async function upsertReportField(
   return report;
 }
 
+// ── Engineer Localization Dictionary ──────────────────────────────────────────
+export const ENG_TRANSLATIONS: Record<string, Record<EngLang, string>> = {
+  LANG_CHANGED_EN: {
+    en: "✅ Language set to *English*.",
+    hi: "✅ Language set to *English*.",
+    ta: "✅ மொழி *English* என அமைக்கப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *English* ಗೆ ಹೊಂದಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *English* वर सेट केली.",
+    te: "✅ భాష *English* గా సెట్ చేయబడింది.",
+    bn: "✅ ভাষা *English* সেট করা হয়েছে।",
+    ml: "✅ ഭാഷ *English* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_HI: {
+    en: "✅ भाषा *हिंदी* में बदली गई।",
+    hi: "✅ भाषा *हिंदी* में बदली गई।",
+    ta: "✅ மொழி *हिंदी* க்கு மாற்றப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *हिंदी* ಗೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *हिंदी* मध्ये बदलली.",
+    te: "✅ భాష *हिंदी* కి మార్చబడింది.",
+    bn: "✅ ভাষা *हिंदी* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ഭാഷ *हिंदी* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_TA: {
+    en: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
+    hi: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
+    ta: "✅ மொழி *தமிழ்* ஆக மாற்றப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *தமிழ்* ಗೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *தமிழ்* मध्ये बदलली.",
+    te: "✅ భాష *தமிழ்* కి మార్చబడింది.",
+    bn: "✅ ভাষা *தமிழ்* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ഭാഷ *தமிழ்* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_ML: {
+    en: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    hi: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    ta: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    kn: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    mr: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    te: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    bn: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+    ml: "✅ ഭാഷ *മലയാളം* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_KN: {
+    en: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    hi: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    ta: "✅ மொழி *ಕನ್ನಡ* க்கு மாற்றப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *ಕನ್ನಡ* ಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *ಕನ್ನಡ* मध्ये बदलली.",
+    te: "✅ భాష *ಕನ್ನಡ* కి మార్చబడింది.",
+    bn: "✅ ভাষা *ಕನ್ನಡ* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ഭാഷ *കನ್ನಡ* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_MR: {
+    en: "✅ भाषा *मराठी* मध्ये बदलली.",
+    hi: "✅ भाषा *मराठी* मध्ये बदलली.",
+    ta: "✅ மொழி *मराठी* க்கு மாற்றப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *मराठी* ಗೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *मराठी* मध्ये बदलली.",
+    te: "✅ भाषा *मराठी* కి మార్చబడింది.",
+    bn: "✅ भाषा *मराठी* मध्ये बदलली.",
+    ml: "✅ ഭാഷ *മറാഠി* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_TE: {
+    en: "✅ భాష *తెలుగు* కి మార్చబడింది.",
+    hi: "✅ भाषा *తెలుగు* में बदली गई।",
+    ta: "✅ மொழி *తెలుగు* க்கு மாற்றப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *తెలుగు* ಗೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *తెలుగు* मध्ये बदलली.",
+    te: "✅ భాష *తెలుగు* కి మార్చబడింది.",
+    bn: "✅ भाषा *తెలుగు* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ഭാഷ *തെലുങ്ക്* ആയി മാറ്റി.",
+  },
+  LANG_CHANGED_BN: {
+    en: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে।",
+    hi: "✅ भाषा *বাংলা* में बदली गई।",
+    ta: "✅ மொழி *বাংলা* க்கு மாற்றப்பட்டது.",
+    kn: "✅ ಭಾಷೆಯನ್ನು *বাংলা* ಗೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
+    mr: "✅ भाषा *বাংলা* मध्ये बदलली.",
+    te: "✅ भाषा *বাংলা* కి మార్చబడింది.",
+    bn: "✅ ভাষা *বাংলা* তে পরিবর্তিত হয়েছে।",
+    ml: "✅ ഭാഷ *ബംഗാളി* ആയി മാറ്റി.",
+  },
+  MAIN_MENU_GREETING: {
+    en: "👋 *Hi {name}!*\nWelcome to the *Poornasree Service Engineer Portal*.\n\nManage your service tickets and get instant troubleshooting help right here on WhatsApp.\n\n💡 _Type any machine problem (e.g. \"vibro not working\", \"low voltage\") to get instant troubleshooting steps._\n📊 _Type \"STATUS\" for your ticket summary._",
+    ml: "👋 *ഹലോ {name}!* \n*പൂർണ്ണശ്രീ സർവീസ് എഞ്ചിനീയർ പോർട്ടലിലേക്ക്* സ്വാഗതം.\n\nനിങ്ങളുടെ സർവീസ് ടിക്കറ്റുകൾ കൈകാര്യം ചെയ്യാനും ട്രബിൾഷൂട്ടിംഗ് സഹായം നേടാനും ഇവിടെ സാധിക്കും.\n\n💡 _മെഷീൻ തകരാറുകൾ നേരിട്ട് ടൈപ്പ് ചെയ്യുക (ഉദാ: \"vibro not working\", \"low voltage\")._\n📊 _ടിക്കറ്റ് സംഗ്രഹം അറിയാൻ \"STATUS\" എന്ന് ടൈപ്പ് ചെയ്യുക._",
+    hi: "👋 *नमस्ते {name}!* \n*पूर्णश्री सर्विस इंजीनियर पोर्टल* में आपका स्वागत है।\n\nअपने सर्विस टिकट प्रबंधित करें और त्वरित समस्या निवारण सहायता प्राप्त करें।\n\n💡 _मशीन की समस्या टाइप करें (उदा: \"vibro not working\", \"low voltage\")।_\n📊 _टिकट सारांश के लिए \"STATUS\" टाइप करें।_",
+    ta: "👋 *வணக்கம் {name}!* \n*பூர்ணஸ்ரீ சர்வீஸ் இன்ஜினியர் போர்ட்டலுக்கு* வரவேற்கிறோம்.\n\nஉங்கள் சேவை டிக்கெட்டுகளை நிர்வகிக்கவும் சரிசெய்தல் உதவிகளைப் பெறவும் முடியும்.\n\n💡 _இயந்திர சிக்கலை நேரடியாக உள்ளிடவும் (எ.கா: \"vibro not working\", \"low voltage\")._\n📊 _சுருக்கத்திற்கு \"STATUS\" என தட்டச்சு செய்க._",
+    kn: "👋 *ನಮಸ್ಕಾರ {name}!* \n*ಪೂರ್ಣಶ್ರೀ ಸರ್ವಿಸ್ ಇಂಜಿನಿಯರ್ ಪೋರ್ಟಲ್* ಗೆ ಸುಸ್ವಾಗತ.\n\nನಿಮ್ಮ ಸೇವಾ ಟಿಕೆಟ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ ಮತ್ತು ತಕ್ಷಣದ ಪರಿಹಾರ ಪಡೆಯಿರಿ.\n\n💡 _ಯಂತ್ರದ ಸಮಸ್ಯೆಯನ್ನು ನೇರವಾಗಿ ಟೈಪ್ ಮಾಡಿ (ಉದಾ: \"vibro not working\", \"low voltage\")._\n📊 _ಸಾರಾಂಶಕ್ಕಾಗಿ \"STATUS\" ಎಂದು ಟೈಪ್ ಮಾಡಿ._",
+    mr: "👋 *नमस्कार {name}!* \n*पूर्णश्री सर्व्हिस इंजिनिअर पोर्टल* मध्ये आपले स्वागत आहे.\n\nआपली सर्व्हिस तिकिटे व्यवस्थापित करा आणि व्हॉट्सॲपवर त्वरित मदत मिळवा.\n\n💡 _मशीनची समस्या थेट टाइप करा (उदा: \"vibro not working\", \"low voltage\")._\n📊 _तिकीट सारांशासाठी \"STATUS\" टाइप करा._",
+    te: "👋 *నమస్కారం {name}!* \n*పూర్ణశ్రీ సర్వీస్ ఇంజనీర్ పోర్టల్* కు స్వాగతం.\n\nమీ సర్వీస్ టిక్కెట్లను నిర్వహించండి మరియు తక్షణ సహాయం పొందండి.\n\n💡 _మెషిన్ సమస్యను టైప్ చేయండి (ఉదా: \"vibro not working\", \"low voltage\")._\n📊 _సారాంశం కోసం \"STATUS\" టైప్ చేయండి._",
+    bn: "👋 *নমস্কার {name}!* \n*পূর্ণশ্রী সার্ভিস ইঞ্জিনিয়ার পোর্টালে* স্বাগতম।\n\nআপনার সার্ভিস টিকিট পরিচালনা করুন এবং உடனடியாக সহায়তা পান।\n\n💡 _মেশিনের समस्याটি সরাসরি টাইপ করুন (যেমন: \"vibro not working\", \"low voltage\")._\n📊 _সারসংক্ষেপের জন্য \"STATUS\" টাইপ করুন।_",
+  },
+  NO_TICKETS: {
+    en: "📋 *My Tickets*\n\nHi {name}, you have no pending tickets assigned right now! 🎉",
+    ml: "📋 *എന്റെ ടിക്കറ്റുകൾ*\n\nഹലോ {name}, നിലവിൽ നിങ്ങൾക്ക് തീർപ്പാക്കാത്ത ടിക്കറ്റുകളൊന്നുമില്ല! 🎉",
+    hi: "📋 *मेरे टिकट*\n\nनमस्ते {name}, आपके पास अभी कोई लंबित टिकट नहीं है! 🎉",
+    ta: "📋 *எனது டிக்கெட்டுகள்*\n\nவணக்கம் {name}, உங்களுக்கு தற்போது நிலுவையில் உள்ள டிக்கெட்டுகள் எதுவும் இல்லை! 🎉",
+    kn: "📋 *ನನ್ನ ಟಿಕೆಟ್‌ಗಳು*\n\nನಮಸ್ಕಾರ {name}, ನಿಮಗೆ ಪ್ರಸ್ತುತ ಯಾವುದೇ ಬಾಕಿ ಟಿಕೆಟ್‌ಗಳಿಲ್ಲ! 🎉",
+    mr: "📋 *माझी तिकिटे*\n\nनमस्कार {name}, आपल्याकडे सध्या कोणतीही प्रलंबित तिकिटे नाहीत! 🎉",
+    te: "📋 *నా టిక్కెట్లు*\n\nనమస్కారం {name}, మీకు ప్రస్తుతం పెండింగ్‌లో ఉన్న టిక్కెట్లు ఏవీ లేవు! 🎉",
+    bn: "📋 *আমার টিকিট*\n\nনমস্কার {name}, আপনার কাছে বর্তমানে কোনো অমীমাংসিত টিকিট নেই! 🎉",
+  },
+  TROUBLESHOOT_INFO: {
+    en: "🔍 *Troubleshooting Help*\n\nJust type your machine problem directly and I'll find the troubleshooting steps and training videos for you!\n\n_Examples:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    ml: "🔍 *ട്രബിൾഷൂട്ടിംഗ് സഹായം*\n\nമെഷീൻ പ്രശ്നം ഇവിടെ ടൈപ്പ് ചെയ്യുക, ട്രബിൾഷൂട്ടിംഗ് ഘട്ടങ്ങളും വീഡിയോകളും ഞാൻ കണ്ടെത്തി നൽകാം!\n\n_ഉദാഹരണങ്ങൾ:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    hi: "🔍 *समस्या निवारण सहायता*\n\nअपनी मशीन की समस्या सीधे टाइप करें और मैं आपके लिए समस्या निवारण चरण और प्रशिक्षण वीडियो ढूंढ दूंगा!\n\n_उदाहरण:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    ta: "🔍 *சரிசெய்தல் உதவி*\n\nஉங்கள் இயந்திர சிக்கலை நேரடியாக தட்டச்சு செய்யவும், அதற்கான வழிகாட்டுதல் மற்றும் வீடியோக்களை நான் தருகிறேன்!\n\n_உதாரணங்கள்:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    kn: "🔍 *ಸಮಸ್ಯೆ ನಿವಾರಣೆ ಸಹಾಯ*\n\nನಿಮ್ಮ ಯಂತ್ರದ ಸಮಸ್ಯೆಯನ್ನು ನೇರವಾಗಿ ಟೈಪ್ ಮಾಡಿ ಮತ್ತು ನಾನು ಪರಿಹಾರ ಹಂತಗಳನ್ನು ಹುಡುಕುತ್ತೇನೆ!\n\n_ಉದಾಹರಣೆಗಳು:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    mr: "🔍 *समस्या निवारण मदत*\n\nआपल्या मशीनची समस्या थेट टाइप करा आणि मी समस्येचे निवारण आणि व्हिडिओ शोधून देईन!\n\n_उदाहरणे:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    te: "🔍 *సమస్య నివారణ సహాయం*\n\nమీ మెషిన్ సమస్యను నేరుగా టైప్ చేయండి, నేను పరిష్కార దశలు మరియు వీడియోలను కనుగొంటాను!\n\n_ఉదాహరణలు:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+    bn: "🔍 *সমস্যা সমাধান সহায়তা*\n\nআপনার মেশিনের সমস্যাটি সরাসরি টাইপ করুন এবং আমি সমাধান পদক্ষেপ ও ভিডিও খুঁজে দেব!\n\n_উদাহরণ:_\n• *\"vibro not working\"*\n• *\"low voltage\"*\n• *\"no display\"*\n• *\"wifi not connecting\"*",
+  },
+};
+
+export function tEng(key: string, lang: EngLang = "en", vars: Record<string, string> = {}): string {
+  let str = ENG_TRANSLATIONS[key]?.[lang] ?? ENG_TRANSLATIONS[key]?.en ?? key;
+  for (const [k, v] of Object.entries(vars)) {
+    str = str.split(`{${k}}`).join(v);
+  }
+  return str;
+}
+
 /**
  * Main router for inbound WhatsApp messages from Service Engineers.
  */
@@ -174,6 +307,97 @@ export async function handleEngineerMessage(
   const upper = text.toUpperCase();
 
   console.log(`[engineer-whatsapp] Inbound from ${engineer.firstName} (${from}): "${text}"`);
+
+  // ── 0. Language Request & Selection Interceptor ──
+  if (
+    upper === "CHANGE_LANGUAGE" ||
+    upper === "CHANGE_LANG" ||
+    upper === "SELECT_LANG" ||
+    upper === "LANGUAGE" ||
+    upper === "LANG" ||
+    upper === "CHANGE LANGUAGE" ||
+    upper === "CHOOSE LANGUAGE"
+  ) {
+    const lang = await getEngineerLanguage(from);
+    await sendEngineerMessage(
+      from,
+      lang === "ml"
+        ? "🌐 *നിങ്ങൾക്ക് ഇഷ്ടമുള്ള ഭാഷ തിരഞ്ഞെടുക്കുക:*\nതുടരാൻ താഴെ നിന്ന് ഒരു ഭാഷ തിരഞ്ഞെടുക്കുക 👇"
+        : lang === "hi"
+        ? "🌐 *अपनी पसंदीदा भाषा चुनें:*\nजारी रखने के लिए नीचे से भाषा चुनें 👇"
+        : "🌐 *Select your preferred language:*\nChoose your language below to continue 👇",
+      undefined,
+      getEngLangList(lang),
+    );
+    return;
+  }
+
+  const langMatch =
+    text.match(
+      /^(?:LANG_)?(malayalam|hindi|tamil|telugu|kannada|marathi|bengali|english)$/i,
+    ) ||
+    text.match(/^in\s+(malayalam|hindi|tamil|telugu|kannada|marathi|bengali|english)$/i) ||
+    text.match(/^(LANG_EN|LANG_HI|LANG_TA|LANG_ML|LANG_KN|LANG_MR|LANG_TE|LANG_BN)$/i) ||
+    text.match(/^(EN|ML)$/i) ||
+    text.match(/^(മലയാളം|हिंदी|தமிழ்|ಕನ್ನಡ|मराठी|తెలుగు|বাংলা)$/);
+
+  if (langMatch) {
+    const rawVal = (langMatch[1] || text).toLowerCase().replace(/^in\s+/i, "").replace(/^lang_/i, "");
+    const langCodeMap: Record<string, EngLang> = {
+      en: "en",
+      english: "en",
+      ml: "ml",
+      malayalam: "ml",
+      "മലയാളം": "ml",
+      hi: "hi",
+      hindi: "hi",
+      "हिंदी": "hi",
+      ta: "ta",
+      tamil: "ta",
+      "தமிழ்": "ta",
+      kn: "kn",
+      kannada: "kn",
+      "ಕನ್ನಡ": "kn",
+      mr: "mr",
+      marathi: "mr",
+      "मराठी": "mr",
+      te: "te",
+      telugu: "te",
+      "తెలుగు": "te",
+      bn: "bn",
+      bengali: "bn",
+      "বাংলা": "bn",
+    };
+    const code: EngLang = langCodeMap[rawVal] || "en";
+
+    try {
+      let session = await prisma.conversationSession.findFirst({ where: { phoneNumber: from } });
+      if (!session) {
+        session = await prisma.conversationSession.create({
+          data: { phoneNumber: from, metadata: { language: code } },
+        });
+      } else {
+        const meta = (session.metadata as any) || {};
+        meta.language = code;
+        await prisma.conversationSession.update({
+          where: { id: session.id },
+          data: { metadata: meta },
+        });
+      }
+
+      const confirmMsg = tEng(`LANG_CHANGED_${code.toUpperCase()}`, code);
+      const greetingMsg = tEng("MAIN_MENU_GREETING", code, { name: engineer.firstName });
+
+      await sendEngineerMessage(
+        from,
+        `${confirmMsg}\n\n${greetingMsg}`,
+        getEngMainMenuButtons(code),
+      );
+    } catch (e) {
+      console.error("[engineer-whatsapp] Error setting language:", e);
+    }
+    return;
+  }
 
   // ── 1. Pending Action Interceptor (e.g. text input after button click) ──
   const pending = pendingActionMap.get(from);
@@ -336,15 +560,66 @@ export async function handleEngineerMessage(
     upper === "MAIN MENU" ||
     upper === "ENG_MENU"
   ) {
+    lastEngineerMenuMap.delete(from);
+    const lang = await getEngineerLanguage(from);
     await sendEngineerMessage(
       from,
-      `👋 *Hi ${engineer.firstName}!*\nWelcome to the *Poornasree Service Engineer Portal*.\n\nManage your service tickets and get instant troubleshooting help right here on WhatsApp.\n\n💡 _Type any machine problem (e.g. "vibro not working", "low voltage") to get instant troubleshooting steps._`,
-      [
-        { id: "TICKETS", title: "📋 View Tickets" },
-        { id: "STATUS", title: "📊 Status Summary" },
-      ],
+      tEng("MAIN_MENU_GREETING", lang, { name: engineer.firstName }),
+      getEngMainMenuButtons(lang),
     );
     return;
+  }
+
+  // ── 3b. Training Videos Catalog ("TRAINING_VIDEOS" / "TRAINING" / "VIDEOS" / "TUTORIALS") ──
+  if (
+    upper === "TRAINING_VIDEOS" ||
+    upper === "TRAINING" ||
+    upper === "VIDEOS" ||
+    upper === "VIDEO" ||
+    upper === "TUTORIALS" ||
+    upper === "TUTORIAL" ||
+    upper === "TRAINING VIDEOS" ||
+    upper === "TRAINING LIST" ||
+    upper === "VIDEO LIST" ||
+    upper === "ALL VIDEOS" ||
+    upper === "ENG_VIDEOS"
+  ) {
+    await handleListTrainingVideos(from, engineer);
+    return;
+  }
+
+  // ── 3c. Training Video Direct Selection (e.g. "VID_1", "V1", "VIDEO 1", or number in training mode) ──
+  if (upper.startsWith("VID_") || upper.startsWith("VIDEO_")) {
+    const rawNum = upper.replace("VID_", "").replace("VIDEO_", "").trim();
+    const index = parseInt(rawNum, 10);
+    if (!isNaN(index) && index >= 1) {
+      await handleShowTrainingVideo(from, engineer, index);
+      return;
+    }
+  }
+
+  const vPrefixMatch = upper.match(/^V\s*(\d+)$/i) || upper.match(/^VIDEO\s+(\d+)$/i);
+  if (vPrefixMatch) {
+    const index = parseInt(vPrefixMatch[1], 10);
+    if (!isNaN(index) && index >= 1) {
+      await handleShowTrainingVideo(from, engineer, index);
+      return;
+    }
+  }
+
+  if (/^\d+$/.test(upper)) {
+    const num = parseInt(upper, 10);
+    if (lastEngineerMenuMap.get(from) === "training_videos") {
+      await handleShowTrainingVideo(from, engineer, num);
+      return;
+    }
+    if (num >= 2 && num <= 30) {
+      const videoCount = await prisma.engineerTrainingVideo.count();
+      if (num <= videoCount) {
+        await handleShowTrainingVideo(from, engineer, num);
+        return;
+      }
+    }
   }
 
   // ── 4. View Active Tickets List ("TICKETS" / "VIEW TICKETS" / "MY TICKETS" / "1") ──
@@ -352,13 +627,14 @@ export async function handleEngineerMessage(
     upper === "TICKETS" ||
     upper === "VIEW TICKETS" ||
     upper === "MY TICKETS" ||
-    upper === "1" ||
+    (upper === "1" && lastEngineerMenuMap.get(from) !== "training_videos") ||
     upper === "ALL TICKETS" ||
     upper === "LIST" ||
     upper === "ENG_TICKETS" ||
     upper === "JOBS" ||
     upper.startsWith("PAGE:")
   ) {
+    lastEngineerMenuMap.delete(from);
     const pageMatch = upper.match(/PAGE:(\d+)/);
     const page = pageMatch ? parseInt(pageMatch[1], 10) : 0;
     await handleListTickets(from, engineer, page);
@@ -367,6 +643,7 @@ export async function handleEngineerMessage(
 
   // ── 5. Status Summary ──
   if (upper === "STATUS" || upper === "SUMMARY") {
+    lastEngineerMenuMap.delete(from);
     await handleStatusSummary(from, engineer);
     return;
   }
@@ -665,13 +942,11 @@ export async function handleEngineerMessage(
 
   // ── 18. Troubleshoot keyword — redirect to type-based help ──
   if (upper === "TROUBLESHOOT" || upper === "TRAINING" || upper === "2" || upper === ENG_PREFIX.TS_GUIDE || upper === ENG_PREFIX.TS_VIDEOS) {
+    const lang = await getEngineerLanguage(from);
     await sendEngineerMessage(
       from,
-      `🔍 *Troubleshooting Help*\n\nJust type your machine problem directly and I'll find the troubleshooting steps and training videos for you!\n\n_Examples:_\n• *"vibro not working"*\n• *"low voltage"*\n• *"no display"*\n• *"wifi not connecting"*`,
-      [
-        { id: "TICKETS", title: "📋 My Tickets" },
-        { id: "STATUS", title: "📊 Status Summary" },
-      ],
+      tEng("TROUBLESHOOT_INFO", lang),
+      getEngMainMenuButtons(lang),
     );
     return;
   }
@@ -717,9 +992,18 @@ export async function handleEngineerMessage(
 
     if (hasSteps || hasTroubleshootingVideo || hasTrainingVideos) {
       const parts: string[] = [];
+      const lang = await getEngineerLanguage(from);
 
       if (hasSteps) {
-        parts.push(troubleshootMatch!.formatted);
+        let stepsText = troubleshootMatch!.formatted;
+        if (lang !== "en") {
+          try {
+            stepsText = await translateText(stepsText, lang);
+          } catch (e) {
+            console.error("[engineer-whatsapp] Error translating troubleshooting steps:", e);
+          }
+        }
+        parts.push(stepsText);
       }
 
       // If matching complaint has a troubleshooting video, present it
@@ -727,22 +1011,35 @@ export async function handleEngineerMessage(
         const videoLines = troubleshootingVideos
           .map((v) => `🎬 *${v.title}*\n👉 ${v.youtubeUrl}`)
           .join("\n\n");
-        parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}📺 *Related Troubleshooting Video:*\n\n${videoLines}`);
+        const videoTitle = lang === "ml"
+          ? "📺 *ട്രബിൾഷൂട്ടിംഗ് വീഡിയോ:*"
+          : lang === "hi"
+          ? "📺 *समस्या निवारण वीडियो:*"
+          : "📺 *Related Troubleshooting Video:*";
+        parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}${videoTitle}\n\n${videoLines}`);
       } else if (hasTrainingVideos) {
         // If not a machine fault troubleshooting video, but matches engineer setup training (e.g. "channels")
         const videoLines = trainingVideoMatches
           .map((v) => `🎬 *${v.title}*\n👉 ${v.youtubeUrl}`)
           .join("\n\n");
-        parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}🎓 *Related Training Videos:*\n\n${videoLines}`);
+        const trainingTitle = lang === "ml"
+          ? "🎓 *ട്രെയിനിംഗ് വീഡിയോകൾ:*"
+          : lang === "hi"
+          ? "🎓 *प्रशिक्षण वीडियो:*"
+          : "🎓 *Related Training Videos:*";
+        parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}${trainingTitle}\n\n${videoLines}`);
       }
+
+      const footer = lang === "ml"
+        ? "\n\n_മറ്റൊരു മെഷീൻ പ്രശ്നം എപ്പോൾ വേണമെങ്കിലും ടൈപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ താഴെ ക്ലിക്ക് ചെയ്യുക:_"
+        : lang === "hi"
+        ? "\n\n_किसी अन्य मशीन की समस्या कभी भी टाइप करें, या नीचे टैप करें:_"
+        : "\n\n_Type another machine problem anytime, or tap below:_";
 
       await sendEngineerMessage(
         from,
-        parts.join("") + "\n\n_Type another machine problem anytime, or tap below:_",
-        [
-          { id: "TICKETS", title: "📋 My Tickets" },
-          { id: "STATUS", title: "📊 Status Summary" },
-        ],
+        parts.join("") + footer,
+        getEngMainMenuButtons(lang),
       );
       return;
     }
@@ -755,13 +1052,17 @@ export async function handleEngineerMessage(
   }
 
   // ── Default Fallback ──
+  const lang = await getEngineerLanguage(from);
+  const fallbackMsg = lang === "ml"
+    ? `ഹലോ ${engineer.firstName}, *"${text.length > 40 ? text.slice(0, 37) + "..." : text}"* എന്നതിന് വിവരങ്ങളൊന്നും കണ്ടെത്താനായില്ല.\n\n💡 _ട്രബിൾഷൂട്ടിംഗ് ഘട്ടങ്ങൾ ലഭിക്കാൻ മെഷീൻ പ്രശ്നം ടൈപ്പ് ചെയ്യുക (ഉദാ: "vibro not working", "no display", "low voltage")._`
+    : lang === "hi"
+    ? `नमस्ते ${engineer.firstName}, मुझे *"${text.length > 40 ? text.slice(0, 37) + "..." : text}"* के लिए कोई परिणाम नहीं मिला।\n\n💡 _समस्या निवारण के लिए मशीन की समस्या टाइप करें (उदा: "vibro not working", "no display", "low voltage")._`
+    : `Hi ${engineer.firstName}, I couldn't find a match for *"${text.length > 40 ? text.slice(0, 37) + "..." : text}"*.\n\n💡 _Try typing a machine problem (e.g. "vibro not working", "no display", "low voltage") to get troubleshooting steps._`;
+
   await sendEngineerMessage(
     from,
-    `Hi ${engineer.firstName}, I couldn't find a match for *"${text.length > 40 ? text.slice(0, 37) + "..." : text}"*.\n\n💡 _Try typing a machine problem (e.g. "vibro not working", "no display", "low voltage") to get troubleshooting steps._`,
-    [
-      { id: "TICKETS", title: "📋 My Tickets" },
-      { id: "STATUS", title: "📊 Status Summary" },
-    ],
+    fallbackMsg,
+    getEngMainMenuButtons(lang),
   );
 }
 
@@ -773,6 +1074,7 @@ async function handleListTickets(
   engineer: { id: string; firstName: string },
   page: number = 0,
 ): Promise<void> {
+  const lang = await getEngineerLanguage(from);
   const PAGE_SIZE = 8;
   const tickets = (await prisma.ticket.findMany({
     where: {
@@ -788,20 +1090,18 @@ async function handleListTickets(
   if (tickets.length === 0 && page === 0) {
     await sendEngineerMessage(
       from,
-      `📋 *My Tickets*\n\nHi ${engineer.firstName}, you have no pending tickets assigned right now! 🎉`,
-      [
-        { id: "STATUS", title: "📊 Status Summary" },
-        { id: "TROUBLESHOOT", title: "🔍 Troubleshoot" },
-        { id: "HELP", title: "❓ Help" },
-      ],
+      tEng("NO_TICKETS", lang, { name: engineer.firstName }),
+      getEngMainMenuButtons(lang),
     );
     return;
   }
 
   if (tickets.length === 0 && page > 0) {
-    await sendEngineerMessage(from, "No more active tickets found on this page.", [
-      { id: "PAGE:0", title: "⬅️ First Page" },
-      { id: "MENU", title: "🏠 Main Menu" },
+    const noMoreMsg = lang === "ml" ? "ഈ പേജിൽ കൂടുതൽ സജീവ ടിക്കറ്റുകളൊന്നുമില്ല." : "No more active tickets found on this page.";
+    const firstPageBtn = lang === "ml" ? "⬅️ ആദ്യ പേജ്" : "⬅️ First Page";
+    await sendEngineerMessage(from, noMoreMsg, [
+      { id: "PAGE:0", title: firstPageBtn },
+      getMainMenuButton(lang),
     ]);
     return;
   }
@@ -813,9 +1113,10 @@ async function handleListTickets(
   if (displayTickets.length === 1 && page === 0 && !hasNext) {
     const t = displayTickets[0];
     setActiveTicket(from, t.ticketNumber);
+    const prefixMsg = lang === "ml" ? "📋 നിങ്ങൾക്ക് 1 സജീവ ടിക്കറ്റ് ഉണ്ട്:\n\n" : "📋 You have 1 active ticket:\n\n";
     await sendTicketActionButtons(from, t, engineer.id, {
       includeDetails: true,
-      prefix: `📋 You have 1 active ticket:\n\n`,
+      prefix: prefixMsg,
     });
     return;
   }
@@ -837,7 +1138,7 @@ async function handleListTickets(
   if (page > 0) {
     rows.push({
       id: `PAGE:${page - 1}`,
-      title: "⬅️ Previous Page",
+      title: lang === "ml" ? "⬅️ മുൻപേജ്" : "⬅️ Previous Page",
       description: `View previous page`,
     });
   }
@@ -845,7 +1146,7 @@ async function handleListTickets(
   if (hasNext) {
     rows.push({
       id: `PAGE:${page + 1}`,
-      title: "➡️ Next Page",
+      title: lang === "ml" ? "➡️ അടുത്ത പേജ്" : "➡️ Next Page",
       description: `View more tickets`,
     });
   }
@@ -861,12 +1162,18 @@ async function handleListTickets(
     })
     .join("\n\n");
 
+  const headerMsg = lang === "ml"
+    ? `📋 *സജീവമായ ടിക്കറ്റുകൾ (${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + displayTickets.length}):*\n\n${listText}\n\nവിവരങ്ങൾ കാണാനും ജോലി ആരംഭിക്കാനും ഒരു ടിക്കറ്റ് തിരഞ്ഞെടുക്കുക:`
+    : `📋 *Active Tickets (${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + displayTickets.length}):*\n\n${listText}\n\nSelect a ticket to view details and start work:`;
+
+  const btnText = lang === "ml" ? "ടിക്കറ്റ് തിരഞ്ഞെടുക്കുക" : lang === "hi" ? "टिकट चुनें" : "Select Ticket";
+
   await sendEngineerMessage(
     from,
-    `📋 *Active Tickets (${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + displayTickets.length}):*\n\n${listText}\n\nSelect a ticket to view details and start work:`,
+    headerMsg,
     undefined,
     {
-      buttonText: "Select Ticket",
+      buttonText: btnText,
       rows,
     },
   );
@@ -879,6 +1186,7 @@ async function handleStatusSummary(
   from: string,
   engineer: { id: string; firstName: string },
 ): Promise<void> {
+  const lang = await getEngineerLanguage(from);
   const [assignedCount, inProgressCount, pendingOtpCount, closedCount] = await Promise.all([
     prisma.ticket.count({ where: { assignedEngineerId: engineer.id, status: "ASSIGNED" } }),
     prisma.ticket.count({ where: { assignedEngineerId: engineer.id, status: "IN_PROGRESS" } }),
@@ -888,21 +1196,98 @@ async function handleStatusSummary(
 
   const totalActive = assignedCount + inProgressCount + pendingOtpCount;
 
+  const labels = {
+    title: lang === "ml" ? `📊 *ടിക്കറ്റ് സംഗ്രഹം — ${engineer.firstName}*` : lang === "hi" ? `📊 *टिकट सारांश — ${engineer.firstName}*` : `📊 *Ticket Summary — ${engineer.firstName}*`,
+    assigned: lang === "ml" ? "🔵 *അസൈൻ ചെയ്തത് (പുതിയത്):*" : lang === "hi" ? "🔵 *सौंपा गया (नया):*" : "🔵 *Assigned (New):*",
+    inProgress: lang === "ml" ? "🟡 *ജോലി പുരോഗമിക്കുന്നു:*" : lang === "hi" ? "🟡 *प्रगति पर है:*" : "🟡 *In Progress:*",
+    pendingOtp: lang === "ml" ? "🟠 *OTP കാത്തിരിക്കുന്നു:*" : lang === "hi" ? "🟠 *लंबित OTP:*" : "🟠 *Pending OTP:*",
+    active: lang === "ml" ? "📋 *ആകെ സജീവം:*" : lang === "hi" ? "📋 *कुल सक्रिय:*" : "📋 *Total Active:*",
+    closed: lang === "ml" ? "✅ *പൂർത്തിയായത് / ക്ലോസ് ചെയ്തത്:*" : lang === "hi" ? "✅ *पूर्ण / बंद:*" : "✅ *Completed / Closed:*",
+  };
+
   const msg = [
-    `📊 *Ticket Summary — ${engineer.firstName}*`,
+    labels.title,
     ``,
-    `🔵 *Assigned (New):* ${assignedCount}`,
-    `🟡 *In Progress:* ${inProgressCount}`,
-    `🟠 *Pending OTP:* ${pendingOtpCount}`,
+    `${labels.assigned} ${assignedCount}`,
+    `${labels.inProgress} ${inProgressCount}`,
+    `${labels.pendingOtp} ${pendingOtpCount}`,
     `────────────────`,
-    `📋 *Total Active:* ${totalActive}`,
-    `✅ *Completed / Closed:* ${closedCount}`,
+    `${labels.active} ${totalActive}`,
+    `${labels.closed} ${closedCount}`,
   ].join("\n");
 
-  await sendEngineerMessage(from, msg, [
-    { id: "TICKETS", title: "📋 My Tickets" },
-    { id: "HELP", title: "❓ Help" },
-  ]);
+  await sendEngineerMessage(from, msg, getEngMainMenuButtons(lang));
+}
+
+/**
+ * Lists all engineer training videos uploaded in the system.
+ */
+async function handleListTrainingVideos(
+  from: string,
+  engineer: { id: string; firstName: string; lastName?: string | null },
+): Promise<void> {
+  const lang = await getEngineerLanguage(from);
+  const videos = await prisma.engineerTrainingVideo.findMany({
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (videos.length === 0) {
+    const emptyMsg =
+      lang === "ml"
+        ? "🎓 നിലവിൽ ട്രെയിനിംഗ് വീഡിയോകൾ ലഭ്യമല്ല."
+        : lang === "hi"
+        ? "🎓 फिलहाल कोई प्रशिक्षण वीडियो उपलब्ध नहीं है।"
+        : "🎓 No training videos have been uploaded yet.";
+    await sendEngineerMessage(from, emptyMsg, getEngMainMenuButtons(lang));
+    return;
+  }
+
+  lastEngineerMenuMap.set(from, "training_videos");
+
+  const messageText = formatTrainingVideoListMessage(videos, lang);
+  const listDrawer = getTrainingVideoInteractiveList(videos, lang);
+
+  await sendEngineerMessage(from, messageText, undefined, listDrawer);
+}
+
+/**
+ * Displays a specific engineer training video with direct YouTube link and navigation buttons.
+ */
+async function handleShowTrainingVideo(
+  from: string,
+  engineer: { id: string; firstName: string; lastName?: string | null },
+  index: number,
+): Promise<void> {
+  const lang = await getEngineerLanguage(from);
+  const videos = await prisma.engineerTrainingVideo.findMany({
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (videos.length === 0) {
+    await sendEngineerMessage(
+      from,
+      "🎓 No training videos found.",
+      getEngMainMenuButtons(lang),
+    );
+    return;
+  }
+
+  if (index < 1 || index > videos.length) {
+    const invalidMsg =
+      lang === "ml"
+        ? `⚠️ ദയവായി 1 നും ${videos.length} നും ഇടയിലുള്ള ഒരു വീഡിയോ നമ്പർ തിരഞ്ഞെടുക്കുക.`
+        : lang === "hi"
+        ? `⚠️ कृपया 1 से ${videos.length} के बीच का वीडियो नंबर चुनें।`
+        : `⚠️ Please choose a valid video number between 1 and ${videos.length}.`;
+    await sendEngineerMessage(from, invalidMsg, getTrainingVideoDetailButtons(lang));
+    return;
+  }
+
+  lastEngineerMenuMap.set(from, "training_videos");
+  const selectedVideo = videos[index - 1];
+  const detailMsg = formatTrainingVideoDetail(selectedVideo, index, lang);
+
+  await sendEngineerMessage(from, detailMsg, getTrainingVideoDetailButtons(lang));
 }
 
 /**
@@ -1048,14 +1433,17 @@ function formatTroubleshootingSteps(title: string, rawContent: string, engineerN
 
   const cleanTitle = title
     .replace(/^To fix /i, "")
+    .replace(/^To troubleshoot /i, "")
+    .replace(/^To resolve /i, "")
     .replace(/^Analyzer — /i, "")
-    .replace(/\s*\([^)]*\)/g, "")
-    .trim()
-    .toLowerCase();
+    .trim();
 
-  const issueText = cleanTitle.includes("issue") || cleanTitle.includes("error") || cleanTitle.includes("problem")
-    ? cleanTitle
-    : `${cleanTitle} issue`;
+  let issueText = cleanTitle;
+  if (/engineers?\s+training/i.test(cleanTitle) || /technical\s+guide/i.test(cleanTitle) || /troubleshooting\s+guide/i.test(cleanTitle)) {
+    issueText = "reported issue";
+  } else if (!cleanTitle.toLowerCase().includes("issue") && !cleanTitle.toLowerCase().includes("error") && !cleanTitle.toLowerCase().includes("problem")) {
+    issueText = `${cleanTitle} issue`;
+  }
 
   const name = engineerName ? engineerName.trim() : "there";
   const greeting = `Hi ${name}, here are the troubleshooting steps to resolve the ${issueText}:`;
@@ -1066,7 +1454,7 @@ function formatTroubleshootingSteps(title: string, rawContent: string, engineerN
       .replace(/\n\s*If none of the above steps help.*?$/gim, "")
       .replace(/If none of the above steps help.*?$/gim, "")
       .trim();
-    return `${greeting}\n\n${cleanRaw}\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`;
+    return `${greeting}\n\n${cleanRaw}\n\nIf the issue persists after these checks, please submit a service diagnosis report or request component replacement approval.`;
   }
 
   const text = rawContent
@@ -1103,20 +1491,26 @@ function formatTroubleshootingSteps(title: string, rawContent: string, engineerN
       formattedLines.push(trimmed.startsWith("•") ? trimmed : `• ${trimmed.replace(/^-\s*/, "")}`);
     } else if (trimmed.startsWith("↳")) {
       formattedLines.push(`   ${trimmed}`);
-    } else if (/^To (fix|troubleshoot|resolve)/i.test(trimmed)) {
-      // skip title header
+    } else if (
+      /^To (fix|troubleshoot|resolve)/i.test(trimmed) ||
+      /^Description:/i.test(trimmed) ||
+      /^Steps:?$/i.test(trimmed) ||
+      trimmed.toLowerCase() === title.toLowerCase() ||
+      trimmed.toLowerCase() === cleanTitle.toLowerCase()
+    ) {
+      // skip title header and metadata lines
     } else {
       formattedLines.push(trimmed);
     }
   }
 
   const body = formattedLines.join("\n");
-  return `${greeting}\n\n${body}\n\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`;
+  return `${greeting}\n\n${body}\n\nIf the issue persists after these checks, please submit a service diagnosis report or request component replacement approval.`;
 }
 
 // ── Helper: Search Document Chunks & Service Catalog for troubleshooting ──
 // Accurately matches against admin-uploaded documents (DocumentChunks) and service technical guides.
-async function findEngineerTroubleshooting(
+export async function findEngineerTroubleshooting(
   query: string,
   engineerName?: string,
 ): Promise<{ title: string; formatted: string } | null> {
@@ -1126,7 +1520,9 @@ async function findEngineerTroubleshooting(
 
   // 1. Search Service Catalog entries (role: "service" takes top priority)
   const catalog = await getCatalogForRole("service");
-  const serviceCatalog = catalog.filter((e) => e.role === "service" || e.source === "document_issue");
+  // Only include entries explicitly meant for service engineers.
+  // (Do not fallback to customer documents here, as it confuses engineers)
+  const serviceCatalog = catalog.filter((e) => e.role === "service");
 
   let bestEntry: (typeof catalog)[0] | null = null;
   let bestScore = 0;
@@ -1157,7 +1553,15 @@ async function findEngineerTroubleshooting(
       score += 30;
     }
 
-    if (score > bestScore && score >= 35) {
+    if (e.source === "document_issue") {
+      if (e.role === "service") {
+        score += 200; // Prioritize extracted steps from uploaded ENGINEER documents
+      } else {
+        score += 50; // Give a small boost to extracted CUSTOMER documents
+      }
+    }
+
+    if (score > bestScore && score >= 35 && matched > 0) {
       bestScore = score;
       bestEntry = e;
     }
@@ -1186,7 +1590,11 @@ async function findEngineerTroubleshooting(
       score += 30;
     }
 
-    if (score > bestChunkScore && score >= 45) {
+    if (score > 0) {
+      score += 20;
+    }
+
+    if (score > bestChunkScore && score >= 45 && matched > 0) {
       bestChunkScore = score;
       bestChunk = chunk;
     }
@@ -1195,14 +1603,22 @@ async function findEngineerTroubleshooting(
   let finalTitle = "";
   let finalContent = "";
 
-  if (bestChunk && bestChunkScore > bestScore) {
-    finalTitle = bestChunk.document?.title || "Technical Guide";
+  // Prioritize high-confidence catalog / DocumentIssue matches over raw document chunks
+  if (bestEntry && (bestScore >= 100 || bestScore >= bestChunkScore)) {
+    finalTitle = bestEntry.title || "Troubleshooting Guide";
+    finalContent = bestEntry.content;
+  } else if (bestChunk && bestChunkScore >= 60) {
+    const firstLine = bestChunk.content.split(/\r?\n/)[0]?.trim() || "";
+    const titleMatch = firstLine.match(/^To\s+(?:fix|troubleshoot|resolve)\s+(?:the\s+)?([^\:\,\n]+)/i);
+    finalTitle = titleMatch && titleMatch[1] ? titleMatch[1].trim() : (bestChunk.document?.title || "Technical Guide");
     finalContent = bestChunk.content;
   } else if (bestEntry) {
     finalTitle = bestEntry.title || "Troubleshooting Guide";
     finalContent = bestEntry.content;
   } else if (bestChunk) {
-    finalTitle = bestChunk.document?.title || "Technical Guide";
+    const firstLine = bestChunk.content.split(/\r?\n/)[0]?.trim() || "";
+    const titleMatch = firstLine.match(/^To\s+(?:fix|troubleshoot|resolve)\s+(?:the\s+)?([^\:\,\n]+)/i);
+    finalTitle = titleMatch && titleMatch[1] ? titleMatch[1].trim() : (bestChunk.document?.title || "Technical Guide");
     finalContent = bestChunk.content;
   } else {
     return null;

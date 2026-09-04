@@ -83,6 +83,7 @@ type SessionMeta = {
   skipEndCustomerConfirm?: boolean;
   customComplaintPath?: boolean;
   videoSearchQuery?: string;
+  lastTroubleshootVideo?: { title: string; youtubeUrl: string };
   hasSkippedSerial?: boolean;
   /** Registration flow (new customer first-time sign-up) */
   regSerialNumber?: string;
@@ -180,7 +181,7 @@ export function isTechnicalIssueQuery(text: string): boolean {
     "bluetooth", "update", "date", "time", "rate", "chart", "pen-drive", "pendrive", "usb",
     "gsm", "cloud", "flicker", "flickering", "broken", "fix", "help", "running", "off",
     "voltage", "current", "output", "input", "dead", "zero", "result", "restart", "burn",
-    "water", "air", "milk", "stir", "not", "no", "cant", "cannot", "won't", "wont",
+    "water", "air", "milk", "stir", "not working", "not on", "not starting", "not spinning", "not heating", "no power", "no display", "no light", "cant", "cannot", "won't", "wont",
     "เคด", "കേടായി", "പരാതി", "തകരാർ", "സഹായം", "ശരിയാക്കാൻ", "കാണിക്കുന്നില്ല"
   ];
 
@@ -2800,7 +2801,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     upperChoice.includes("புகார்") ||
     upperChoice.includes("ದೂರು")
   ) {
-    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined, lastTroubleshootVideo: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
@@ -2819,7 +2820,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return makeReply(t("LANG_SELECT", lang), undefined, getLangList(lang));
   }
   if (upperChoice === "COMPLAINT_REG" || upperChoice === "COMPLAINT_REGISTER" || upperChoice === "BOOK_SERVICE") {
-    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
+    const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined, lastTroubleshootVideo: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
       `📝 *Please describe the issue you are facing with your machine:*\n\n` +
@@ -3777,12 +3778,6 @@ ${settings.companyAddress || ""}
           { id: "TROUBLESHOOT_RESOLVED", title: "✅ Resolved" },
           { id: "TROUBLESHOOT_UNRESOLVED", title: "❌ Unresolved" },
         ];
-        meta.complaint = query.trim();
-        meta.lastIssueQuery = query.trim();
-        meta.videoSearchQuery = query.trim();
-        if (targetSessionId || options.sessionId) {
-          await updateSession(targetSessionId || options.sessionId || "", activeState, meta).catch(() => {});
-        }
       } else if (isAskingQuestion && (inComplaintOrTroubleshootState || isServiceIntent)) {
         // When asking for clarifying info like machine model during complaint/troubleshooting
         buttons = [getMenuButton(lang)];
@@ -3800,10 +3795,49 @@ ${settings.companyAddress || ""}
       let finalReply = reply.trim();
       if (isLegitimateTroubleshooting || (isServiceIntent && hasActionableTroubleshootingSteps)) {
         try {
-          const videoSearchTerm = query.trim() || meta.complaint || "";
-          const matchingVideos = videoSearchTerm ? await findVideosForQuery(videoSearchTerm, 1) : [];
+          // 1. Try finding a video for the current query (in case user reported a specific new fault)
+          let matchingVideos = query.trim() ? await findVideosForQuery(query.trim(), 1) : [];
+
           if (matchingVideos.length > 0) {
+            // A genuine video matched this query -> update active troubleshooting issue & video
+            meta.complaint = query.trim();
+            meta.lastIssueQuery = query.trim();
+            meta.videoSearchQuery = query.trim();
+            meta.lastTroubleshootVideo = {
+              title: matchingVideos[0].title,
+              youtubeUrl: matchingVideos[0].youtubeUrl,
+            };
+          } else if (meta.lastTroubleshootVideo) {
+            // No video match for current query (e.g. language change or follow-up), but we already have an active video for this issue
+            matchingVideos = [{
+              id: "retained",
+              title: meta.lastTroubleshootVideo.title,
+              description: null,
+              youtubeUrl: meta.lastTroubleshootVideo.youtubeUrl,
+              keywords: "",
+            }];
+          } else if (meta.videoSearchQuery) {
+            // Fallback: search using the previously stored valid issue query
+            matchingVideos = await findVideosForQuery(meta.videoSearchQuery, 1);
+            if (matchingVideos.length > 0) {
+              meta.lastTroubleshootVideo = {
+                title: matchingVideos[0].title,
+                youtubeUrl: matchingVideos[0].youtubeUrl,
+              };
+            }
+          } else if (isTechnicalIssueQuery(query.trim())) {
+            // Technical query but no matching video in DB: save issue description without corrupting video
+            meta.complaint = query.trim();
+            meta.lastIssueQuery = query.trim();
+            meta.videoSearchQuery = query.trim();
+          }
+
+          if (matchingVideos.length > 0 && !finalReply.includes(matchingVideos[0].youtubeUrl)) {
             finalReply += formatVideoSuggestions(matchingVideos, lang);
+          }
+
+          if (targetSessionId || options.sessionId) {
+            await updateSession(targetSessionId || options.sessionId || "", activeState, meta).catch(() => {});
           }
         } catch (vErr) {
           console.error("[groq-company-assistant] Video recommendation lookup error:", vErr);

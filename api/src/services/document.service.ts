@@ -34,7 +34,7 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   throw new Error("pdf-parse: no usable export found");
 }
 
-function formatTrainingDataSteps(rawStr: string): string {
+function formatTrainingDataSteps(rawStr: string, isService: boolean = false): string {
   if (!rawStr) return "";
   const lines = rawStr.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const formattedLines: string[] = [];
@@ -67,7 +67,9 @@ function formatTrainingDataSteps(rawStr: string): string {
   }
 
   if (stepCount > 0) {
-    formattedLines.push(`\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`);
+    if (!isService) {
+      formattedLines.push(`\nIf none of the above steps help, please contact Poornasree Customer Care for further assistance.`);
+    }
     return formattedLines.join("\n");
   }
 
@@ -572,8 +574,11 @@ export async function processDocument(
       }
 
         if (intents.length > 0) {
-          // Clear all old DocumentIssues so they don't linger
-          await prisma.documentIssue.deleteMany({});
+          // Clear old DocumentIssues for this specific audience only so other roles are preserved
+          const audienceToClear = documentType === "service" ? "engineer" : "customer";
+          await prisma.documentIssue.deleteMany({
+            where: { audience: audienceToClear },
+          });
           // Upsert into DocumentIssue DB for WhatsApp bot
           for (const intent of intents) {
             if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
@@ -652,7 +657,7 @@ export async function processDocument(
       }
     }
     if (trainingDataSheet) {
-      const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string }> = [];
+      const intents: Array<{ tag: string; patterns: string[]; responses: string[]; role: string; complaint?: string; steps?: string[] }> = [];
       const seenTags = new Set<string>();
 
       trainingDataSheet.eachRow((row, rowIdx) => {
@@ -676,7 +681,22 @@ export async function processDocument(
         const primaryTitle = patternsList[0] || tag.replace(/_/g, " ");
 
         // Format Training Data steps into identical structured Check & Action format as CHATBOT_DATAS
-        const structuredResponse = formatTrainingDataSteps(stepsStr);
+        const structuredResponse = formatTrainingDataSteps(stepsStr, documentType === "service");
+
+        // Extract individual steps directly from stepsStr
+        const parsedSteps: string[] = [];
+        for (const line of stepsStr.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+          const m = line.match(/^(\d+)[\.\)]\s*(.*)/);
+          if (m) {
+            parsedSteps.push(m[2].trim());
+          } else if (line.startsWith("•") || line.startsWith("-")) {
+            if (parsedSteps.length > 0) {
+              parsedSteps[parsedSteps.length - 1] += ` -> ${line.replace(/^[•\-]\s*/, "").trim()}`;
+            } else {
+              parsedSteps.push(line.replace(/^[•\-]\s*/, "").trim());
+            }
+          }
+        }
 
         intents.push({
           tag,
@@ -684,6 +704,7 @@ export async function processDocument(
           responses: [structuredResponse],
           role: documentType,
           complaint: primaryTitle,
+          steps: parsedSteps,
         });
       });
 
@@ -691,9 +712,12 @@ export async function processDocument(
         // Upsert into DocumentIssue DB for WhatsApp bot
         for (const intent of intents) {
           if (!intent.tag || !Array.isArray(intent.responses) || !intent.responses[0]) continue;
-          const response = intent.responses[0] as string;
-          const stepLines = response.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
-          const steps = stepLines.map((l: string) => l.replace(/^\d+\.\s*/, "").trim());
+          let steps = intent.steps && intent.steps.length > 0 ? intent.steps : [];
+          if (steps.length === 0) {
+            const response = intent.responses[0] as string;
+            const stepLines = response.split("\n").filter((l: string) => /^(?:(?:\d+[\.\)])|(?:[0-9]️⃣|🔟))\s*/.test(l.trim()));
+            steps = stepLines.map((l: string) => l.replace(/^(?:(?:\d+[\.\)])|(?:[0-9]️⃣|🔟))\s*/, "").replace(/^\*|\*$/g, "").trim());
+          }
           if (steps.length === 0) continue;
           
           const title = intent.complaint || intent.tag.replace(/_/g, " ");

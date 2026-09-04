@@ -22,20 +22,24 @@ function buildSessionTextMessage(
   setPasswordUrl: string,
   managerName: string,
 ): string {
+  const areas =
+    engineer.pincodes && engineer.pincodes.length > 0
+      ? engineer.pincodes.join(", ")
+      : "All service areas";
+
   return [
     `🎉 Welcome to Poornasree Service Team, ${engineer.firstName}!`,
     "",
     `You've been registered as a Service Engineer by ${managerName}.`,
     "",
-    "To get started, please set your password by clicking the link below:",
+    `📍 Assigned service areas: ${areas}`,
+    "",
+    "Complete your registration by opening the link below:",
     setPasswordUrl,
     "",
-    `Your login email: ${engineer.email}`,
+    `Login email: ${engineer.email}`,
     "",
-    "You'll receive ticket assignments and updates here on WhatsApp.",
-    ...(engineer.pincodes && engineer.pincodes.length > 0 
-        ? ["", `📍 Assigned Service Areas: ${engineer.pincodes.join(", ")}`] 
-        : []),
+    'You can reply to this chat to manage your tasks. Send "menu" to see options.',
     "",
     "Thank you! 🙏",
   ].join("\n");
@@ -53,25 +57,35 @@ export async function sendEngineerSetupNotification(
   const setPasswordUrl = `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
   const templateName = runtime.waEngineerSetupTemplate().trim();
 
+  const areas =
+    engineer.pincodes && engineer.pincodes.length > 0
+      ? engineer.pincodes.join(", ")
+      : "All service areas";
+
   if (templateName) {
+    const isV3 = templateName.includes("v3");
+    const bodyParameters = isV3
+      ? [
+          templateParam(engineer.firstName, 60),
+          templateParam(managerName, 80),
+          templateParam(areas, 100),
+          templateParam(setPasswordUrl, 250),
+          templateParam(engineer.email, 120),
+        ]
+      : [
+          templateParam(engineer.firstName, 60),
+          templateParam(managerName, 80),
+          templateParam(setPasswordUrl, 250),
+          templateParam(engineer.email, 120),
+        ];
+
     const viaTemplate = await WhatsAppService.sendTemplate(engineer.whatsappNumber, {
       name: templateName,
       languageCode: runtime.waEngineerSetupTemplateLang(),
-      bodyParameters: [
-        templateParam(engineer.firstName, 60),
-        templateParam(managerName, 80),
-        templateParam(setPasswordUrl, 250),
-        templateParam(engineer.email, 120),
-      ],
+      bodyParameters,
     });
     if (viaTemplate) {
-      if (engineer.pincodes && engineer.pincodes.length > 0) {
-        // Try to send an interactive text or regular text with the assigned areas right after template
-        await WhatsAppService.sendMessage(
-          engineer.whatsappNumber,
-          `📍 You have been assigned the following service areas: ${engineer.pincodes.join(", ")}\n\nYou can reply to this chat to manage your tasks. Send "menu" to see options.`,
-        );
-      }
+      // With the unified template or clean onboarding, everything is in a single message
       return true;
     }
     console.warn(
