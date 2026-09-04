@@ -30,6 +30,9 @@ import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
 import { loadRuntimeConfig } from "./services/runtime-config.service";
 import { startSupportInactivityMonitor } from "./services/support-inactivity.service";
+import { preWarmSimulateCaches } from "./services/simulate.service";
+import { preWarmMachineCache } from "./services/machine.service";
+import { preWarmVideoCache } from "./controllers/video.controller";
 
 const app = express();
 
@@ -150,6 +153,20 @@ httpServer.listen(env.PORT, async () => {
 
   // Start the 2-minute customer support inactivity monitor
   startSupportInactivityMonitor();
+
+  // Pre-warm all chatbot in-memory caches (Documents, Issues, Products, Videos, Passtest machines)
+  // Runs non-blocking in the background so the HTTP server accepts traffic immediately
+  void Promise.all([
+    preWarmSimulateCaches(),
+    preWarmMachineCache(),
+    preWarmVideoCache(),
+  ])
+    .then(() => {
+      console.log("[cache] All chatbot caches pre-warmed and ready 🚀");
+    })
+    .catch((err) => {
+      console.warn("[cache] Background pre-warm notice:", err?.message ?? err);
+    });
 
   // Index training.json intents into Qdrant in the background.
   // Runs non-blocking so a slow Ollama startup doesn't delay the HTTP server.

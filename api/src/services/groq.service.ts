@@ -32,8 +32,14 @@ export function groqAgentModel(): string {
   return runtime.groqModelAgent();
 }
 
+const BACKUP_GROQ_MODELS = [
+  "qwen/qwen3.8-27b",
+  "groq/compound-mini",
+  "openai/gpt-oss-20b",
+];
+
 /**
- * Call Groq chat completions. Throws on HTTP / network errors.
+ * Call Groq chat completions with automatic candidate model failover.
  */
 export async function groqChat(
   messages: GroqMessage[],
@@ -43,47 +49,60 @@ export async function groqChat(
     throw new Error("GROQ_API_KEY is not configured");
   }
 
-  const model = options.model ?? groqAgentModel();
+  const primaryModel = options.model ?? groqAgentModel();
+  const candidateModels = Array.from(new Set([primaryModel, ...BACKUP_GROQ_MODELS]));
   const temperature = options.temperature ?? 0.1;
   const maxTokens = options.maxTokens ?? 4000;
-  const timeoutMs = options.timeoutMs ?? 45_000;
+  const timeoutMs = options.timeoutMs ?? 15_000;
 
-  const body: Record<string, unknown> = {
-    model,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-  };
-  if (options.json) {
-    body.response_format = { type: "json_object" };
-  }
+  let lastError: Error | null = null;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${runtime.groqApiKey()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      throw new Error(`Groq API ${res.status}: ${errBody.slice(0, 400)}`);
+  for (const model of candidateModels) {
+    const body: Record<string, unknown> = {
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+    };
+    if (options.json) {
+      body.response_format = { type: "json_object" };
     }
 
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    return data.choices?.[0]?.message?.content?.trim() ?? "";
-  } finally {
-    clearTimeout(timer);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(GROQ_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${runtime.groqApiKey()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        console.warn(`[groq] Model ${model} returned ${res.status}: ${errBody.slice(0, 150)}. Trying next candidate...`);
+        lastError = new Error(`Groq API ${res.status}: ${errBody.slice(0, 400)}`);
+        continue;
+      }
+
+      const data = (await res.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+      const content = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (content) return content;
+    } catch (err) {
+      console.warn(`[groq] Model ${model} fetch failed: ${(err as Error).message}. Trying next candidate...`);
+      lastError = err as Error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  throw lastError || new Error("Failed to get completion from Groq API");
 }
 
 /**

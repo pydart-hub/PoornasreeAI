@@ -41,7 +41,11 @@ export function ReassignModal({ ticket, engineers, assigningId, onAssignEngineer
           <div className="flex items-center justify-between px-5 py-4 border-b border-line dark:border-line-dark">
             <div>
               <h3 className="text-sm font-bold text-content dark:text-content-dark">
-                {currentEngineer ? "Reassign Engineer" : "Assign Engineer"}
+                {currentEngineer
+                  ? "Reassign Engineer"
+                  : ticket.assignedDealer || ticket.dealer
+                    ? "Assign Engineer (Backup)"
+                    : "Assign Engineer"}
               </h3>
               {ticketPincode && (
                 <p className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary mt-0.5">
@@ -68,18 +72,52 @@ export function ReassignModal({ ticket, engineers, assigningId, onAssignEngineer
             </div>
           )}
 
+          {/* Dealer backup notice if replacing or bypassing dealer */}
+          {!currentEngineer && ticket.assignedDealer && !confirmEng && (
+            <div className="px-5 py-2.5 bg-amber-50/70 dark:bg-amber-500/10 border-b border-amber-200/60 dark:border-amber-500/20">
+              <p className="text-[10px] font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                Backup Option
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Currently assigned to dealer: <span className="font-medium">{ticket.assignedDealer.firstName} {ticket.assignedDealer.lastName ?? ""}</span>. Selecting an engineer will route this ticket to your internal service team.
+              </p>
+            </div>
+          )}
+          {!currentEngineer && !ticket.assignedDealer && ticket.dealer && !confirmEng && (
+            <div className="px-5 py-2.5 bg-amber-50/70 dark:bg-amber-500/10 border-b border-amber-200/60 dark:border-amber-500/20">
+              <p className="text-[10px] font-semibold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                Backup Option
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Matched to dealer: <span className="font-medium">{ticket.dealer.firstName} {ticket.dealer.lastName ?? ""}</span>. Selecting an engineer will bypass dealer assignment.
+              </p>
+            </div>
+          )}
+
           {/* Confirmation view */}
           {confirmEng ? (
             <div className="p-5 space-y-3">
               <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  {currentEngineer ? "Reassign" : "Assign"} to {confirmEng.firstName} {confirmEng.lastName ?? ""}?
+                  {currentEngineer
+                    ? "Reassign"
+                    : ticket.assignedDealer || ticket.dealer
+                      ? "Assign instead of dealer"
+                      : "Assign"} to {confirmEng.firstName} {confirmEng.lastName ?? ""}?
                 </p>
-                {currentEngineer && (
+                {currentEngineer ? (
                   <p className="text-[10px] text-amber-600 dark:text-amber-400">
                     Replacing: {currentEngineer.firstName} {currentEngineer.lastName ?? ""}
                   </p>
-                )}
+                ) : ticket.assignedDealer ? (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                    Replacing assigned dealer: {ticket.assignedDealer.firstName} {ticket.assignedDealer.lastName ?? ""}
+                  </p>
+                ) : ticket.dealer ? (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                    Overriding matched dealer: {ticket.dealer.firstName} {ticket.dealer.lastName ?? ""}
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
                 <button

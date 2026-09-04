@@ -106,7 +106,7 @@ const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   companyPhotos: DEFAULT_COMPANY_PHOTOS,
   companyDetails: DEFAULT_COMPANY_DETAILS,
   companyKnowledge: DEFAULT_COMPANY_KNOWLEDGE,
-  activeLlmProvider: "gemini",
+  activeLlmProvider: "groq",
   geminiApiKey: DEFAULT_GEMINI_KEY,
   groqApiKey: null,
   quickButtons: DEFAULT_QUICK_BUTTONS,

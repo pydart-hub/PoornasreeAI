@@ -1,17 +1,24 @@
 # ==============================================================================
 # Poornasree AI - Complete Live Reconnect & Tunnel Generator (Windows PowerShell)
 # ==============================================================================
+# Run this script whenever your Wi-Fi disconnects/reconnects or whenever you want
+# a fresh, verified local development tunnel and Meta webhook endpoint.
+# ==============================================================================
+
+param(
+    [string]$VpsHost = "poornasree-v4",
+    [string]$SecretToken = "psr_chatbot_verify_2026",
+    [int]$LocalApiPort = 4000,
+    [int]$LocalDbPort = 5433
+)
 
 $RootDir = $PSScriptRoot
 if (-not $RootDir) { $RootDir = (Get-Location).Path }
 $ApiDir = Join-Path $RootDir "api"
-$SecretToken = "poornasree_ai_webhook_secret_2026"
-$VpsHost = "poornasree-v4"
-$DbForward = "5433:172.18.0.4:5432"
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan
-Write-Host "[*] POORNASREE AI - RECONNECTING LIVE DEVELOPMENT STACK (WINDOWS)" -ForegroundColor Cyan
+Write-Host "🔄  POORNASREE AI - RECONNECTING LIVE DEVELOPMENT STACK (WINDOWS)" -ForegroundColor Cyan
 Write-Host "==================================================================" -ForegroundColor Cyan
 
 # ------------------------------------------------------------------------------
@@ -67,8 +74,13 @@ function Find-Cloudflared {
     return $null
 }
 
+# ------------------------------------------------------------------------------
+# Helper: Start persistent SSH tunnel to database
+# ------------------------------------------------------------------------------
 function Start-SshDbTunnel {
-    $sshArgs = "-N -o ServerAliveInterval=10 -o ServerAliveCountMax=6 -o TCPKeepAlive=yes -o ExitOnForwardFailure=yes -L $DbForward $VpsHost"
+    param([string]$DbIp)
+    $forwardArg = "${LocalDbPort}:${DbIp}:5432"
+    $sshArgs = "-N -o ServerAliveInterval=15 -o ServerAliveCountMax=6 -o TCPKeepAlive=yes -o ExitOnForwardFailure=yes -L $forwardArg $VpsHost"
     return (Start-Process -FilePath "ssh" -ArgumentList $sshArgs -WindowStyle Hidden -PassThru)
 }
 
@@ -76,22 +88,31 @@ function Start-SshDbTunnel {
 Write-Host ""
 Write-Host "[1/5] Cleaning up existing tunnel and server processes..." -ForegroundColor Yellow
 Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process -Name "ssh" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Stop-PortProcess -Port 4000
-Stop-PortProcess -Port 5433
+Stop-PortProcess -Port $LocalApiPort
+Stop-PortProcess -Port $LocalDbPort
 Start-Sleep -Seconds 1
 
 # 2. Establish fresh SSH tunnel to VPS PostgreSQL
 Write-Host ""
-Write-Host "[2/5] Connecting persistent SSH Tunnel to Database (localhost:5433 -> 172.18.0.2:5432)..." -ForegroundColor Yellow
-$sshProcess = Start-SshDbTunnel
+Write-Host "[2/5] Connecting persistent SSH Tunnel to Database (localhost:$LocalDbPort -> VPS DB)..." -ForegroundColor Yellow
 
+# Detect container DB IP on VPS
+$dbIp = "172.18.0.4"
+try {
+    $detectedIp = (ssh -o ConnectTimeout=5 $VpsHost "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' poornasree-ai-db-1" 2>$null)
+    if ($detectedIp -and $detectedIp.Trim() -match '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
+        $dbIp = $detectedIp.Trim()
+    }
+} catch {}
+
+Write-Host "   Targeting VPS Database at: $dbIp:5432" -ForegroundColor DarkGray
+$sshProcess = Start-SshDbTunnel -DbIp $dbIp
 Start-Sleep -Seconds 2
 
 # Verify DB port
 $dbConnected = $false
 for ($i = 1; $i -le 10; $i++) {
-    $test = Test-NetConnection -ComputerName "127.0.0.1" -Port 5433 -WarningAction SilentlyContinue -InformationLevel Quiet
+    $test = Test-NetConnection -ComputerName "127.0.0.1" -Port $LocalDbPort -WarningAction SilentlyContinue -InformationLevel Quiet
     if ($test) {
         $dbConnected = $true
         break
@@ -100,9 +121,9 @@ for ($i = 1; $i -le 10; $i++) {
 }
 
 if ($dbConnected) {
-    Write-Host "   [+] PostgreSQL Database tunnel connected on port 5433." -ForegroundColor Green
+    Write-Host "   [+] PostgreSQL Database tunnel connected on port $LocalDbPort." -ForegroundColor Green
 } else {
-    Write-Host "   [!] Failed to establish DB tunnel on port 5433. Check SSH connection." -ForegroundColor Red
+    Write-Host "   [!] Failed to establish DB tunnel on port $LocalDbPort. Check SSH connection." -ForegroundColor Red
     if ($sshProcess -and -not $sshProcess.HasExited) { $sshProcess.Kill() }
     exit 1
 }
@@ -113,14 +134,14 @@ Write-Host "[3/5] Launching Cloudflare Webhook Ingress Tunnel..." -ForegroundCol
 $cfExe = Find-Cloudflared
 
 if (-not $cfExe) {
-    Write-Host "   [!] cloudflared not found in standard paths." -ForegroundColor Red
+    Write-Host "   [!] cloudflared not found in standard paths. Please install cloudflared." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "   Using cloudflared binary: $cfExe" -ForegroundColor DarkGray
 $tmpLogOut = [System.IO.Path]::GetTempFileName()
 $tmpLogErr = [System.IO.Path]::GetTempFileName()
-$cfProcess = Start-Process -FilePath $cfExe -ArgumentList "tunnel --protocol http2 --url http://127.0.0.1:4000" -RedirectStandardOutput $tmpLogOut -RedirectStandardError $tmpLogErr -WindowStyle Hidden -PassThru
+$cfProcess = Start-Process -FilePath $cfExe -ArgumentList "tunnel --protocol http2 --url http://127.0.0.1:$LocalApiPort" -RedirectStandardOutput $tmpLogOut -RedirectStandardError $tmpLogErr -WindowStyle Hidden -PassThru
 
 $cfUrl = ""
 Write-Host -NoNewline "   Waiting for public HTTPS tunnel URL"
@@ -158,18 +179,18 @@ $apiLogOut = Join-Path $RootDir "api-dev-server.log"
 $apiLogErr = Join-Path $RootDir "api-dev-server-err.log"
 $apiProcess = Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory $ApiDir -RedirectStandardOutput $apiLogOut -RedirectStandardError $apiLogErr -WindowStyle Hidden -PassThru
 
-Write-Host -NoNewline "   Waiting for API Server to initialize on port 4000"
+Write-Host -NoNewline "   Waiting for API Server to initialize on port $LocalApiPort"
 $apiRunning = $false
 for ($i = 1; $i -le 35; $i++) {
     Write-Host -NoNewline "."
     try {
-        $healthCheck = Invoke-WebRequest -Uri "http://localhost:4000/api/health" -TimeoutSec 2 -UseBasicParsing -ErrorAction SilentlyContinue
+        $healthCheck = Invoke-WebRequest -Uri "http://localhost:$LocalApiPort/health" -TimeoutSec 2 -UseBasicParsing -ErrorAction SilentlyContinue
         if ($healthCheck.StatusCode -ge 200) {
             $apiRunning = $true
             break
         }
     } catch {
-        $pCheck = Test-NetConnection -ComputerName "127.0.0.1" -Port 4000 -WarningAction SilentlyContinue -InformationLevel Quiet
+        $pCheck = Test-NetConnection -ComputerName "127.0.0.1" -Port $LocalApiPort -WarningAction SilentlyContinue -InformationLevel Quiet
         if ($pCheck) {
             $apiRunning = $true
             break
@@ -180,7 +201,7 @@ for ($i = 1; $i -le 35; $i++) {
 Write-Host ""
 
 if ($apiRunning) {
-    Write-Host "   [+] API Server running on port 4000 (PID: $($apiProcess.Id))" -ForegroundColor Green
+    Write-Host "   [+] API Server running on port $LocalApiPort (PID: $($apiProcess.Id))" -ForegroundColor Green
 } else {
     Write-Host "   [*] API server initializing (PID: $($apiProcess.Id)). Log: $apiLogOut" -ForegroundColor Yellow
 }
@@ -225,19 +246,13 @@ Write-Host ""
 try {
     while ($true) {
         if ($sshProcess.HasExited) {
-            Write-Host "   [!] SSH Tunnel disconnected. Reconnecting to VPS DB..." -ForegroundColor Yellow
-            Get-Process -Name "ssh" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-            Stop-PortProcess -Port 5433
-            Start-Sleep -Seconds 1
-            $sshProcess = Start-SshDbTunnel
-            Start-Sleep -Seconds 2
+            Write-Host "   [!] SSH Tunnel disconnected. Auto-reconnecting to VPS DB..." -ForegroundColor Yellow
+            Stop-PortProcess -Port $LocalDbPort
+            $sshProcess = Start-SshDbTunnel -DbIp $dbIp
         }
         if ($cfProcess.HasExited) {
             Write-Host "   [!] Cloudflare tunnel disconnected. Auto-restarting tunnel..." -ForegroundColor Yellow
-            Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 1
-            $cfProcess = Start-Process -FilePath $cfExe -ArgumentList "tunnel --protocol http2 --url http://127.0.0.1:4000" -RedirectStandardOutput $tmpLogOut -RedirectStandardError $tmpLogErr -WindowStyle Hidden -PassThru
-            Start-Sleep -Seconds 2
+            $cfProcess = Start-Process -FilePath $cfExe -ArgumentList "tunnel --protocol http2 --url http://127.0.0.1:$LocalApiPort" -RedirectStandardOutput $tmpLogOut -RedirectStandardError $tmpLogErr -WindowStyle Hidden -PassThru
         }
         Start-Sleep -Seconds 5
     }
@@ -246,9 +261,7 @@ try {
     if ($cfProcess -and -not $cfProcess.HasExited) { $cfProcess.Kill() }
     if ($sshProcess -and -not $sshProcess.HasExited) { $sshProcess.Kill() }
     if ($apiProcess -and -not $apiProcess.HasExited) { $apiProcess.Kill() }
-    Get-Process -Name "cloudflared" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Get-Process -Name "ssh" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Stop-PortProcess -Port 4000
-    Stop-PortProcess -Port 5433
+    Stop-PortProcess -Port $LocalApiPort
+    Stop-PortProcess -Port $LocalDbPort
     Write-Host "   [+] Cleanup complete." -ForegroundColor Green
 }

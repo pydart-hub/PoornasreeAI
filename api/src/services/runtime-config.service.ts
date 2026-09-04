@@ -79,7 +79,7 @@ export const SETTING_DEFINITIONS: SettingDefinition[] = [
     description: "Used for natural WhatsApp replies.",
     category: "groq",
     isSecret: false,
-    defaultValue: "groq/compound",
+    defaultValue: "qwen/qwen3.8-27b",
   },
   {
     key: "GROQ_MAX_TOKENS_REPLY",
@@ -502,7 +502,7 @@ export async function updateSettings(
 export const runtime = {
   groqApiKey: () => cfg("GROQ_API_KEY"),
   groqModelFast: () => cfg("GROQ_MODEL_FAST") || "groq/compound-mini",
-  groqModelAgent: () => cfg("GROQ_MODEL_AGENT") || "groq/compound",
+  groqModelAgent: () => cfg("GROQ_MODEL_AGENT") || "qwen/qwen3.8-27b",
   groqMaxTokensReply: () => {
     const n = parseInt(cfg("GROQ_MAX_TOKENS_REPLY") || "600", 10);
     return Number.isFinite(n) && n > 0 ? n : 600;

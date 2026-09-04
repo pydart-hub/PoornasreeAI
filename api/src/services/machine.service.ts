@@ -10,7 +10,7 @@
 import axios, { AxiosError } from "axios";
 
 const PASSTEST_BASE = "https://passtest.poornasreecloud.com";
-const CACHE_TTL_MS  = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS  = 12 * 60 * 60 * 1000; // 12 hours
 
 // ── PasstestMachine ───────────────────────────────────────────────────────
 // Normalised shape exposed to all callers. Field names are kept identical
@@ -38,6 +38,18 @@ let _cache: { data: any[]; fetchedAt: number } = { data: [], fetchedAt: 0 };
 
 function isCacheFresh(): boolean {
   return _cache.data.length > 0 && (Date.now() - _cache.fetchedAt) < CACHE_TTL_MS;
+}
+
+/** Pre-warm Passtest machines in background on server boot */
+export async function preWarmMachineCache(): Promise<void> {
+  if (!isCacheFresh()) {
+    try {
+      console.log("[machine.service] Pre-warming Passtest machine cache...");
+      await refreshCache();
+    } catch (err) {
+      console.warn("[machine.service] Pre-warm failed (will retry on demand):", (err as Error).message);
+    }
+  }
 }
 
 // ── refreshCache ──────────────────────────────────────────────────────────

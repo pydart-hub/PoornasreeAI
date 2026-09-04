@@ -98,6 +98,7 @@ type SessionMeta = {
   regCustomerId?: string;
   regIsDealerMachine?: boolean;
   hasSkippedRegistration?: boolean;
+  pendingTicketBooking?: boolean;
   machineCount?: string | number;
   role?: string;
   isEngineer?: boolean;
@@ -321,6 +322,16 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     te: "📝 *నమోదు — దశ 2/4*\n\n👤 దయచేసి మీ *పూర్తి పేరు* నమోదు చేయండి.",
     bn: "📝 *নিবন্ধন — ধাপ 2/4*\n\n👤 অনুগ্রহ করে আপনার *পূর্ণ নাম* লিখুন।",
     ml: "📝 *രജിസ്ട്രേഷൻ — ഘട്ടം 2/4*\n\n👤 ദയവായി നിങ്ങളുടെ *പൂർണ്ണമായ പേര്* ടൈപ്പ് ചെയ്യുക.",
+  },
+  REGISTER_MULTI_MACHINE_EXPLANATION: {
+    en: "🏢 *You have selected multiple machines.*\n\nLet's register your contact profile first, and then you can link all your machines.\n\n👤 Please enter your *full name*:",
+    ml: "🏢 *നിങ്ങൾ ഒന്നിൽ കൂടുതൽ മെഷീനുകൾ തിരഞ്ഞെടുത്തിരിക്കുന്നു.*\n\nആദ്യം നിങ്ങളുടെ പ്രൊഫൈൽ വിവരങ്ങൾ രജിസ്റ്റർ ചെയ്യാം, തുടർന്ന് നിങ്ങളുടെ മെഷീനുകൾ ബന്ധിപ്പിക്കാം.\n\n👤 ദയവായി നിങ്ങളുടെ *പൂർണ്ണമായ പേര്* ടൈപ്പ് ചെയ്യുക:",
+    hi: "🏢 *आपने 1 से अधिक मशीनें चुनी हैं।*\n\nआइए पहले आपका संपर्क प्रोफ़ाइल पंजीकृत करें, फिर आप अपनी सभी मशीनें जोड़ सकते हैं।\n\n👤 कृपया अपना *पूरा नाम* दर्ज करें:",
+    ta: "🏢 *நீங்கள் 1-க்கும் மேற்பட்ட இயந்திரங்களைத் தேர்ந்தெடுத்துள்ளீர்கள்.*\n\nமுதலில் உங்கள் தொடர்பு விவரங்களை பதிவு செய்யலாம், பின்னர் உங்கள் இயந்திரங்களை இணைக்கலாம்.\n\n👤 உங்கள் *முழு பெயரை* உள்ளிடவும்:",
+    kn: "🏢 *ನೀವು ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಯಂತ್ರಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ.*\n\nಮೊದಲು ನಿಮ್ಮ ಸಂಪರ್ಕ ಪ್ರೊಫೈಲ್ ಅನ್ನು ನೋಂದಾಯಿಸೋಣ, ನಂತರ ನಿಮ್ಮ ಎಲ್ಲಾ ಯಂತ್ರಗಳನ್ನು ಲಿಂಕ್ ಮಾಡಬಹುದು.\n\n👤 ದಯವಿಟ್ಟು ನಿಮ್ಮ *ಪೂರ್ಣ ಹೆಸರನ್ನು* ನಮೂದಿಸಿ:",
+    mr: "🏢 *आपण एकापेक्षा जास्त मशिन्स निवडल्या आहेत.*\n\nप्रथम आपली संपर्क माहिती नोंदवूया, नंतर आपण आपल्या सर्व मशिन्स लिंक करू शकता.\n\n👤 कृपया आपले *पूर्ण नाव* प्रविष्ट करा:",
+    te: "🏢 *మీరు ఒకటి కంటే ఎక్కువ యంత్రాలను ఎంచుకున్నారు.*\n\nముందుగా మీ సంప్రదింపు ప్రొఫైల్‌ను నమోదు చేద్దాం, ఆపై మీ అన్ని యంత్రాలను లింక్ చేయవచ్చు.\n\n👤 దయచేసి మీ *పూర్తి పేరు* నమోదు చేయండి:",
+    bn: "🏢 *আপনি একাধিক মেশিন নির্বাচন করেছেন।*\n\nপ্রথমে আপনার যোগাযোগের তথ্য নিবন্ধন করি, তারপর আপনি আপনার সব মেশিন লিঙ্ক করতে পারবেন।\n\n👤 অনুগ্রহ করে আপনার *পূর্ণ নাম* লিখুন:",
   },
   REGISTER_ADDRESS_PROMPT: {
     en: "📝 *Registration — Step 3 of 4*\n\n🏠 Please enter your *full address* (house no., street, landmark).\n\nExample: House 12, Main Road, near temple",
@@ -1864,10 +1875,25 @@ export async function startGreeting(phoneNumber: string) {
     return makeReply(greetingMsg, quickButtons);
   }
 
-  // Unregistered user / New contact: Send First-Contact Welcome Greeting with Quick Reply Buttons
-  await updateSession(session.id, "MAIN_MENU", { language: existingMeta.language, customerPhone: phoneNumber });
-  const welcomeMsg = formatGreeting(supportSettings.welcomeGreeting, supportSettings);
-  return makeReply(welcomeMsg, quickButtons);
+  // Unregistered user / New contact:
+  // If customer has already chosen to skip registration in this active session:
+  if (existingMeta.hasSkippedRegistration) {
+    await updateSession(session.id, "MAIN_MENU", { language: existingMeta.language, customerPhone: phoneNumber });
+    const welcomeMsg = formatGreeting(supportSettings.welcomeGreeting, supportSettings);
+    return makeReply(welcomeMsg, quickButtons);
+  }
+
+  // First contact: Send Welcome & Registration Prompt (Option A)
+  const regMeta: SessionMeta = { ...existingMeta, customerPhone: phoneNumber };
+  await updateSession(session.id, "REGISTER_PROMPT", regMeta);
+  return makeReply(
+    t("REGISTER_WELCOME", lang),
+    [
+      { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
+      getSkipButton(lang),
+      getLangSelectButton(lang),
+    ]
+  );
 }
 
 // ── State router ──────────────────────────────────────────────────────────
@@ -2131,7 +2157,15 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     );
   }
 
-  if (upper === "REGISTER" || upper === "REGISTER_MACHINE") {
+  if (
+    upper === "REGISTER" ||
+    upper === "REGISTER_MACHINE" ||
+    upper === "REGISTER_NOW" ||
+    upper === "1" ||
+    upper.includes("REGISTER") ||
+    upper.includes("രജിസ്റ്റർ") ||
+    upper.includes("पंजीकरण")
+  ) {
     await updateSession(sessionId, "REGISTER_MACHINE_COUNT", meta);
     return makeReply(
       t("REGISTER_MACHINE_COUNT_PROMPT", lang),
@@ -2144,7 +2178,15 @@ async function handleRegisterPrompt(sessionId: string, phoneNumber: string, meta
     );
   }
 
-  if (upper === "SKIP" || upper === "SKIP_REGISTER" || upper === "0") {
+  if (
+    upper === "SKIP" ||
+    upper === "SKIP_REGISTER" ||
+    upper === "SKIP_FOR_NOW" ||
+    upper === "0" ||
+    upper.includes("SKIP") ||
+    upper.includes("छोड़ें") ||
+    upper.includes("ഒഴിവാക്കുക")
+  ) {
     const skipMeta: SessionMeta = { ...meta, customerPhone: phoneNumber, hasSkippedRegistration: true };
     await updateSession(sessionId, "MAIN_MENU", skipMeta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
@@ -2215,7 +2257,7 @@ async function handleRegisterMachineCount(sessionId: string, phoneNumber: string
       regMachineData: undefined,
     };
     await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
-    return makeReply(t("REGISTER_NAME_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+    return makeReply(t("REGISTER_MULTI_MACHINE_EXPLANATION", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
   }
 
   const num = parseInt(upper, 10);
@@ -2227,7 +2269,7 @@ async function handleRegisterMachineCount(sessionId: string, phoneNumber: string
     } else {
       const updatedMeta: SessionMeta = { ...meta, machineCount: String(num), regSerialNumber: undefined };
       await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
-      return makeReply(t("REGISTER_NAME_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+      return makeReply(t("REGISTER_MULTI_MACHINE_EXPLANATION", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
     }
   }
 
@@ -2320,6 +2362,48 @@ async function handleRegisterSerial(sessionId: string, phoneNumber: string, meta
     return makeReply(t("REGISTER_NAME_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
   }
 
+  // If user clicked "More than 1 machine" (or COUNT_MULTI), switch to multi-machine registration directly
+  if (upper === "COUNT_MULTI" || upper.includes("COUNT_MULTI") || upper.includes("MORE THAN 1")) {
+    const updatedMeta: SessionMeta = { ...meta, machineCount: "multi", regSerialNumber: "N/A" };
+    await updateSession(sessionId, "REGISTER_NAME", updatedMeta);
+    const multiExplanation = t("REGISTER_MULTI_MACHINE_EXPLANATION", lang);
+    const namePrompt = t("REGISTER_NAME_PROMPT", lang);
+    return makeReply(
+      `${multiExplanation}\n\n${namePrompt}`,
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
+  }
+
+  // If user re-taps COUNT_1, stay at prompt cleanly without error
+  if (upper === "COUNT_1" || upper.includes("COUNT_1") || upper === "1 MACHINE") {
+    return makeReply(
+      t("REGISTER_SERIAL_PROMPT", lang),
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
+  }
+
+  // Reject generic button IDs / system keywords from triggering external serial downloads
+  if (
+    upper.startsWith("BTN_") ||
+    upper.startsWith("LANG_") ||
+    upper.startsWith("PROD_") ||
+    upper.startsWith("CAT_") ||
+    upper.startsWith("ENG_") ||
+    upper.startsWith("TROUBLESHOOT_") ||
+    upper.startsWith("COMPLAINT_") ||
+    upper === "REGISTER" ||
+    upper === "BOOK_SERVICE" ||
+    upper === "VIEW_PRODUCTS" ||
+    upper === "CHECK_STATUS" ||
+    upper === "SPEAK_SUPPORT" ||
+    upper === "TALK_AGENT"
+  ) {
+    return makeReply(
+      t("REGISTER_SERIAL_PROMPT", lang),
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
+  }
+
   const serial = text.trim();
   if (text.includes(" ") || text.length > 25 || /[\?\!\.\,]/g.test(text)) {
     return runGroqCompanyAssistant(phoneNumber, text, meta, { activeFsmState: "REGISTER_SERIAL" });
@@ -2384,6 +2468,40 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
+  // 1. If user taps "1 Machine" from previous message bubble, gracefully switch to single machine serial entry
+  if (
+    upper === "COUNT_1" ||
+    upper === "1" ||
+    upper === "COUNT_ONE" ||
+    upper.includes("COUNT_1") ||
+    upper === "1 MACHINE" ||
+    upper === "ONE MACHINE" ||
+    upper === "1 മെഷീൻ" ||
+    upper === "1 मशीन"
+  ) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      machineCount: "1",
+      regSerialNumber: undefined,
+      regMachineData: undefined,
+      regName: undefined,
+    };
+    await updateSession(sessionId, "REGISTER_SERIAL", updatedMeta);
+    return makeReply(
+      t("REGISTER_SERIAL_PROMPT", lang),
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
+  }
+
+  // 2. If user re-taps "More than 1" from previous message bubble
+  if (upper === "COUNT_MULTI" || upper.includes("COUNT_MULTI")) {
+    return makeReply(
+      t("REGISTER_MULTI_MACHINE_EXPLANATION", lang),
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
+  }
+
+  // 3. Navigation commands
   if (upper === "MENU" || upper === "MAIN MENU") {
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, getMainMenuList(lang));
@@ -2413,6 +2531,36 @@ async function handleRegisterName(sessionId: string, phoneNumber: string, meta: 
     const updatedMeta: SessionMeta = { ...meta, regName: meta.regName || "Customer" };
     await updateSession(sessionId, "REGISTER_PINCODE", updatedMeta);
     return makeReply(t("REGISTER_PINCODE_PROMPT", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
+  }
+
+  // 4. Guard against raw button IDs being accepted as customer names
+  const isButtonId =
+    upper.startsWith("BTN_") ||
+    upper.startsWith("COUNT_") ||
+    upper.startsWith("CAT_") ||
+    upper.startsWith("PROD_") ||
+    upper.startsWith("LANG_") ||
+    upper.startsWith("SUBCAT_") ||
+    upper.startsWith("ACTION_") ||
+    upper.startsWith("TROUBLESHOOT_") ||
+    upper === "REGISTER" ||
+    upper === "REGISTER_NOW" ||
+    upper === "REGISTER_MACHINE" ||
+    upper === "BOOK_SERVICE" ||
+    upper === "VIEW_PRODUCTS" ||
+    upper === "VIEW_TICKETS" ||
+    upper === "COMPLAINT_REG" ||
+    upper === "TALK_AGENT" ||
+    upper === "SPEAK_SUPPORT" ||
+    upper === "CONFIRM_MACHINE_YES" ||
+    upper === "CONFIRM_MACHINE_NO" ||
+    upper === "CHANGE_LANG";
+
+  if (isButtonId) {
+    return makeReply(
+      `⚠️ *Please enter a valid personal or business name:*\n\n(e.g., _Ramesh Kumar_, _Kerala Dairy Farm_)\n\nOr press *Skip* to continue without a name:`,
+      [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]
+    );
   }
 
   const name = text.trim();
@@ -2549,6 +2697,16 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
 
   const loc = extractGmapLink(text);
   if (!loc || !loc.mapLink) {
+    // If customer provided a written street/house address instead of a map link
+    if (text.trim().length >= 4 && !text.includes("http")) {
+      const updatedMeta: SessionMeta = {
+        ...meta,
+        regAddress: text.trim(),
+        manualAddress: text.trim(),
+      };
+      await saveRegisteredCustomer(sessionId, phoneNumber, updatedMeta);
+      return showMainMenuAfterRegistration(sessionId, phoneNumber, updatedMeta, lang);
+    }
     return makeReply(t("REGISTER_INVALID_GMAP", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
   }
 
@@ -2614,9 +2772,29 @@ async function saveRegisteredCustomer(sessionId: string, phoneNumber: string, me
   }
 
   meta.regName = name;
+  meta.customerName = name;
+  meta.manualName = name;
+  if (meta.regPincode) meta.manualPincode = meta.regPincode;
+  if (meta.regPlace) meta.manualPlace = meta.regPlace;
+  if (meta.regDistrict) meta.manualDistrict = meta.regDistrict;
+  if (meta.regState) meta.manualState = meta.regState;
+  if (meta.regAddress) meta.manualAddress = meta.regAddress;
+  if (meta.regGmapLink) meta.manualGmapLink = meta.regGmapLink;
+  if (meta.regSerialNumber && meta.regSerialNumber !== "N/A") meta.serialNumber = meta.regSerialNumber;
+  if (meta.regMachineData) meta.machineData = meta.regMachineData;
 
   const mergedMeta = sanitizeForJson({
     ...((meta as any) ?? {}),
+    customerName: name,
+    manualName: name,
+    manualPincode: meta.regPincode || meta.manualPincode || null,
+    manualPlace: meta.regPlace || meta.manualPlace || null,
+    manualDistrict: meta.regDistrict || meta.manualDistrict || null,
+    manualState: meta.regState || meta.manualState || null,
+    manualAddress: meta.regAddress || meta.manualAddress || null,
+    manualGmapLink: meta.regGmapLink || meta.manualGmapLink || null,
+    serialNumber: meta.serialNumber || (meta.regSerialNumber !== "N/A" ? meta.regSerialNumber : null),
+    machineData: meta.machineData || meta.regMachineData || null,
     regName: name,
     regCustomerId: customerId,
     regSerialNumber: meta.regSerialNumber ?? null,
@@ -2769,6 +2947,18 @@ export async function handleCustomerSupportRequest(
 
 async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: string, meta: SessionMeta, lang: Lang) {
   const name = meta.regName || "Customer";
+
+  // If customer came into registration to book a ticket / resolve an issue:
+  if (meta.pendingTicketBooking || meta.complaint) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      pendingTicketBooking: false,
+      customerName: name,
+      customerPhone: phoneNumber,
+    };
+    return startComplaintRegistration(sessionId, phoneNumber, updatedMeta, lang);
+  }
+
   await updateSession(sessionId, "MAIN_MENU", meta);
   return makeReply(
     t("REGISTER_SUCCESS", lang, { name }) +
@@ -2839,15 +3029,20 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
   return runGroqCompanyAssistant(phoneNumber, text, meta, { sessionId });
 }
 
-// ── In-Memory Caches with 60s TTL for High Chatbot Throughput ─────────────
+// ── In-Memory Caches with 24-Hour TTL for Ultra-High Chatbot Throughput ─────────────
+const CACHE_TTL_MS = 24 * 60 * 60_000; // 24 hours
+
 let cachedActiveProducts: { data: any[]; expiresAt: number } | null = null;
 async function getCachedActiveProducts() {
   const now = Date.now();
   if (cachedActiveProducts && cachedActiveProducts.expiresAt > now) {
     return cachedActiveProducts.data;
   }
-  const data = await prisma.product.findMany({ where: { isActive: true } });
-  cachedActiveProducts = { data, expiresAt: now + 60_000 };
+  const data = await prisma.product.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, category: true, detail: true, price: true, imageUrl: true },
+  });
+  cachedActiveProducts = { data, expiresAt: now + CACHE_TTL_MS };
   return data;
 }
 
@@ -2859,9 +3054,18 @@ async function getCachedDocumentIssues() {
   }
   const data = await prisma.documentIssue.findMany({
     where: { isActive: true },
-    include: { steps: { orderBy: { stepNumber: "asc" } } },
+    select: {
+      id: true,
+      title: true,
+      problemType: true,
+      description: true,
+      steps: {
+        orderBy: { stepNumber: "asc" },
+        select: { stepNumber: true, stepContent: true },
+      },
+    },
   });
-  cachedDocIssues = { data, expiresAt: now + 60_000 };
+  cachedDocIssues = { data, expiresAt: now + CACHE_TTL_MS };
   return data;
 }
 
@@ -2874,10 +3078,37 @@ async function getCachedDocumentChunks(targetDocTypes: string[]) {
   }
   const data = await prisma.documentChunk.findMany({
     where: { document: { documentType: { in: targetDocTypes } } },
-    include: { document: true },
+    select: {
+      id: true,
+      content: true,
+      document: { select: { title: true } },
+    },
   });
-  cachedDocChunks = { key, data, expiresAt: now + 60_000 };
+  cachedDocChunks = { key, data, expiresAt: now + CACHE_TTL_MS };
   return data;
+}
+
+export function invalidateSimulateCaches(): void {
+  cachedActiveProducts = null;
+  cachedDocIssues = null;
+  cachedDocChunks = null;
+}
+
+/** Pre-warm chatbot in-memory caches on server boot */
+export async function preWarmSimulateCaches(): Promise<void> {
+  try {
+    console.log("[simulate.service] Pre-warming chatbot in-memory caches...");
+    const t0 = Date.now();
+    await Promise.all([
+      getCachedActiveProducts(),
+      getCachedDocumentIssues(),
+      getCachedDocumentChunks(["customer", "both"]),
+      getCachedDocumentChunks(["service", "customer", "both"]),
+    ]);
+    console.log(`[simulate.service] Chatbot caches pre-warmed in ${Date.now() - t0}ms ⚡`);
+  } catch (err) {
+    console.warn("[simulate.service] Pre-warm failed (will load on demand):", (err as Error).message);
+  }
 }
 
 function normalizeQueryTypos(str: string): string {
@@ -4485,11 +4716,32 @@ export async function startComplaintRegistration(
     hasSkippedSerial: meta.hasSkippedSerial,
   };
 
-  // Case A: UNREGISTERED / NO SAVED CUSTOMER DETAILS -> Ask for Name first
+  // Case A: UNREGISTERED CUSTOMER -> Require registration before creating/booking a ticket!
+  if (!registeredUser && !meta.regCustomerId) {
+    const regMeta: SessionMeta = {
+      ...updatedMeta,
+      pendingTicketBooking: true,
+      complaint: effectiveComplaint,
+      lastIssueQuery: effectiveComplaint,
+    };
+    await updateSession(sessionId, "REGISTER_MACHINE_COUNT", regMeta);
+    return makeReply(
+      `📝 *To book a service visit and create a ticket, please register your machine and contact details first:*\n\n` +
+      t("REGISTER_MACHINE_COUNT_PROMPT", lang),
+      [
+        { id: "COUNT_1", title: t("COUNT_ONE_BUTTON", lang) },
+        { id: "COUNT_MULTI", title: t("COUNT_MULTI_BUTTON", lang) },
+        getCancelButton(lang),
+        getMenuButton(lang),
+      ]
+    );
+  }
+
+  // If customer is registered in User DB but name or pincode is missing:
   if (!regName || !regPincode) {
     await updateSession(sessionId, "COMPLAINT_MANUAL_NAME", updatedMeta);
     return makeReply(
-      `📝 *Let's register your service visit request.*\n\nPlease enter your *Name* or *Dairy Society Name*:`,
+      `📝 *Let's complete your service visit request.*\n\nPlease enter your *Name* or *Dairy Society Name*:`,
       [getMenuButton(lang)]
     );
   }
@@ -4584,7 +4836,7 @@ async function handleConfirmRegisterTicket(sessionId: string, phoneNumber: strin
     if (meta.tsSerialPath && meta.machineData) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
-    if (!endCustomerName(meta) || !meta.manualPincode) {
+    if (!endCustomerName(meta) || (!meta.manualPincode && !meta.regPincode)) {
       return beginPasstestTicketBooking(sessionId, phoneNumber, meta);
     }
     return executePasstestTicketCreation(sessionId, phoneNumber, meta);
@@ -6245,7 +6497,29 @@ export async function findDocumentIssue(
 
 // ── FEEDBACK_RATING ───────────────────────────────────────────────────────
 async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: string) {
-  const rating = parseInt(text, 10);
+  let rating = parseInt(text.trim(), 10);
+
+  // If not a simple integer, check for star emojis or word ratings
+  if (isNaN(rating) || rating < 1 || rating > 5) {
+    const starMatches = text.match(/⭐|★/g);
+    if (starMatches && starMatches.length >= 1 && starMatches.length <= 5) {
+      rating = starMatches.length;
+    } else {
+      const lower = text.toLowerCase().trim();
+      if (lower.includes("excellent") || lower.includes("outstanding") || lower.includes("super") || lower.includes("5 star")) {
+        rating = 5;
+      } else if (lower.includes("very good") || lower.includes("great") || lower.includes("4 star")) {
+        rating = 4;
+      } else if (lower.includes("good") || lower.includes("average") || lower.includes("ok") || lower.includes("3 star")) {
+        rating = 3;
+      } else if (lower.includes("fair") || lower.includes("below") || lower.includes("2 star")) {
+        rating = 2;
+      } else if (lower.includes("poor") || lower.includes("bad") || lower.includes("terrible") || lower.includes("1 star")) {
+        rating = 1;
+      }
+    }
+  }
+
   if (isNaN(rating) || rating < 1 || rating > 5) {
     return makeReply(
       `Please rate the service from 1 to 5:`,
@@ -6263,7 +6537,7 @@ async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: 
 
   await updateSession(sessionId, "FEEDBACK_SATISFIED", meta);
   return makeReply(
-    `Thank you for rating us ${"\u2b50".repeat(rating)}!\n\nAre you satisfied with the service?`,
+    `Thank you for rating us ${"⭐".repeat(rating)}!\n\nAre you satisfied with the service?`,
     YES_NO_BUTTONS
   );
 }
@@ -6318,17 +6592,17 @@ async function executePasstestTicketCreation(sessionId: string, phoneNumber: str
     return makeReply(t("SERVICE_UNAVAILABLE", lang));
   }
 
-  if (!endCustomerName(meta) || !meta.manualPincode) {
+  if (!endCustomerName(meta) || (!meta.manualPincode && !meta.regPincode)) {
     await updateSession(sessionId, "END_CUSTOMER_ADDRESS", meta);
     return makeReply(t("ENTER_ADDRESS", lang));
   }
 
-  const md = (meta.machineData as any) || { m_model: meta.selectedProduct || "Machine", customer: meta.customerName || meta.regName || "Customer", serial_no: meta.serialNumber || "N/A" };
+  const md = (meta.machineData as any) || { m_model: meta.selectedProduct || "Machine", customer: meta.customerName || meta.regName || "Customer", serial_no: meta.serialNumber || meta.regSerialNumber || "N/A" };
   const pincodeCode = meta.manualPincode || meta.regPincode || "682001";
   const placeName = meta.manualPlace || meta.regPlace;
   const districtName = meta.manualDistrict || meta.regDistrict;
   const stateName = meta.manualState || meta.regState;
-  const serial = meta.serialNumber ?? "";
+  const serial = meta.serialNumber ?? meta.regSerialNumber ?? "";
   const productName = meta.selectedProduct || md.m_model || "";
   const complaintText = meta.complaint || "Service request via chat";
   const dealerAddress = [md.Address1, md.Address2].filter(Boolean).join(", ");
@@ -6781,20 +7055,46 @@ export async function getHistory(phoneNumber: string) {
 }
 
 // ── Trigger feedback flow after ticket closure ────────────────────────────
-// Called externally (from ticket.controller verifyOTP) to start feedback collection
+// Called externally (from ticket.service / verifyOTP) to start feedback collection
 export async function startFeedbackFlow(phoneNumber: string, ticketId: string, ticketNumber: string) {
-  let session = await prisma.conversationSession.findFirst({
-    where: { phoneNumber },
-    orderBy: { updatedAt: "desc" },
-  });
+  const clean = phoneNumber.replace(/\D/g, "");
+  const last10 = clean.length >= 10 ? clean.slice(-10) : clean;
+  const withCountry = clean.length === 10 ? `91${clean}` : clean;
 
   const meta: SessionMeta = { feedbackTicketId: ticketId };
 
+  // Look for any existing session matching this user's phone (with or without 91 prefix)
+  let session = await prisma.conversationSession.findFirst({
+    where: {
+      OR: [
+        { phoneNumber },
+        { phoneNumber: clean },
+        { phoneNumber: withCountry },
+        { phoneNumber: { contains: last10 } },
+      ],
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
   if (session) {
-    await updateSession(session.id, "FEEDBACK_RATING", meta);
+    // Put all matching sessions in FEEDBACK_RATING state with feedback metadata
+    await prisma.conversationSession.updateMany({
+      where: {
+        OR: [
+          { phoneNumber },
+          { phoneNumber: clean },
+          { phoneNumber: withCountry },
+          { phoneNumber: { contains: last10 } },
+        ],
+      },
+      data: {
+        state: "FEEDBACK_RATING",
+        metadata: ({ ...((session.metadata as object) || {}), ...meta } as any),
+      },
+    });
   } else {
     session = await prisma.conversationSession.create({
-      data: { phoneNumber, state: "FEEDBACK_RATING", metadata: meta as object },
+      data: { phoneNumber: withCountry || phoneNumber, state: "FEEDBACK_RATING", metadata: meta as any },
     });
   }
 

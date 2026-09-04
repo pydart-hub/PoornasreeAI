@@ -36,7 +36,7 @@ export async function llmChat(
   options: LlmChatOptions = {},
 ): Promise<string> {
   const settings = await getCachedSupportSettings();
-  const provider = (settings.activeLlmProvider || "gemini").toLowerCase().trim();
+  const provider = (settings.activeLlmProvider || "groq").toLowerCase().trim();
   const dbGeminiKey = settings.geminiApiKey?.trim();
   const keysToTry = dbGeminiKey ? Array.from(new Set([dbGeminiKey, ...DEFAULT_GEMINI_KEYS])) : DEFAULT_GEMINI_KEYS;
 
@@ -46,19 +46,20 @@ export async function llmChat(
         const text = await geminiChat(messages, key, options);
         if (text && text.trim()) return text;
       } catch (err) {
-        console.warn(`[llm-service] Gemini API key failure (${(err as Error).message.slice(0, 120)}), trying next key / fallback...`);
+        console.warn(`[llm-service] Gemini API failure (${(err as Error).message.slice(0, 120)}), switching immediately to fast Groq...`);
+        break; // Fast failover to Groq instead of cascading timeouts
       }
     }
   }
 
-  // Primary Groq or Fallback
+  // Primary Groq (or instantaneous fallback)
   try {
     return await groqChat(
       messages.map((m) => ({ role: m.role, content: m.content })),
       { ...options, maxTokens: options.maxTokens ?? 1200, temperature: options.temperature ?? 0.5 },
     );
   } catch (groqErr) {
-    console.error("[llm-service] Groq LLM fallback also failed:", groqErr);
+    console.error("[llm-service] Groq LLM failure:", groqErr);
     throw groqErr;
   }
 }

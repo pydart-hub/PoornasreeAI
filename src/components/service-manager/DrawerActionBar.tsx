@@ -59,6 +59,18 @@ export function DrawerActionBar({ ticket, onReassign, onAssignDealer, onCancelAs
           </button>
         )}
 
+        {/* Backup: Assign to Engineer instead of Dealer */}
+        {!isClosed && !ticket.assignedEngineer && !showEngineerAction && (showDealerAction || !!ticket.machineSerialNumber?.trim()) && (
+          <button
+            onClick={onReassign}
+            title="Backup option: Assign this ticket directly to an engineer instead of dealer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors whitespace-nowrap"
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            Assign Engineer (Backup)
+          </button>
+        )}
+
         {!isClosed && showDealerAction && (
           <button
             onClick={onAssignDealer}

@@ -352,9 +352,9 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
-  // ── Mark incoming message as read (blue ticks ✓✓) & send typing indicator animation ──
+  // ── Mark incoming message as read (blue ticks ✓✓) & send typing indicator animation (non-blocking) ──
   if (messageId) {
-    await WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
+    WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
   }
 
   // Handle location shares (native WhatsApp location button)

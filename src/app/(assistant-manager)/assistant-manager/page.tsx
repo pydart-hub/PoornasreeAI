@@ -195,6 +195,14 @@ export default function AssistantManagerPage() {
 
   useEffect(() => { if (user?.role === "assistant_service_manager") fetchData(); }, [user, fetchData]);
 
+  // Keep drawerTicket in sync with updated tickets list (e.g. after assignment)
+  useEffect(() => {
+    if (drawerTicket) {
+      const updated = tickets.find(t => t.id === drawerTicket.id);
+      if (updated) setDrawerTicket(updated);
+    }
+  }, [tickets]);
+
   // ── Socket ──
   useEffect(() => {
     if (!user || user.role !== "assistant_service_manager") return;

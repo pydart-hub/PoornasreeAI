@@ -56,3 +56,5 @@ api/prisma/dev.db
 cloudflared.exe
 api/uploads/customer-uploads/
 api/uploads/promotions/
+api/uploads/work-reports/
+data/backups/

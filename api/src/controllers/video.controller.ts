@@ -145,14 +145,42 @@ export function formatVideoSuggestions(
   return `${header}\n${lines}`;
 }
 
+// ── In-Memory Cache for Video Resources (1 Hour TTL) ─────────────────────
+let cachedVideos: { data: any[]; expiresAt: number } | null = null;
+const VIDEO_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export async function getCachedVideoResources(): Promise<any[]> {
+  const now = Date.now();
+  if (cachedVideos && cachedVideos.expiresAt > now) {
+    return cachedVideos.data;
+  }
+  const data = await prisma.videoResource.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  cachedVideos = { data, expiresAt: now + VIDEO_CACHE_TTL_MS };
+  return data;
+}
+
+export function invalidateVideoCache(): void {
+  cachedVideos = null;
+}
+
+/** Pre-warm video resources in background on server boot */
+export async function preWarmVideoCache(): Promise<void> {
+  try {
+    console.log("[video.controller] Pre-warming video resource cache...");
+    await getCachedVideoResources();
+  } catch (err) {
+    console.warn("[video.controller] Pre-warm failed (will retry on demand):", (err as Error).message);
+  }
+}
+
 export async function findVideosForQuery(
   query: string,
   limit = 1
 ): Promise<{ id: string; title: string; description: string | null; youtubeUrl: string; keywords: string }[]> {
   try {
-    const allVideos = await prisma.videoResource.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const allVideos = await getCachedVideoResources();
     if (allVideos.length === 0) return [];
 
     const normalizedQuery = query.toLowerCase().trim();
@@ -225,6 +253,7 @@ export async function createVideo(req: Request, res: Response): Promise<void> {
       },
     });
 
+    invalidateVideoCache();
     res.status(201).json({ video });
   } catch (err) {
     console.error("createVideo error:", err);
@@ -264,6 +293,7 @@ export async function updateVideo(req: Request, res: Response): Promise<void> {
       },
     });
 
+    invalidateVideoCache();
     res.json({ video });
   } catch (err) {
     console.error("updateVideo error:", err);
@@ -283,6 +313,7 @@ export async function deleteVideo(req: Request, res: Response): Promise<void> {
     }
 
     await prisma.videoResource.delete({ where: { id } });
+    invalidateVideoCache();
     res.json({ success: true });
   } catch (err) {
     console.error("deleteVideo error:", err);

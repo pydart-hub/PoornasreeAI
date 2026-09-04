@@ -32,6 +32,7 @@ import {
 } from "./engineer-ticket-whatsapp.shared";
 import { translateText } from "./translate.service";
 import { resolveTicketCustomerName } from "../lib/ticket-customer";
+import { afterOtpTicketClosed } from "../lib/ticket-otp-close-effects";
 
 interface PendingAction {
   type: "diagnose" | "work_done" | "part" | "verify_otp" | "ts_serial" | "ts_respond";
@@ -1306,7 +1307,8 @@ async function handleVerifyOtp(
   }
 
   try {
-    await TicketService.verifyOTP(ticket.id, engineer.id, code);
+    const updated = await TicketService.verifyOTP(ticket.id, engineer.id, code);
+    await afterOtpTicketClosed(updated);
     setActiveTicket(from, "");
     clearPending(from);
 

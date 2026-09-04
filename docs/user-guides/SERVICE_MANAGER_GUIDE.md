@@ -108,6 +108,13 @@ In the ticket drawer or ticket card:
 2. Select a dealer from the dropdown
 3. The dealer receives a WhatsApp notification
 
+### Backup Option: Assign to Engineer Instead of Dealer
+
+For tickets where a serial number matches an authorized dealer or a ticket is queued for dealer assignment, you have a **backup option** available in the ticket details view:
+- If a dealer is unavailable, unresponsive, or you prefer direct internal field handling, click **"Assign Engineer (Backup)"** in the top action bar or inside the Assignment section of the ticket drawer.
+- Select an engineer covering the ticket's pincode zone.
+- Confirm the assignment. The system will cleanly reassign the ticket to the engineer, clear the dealer assignment, and send a WhatsApp assignment dispatch to the engineer.
+
 ### Re-assigning
 
 If the current assignee cannot attend, click the ticket → choose a different engineer or dealer. The old assignee is notified of removal.

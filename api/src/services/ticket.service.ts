@@ -393,6 +393,9 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
     },
     data: {
       assignedEngineerId: engineerId,
+      assignedDealerId:   null,
+      dealerResponse:     null,
+      dealerRespondedAt:  null,
       status:             TicketStatus.ASSIGNED,
       otpCodeHash:        null,
       otpExpiresAt:       null,
@@ -562,6 +565,12 @@ export async function verifyOTP(ticketId: string, userId: string, code: string, 
       include: TICKET_INCLUDE,
     });
     notifyTicketEvent("ticket.closed", ticketId);
+    try {
+      const { afterOtpTicketClosed } = await import("../lib/ticket-otp-close-effects");
+      afterOtpTicketClosed(updated).catch((err) =>
+        console.error("[ticket.service verifyOTP] afterOtpTicketClosed failed:", (err as Error).message)
+      );
+    } catch {}
     return updated;
   }
 
@@ -735,6 +744,12 @@ export async function dealerComplete(ticketId: string, dealerUserId: string) {
     include: TICKET_INCLUDE,
   });
   notifyTicketEvent("ticket.closed", ticketId);
+  try {
+    const { afterOtpTicketClosed } = await import("../lib/ticket-otp-close-effects");
+    afterOtpTicketClosed(updated).catch((err) =>
+      console.error("[ticket.service dealerComplete] afterOtpTicketClosed failed:", (err as Error).message)
+    );
+  } catch {}
   return updated;
 }
 

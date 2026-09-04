@@ -603,6 +603,14 @@ export default function ServiceManagerPage() {
 
   useEffect(() => { if (user?.role === "service_manager") fetchData(); }, [user, fetchData]);
 
+  // Keep drawerTicket in sync with updated tickets list (e.g. after assignment)
+  useEffect(() => {
+    if (drawerTicket) {
+      const updated = tickets.find(t => t.id === drawerTicket.id);
+      if (updated) setDrawerTicket(updated);
+    }
+  }, [tickets]);
+
   const handleResendSetupLink = async (eng: Engineer) => {
     setResendingSetupLink(true);
     try {
