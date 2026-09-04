@@ -430,8 +430,7 @@ export default function AdminPage() {
   const trainingNavItems: SubNavItem<TrainingSubTab>[] = [
     { key: "documents", label: "Training Documents", icon: FileText, count: documents.length },
     { key: "trainingvideos", label: "Engineer Training Videos", icon: GraduationCap },
-    { key: "videos", label: "Customer Videos", icon: Youtube, count: videos.length },
-    { key: "rdvideos", label: "Engineer & R&D Videos", icon: Film },
+    { key: "videos", label: "Troubleshooting Videos", icon: Youtube, count: videos.length },
     { key: "troubleshooting", label: "Templates & Guides", icon: LayoutDashboard },
   ];
 

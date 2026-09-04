@@ -8,6 +8,7 @@ import * as WhatsAppService from "./whatsapp.service";
 import * as TicketService from "./ticket.service";
 import * as TroubleshootingService from "./troubleshooting.service";
 import { searchTrainingVideos } from "./engineer-training-video.service";
+import { findVideosForQuery } from "../controllers/video.controller";
 import { getCatalogForRole, prefilterCatalog } from "./training-catalog.service";
 import {
   ENG_PREFIX,
@@ -701,26 +702,35 @@ export async function handleEngineerMessage(
     return;
   }
 
-  // ── 20. Smart Fallback: Combined troubleshooting steps + training videos ──
+  // ── 20. Smart Fallback: Combined troubleshooting steps + matching videos ──
   if (text.length > 2) {
-    // Search both simultaneously
-    const [troubleshootMatch, videoMatches] = await Promise.all([
+    // Search diagnostic checks, troubleshooting videos, and engineer training videos
+    const [troubleshootMatch, troubleshootingVideos, trainingVideoMatches] = await Promise.all([
       findEngineerTroubleshooting(text, engineer.firstName),
+      findVideosForQuery(text, 1).catch(() => []),
       searchTrainingVideos(text, 2).catch(() => []),
     ]);
 
     const hasSteps = !!troubleshootMatch?.formatted;
-    const hasVideos = videoMatches.length > 0;
+    const hasTroubleshootingVideo = troubleshootingVideos.length > 0;
+    const hasTrainingVideos = trainingVideoMatches.length > 0;
 
-    if (hasSteps || hasVideos) {
+    if (hasSteps || hasTroubleshootingVideo || hasTrainingVideos) {
       const parts: string[] = [];
 
       if (hasSteps) {
         parts.push(troubleshootMatch!.formatted);
       }
 
-      if (hasVideos) {
-        const videoLines = videoMatches
+      // If matching complaint has a troubleshooting video, present it
+      if (hasTroubleshootingVideo) {
+        const videoLines = troubleshootingVideos
+          .map((v) => `🎬 *${v.title}*\n👉 ${v.youtubeUrl}`)
+          .join("\n\n");
+        parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}📺 *Related Troubleshooting Video:*\n\n${videoLines}`);
+      } else if (hasTrainingVideos) {
+        // If not a machine fault troubleshooting video, but matches engineer setup training (e.g. "channels")
+        const videoLines = trainingVideoMatches
           .map((v) => `🎬 *${v.title}*\n👉 ${v.youtubeUrl}`)
           .join("\n\n");
         parts.push(`${hasSteps ? "\n\n────────────────\n\n" : ""}🎓 *Related Training Videos:*\n\n${videoLines}`);

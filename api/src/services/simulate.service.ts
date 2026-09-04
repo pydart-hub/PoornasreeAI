@@ -3796,7 +3796,21 @@ ${settings.companyAddress || ""}
         buttons = [getMenuButton(lang)];
       }
 
-      return makeReply(reply.trim(), buttons);
+      // If this is a machine complaint or troubleshooting reply, check for a matching troubleshooting video
+      let finalReply = reply.trim();
+      if (isLegitimateTroubleshooting || (isServiceIntent && hasActionableTroubleshootingSteps)) {
+        try {
+          const videoSearchTerm = query.trim() || meta.complaint || "";
+          const matchingVideos = videoSearchTerm ? await findVideosForQuery(videoSearchTerm, 1) : [];
+          if (matchingVideos.length > 0) {
+            finalReply += formatVideoSuggestions(matchingVideos, lang);
+          }
+        } catch (vErr) {
+          console.error("[groq-company-assistant] Video recommendation lookup error:", vErr);
+        }
+      }
+
+      return makeReply(finalReply, buttons);
     }
   } catch (err) {
     console.error("[groq-company-assistant] Fallback error:", err);

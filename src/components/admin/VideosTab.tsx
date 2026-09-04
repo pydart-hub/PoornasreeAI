@@ -80,10 +80,10 @@ export default function VideosTab({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {editingVideo ? "Edit Video Tutorial" : "Add YouTube Video Tutorial"}
+                {editingVideo ? "Edit Troubleshooting Video" : "Add Troubleshooting Video"}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Videos are automatically recommended in customer &amp; engineer AI chat responses.
+                Troubleshooting videos are automatically recommended to customers &amp; service engineers when reported complaints match keywords.
               </p>
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function VideosTab({
               type="text"
               value={videoForm.title}
               onChange={(e) => onSetVideoForm({ ...videoForm, title: e.target.value })}
-              placeholder="e.g., How to replace seal ring in ECO V3"
+              placeholder="e.g., Stirrer ON but Not Vibrating"
               className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
@@ -121,7 +121,7 @@ export default function VideosTab({
               type="text"
               value={videoForm.youtubeUrl}
               onChange={(e) => onSetVideoForm({ ...videoForm, youtubeUrl: e.target.value })}
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://youtu.be/..."
               className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
@@ -134,22 +134,47 @@ export default function VideosTab({
               type="text"
               value={videoForm.description}
               onChange={(e) => onSetVideoForm({ ...videoForm, description: e.target.value })}
-              placeholder="Brief description of what this video demonstrates…"
+              placeholder="Brief description of what troubleshooting steps this video demonstrates…"
               className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Keywords * (comma separated for AI matching)
+          <div className="sm:col-span-2 space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              Keywords * (comma separated for AI complaint matching)
             </label>
             <input
               type="text"
               value={videoForm.keywords}
               onChange={(e) => onSetVideoForm({ ...videoForm, keywords: e.target.value })}
-              placeholder="e.g., seal replacement, eco v3, blinking error, water leak"
+              placeholder="e.g., vibro, stirrer not vibrating, t2 error, hot sample, water in sensor, printer blank"
               className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+            {/* Quick Keyword Suggestions */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Quick add:</span>
+              {[
+                "vibro", "stirrer not vibrating", "t2 error", "hot sample error",
+                "water in sensor", "sample not found", "printer paper blank",
+                "zero calibration", "wifi range", "cleaning"
+              ].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => {
+                    const current = videoForm.keywords.trim();
+                    if (!current) {
+                      onSetVideoForm({ ...videoForm, keywords: chip });
+                    } else if (!current.toLowerCase().includes(chip.toLowerCase())) {
+                      onSetVideoForm({ ...videoForm, keywords: `${current}, ${chip}` });
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-primary/10 hover:text-primary text-slate-600 dark:text-slate-400 text-[10px] font-medium transition-colors"
+                >
+                  + {chip}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -174,7 +199,7 @@ export default function VideosTab({
             <button
               type="button"
               onClick={onCancelEditVideo}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors"
             >
               <X className="w-4 h-4" />
               <span>Cancel</span>
@@ -183,13 +208,13 @@ export default function VideosTab({
         </div>
       </div>
 
-      {/* ── Video List Card with Search ── */}
+      {/* ── Video Catalog List ── */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Video Library
+                All Troubleshooting Videos
               </h2>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {filteredVideos.length} of {videos.length}

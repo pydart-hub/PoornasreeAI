@@ -32,36 +32,79 @@ const STOP_WORDS = new Set([
   "will", "been", "who", "you", "too", "use", "used", "via",
 ]);
 
+const DOMAIN_SYNONYMS: Record<string, string[]> = {
+  vibro: ["stirrer", "vibration", "vibrating"],
+  stirrer: ["vibro", "vibration", "vibrating"],
+  printer: ["paper", "blank", "print", "printing"],
+  blank: ["printer", "paper"],
+  t2: ["temperature", "temp", "t2 error", "temp set"],
+  temperature: ["t2", "temp", "hot"],
+  hot: ["hot sample", "temperature", "heat"],
+  sensor: ["water in sensor", "plunge", "sensor tube"],
+  sample: ["sample not found", "sucking", "air in milk"],
+  zero: ["water zero", "calibration", "zero calibration"],
+  calibration: ["water zero", "zero calibration", "calibrate"],
+  wifi: ["gsm", "cloud", "range", "network", "connectivity"],
+  cleaning: ["clean", "maintenance", "flush", "cleaning solution"],
+};
+
 function tokenizeQuery(query: string): string[] {
   return query
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+    .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
 }
 
-/** Score how well admin keywords match a customer query (higher = better). */
-export function scoreVideoMatch(query: string, keywords: string): number {
-  const normalizedQuery = query.toLowerCase().trim();
-  const keywordText = keywords.toLowerCase().trim();
-  if (!normalizedQuery || !keywordText) return 0;
+/** Score how well a video matches a query (higher = better). Evaluates title + keywords with domain synonyms. */
+export function scoreVideoMatch(query: string, title: string, keywords: string): number {
+  const normQ = query.toLowerCase().trim();
+  const normTitle = title.toLowerCase().trim();
+  const normKw = (keywords || "").toLowerCase().trim();
+  if (!normQ) return 0;
 
-  // Strong match when the full keyword phrase appears in the query (e.g. "milk analyzer").
-  if (keywordText.length >= 4 && normalizedQuery.includes(keywordText)) {
-    return 10;
+  let score = 0;
+
+  // 1. Direct title contains whole query or vice versa
+  if (normTitle && (normTitle.includes(normQ) || normQ.includes(normTitle))) {
+    score += 50;
   }
 
-  const queryWords = tokenizeQuery(query);
-  const keywordTokens = keywordText
-    .split(/[,\s]+/)
-    .map((t) => t.trim())
-    .filter((t) => t.length > 2);
+  // 2. Direct keyword phrase match
+  if (normKw && (normKw.includes(normQ) || normQ.includes(normKw))) {
+    score += 40;
+  }
 
-  if (queryWords.length === 0 || keywordTokens.length === 0) return 0;
+  const qWords = tokenizeQuery(normQ);
+  const targetWords = tokenizeQuery(`${normTitle} ${normKw}`);
 
-  return queryWords.filter((qw) =>
-    keywordTokens.some((kt) => kt === qw || kt.includes(qw) || qw.includes(kt))
-  ).length;
+  // Expand query with domain synonyms
+  const expandedQWords = new Set<string>(qWords);
+  for (const w of qWords) {
+    const syns = DOMAIN_SYNONYMS[w];
+    if (syns) {
+      syns.forEach((s) => expandedQWords.add(s));
+    }
+  }
+
+  // Check word intersections
+  for (const qw of expandedQWords) {
+    if (normTitle.includes(qw)) {
+      score += 15;
+    }
+    if (normKw.includes(qw)) {
+      score += 10;
+    }
+    for (const tw of targetWords) {
+      if (tw === qw) {
+        score += 8;
+      } else if (tw.includes(qw) || qw.includes(tw)) {
+        score += 4;
+      }
+    }
+  }
+
+  return score;
 }
 
 /** Format matched videos for WhatsApp / plain-text chat replies. */
@@ -72,12 +115,12 @@ export function formatVideoSuggestions(
   if (videos.length === 0) return "";
 
   const headers: Record<string, string> = {
-    en: "📺 *Related Videos:*",
-    hi: "📺 *संबंधित वीडियो:*",
-    ta: "📺 *தொடர்புடைய வீடியோக்கள்:*",
-    kn: "📺 *ಸಂಬಂಧಿತ ವೀಡಿಯೊಗಳು:*",
+    en: "📺 *Related Troubleshooting Video:*",
+    hi: "📺 *संबंधित वीडियो ट्यूटोरियल:*",
+    ta: "📺 *தொடர்புடைய வீடியோ:*",
+    kn: "📺 *ಸಂಬಂಧಿತ ವೀಡಿಯೊ:*",
     mr: "📺 *संबंधित व्हिडिओ:*",
-    te: "📺 *సంబంధిత వీడియోలు:*",
+    te: "📺 *సంబంధిత వీడియో:*",
     bn: "📺 *সম্পর্কিত ভিডিও:*",
   };
 
@@ -91,18 +134,23 @@ export function formatVideoSuggestions(
 
 export async function findVideosForQuery(
   query: string,
-  limit = 3
+  limit = 1
 ): Promise<{ id: string; title: string; description: string | null; youtubeUrl: string; keywords: string }[]> {
   try {
-    const allVideos = await prisma.videoResource.findMany();
+    const allVideos = await prisma.videoResource.findMany({
+      orderBy: { createdAt: "desc" },
+    });
     if (allVideos.length === 0) return [];
 
     const normalizedQuery = query.toLowerCase().trim();
-    if (!normalizedQuery) return [];
+    if (!normalizedQuery || normalizedQuery.length < 2) return [];
 
     const scored = allVideos
-      .map((v) => ({ video: v, score: scoreVideoMatch(normalizedQuery, v.keywords || v.title) }))
-      .filter((s) => s.score >= 1)
+      .map((v) => ({
+        video: v,
+        score: scoreVideoMatch(normalizedQuery, v.title, v.keywords),
+      }))
+      .filter((s) => s.score >= 12)
       .sort((a, b) => b.score - a.score);
 
     if (scored.length > 0) {
@@ -112,17 +160,6 @@ export async function findVideosForQuery(
         description: s.video.description,
         youtubeUrl: s.video.youtubeUrl,
         keywords: s.video.keywords,
-      }));
-    }
-
-    // Fallback: If user asked for video/troubleshoot/vibro/analyzer, return default active videos
-    if (/video|vibro|analyzer|tutorial|troubleshoot|working|issue|problem|cleaning|hot sample/i.test(normalizedQuery)) {
-      return allVideos.slice(0, limit).map((v) => ({
-        id: v.id,
-        title: v.title,
-        description: v.description,
-        youtubeUrl: v.youtubeUrl,
-        keywords: v.keywords,
       }));
     }
 
