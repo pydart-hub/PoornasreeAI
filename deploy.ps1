@@ -55,23 +55,23 @@ function Invoke-SshCapture([string]$cmd) {
     return ($out | Out-String).Trim()
 }
 
-$deployCmd = "cd '$RemoteDir' ; git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git ; env SKIP_OLLAMA=1 bash deploy.sh $mode"
+$deployCmd = "cd '$RemoteDir' && git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $mode"
 
 Write-Host ""
-Write-Host " PoornasreeAI deploy — $mode" -ForegroundColor Cyan
+Write-Host " PoornasreeAI deploy - $mode" -ForegroundColor Cyan
 Write-Host " Server: ${User}@${Server}" -ForegroundColor Cyan
 Write-Host ""
 
 if ($Background) {
-    $startCmd = "cd '$RemoteDir' ; : > /tmp/deploy.log ; nohup bash deploy.sh $mode >> /tmp/deploy.log 2>&1 `&"
-    Invoke-Ssh $startCmd | Out-Null
+    $bgCmd = 'cd "' + $RemoteDir + '" && nohup bash deploy.sh ' + $mode + ' >> /tmp/deploy.log 2>&1 &'
+    Invoke-Ssh $bgCmd | Out-Null
     Write-Host "Running in background. Watch: ssh ${User}@${Server} 'tail -f /tmp/deploy.log'" -ForegroundColor Yellow
 } else {
     Invoke-Ssh $deployCmd
 }
 
-Invoke-Ssh "curl -sf http://localhost:${DeployApiHealthPort}/health ; echo ' API check complete'"
-Invoke-Ssh "curl -sf -o /dev/null -w 'web:%{http_code}\n' http://127.0.0.1:3002/"
+Invoke-Ssh ('curl -sf http://localhost:' + $DeployApiHealthPort + '/health && echo " API OK" || echo " API check failed"')
+Invoke-Ssh 'curl -sf -o /dev/null -w "web:%{http_code}\n" http://127.0.0.1:3002/'
 
 Write-Host ""
-Write-Host " Done — $DeployAppUrl" -ForegroundColor Green
+Write-Host " Done - $DeployAppUrl" -ForegroundColor Green
