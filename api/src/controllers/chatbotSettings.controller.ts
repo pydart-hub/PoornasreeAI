@@ -17,6 +17,7 @@ export async function updateChatbotSettings(req: Request, res: Response): Promis
     botName, supportPhone, supportEmail, supportHours, supportNote,
     welcomeGreeting, afterHoursGreeting, supportHandoffGreeting,
     companyAddress, companyPhotos, companyDetails,
+    quickButtons,
   } = req.body ?? {};
   try {
     const settings = await updateWhatsAppSupportSettings({
@@ -31,6 +32,7 @@ export async function updateChatbotSettings(req: Request, res: Response): Promis
       ...(companyAddress !== undefined && { companyAddress: companyAddress == null ? null : String(companyAddress) }),
       ...(companyPhotos !== undefined && { companyPhotos: companyPhotos == null ? null : String(companyPhotos) }),
       ...(companyDetails !== undefined && { companyDetails: companyDetails == null ? null : String(companyDetails) }),
+      ...(quickButtons !== undefined && { quickButtons }),
     });
     clearTrainingCatalogCache();
     res.json({ settings });

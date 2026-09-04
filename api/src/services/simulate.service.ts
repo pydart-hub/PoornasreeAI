@@ -38,6 +38,7 @@ import {
   type ProductCategory,
 } from "../constants/productCategories";
 import {
+  formatGreeting,
   formatSupportContactBlock,
   getWhatsAppSupportSettings,
 } from "./chatbotSettings.service";
@@ -1465,7 +1466,8 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     "VIEW_PRODUCTS", "VIEW_TICKETS", "VIEW_ORDERS",
     "COMPLAINT_REG", "COMPLAINT_STATUS", "SPEAK_SUPPORT", "CHANGE_LANG",
     "TROUBLESHOOT_RESOLVED", "TROUBLESHOOT_UNRESOLVED", "RESOLVED", "UNRESOLVED",
-    "CONFIRM_MACHINE_YES", "CONFIRM_MACHINE_NO"
+    "CONFIRM_MACHINE_YES", "CONFIRM_MACHINE_NO",
+    "BTN_PRODUCTS", "BTN_SERVICE", "BTN_AGENT",
   ]);
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
     await updateSession(session.id, "REGISTER_MACHINE_COUNT", { language: meta.language });
@@ -1492,6 +1494,8 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     upper === "COMPLAINTS" ||
     upper === "COMPLAINT_REG" ||
     upper === "BOOK_SERVICE" ||
+    upper === "BTN_SERVICE" ||
+    upper.includes("BOOK SERVICE") ||
     upper.includes("പരാതി") ||
     upper.includes("शिकायत") ||
     upper.includes("புகார்") ||
@@ -1586,6 +1590,7 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     upper === "TALK_TO_SUPPORT" ||
     upper === "SPEAK_TO_SUPPORT" ||
     upper === "SUPPORT" ||
+    upper === "BTN_AGENT" ||
     (upper === "4" && session.state === "MAIN_MENU") ||
     upper.includes("SPEAK TO SUPPORT") ||
     upper.includes("TALK TO SUPPORT") ||
@@ -1610,7 +1615,10 @@ export async function handleMessage(phoneNumber: string, message: string, messag
   // Product browsing buttons and VIEW_PRODUCTS always bypass state locks and go directly to product handlers
   const isProductNavButton =
     upper === "VIEW_PRODUCTS" ||
+    upper === "VIEW PRODUCTS" ||
+    upper.includes("VIEW PRODUCTS") ||
     upper === "PRODUCTS" ||
+    upper === "BTN_PRODUCTS" ||
     upper.startsWith("CAT_") ||
     upper.startsWith("PROD_") ||
     upper === "BACK_CATEGORIES" ||
@@ -1639,6 +1647,10 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     }
     if (session.state === "CHANGE_LANGUAGE") {
       return routeState(session, phoneNumber, text, meta);
+    }
+    if (upper === "MENU" || upper === "MAIN MENU" || upper === "MAIN_MENU") {
+      await updateSession(session.id, "MAIN_MENU", meta);
+      return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
     }
     return startGreeting(phoneNumber);
   }
@@ -1767,6 +1779,8 @@ export async function startGreeting(phoneNumber: string) {
   let existingMeta: SessionMeta = (session.metadata as SessionMeta) ?? {};
   const lang: Lang = (existingMeta.language ?? "en") as Lang;
 
+  const supportSettings = await getWhatsAppSupportSettings();
+
   const cleanPhone = phoneNumber.replace(/\D/g, "");
   const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
   const registeredUser = await prisma.user.findFirst({
@@ -1780,6 +1794,22 @@ export async function startGreeting(phoneNumber: string) {
     },
     select: { id: true, firstName: true, lastName: true, role: true, whatsappNumber: true, pincodeId: true },
   });
+
+  // Prepare Quick Reply Buttons from Admin Settings or default
+  const configuredButtons = supportSettings.quickButtons || [];
+  const quickButtons: ReplyButton[] = configuredButtons.length > 0
+    ? configuredButtons.slice(0, 3).map((b) => {
+        let buttonId = b.id;
+        if (b.id === "btn_products") buttonId = "VIEW_PRODUCTS";
+        else if (b.id === "btn_service") buttonId = "BOOK_SERVICE";
+        else if (b.id === "btn_agent") buttonId = "TALK_TO_SUPPORT";
+        return { id: buttonId, title: b.title };
+      })
+    : [
+        { id: "VIEW_PRODUCTS", title: "📦 View Products" },
+        { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+        { id: "TALK_TO_SUPPORT", title: "🎧 Talk to Support" },
+      ];
 
   // ONLY treat as registered if active User record exists in DB
   if (registeredUser) {
@@ -1821,26 +1851,22 @@ export async function startGreeting(phoneNumber: string) {
       );
     }
 
-    // Show welcome back directly with Main Menu
-    return makeReply(
-      t("WELCOME_BACK", lang, { name: displayName }) +
-      "\n\n" +
-      t("MAIN_MENU_MSG", lang),
-      undefined,
-      await getContextualMainMenuList(phoneNumber, lang)
-    );
+    // Deliver the configured WhatsApp Welcome Greeting with Quick Reply Buttons
+    let greetingMsg = formatGreeting(supportSettings.welcomeGreeting, supportSettings, displayName);
+    if (
+      !supportSettings.welcomeGreeting?.includes("{name}") &&
+      !supportSettings.welcomeGreeting?.includes("{customer_name}")
+    ) {
+      greetingMsg = `Welcome back, *${displayName}*! 👋\n\n${greetingMsg}`;
+    }
+
+    return makeReply(greetingMsg, quickButtons);
   }
 
-  // Unregistered user / Deleted customer: Clear stale meta and prompt for registration
-  await updateSession(session.id, "REGISTER_PROMPT", { language: existingMeta.language });
-  return makeReply(
-    t("REGISTER_WELCOME", lang),
-    [
-      { id: "REGISTER", title: t("REGISTER_BUTTON", lang) },
-      getSkipButton(lang),
-      getLangSelectButton(lang),
-    ]
-  );
+  // Unregistered user / New contact: Send First-Contact Welcome Greeting with Quick Reply Buttons
+  await updateSession(session.id, "MAIN_MENU", { language: existingMeta.language, customerPhone: phoneNumber });
+  const welcomeMsg = formatGreeting(supportSettings.welcomeGreeting, supportSettings);
+  return makeReply(welcomeMsg, quickButtons);
 }
 
 // ── State router ──────────────────────────────────────────────────────────
@@ -6575,8 +6601,14 @@ function isGlobalRestartCommand(upper: string): boolean {
     upper === "MENU" ||
     upper === "START" ||
     upper === "RESET" ||
-    /^H[IE]+I*$/.test(upper) ||
-    /^HELL+O*$/.test(upper)
+    upper === "RESTART" ||
+    upper === "HAI" ||
+    upper === "HEY" ||
+    upper === "NAMASTE" ||
+    /^H[IEA]+I*$/.test(upper) ||
+    /^HELL+O*$/.test(upper) ||
+    upper === "HI THERE" ||
+    upper === "HELLO THERE"
   );
 }
 

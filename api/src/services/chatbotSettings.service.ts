@@ -1,5 +1,12 @@
 import prisma from "../lib/prisma";
 
+export type QuickButtonSetting = {
+  id: string;
+  title: string;
+  actionType?: string;
+  responsePayload?: string;
+};
+
 export type WhatsAppSupportSettings = {
   botName: string;
   supportPhone: string;
@@ -16,6 +23,7 @@ export type WhatsAppSupportSettings = {
   activeLlmProvider: string | null;
   geminiApiKey: string | null;
   groqApiKey: string | null;
+  quickButtons?: QuickButtonSetting[] | null;
 };
 
 const DEFAULT_COMPANY_ADDRESS = "13/191-C, Mannoor Road, Near Abad Golden Oak Apartments, Maradu P.O, Ernakulam, Kerala - 682304";
@@ -79,6 +87,12 @@ const DEFAULT_COMPANY_KNOWLEDGE = `POORNASREE EQUIPMENTS PVT LTD — COMPLETE OF
 
 const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
 
+export const DEFAULT_QUICK_BUTTONS: QuickButtonSetting[] = [
+  { id: "VIEW_PRODUCTS", title: "📦 View Products" },
+  { id: "BOOK_SERVICE", title: "🛠️ Book Service" },
+  { id: "TALK_TO_SUPPORT", title: "🎧 Talk to Support" },
+];
+
 const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   botName: "Hari",
   supportPhone: "+91 94009 61291",
@@ -95,11 +109,26 @@ const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
   activeLlmProvider: "gemini",
   geminiApiKey: DEFAULT_GEMINI_KEY,
   groqApiKey: null,
+  quickButtons: DEFAULT_QUICK_BUTTONS,
 };
 
 export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSettings> {
   const row = await prisma.chatbotSetting.findUnique({ where: { id: "default" } });
-  if (!row) return DEFAULT_SETTINGS;
+  
+  let quickButtons: QuickButtonSetting[] = DEFAULT_QUICK_BUTTONS;
+  try {
+    const btnRow = await prisma.systemSetting.findUnique({ where: { key: "whatsapp_quick_buttons" } });
+    if (btnRow?.value) {
+      const parsed = JSON.parse(btnRow.value);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        quickButtons = parsed;
+      }
+    }
+  } catch {
+    /* fallback to default buttons */
+  }
+
+  if (!row) return { ...DEFAULT_SETTINGS, quickButtons };
   return {
     botName: (row as any).botName?.trim() || DEFAULT_SETTINGS.botName,
     supportPhone: row.supportPhone?.trim() || DEFAULT_SETTINGS.supportPhone,
@@ -116,6 +145,7 @@ export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSetti
     activeLlmProvider: (row as any).activeLlmProvider?.trim() || DEFAULT_SETTINGS.activeLlmProvider,
     geminiApiKey: (row as any).geminiApiKey?.trim() || DEFAULT_SETTINGS.geminiApiKey,
     groqApiKey: (row as any).groqApiKey?.trim() || null,
+    quickButtons,
   };
 }
 
@@ -128,6 +158,25 @@ export async function updateWhatsAppSupportSettings(
   }
 
   const botName = data.botName?.trim();
+
+  if (data.quickButtons !== undefined) {
+    try {
+      await prisma.systemSetting.upsert({
+        where: { key: "whatsapp_quick_buttons" },
+        create: {
+          key: "whatsapp_quick_buttons",
+          value: JSON.stringify(data.quickButtons),
+          category: "whatsapp",
+          label: "WhatsApp Quick Reply Buttons",
+        },
+        update: {
+          value: JSON.stringify(data.quickButtons),
+        },
+      });
+    } catch (e) {
+      console.error("[chatbotSettings] Failed to save quickButtons:", e);
+    }
+  }
 
   const row = await prisma.chatbotSetting.upsert({
     where: { id: "default" },
@@ -184,17 +233,30 @@ export async function updateWhatsAppSupportSettings(
     activeLlmProvider: (row as any).activeLlmProvider || DEFAULT_SETTINGS.activeLlmProvider,
     geminiApiKey: (row as any).geminiApiKey || DEFAULT_SETTINGS.geminiApiKey,
     groqApiKey: (row as any).groqApiKey || null,
+    quickButtons: data.quickButtons !== undefined ? data.quickButtons : DEFAULT_QUICK_BUTTONS,
   };
 }
 
 /** Substitute dynamic template variables in greeting text */
-export function formatGreeting(template: string | null | undefined, settings: WhatsAppSupportSettings): string {
+export function formatGreeting(
+  template: string | null | undefined,
+  settings: WhatsAppSupportSettings,
+  customerName?: string
+): string {
   const text = template || DEFAULT_SETTINGS.welcomeGreeting!;
-  return text
+  let res = text
     .replace(/\{bot_name\}/gi, settings.botName || "Hari")
     .replace(/\{company_name\}/gi, "Poornasree Equipments")
     .replace(/\{support_phone\}/gi, settings.supportPhone || "+91 94009 61291")
     .replace(/\{business_hours\}/gi, settings.supportHours || "Mon–Sat, 9 AM – 6 PM IST");
+
+  if (customerName) {
+    res = res.replace(/\{name\}|\{customer_name\}/gi, customerName);
+  } else {
+    res = res.replace(/\{name\}|\{customer_name\}/gi, "");
+  }
+
+  return res;
 }
 
 /** Lines shown in WhatsApp "Speak to Support" reply. */

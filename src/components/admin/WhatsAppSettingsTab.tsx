@@ -51,6 +51,7 @@ interface SupportSettings {
   activeLlmProvider?: string | null;
   geminiApiKey?: string | null;
   groqApiKey?: string | null;
+  quickButtons?: WaQuickButtonConfig[] | null;
 }
 
 interface WaQuickButtonConfig {
@@ -257,6 +258,10 @@ export default function WhatsAppSettingsTab() {
         groqApiKey: s.groqApiKey ?? "",
       }));
 
+      if (s.quickButtons && Array.isArray(s.quickButtons) && s.quickButtons.length > 0) {
+        setButtons(s.quickButtons);
+      }
+
       if (s.companyPhotos) {
         try {
           const parsed = JSON.parse(s.companyPhotos);
@@ -334,6 +339,7 @@ export default function WhatsAppSettingsTab() {
           activeLlmProvider: form.activeLlmProvider.trim() || "gemini",
           geminiApiKey: form.geminiApiKey.trim() || null,
           groqApiKey: form.groqApiKey.trim() || null,
+          quickButtons: buttons,
         }),
       });
 
