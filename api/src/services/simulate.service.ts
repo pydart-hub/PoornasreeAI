@@ -4045,7 +4045,7 @@ ${settings.companyAddress || ""}
             meta.complaint = query.trim();
             meta.lastIssueQuery = query.trim();
             meta.videoSearchQuery = query.trim();
-            meta.lastTroubleshootVideo = null; // CLEAR it so we don't leak old videos to new issues
+            meta.lastTroubleshootVideo = undefined; // CLEAR it so we don't leak old videos to new issues
           } else if (meta.lastTroubleshootVideo) {
             // No video match for current query (e.g. language change or follow-up), but we already have an active video for this issue
             matchingVideos = [{

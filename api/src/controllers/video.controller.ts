@@ -37,20 +37,36 @@ const STOP_WORDS = new Set([
   "please", "tell", "say", "write", "translate", "translation", "repeat", "explain",
 ]);
 
+/**
+ * Generic domain words that describe machines, milk, or general errors.
+ * These must NOT qualify or drive video recommendations on their own.
+ */
+export const GENERIC_DOMAIN_WORDS = new Set([
+  "error", "errors", "problem", "problems", "issue", "issues",
+  "fault", "faults", "damage", "showing", "shown", "shwoing",
+  "guide", "tutorial", "troubleshoot", "troubleshooting",
+  "video", "videos", "lactosure", "lactogrand", "analyzer", "analyzers",
+  "machine", "machines", "milk", "milks", "device", "unit", "help",
+  "fix", "please", "support", "service", "customer", "sample", "samples"
+]);
+
 const DOMAIN_SYNONYMS: Record<string, string[]> = {
   vibro: ["stirrer", "vibration", "vibrating"],
   stirrer: ["vibro", "vibration", "vibrating"],
   printer: ["paper", "blank", "print", "printing"],
   blank: ["printer", "paper"],
-  t2: ["temperature", "temp", "t2 error", "temp set"],
-  temperature: ["t2", "temp", "hot"],
-  hot: ["hot sample", "temperature", "heat"],
-  sensor: ["water in sensor", "plunge", "sensor tube"],
-  sample: ["sample not found", "sucking", "air in milk"],
-  zero: ["water zero", "calibration", "zero calibration"],
-  calibration: ["water zero", "zero calibration", "calibrate"],
+  t2: ["t2", "t2 error"],
+  hot: ["hot sample", "temperature high", "high temp", "warm", "too hot"],
+  temperature: ["temp", "heat", "t2"],
+  temp: ["temperature", "heat", "t2"],
+  sensor: ["sensor", "plunge", "tube", "water in sensor"],
+  zero: ["water zero", "zero calibration"],
+  calibration: ["water zero", "zero calibration", "calibrate", "recalibrate"],
   wifi: ["gsm", "cloud", "range", "network", "connectivity"],
-  cleaning: ["clean", "maintenance", "flush", "cleaning solution"],
+  cleaning: ["clean", "maintenance", "flush", "daily cleaner", "solution"],
+  battery: ["power", "charging", "charger", "adapter", "battery drain", "not on"],
+  fat: ["snf", "reading variation", "calibration", "accuracy"],
+  snf: ["fat", "reading variation", "calibration", "accuracy"],
 };
 
 function tokenizeQuery(query: string): string[] {
@@ -61,60 +77,82 @@ function tokenizeQuery(query: string): string[] {
     .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
 }
 
-/** Score how well a video matches a query (higher = better). Evaluates title + keywords with domain synonyms. */
+/**
+ * Score how well a video matches a query (higher = better).
+ * Requires substantive topic matching — generic words alone ("error", "sample", "analyzer")
+ * will NEVER qualify a video.
+ */
 export function scoreVideoMatch(query: string, title: string, keywords: string): number {
   const normQ = query.toLowerCase().trim();
   const normTitle = title.toLowerCase().trim();
   const normKw = (keywords || "").toLowerCase().trim();
   if (!normQ) return 0;
 
-  let score = 0;
-
-  // 1. Direct title contains whole query or vice versa (minimum 4 chars to prevent preposition false matches)
-  if (normTitle && normQ.length >= 4 && (normTitle.includes(normQ) || (normQ.length >= normTitle.length && normQ.includes(normTitle)))) {
-    score += 50;
-  }
-
-  // 2. Direct keyword phrase match (minimum 4 chars)
-  if (normKw && normQ.length >= 4 && (normKw.includes(normQ) || (normQ.length >= normKw.length && normQ.includes(normKw)))) {
-    score += 40;
-  }
-
   const qWords = tokenizeQuery(normQ);
-  const targetWords = tokenizeQuery(`${normTitle} ${normKw}`);
-  if (qWords.length === 0) return score;
+  if (qWords.length === 0) return 0;
 
-  // Expand query with domain synonyms
-  const expandedQWords = new Set<string>(qWords);
-  for (const w of qWords) {
+  // Extract substantive query words (excluding stop words and generic domain terms)
+  const substantiveQWords = qWords.filter((w) => !GENERIC_DOMAIN_WORDS.has(w));
+  // A query consisting only of generic words (e.g. "error", "machine error", "sample error")
+  // must NEVER trigger a specific troubleshooting video
+  if (substantiveQWords.length === 0) return 0;
+
+  const targetWords = tokenizeQuery(`${normTitle} ${normKw}`);
+  const substantiveTargetWords = targetWords.filter((w) => !GENERIC_DOMAIN_WORDS.has(w));
+  if (substantiveTargetWords.length === 0) return 0;
+
+  // Direct full-phrase match in title or keywords (e.g. "hot sample error", "t2 error", "water zero")
+  if (normTitle && normQ.length >= 4 && (normTitle.includes(normQ) || (normQ.length >= normTitle.length && normQ.includes(normTitle)))) {
+    return 120;
+  }
+  if (normKw && normQ.length >= 4 && (normKw.includes(normQ) || (normQ.length >= normKw.length && normQ.includes(normKw)))) {
+    return 100;
+  }
+
+  // Expand query's substantive words with domain synonyms
+  const expandedSubstantive = new Set<string>(substantiveQWords);
+  for (const w of substantiveQWords) {
     const syns = DOMAIN_SYNONYMS[w];
     if (syns) {
-      syns.forEach((s) => expandedQWords.add(s));
+      for (const s of syns) {
+        tokenizeQuery(s).forEach((sw) => {
+          if (!GENERIC_DOMAIN_WORDS.has(sw)) {
+            expandedSubstantive.add(sw);
+          }
+        });
+      }
     }
   }
 
-  // Check word intersections
-  for (const qw of expandedQWords) {
-    const isExactTitleWord = targetWords.some((tw) => tw === qw);
-    if (isExactTitleWord) {
-      score += 15;
-    } else if (qw.length >= 4 && normTitle.includes(qw)) {
-      score += 8;
+  // Count overlapping substantive words
+  let substantiveMatches = 0;
+  for (const qw of expandedSubstantive) {
+    if (substantiveTargetWords.includes(qw)) {
+      substantiveMatches++;
     }
+  }
 
-    if (normKw.split(/[\s|,]+/).some((kw) => kw.trim() === qw)) {
-      score += 10;
-    } else if (qw.length >= 4 && normKw.includes(qw)) {
-      score += 5;
-    }
+  // STRICT REJECTION: If the customer query contains specific problem words (e.g. "keypad", "sensor", "display")
+  // and ZERO of them match the video's substantive topic, reject immediately!
+  if (substantiveMatches === 0) {
+    return 0;
+  }
 
-    for (const tw of targetWords) {
-      if (tw === qw) {
-        score += 8;
-      } else if (qw.length >= 4 && tw.length >= 4 && (tw.includes(qw) || qw.includes(tw))) {
-        score += 4;
-      }
+  let score = substantiveMatches * 35;
+
+  // Title coverage bonus: if a majority of the video's substantive title words are matched
+  const titleSubstantive = tokenizeQuery(normTitle).filter((w) => !GENERIC_DOMAIN_WORDS.has(w));
+  if (titleSubstantive.length > 0) {
+    const titleMatchedCount = titleSubstantive.filter((tw) => expandedSubstantive.has(tw)).length;
+    if (titleMatchedCount / titleSubstantive.length >= 0.5) {
+      score += 30;
     }
+  }
+
+  // Exact keyword match bonus
+  const kwList = normKw.split(/[\s|,|;]+/).map((k) => k.trim()).filter(Boolean);
+  if (kwList.some((kw) => kw === normQ || expandedSubstantive.has(kw))) {
+    score += 20;
   }
 
   return score;
@@ -191,7 +229,7 @@ export async function findVideosForQuery(
         video: v,
         score: scoreVideoMatch(normalizedQuery, v.title, v.keywords),
       }))
-      .filter((s) => s.score >= 12)
+      .filter((s) => s.score >= 30)
       .sort((a, b) => b.score - a.score);
 
     if (scored.length > 0) {
