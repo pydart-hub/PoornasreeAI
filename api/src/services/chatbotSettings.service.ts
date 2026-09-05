@@ -159,6 +159,15 @@ export async function updateWhatsAppSupportSettings(
 
   const botName = data.botName?.trim();
 
+  // Normalize hardcoded bot names in welcomeGreeting to dynamic {bot_name} placeholder
+  let normalizedWelcomeGreeting = data.welcomeGreeting?.trim();
+  if (normalizedWelcomeGreeting) {
+    if (botName) {
+      normalizedWelcomeGreeting = normalizedWelcomeGreeting.replace(new RegExp(`\\*?${botName}\\*?`, "gi"), "*{bot_name}*");
+    }
+    normalizedWelcomeGreeting = normalizedWelcomeGreeting.replace(/\*?Hari\*?/gi, "*{bot_name}*");
+  }
+
   if (data.quickButtons !== undefined) {
     try {
       await prisma.systemSetting.upsert({
@@ -187,7 +196,7 @@ export async function updateWhatsAppSupportSettings(
       supportEmail: data.supportEmail?.trim() || DEFAULT_SETTINGS.supportEmail,
       supportHours: data.supportHours?.trim() || DEFAULT_SETTINGS.supportHours,
       supportNote: data.supportNote?.trim() || null,
-      welcomeGreeting: data.welcomeGreeting?.trim() || DEFAULT_SETTINGS.welcomeGreeting,
+      welcomeGreeting: normalizedWelcomeGreeting || DEFAULT_SETTINGS.welcomeGreeting,
       afterHoursGreeting: data.afterHoursGreeting?.trim() || DEFAULT_SETTINGS.afterHoursGreeting,
       supportHandoffGreeting: data.supportHandoffGreeting?.trim() || DEFAULT_SETTINGS.supportHandoffGreeting,
       companyAddress: data.companyAddress?.trim() || DEFAULT_SETTINGS.companyAddress,
@@ -204,7 +213,7 @@ export async function updateWhatsAppSupportSettings(
       ...(data.supportEmail !== undefined && { supportEmail: data.supportEmail?.trim() || null }),
       ...(data.supportHours !== undefined && { supportHours: data.supportHours?.trim() || null }),
       ...(data.supportNote !== undefined && { supportNote: data.supportNote?.trim() || null }),
-      ...(data.welcomeGreeting !== undefined && { welcomeGreeting: data.welcomeGreeting?.trim() || null }),
+      ...(data.welcomeGreeting !== undefined && { welcomeGreeting: normalizedWelcomeGreeting || null }),
       ...(data.afterHoursGreeting !== undefined && { afterHoursGreeting: data.afterHoursGreeting?.trim() || null }),
       ...(data.supportHandoffGreeting !== undefined && { supportHandoffGreeting: data.supportHandoffGreeting?.trim() || null }),
       ...(data.companyAddress !== undefined && { companyAddress: data.companyAddress?.trim() || null }),
@@ -244,11 +253,20 @@ export function formatGreeting(
   customerName?: string
 ): string {
   const text = template || DEFAULT_SETTINGS.welcomeGreeting!;
+  const activeBotName = settings.botName?.trim() || "Hari";
   let res = text
-    .replace(/\{bot_name\}/gi, settings.botName || "Hari")
+    .replace(/\{bot_name\}/gi, activeBotName)
     .replace(/\{company_name\}/gi, "Poornasree Equipments")
     .replace(/\{support_phone\}/gi, settings.supportPhone || "+91 94009 61291")
     .replace(/\{business_hours\}/gi, settings.supportHours || "Mon–Sat, 9 AM – 6 PM IST");
+
+  // Fallback: If template had a hardcoded legacy "Hari" instead of {bot_name},
+  // ensure it is dynamically substituted with the active botName!
+  if (activeBotName.toLowerCase() !== "hari") {
+    res = res
+      .replace(/\*Hari\*/gi, `*${activeBotName}*`)
+      .replace(/\bHari\b/g, activeBotName);
+  }
 
   if (customerName) {
     res = res.replace(/\{name\}|\{customer_name\}/gi, customerName);

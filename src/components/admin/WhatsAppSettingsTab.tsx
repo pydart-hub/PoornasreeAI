@@ -247,7 +247,7 @@ export default function WhatsAppSettingsTab() {
         supportEmail: s.supportEmail ?? "sales@poornasree.com",
         supportHours: s.supportHours ?? "Mon–Sat, 9 AM – 6 PM IST",
         supportNote: s.supportNote ?? "",
-        welcomeGreeting: s.welcomeGreeting ?? DEFAULT_WELCOME,
+        welcomeGreeting: (s.welcomeGreeting ?? DEFAULT_WELCOME).replace(/\*?Hari\*?/g, "*{bot_name}*"),
         afterHoursGreeting: s.afterHoursGreeting ?? DEFAULT_AFTER_HOURS,
         supportHandoffGreeting: s.supportHandoffGreeting ?? DEFAULT_HANDOFF,
         companyAddress: s.companyAddress ?? DEFAULT_COMPANY_ADDRESS,
@@ -329,7 +329,7 @@ export default function WhatsAppSettingsTab() {
           supportEmail: form.supportEmail.trim() || null,
           supportHours: form.supportHours.trim() || null,
           supportNote: form.supportNote.trim() || null,
-          welcomeGreeting: form.welcomeGreeting.trim() || null,
+          welcomeGreeting: form.welcomeGreeting.trim().replace(/\*?Hari\*?/g, "*{bot_name}*") || null,
           afterHoursGreeting: form.afterHoursGreeting.trim() || null,
           supportHandoffGreeting: form.supportHandoffGreeting.trim() || null,
           companyAddress: form.companyAddress.trim() || null,
@@ -751,7 +751,17 @@ export default function WhatsAppSettingsTab() {
                     <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">AI Bot Name</label>
                     <input
                       value={form.botName}
-                      onChange={(e) => setForm((f) => ({ ...f, botName: e.target.value }))}
+                      onChange={(e) => {
+                        const newName = e.target.value;
+                        setForm((f) => {
+                          const prevName = f.botName.trim();
+                          let updatedGreeting = f.welcomeGreeting;
+                          if (prevName && prevName !== newName) {
+                            updatedGreeting = updatedGreeting.replace(new RegExp(`\\*?${prevName}\\*?`, "g"), "*{bot_name}*");
+                          }
+                          return { ...f, botName: newName, welcomeGreeting: updatedGreeting };
+                        });
+                      }}
                       className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
                     />
                   </div>
