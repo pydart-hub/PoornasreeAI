@@ -7081,6 +7081,10 @@ export async function startFeedbackFlow(phoneNumber: string, ticketId: string, t
 
   if (session) {
     // Put all matching sessions in FEEDBACK_RATING state with feedback metadata
+    const mergedMeta: Record<string, unknown> = {
+      ...((session.metadata as Record<string, unknown>) || {}),
+      ...meta,
+    };
     await prisma.conversationSession.updateMany({
       where: {
         OR: [
@@ -7092,7 +7096,7 @@ export async function startFeedbackFlow(phoneNumber: string, ticketId: string, t
       },
       data: {
         state: "FEEDBACK_RATING",
-        metadata: ({ ...((session.metadata as object) || {}), ...meta } as any),
+        metadata: mergedMeta as any,
       },
     });
   } else {
