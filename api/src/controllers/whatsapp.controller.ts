@@ -352,6 +352,23 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
+  // ── Stale Message Protection ─────────────────────────────────────────────
+  // If an incoming message was sent more than 10 minutes ago, it is a delayed
+  // webhook retry from Meta (e.g. re-delivered after server maintenance/restart).
+  // Acknowledge it to Meta (via 200 OK) but skip processing to avoid sending
+  // unexpected, delayed auto-replies.
+  const rawTimestamp = Number(msg.timestamp);
+  if (!isNaN(rawTimestamp) && rawTimestamp > 0) {
+    const ageSeconds = Math.floor(Date.now() / 1000) - rawTimestamp;
+    const MAX_MESSAGE_AGE_SECONDS = 10 * 60; // 10 minutes
+    if (ageSeconds > MAX_MESSAGE_AGE_SECONDS) {
+      console.log(
+        `[whatsapp] Skipping stale message ${messageId} from ${from} (sent ${Math.round(ageSeconds / 60)}m ago > 10m threshold)`,
+      );
+      return;
+    }
+  }
+
   // ── Mark incoming message as read (blue ticks ✓✓) & send typing indicator animation (non-blocking) ──
   if (messageId) {
     WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
