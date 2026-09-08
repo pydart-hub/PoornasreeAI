@@ -303,4 +303,12 @@ router.get("/tickets/:id", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
+// ── Public Groq & LLM Token Usage Analytics ──────────────────────────────
+import { getGroqUsageStats, getWhatsAppMessages } from "../controllers/analytics-llm.controller";
+router.get("/groq-usage", getGroqUsageStats);
+
+// ── Public WhatsApp Messages (Read-only list of sent & received messages) ──
+router.get("/whatsapp-messages", getWhatsAppMessages);
+
 export default router;
+

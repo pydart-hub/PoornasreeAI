@@ -185,6 +185,13 @@ router.get("/analytics/whatsapp/live", getWhatsappLiveUsers);
 // GET /api/admin/export/chats    —  CSV download of all chat logs
 router.get("/export/chats", exportChats);
 
+// GET /api/admin/analytics/groq-usage — Groq & Gemini token usage analytics
+import { getGroqUsageStats, getWhatsAppMessages } from "../controllers/analytics-llm.controller";
+router.get("/analytics/groq-usage", getGroqUsageStats);
+
+// GET /api/admin/whatsapp/messages — Sent and received WhatsApp messages log
+router.get("/whatsapp/messages", getWhatsAppMessages);
+
 // GET /api/admin/export/support  —  CSV download of all support tickets
 router.get("/export/support", exportSupport);
 

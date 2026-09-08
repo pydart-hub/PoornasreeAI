@@ -2,6 +2,7 @@
 // Used by WhatsApp agent, engineer Q&A, and training-video matching.
 
 import { runtime } from "./runtime-config.service";
+import prisma from "../lib/prisma";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -18,6 +19,8 @@ export type GroqChatOptions = {
   maxTokens?: number;
   json?: boolean;
   timeoutMs?: number;
+  feature?: string;
+  callerPhone?: string;
 };
 
 export function isGroqConfigured(): boolean {
@@ -70,6 +73,7 @@ export async function groqChat(
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startTime = Date.now();
 
     try {
       const res = await fetch(GROQ_API_URL, {
@@ -91,7 +95,33 @@ export async function groqChat(
 
       const data = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+        };
       };
+
+      const durationMs = Date.now() - startTime;
+
+      // Asynchronously log token usage telemetry without delaying the response
+      if (data.usage) {
+        prisma.llmUsageLog.create({
+          data: {
+            provider: "groq",
+            model,
+            feature: options.feature || "general",
+            promptTokens: data.usage.prompt_tokens ?? 0,
+            completionTokens: data.usage.completion_tokens ?? 0,
+            totalTokens: data.usage.total_tokens ?? 0,
+            durationMs,
+            callerPhone: options.callerPhone ?? null,
+          },
+        }).catch((logErr) => {
+          console.warn("[groq] Failed to record token usage log:", logErr?.message || logErr);
+        });
+      }
+
       const content = data.choices?.[0]?.message?.content?.trim() ?? "";
       if (content) return content;
     } catch (err) {
@@ -122,6 +152,8 @@ export async function transcribeAudioWithGroq(
   formData.append("file", blob, fileName);
   formData.append("model", "whisper-large-v3-turbo");
 
+  const startTime = Date.now();
+
   const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
     headers: {
@@ -135,6 +167,22 @@ export async function transcribeAudioWithGroq(
     throw new Error(`Groq Whisper API ${res.status}: ${errText.slice(0, 400)}`);
   }
 
+  const durationMs = Date.now() - startTime;
+
+  // Asynchronously record STT call
+  prisma.llmUsageLog.create({
+    data: {
+      provider: "groq",
+      model: "whisper-large-v3-turbo",
+      feature: "whisper_stt",
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      durationMs,
+    },
+  }).catch(() => {});
+
   const data = (await res.json()) as { text?: string };
   return data.text?.trim() ?? "";
 }
+

@@ -591,3 +591,20 @@ model EngineerTrainingVideo {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ── LLM Token Usage Telemetry (Groq & Gemini) ─────────────────────────────
+model LlmUsageLog {
+  id               String   @id @default(uuid())
+  provider         String   @default("groq") // "groq" | "gemini"
+  model            String
+  feature          String   @default("general") // "whatsapp_bot" | "engineer_qa" | "whisper_stt" | "translation" | "general"
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  durationMs       Int?
+  callerPhone      String?
+  createdAt        DateTime @default(now())
+
+  @@index([provider, createdAt])
+  @@index([feature, createdAt])
+}

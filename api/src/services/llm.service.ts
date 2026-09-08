@@ -1,5 +1,6 @@
 import { getWhatsAppSupportSettings } from "./chatbotSettings.service";
 import { groqChat } from "./groq.service";
+import prisma from "../lib/prisma";
 
 export type LlmMessage = {
   role: "system" | "user" | "assistant";
@@ -10,6 +11,8 @@ export type LlmChatOptions = {
   temperature?: number;
   maxTokens?: number;
   json?: boolean;
+  feature?: string;
+  callerPhone?: string;
 };
 
 const DEFAULT_GEMINI_KEYS = [
@@ -56,13 +59,20 @@ export async function llmChat(
   try {
     return await groqChat(
       messages.map((m) => ({ role: m.role, content: m.content })),
-      { ...options, maxTokens: options.maxTokens ?? 1200, temperature: options.temperature ?? 0.5 },
+      {
+        ...options,
+        maxTokens: options.maxTokens ?? 1200,
+        temperature: options.temperature ?? 0.5,
+        feature: options.feature,
+        callerPhone: options.callerPhone,
+      },
     );
   } catch (groqErr) {
     console.error("[llm-service] Groq LLM failure:", groqErr);
     throw groqErr;
   }
 }
+
 
 const GEMINI_MODELS = [
   "gemini-3.1-flash-lite",
@@ -122,7 +132,26 @@ export async function geminiChat(
 
       const data = (await res.json()) as {
         candidates?: { content?: { parts?: { text?: string }[] } }[];
+        usageMetadata?: {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+          totalTokenCount?: number;
+        };
       };
+
+      if (data.usageMetadata) {
+        prisma.llmUsageLog.create({
+          data: {
+            provider: "gemini",
+            model,
+            feature: options.feature || "general",
+            promptTokens: data.usageMetadata.promptTokenCount ?? 0,
+            completionTokens: data.usageMetadata.candidatesTokenCount ?? 0,
+            totalTokens: data.usageMetadata.totalTokenCount ?? 0,
+            callerPhone: options.callerPhone ?? null,
+          },
+        }).catch(() => {});
+      }
 
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
       if (text) return text;
