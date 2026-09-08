@@ -54,13 +54,32 @@ function loadJsonIntents(fileName: string, defaultRole: CatalogRole, source: Cat
       const role: CatalogRole =
         intent.role === "customer" ? "customer" : intent.role === "service" ? "service" : intent.role === "new_user" ? "new_user" : defaultRole;
       const content = String(intent.responses[0]).trim();
-      if (!content) continue;
+      const patterns = Array.from(new Set(intent.patterns ?? []));
+      const patternSet = new Set<string>(patterns);
+      for (const p of patterns) {
+        if (/t2|temp[._\s]*set/i.test(p) || /t2|temp[._\s]*set/i.test(intent.tag)) {
+          patternSet.add("T2");
+          patternSet.add("T2 ERROR");
+          patternSet.add("T 2 ERROR");
+          patternSet.add("T-2 ERROR");
+          patternSet.add("TR ERROR");
+          patternSet.add("T2 TEMP ERROR");
+          patternSet.add("T2 TEMP SET ERROR");
+          patternSet.add("T2 TEMPERATURE ERROR");
+          patternSet.add("TEMP SET ERROR");
+          patternSet.add("TEMP ERROR");
+          patternSet.add("T2 PROBLEM");
+          patternSet.add("T2 ISSUE");
+          patternSet.add("NO T2");
+          patternSet.add("NO T2 ERROR");
+        }
+      }
       out.push({
         id: `${source}:${intent.tag}`,
         tag: intent.tag,
         role,
         title: intent.patterns?.[0] || intent.tag,
-        patterns: intent.patterns ?? [],
+        patterns: Array.from(patternSet),
         content,
         source,
       });
@@ -119,6 +138,11 @@ async function loadDocumentIssues(): Promise<CatalogEntry[]> {
           patternSet.add("TEMP SET");
           patternSet.add("TEMP SET ERROR");
           patternSet.add("TEMP ERROR");
+          patternSet.add("T 2 ERROR");
+          patternSet.add("T-2 ERROR");
+          patternSet.add("TR ERROR");
+          patternSet.add("T2 PROBLEM");
+          patternSet.add("T2 ISSUE");
         }
         if (/sample[._\s]*not[._\s]*found/i.test(p)) {
           patternSet.add("SAMPLE NOT FOUND");
@@ -205,7 +229,7 @@ async function loadProductsFromDb(): Promise<CatalogEntry[]> {
       };
     });
   } catch (err: unknown) {
-    console.error("[training-catalog] Product load failed:", err);
+    console.warn("[training-catalog] Product load skipped (DB unavailable):", (err as Error).message);
     return [];
   }
 }

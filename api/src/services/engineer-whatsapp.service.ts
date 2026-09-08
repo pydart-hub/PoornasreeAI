@@ -1510,128 +1510,6 @@ function formatTroubleshootingSteps(title: string, rawContent: string, engineerN
   return `${greeting}\n\n${body}\n\nIf the issue persists after these checks, please submit a service diagnosis report or request component replacement approval.`;
 }
 
-// ── Helper: Search Document Chunks & Service Catalog for troubleshooting ──
-// Accurately matches against admin-uploaded documents (DocumentChunks) and service technical guides.
-export async function findEngineerTroubleshooting(
-  query: string,
-  engineerName?: string,
-): Promise<{ title: string; formatted: string } | null> {
-  const cleanQ = query.toLowerCase().trim();
-  const qTokens = cleanQ.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
-  if (qTokens.length === 0) return null;
-
-  // 1. Search Service Catalog entries (role: "service" takes top priority)
-  const catalog = await getCatalogForRole("service");
-  // Only include entries explicitly meant for service engineers.
-  // (Do not fallback to customer documents here, as it confuses engineers)
-  const serviceCatalog = catalog.filter((e) => e.role === "service");
-
-  let bestEntry: (typeof catalog)[0] | null = null;
-  let bestScore = 0;
-
-  for (const e of serviceCatalog) {
-    let score = 0;
-    if (e.role === "service") score += 50;
-
-    const patterns = (e.patterns || []).map((p) => p.toLowerCase());
-    for (const p of patterns) {
-      if (p === cleanQ) score += 200;
-      else if (p.includes(cleanQ) || cleanQ.includes(p)) score += 100;
-    }
-
-    const titleLower = e.title.toLowerCase();
-    if (titleLower === cleanQ) score += 150;
-    else if (titleLower.includes(cleanQ) || cleanQ.includes(titleLower)) score += 80;
-
-    const allText = `${e.title} ${(e.patterns || []).join(" ")} ${e.content}`.toLowerCase();
-    let matched = 0;
-    for (const w of qTokens) {
-      if (allText.includes(w)) matched++;
-    }
-    if (matched === qTokens.length) score += 60;
-    else score += matched * 10;
-
-    if (/->|REPLACE|CHECK THE|ADJUST/i.test(e.content)) {
-      score += 30;
-    }
-
-    if (e.source === "document_issue") {
-      if (e.role === "service") {
-        score += 200; // Prioritize extracted steps from uploaded ENGINEER documents
-      } else {
-        score += 50; // Give a small boost to extracted CUSTOMER documents
-      }
-    }
-
-    if (score > bestScore && score >= 35 && matched > 0) {
-      bestScore = score;
-      bestEntry = e;
-    }
-  }
-
-  // 2. Also search DocumentChunks from admin-uploaded service documents
-  const serviceChunks = await prisma.documentChunk.findMany({
-    where: { document: { documentType: { in: ["service", "both"] } } },
-    select: { content: true, document: { select: { title: true } } },
-  });
-
-  let bestChunk: (typeof serviceChunks)[0] | null = null;
-  let bestChunkScore = 0;
-  for (const chunk of serviceChunks) {
-    const cLower = chunk.content.toLowerCase();
-    let score = 0;
-    if (cLower.includes(cleanQ)) score += 120;
-    let matched = 0;
-    for (const w of qTokens) {
-      if (cLower.includes(w)) matched++;
-    }
-    if (matched === qTokens.length) score += 70;
-    else score += matched * 10;
-
-    if (/->|REPLACE|CHECK THE/i.test(chunk.content)) {
-      score += 30;
-    }
-
-    if (score > 0) {
-      score += 20;
-    }
-
-    if (score > bestChunkScore && score >= 45 && matched > 0) {
-      bestChunkScore = score;
-      bestChunk = chunk;
-    }
-  }
-
-  let finalTitle = "";
-  let finalContent = "";
-
-  // Prioritize high-confidence catalog / DocumentIssue matches over raw document chunks
-  if (bestEntry && (bestScore >= 100 || bestScore >= bestChunkScore)) {
-    finalTitle = bestEntry.title || "Troubleshooting Guide";
-    finalContent = bestEntry.content;
-  } else if (bestChunk && bestChunkScore >= 60) {
-    const firstLine = bestChunk.content.split(/\r?\n/)[0]?.trim() || "";
-    const titleMatch = firstLine.match(/^To\s+(?:fix|troubleshoot|resolve)\s+(?:the\s+)?([^\:\,\n]+)/i);
-    finalTitle = titleMatch && titleMatch[1] ? titleMatch[1].trim() : (bestChunk.document?.title || "Technical Guide");
-    finalContent = bestChunk.content;
-  } else if (bestEntry) {
-    finalTitle = bestEntry.title || "Troubleshooting Guide";
-    finalContent = bestEntry.content;
-  } else if (bestChunk) {
-    const firstLine = bestChunk.content.split(/\r?\n/)[0]?.trim() || "";
-    const titleMatch = firstLine.match(/^To\s+(?:fix|troubleshoot|resolve)\s+(?:the\s+)?([^\:\,\n]+)/i);
-    finalTitle = titleMatch && titleMatch[1] ? titleMatch[1].trim() : (bestChunk.document?.title || "Technical Guide");
-    finalContent = bestChunk.content;
-  } else {
-    return null;
-  }
-
-  return {
-    title: finalTitle,
-    formatted: formatTroubleshootingSteps(finalTitle, finalContent, engineerName),
-  };
-}
-
 // ── Helper: Simple edit distance (Levenshtein, capped at 3 for perf) ────
 function simpleEditDistance(a: string, b: string): number {
   if (Math.abs(a.length - b.length) > 2) return 99;
@@ -1648,6 +1526,302 @@ function simpleEditDistance(a: string, b: string): number {
     }
   }
   return dp[m][n];
+}
+
+// ── Helper: Normalizes typos and keyboard errors in engineer issue queries ────
+export function normalizeEngineerQuery(q: string): string {
+  let s = q.toLowerCase().trim();
+  // Keyboard typos for 't2' (on QWERTY: 'r' is right near '2' / 'e', swipe errors, etc.)
+  s = s.replace(/\b(?:tr|te|t-?2|t\s+2)\s*(?:error|err|problem|issue)?\b/gi, "t2 error");
+  s = s.replace(/\bt2err(?:or)?\b/gi, "t2 error");
+  s = s.replace(/\bt2\s*temp(?:erature)?\b/gi, "t2 temp error");
+  // Hot sample
+  s = s.replace(/\bhot\s*(?:smaple|smpl|sampel)\b/gi, "hot sample");
+  // Vibro
+  s = s.replace(/\bvibro\s+(?:not\s+)?(?:wrk|workng|wrking|woking)\b/gi, "vibro not working");
+  // Display
+  s = s.replace(/\b(?:no\s+)?(?:dispaly|disply|dsply)\b/gi, "display blank");
+  // Air in milk
+  s = s.replace(/\bair\s+in\s*(?:mlk|milk)\b/gi, "air in milk");
+  return s.trim();
+}
+
+function matchWordToken(haystack: string, token: string): boolean {
+  if (token.length <= 2) {
+    // Exact word boundary strictly required for short tokens ("t2", "e1", "tr", "no")
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\b`, "i");
+    return re.test(haystack);
+  }
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`\\b${escaped}`, "i");
+  return re.test(haystack);
+}
+
+// ── Helper: LLM intent disambiguation fallback ─────────────────────────────
+async function classifyEngineerIntentWithLlm(
+  query: string,
+  catalog: Array<{ title: string; content: string }>,
+): Promise<{ title: string; content: string } | null> {
+  try {
+    const { llmChat } = await import("./llm.service");
+    const candidateTitles = Array.from(
+      new Set(catalog.map((e) => e.title.trim()).filter((t) => t.length > 3)),
+    ).slice(0, 30);
+
+    const prompt = `You are a diagnostic assistant for milk analyzer equipment service engineers.
+An engineer typed this machine issue or error: "${query}"
+
+Available known troubleshooting issues:
+${candidateTitles.map((t, idx) => `${idx + 1}. ${t}`).join("\n")}
+
+Task: Which known issue is the engineer asking about? Take into account common typos, abbreviations, or keyboard errors (e.g. "tr error" -> T2 error, "hot smaple" -> Hot sample error).
+If there is a clear match, respond with ONLY a JSON object: {"matchedTitle": "<exact title from list above>"}
+If it is completely unrelated or cannot be determined, respond with: {"matchedTitle": null}`;
+
+    const raw = await llmChat(
+      [
+        { role: "system", content: "You classify equipment service error queries into exact candidate titles. Return valid JSON only." },
+        { role: "user", content: prompt },
+      ],
+      { maxTokens: 100, temperature: 0.1, json: true },
+    );
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (parsed.matchedTitle) {
+      const found = catalog.find(
+        (e) => e.title.toLowerCase().trim() === String(parsed.matchedTitle).toLowerCase().trim(),
+      );
+      if (found) {
+        return { title: found.title, content: found.content };
+      }
+    }
+  } catch (err) {
+    console.error("[engineer-whatsapp] classifyEngineerIntentWithLlm error:", err);
+  }
+  return null;
+}
+
+// ── Helper: Search Document Chunks & Service Catalog for troubleshooting ──
+// Accurately matches against admin-uploaded documents (DocumentChunks) and service technical guides.
+export async function findEngineerTroubleshooting(
+  query: string,
+  engineerName?: string,
+): Promise<{ title: string; formatted: string } | null> {
+  const cleanQ = query.toLowerCase().trim();
+  if (cleanQ.length === 0) return null;
+
+  const normalizedQ = normalizeEngineerQuery(cleanQ);
+
+  const allTokens = cleanQ.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
+  const normTokens = normalizedQ.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
+  const qTokens = Array.from(new Set([...allTokens, ...normTokens]));
+  if (qTokens.length === 0) return null;
+
+  const genericWords = new Set(["error", "err", "problem", "issue", "not", "working", "the", "and", "analyzer", "machine"]);
+  const substantiveTokens = qTokens.filter((w) => !genericWords.has(w));
+
+  // 1. Search Service Catalog entries (role: "service" takes top priority)
+  const catalog = await getCatalogForRole("service");
+  const serviceCatalog = catalog.filter((e) => e.role === "service" || e.role === "customer");
+
+  let bestEntry: (typeof catalog)[0] | null = null;
+  let bestScore = 0;
+
+  for (const e of serviceCatalog) {
+    let score = 0;
+    let matchedAny = false;
+    let matchedSubstantive = false;
+
+    const patterns = (e.patterns || []).map((p) => p.toLowerCase().trim());
+    const titleLower = e.title.toLowerCase().trim();
+
+    // Pattern matching: exact, substring, or Levenshtein distance
+    for (const p of patterns) {
+      if (p === cleanQ || p === normalizedQ) {
+        score += 300;
+        matchedAny = true;
+        matchedSubstantive = true;
+      } else if (p.includes(cleanQ) || cleanQ.includes(p) || p.includes(normalizedQ) || normalizedQ.includes(p)) {
+        score += 180;
+        matchedAny = true;
+        matchedSubstantive = true;
+      } else {
+        const d1 = simpleEditDistance(cleanQ, p);
+        const d2 = simpleEditDistance(normalizedQ, p);
+        const minD = Math.min(d1, d2);
+        if (minD <= 1) {
+          score += 220;
+          matchedAny = true;
+          matchedSubstantive = true;
+        } else if (minD <= 2 && Math.min(cleanQ.length, p.length) >= 6) {
+          score += 150;
+          matchedAny = true;
+          matchedSubstantive = true;
+        }
+      }
+    }
+
+    // Title matching
+    if (titleLower === cleanQ || titleLower === normalizedQ) {
+      score += 260;
+      matchedAny = true;
+      matchedSubstantive = true;
+    } else if (
+      titleLower.includes(cleanQ) ||
+      cleanQ.includes(titleLower) ||
+      titleLower.includes(normalizedQ) ||
+      normalizedQ.includes(titleLower)
+    ) {
+      score += 140;
+      matchedAny = true;
+      matchedSubstantive = true;
+    } else {
+      const dTitle = Math.min(simpleEditDistance(cleanQ, titleLower), simpleEditDistance(normalizedQ, titleLower));
+      if (dTitle <= 1) {
+        score += 180;
+        matchedAny = true;
+        matchedSubstantive = true;
+      }
+    }
+
+    // Token matching with word boundary protection
+    const targetTitleAndPatterns = `${e.title} ${(e.patterns || []).join(" ")}`.toLowerCase();
+    const allText = `${targetTitleAndPatterns} ${e.content}`.toLowerCase();
+
+    let titlePatternsMatched = 0;
+    let contentMatched = 0;
+
+    for (const w of qTokens) {
+      if (matchWordToken(targetTitleAndPatterns, w)) {
+        titlePatternsMatched++;
+        if (!genericWords.has(w)) matchedSubstantive = true;
+      } else if (matchWordToken(allText, w)) {
+        contentMatched++;
+        if (!genericWords.has(w)) matchedSubstantive = true;
+      }
+    }
+
+    if (titlePatternsMatched > 0) {
+      score += titlePatternsMatched * 40;
+      matchedAny = true;
+    }
+    if (contentMatched > 0 && (titlePatternsMatched > 0 || substantiveTokens.length === 0 || matchedSubstantive)) {
+      score += contentMatched * 10;
+      matchedAny = true;
+    }
+
+    // Diagnostic actions in content bonus
+    if (matchedAny && /->|REPLACE|CHECK THE|ADJUST/i.test(e.content)) {
+      score += 20;
+    }
+
+    // Role and source priority ONLY if already matched substantively
+    if (matchedSubstantive && score >= 70) {
+      if (e.role === "service") score += 50;
+      if (e.source === "document_issue") score += 40;
+    }
+
+    // Require substantive match if the query contains non-generic tokens
+    if (substantiveTokens.length > 0 && !matchedSubstantive) {
+      score = 0;
+    }
+
+    if (score > bestScore && score >= 90) {
+      bestScore = score;
+      bestEntry = e;
+    }
+  }
+
+  // 2. Also search DocumentChunks from admin-uploaded service documents
+  let serviceChunks: Array<{ content: string; document: { title: string } | null }> = [];
+  try {
+    serviceChunks = await prisma.documentChunk.findMany({
+      where: { document: { documentType: { in: ["service", "both"] } } },
+      select: { content: true, document: { select: { title: true } } },
+    });
+  } catch (err) {
+    // Graceful fallback if database connection is offline or unavailable
+  }
+
+  let bestChunk: (typeof serviceChunks)[0] | null = null;
+  let bestChunkScore = 0;
+  for (const chunk of serviceChunks) {
+    const cLower = chunk.content.toLowerCase();
+    let score = 0;
+    let matchedSubstantive = false;
+
+    if (cLower.includes(cleanQ) || cLower.includes(normalizedQ)) {
+      score += 120;
+      matchedSubstantive = true;
+    }
+
+    let matched = 0;
+    for (const w of qTokens) {
+      if (matchWordToken(cLower, w)) {
+        matched++;
+        if (!genericWords.has(w)) matchedSubstantive = true;
+      }
+    }
+
+    if (matched === qTokens.length) score += 70;
+    else score += matched * 10;
+
+    if (/->|REPLACE|CHECK THE/i.test(chunk.content)) {
+      score += 30;
+    }
+
+    if (substantiveTokens.length > 0 && !matchedSubstantive) {
+      score = 0;
+    }
+
+    if (score > bestChunkScore && score >= 80 && matchedSubstantive) {
+      bestChunkScore = score;
+      bestChunk = chunk;
+    }
+  }
+
+  let finalTitle = "";
+  let finalContent = "";
+
+  // Prioritize high-confidence catalog / DocumentIssue matches over raw document chunks
+  if (bestEntry && (bestScore >= 100 || bestScore >= bestChunkScore)) {
+    finalTitle = bestEntry.title || "Troubleshooting Guide";
+    finalContent = bestEntry.content;
+  } else if (bestChunk && bestChunkScore >= 80) {
+    const firstLine = bestChunk.content.split(/\r?\n/)[0]?.trim() || "";
+    const titleMatch = firstLine.match(/^To\s+(?:fix|troubleshoot|resolve)\s+(?:the\s+)?([^\:\,\n]+)/i);
+    finalTitle = titleMatch && titleMatch[1] ? titleMatch[1].trim() : (bestChunk.document?.title || "Technical Guide");
+    finalContent = bestChunk.content;
+  } else if (bestEntry) {
+    finalTitle = bestEntry.title || "Troubleshooting Guide";
+    finalContent = bestEntry.content;
+  } else if (bestChunk) {
+    const firstLine = bestChunk.content.split(/\r?\n/)[0]?.trim() || "";
+    const titleMatch = firstLine.match(/^To\s+(?:fix|troubleshoot|resolve)\s+(?:the\s+)?([^\:\,\n]+)/i);
+    finalTitle = titleMatch && titleMatch[1] ? titleMatch[1].trim() : (bestChunk.document?.title || "Technical Guide");
+    finalContent = bestChunk.content;
+  }
+
+  // 3. If no high-confidence catalog match was found, try fast LLM disambiguation fallback
+  if (!finalContent && qTokens.length > 0) {
+    const llmMatch = await classifyEngineerIntentWithLlm(query, serviceCatalog);
+    if (llmMatch) {
+      finalTitle = llmMatch.title;
+      finalContent = llmMatch.content;
+    }
+  }
+
+  if (!finalContent) {
+    return null;
+  }
+
+  return {
+    title: finalTitle,
+    formatted: formatTroubleshootingSteps(finalTitle, finalContent, engineerName),
+  };
 }
 
 // ── Helper: Fuzzy command matching for typos ─────────────────────────────
