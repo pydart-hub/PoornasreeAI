@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -15,19 +13,26 @@
 
 # production
 /build
+dist
 
-# misc
+# misc & OS
 .DS_Store
+Thumbs.db
 *.pem
+*.exe
+~$*
 
-# debug
+# debug & logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
 tests/simulation-results.log
 
-# local env files
+# env files
+.env
+.env.local
+.env.production
 .env*.local
 
 # vercel
@@ -37,24 +42,19 @@ tests/simulation-results.log
 *.tsbuildinfo
 next-env.d.ts
 
-
-
-
-
-
-
-#node_modules
-.next
-dist
-.env
-.env.local
-.env.production
-*.zip
-.claude
-ssh
+# databases & backups
+*.db
 api/prisma/dev.db
-cloudflared.exe
+data/backups/
+data/quotations/*.pdf
+
+# uploads
 api/uploads/customer-uploads/
 api/uploads/promotions/
 api/uploads/work-reports/
-data/backups/
+
+# archives & tooling caches
+*.zip
+.claude
+.freebuff
+ssh

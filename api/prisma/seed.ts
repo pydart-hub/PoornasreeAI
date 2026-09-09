@@ -78,7 +78,56 @@ const SEED_USERS: {
     role: "dealer",
     pincodeCode: "600001",
   },
-  // Note: Customers use WhatsApp only — no login needed per plan.md
+  // Assistant Service Manager — mapped to Chennai
+  {
+    email: "assistant_manager@poornasree.com",
+    password: "Assistant@1234",
+    firstName: "Karthik",
+    lastName: "Venkatesh",
+    role: "assistant_service_manager",
+    pincodeCode: "600001",
+  },
+  // Customer Support — tickets & live chat assistance
+  {
+    email: "support@poornasree.com",
+    password: "Support@1234",
+    firstName: "Meera",
+    lastName: "Menon",
+    role: "customer_support",
+  },
+  // Customer Service — general customer support
+  {
+    email: "customerservice@poornasree.com",
+    password: "Service@1234",
+    firstName: "Sneha",
+    lastName: "Reddy",
+    role: "customer_service",
+  },
+  // Sales Representative — inquiries and machine quotes
+  {
+    email: "sales@poornasree.com",
+    password: "Sales@1234",
+    firstName: "Vijay",
+    lastName: "Varma",
+    role: "sales",
+  },
+  // Marketing Specialist — WhatsApp broadcast promotions
+  {
+    email: "marketing@poornasree.com",
+    password: "Marketing@1234",
+    firstName: "Ananya",
+    lastName: "Iyer",
+    role: "marketing",
+  },
+  // Web Customer — sample customer account
+  {
+    email: "customer@example.com",
+    password: "Customer@123",
+    firstName: "Ramesh",
+    lastName: "Krishnan",
+    role: "customer",
+    pincodeCode: "600001",
+  },
 ];
 
 async function main() {

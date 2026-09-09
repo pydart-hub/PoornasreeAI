@@ -48,7 +48,10 @@ echo ""
 echo "[1/3] Pulling latest code from GitHub..."
 git fetch origin
 git reset --hard origin/$BRANCH
-if [ -f docker-compose.v4.override.yml ]; then
+if [ -f infra/docker-compose.v4.override.yml ]; then
+  cp infra/docker-compose.v4.override.yml docker-compose.override.yml
+  echo "  Applied infra/docker-compose.v4.override.yml (shared-server ports)."
+elif [ -f docker-compose.v4.override.yml ]; then
   cp docker-compose.v4.override.yml docker-compose.override.yml
   echo "  Applied docker-compose.v4.override.yml (shared-server ports)."
 fi

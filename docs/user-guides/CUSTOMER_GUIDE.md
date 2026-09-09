@@ -205,24 +205,34 @@ Bot: 🔐 Your OTP to confirm engineer visit:
 
 ---
 
-### Step 8 — Submitting Your Feedback
+### Step 8 — Submitting Your Feedback & Rating Us on Google
 
-After the ticket is closed, the bot will ask for your feedback:
+After the ticket is closed, the bot will ask for your rating (1 to 5):
 
 ```
-Bot: 🙏 Thank you! We'd love to hear about your experience.
+Bot: ✅ Your service ticket *TKT-XXXX* has been closed successfully!
 
-     On a scale of 1–5, how satisfied are you?
-     (Reply with a number: 1 = Very Poor, 5 = Excellent)
+     We'd love your feedback! 🙏
+
+     How would you rate the service? (1-5)
+
+     1️⃣ Poor
+     2️⃣ Fair
+     3️⃣ Good
+     4️⃣ Very Good
+     5️⃣ Excellent
 
 You: 5
 
-Bot: Thank you for the rating! Any additional comments?
+Bot: 🌟 Thank you for rating us ⭐⭐⭐⭐⭐! 🙏
+     We're delighted to know our service met your expectations!
+     Please tap the button below to share your review on Google:
 
-You: The engineer was very professional and fixed it quickly!
-
-Bot: ✅ Feedback recorded. Thank you for using Poornasree Service!
+     [ Rate us on Google ⭐ ↗ ]
 ```
+
+- **For Ratings 3, 4, or 5:** You'll receive a direct **"Rate us on Google ⭐"** button. Tapping it opens our official Google Business review dialog in your browser so you can leave a public review.
+- **For Ratings 1 or 2:** If you had an unsatisfactory experience, our bot apologizes and provides an instant **"Speak to Support"** button so our Service Manager can assist you immediately.
 
 ---
 

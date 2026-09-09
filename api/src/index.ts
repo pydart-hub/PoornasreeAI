@@ -28,7 +28,7 @@ import { protect } from "./middleware/auth";
 import { ensureCollection } from "./services/vector.service";
 import { indexTrainingData } from "./services/training-indexer";
 import { initSocket } from "./lib/socket";
-import { loadRuntimeConfig } from "./services/runtime-config.service";
+import { loadRuntimeConfig, runtime } from "./services/runtime-config.service";
 import { startSupportInactivityMonitor } from "./services/support-inactivity.service";
 import { preWarmSimulateCaches } from "./services/simulate.service";
 import { preWarmMachineCache } from "./services/machine.service";
@@ -102,6 +102,12 @@ app.get("/api/tts", (req: express.Request, res: express.Response) => {
     if (!res.headersSent) res.status(502).json({ error: "TTS service unavailable" });
   });
   stream.pipe(res);
+});
+
+// ── Google review redirects ──────────────────────
+app.get(["/review", "/rate"], (_req, res) => {
+  const target = runtime.googleReviewUrl();
+  res.redirect(307, target);
 });
 
 // ── Health check ─────────────────────────────────

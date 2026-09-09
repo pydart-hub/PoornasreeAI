@@ -1563,11 +1563,11 @@ export async function handleMessage(phoneNumber: string, message: string, messag
     upper === "COMPLAINT_STATUS" ||
     upper === "VIEW_TICKETS" ||
     upper === "TICKETS" ||
-    upper === "3" ||
+    (upper === "3" && session.state === "MAIN_MENU") ||
     upper.includes("COMPLAINT_STATUS") ||
     upper.includes("CHECK_STATUS");
 
-  if (isCheckTicketStatusIntent) {
+  if (isCheckTicketStatusIntent && session.state !== "FEEDBACK_RATING" && session.state !== "FEEDBACK_SATISFIED") {
     return showTicketStatus(session.id, phoneNumber, meta);
   }
 
@@ -1997,6 +1997,9 @@ async function routeState(
 
     case "FEEDBACK_RATING":
       return handleFeedbackRating(session.id, meta, text);
+
+    case "FEEDBACK_SATISFIED":
+      return handleFeedbackSatisfied(session.id, meta, text);
 
     case "MACHINE_CONFIRM":
       return handleMachineConfirm(session.id, phoneNumber, meta, text);
@@ -6534,15 +6537,42 @@ async function handleFeedbackRating(sessionId: string, meta: SessionMeta, text: 
   if (meta.feedbackTicketId) {
     await prisma.ticket.update({
       where: { id: meta.feedbackTicketId },
-      data: { feedbackRating: rating, feedbackSubmittedAt: new Date() },
+      data: {
+        feedbackRating: rating,
+        feedbackSubmittedAt: new Date(),
+        feedbackComment: rating >= 3 ? `Satisfied (${rating}/5)` : `Dissatisfied (${rating}/5)`,
+      },
     }).catch(() => { });
   }
 
-  await updateSession(sessionId, "FEEDBACK_SATISFIED", meta);
-  return makeReply(
-    `Thank you for rating us ${"⭐".repeat(rating)}!\n\nAre you satisfied with the service?`,
-    YES_NO_BUTTONS
-  );
+  await updateSession(sessionId, "COMPLETED", meta);
+
+  if (rating >= 3) {
+    const reviewUrl = runtime.googleReviewUrl();
+    const ctaBtn: CtaUrlButton = {
+      displayText: "Rate us on Google ⭐",
+      url: reviewUrl,
+      headerText: "We value your feedback! ⭐",
+      footerText: "Poornasree Equipments",
+    };
+    return makeReply(
+      `🌟 *Thank you for rating us ${"⭐".repeat(rating)}!* 🙏\n\n` +
+      `We're delighted to know our service met your expectations!\n\n` +
+      `Please tap the button below to share your review on Google. Your feedback helps dairy farmers and societies find trusted equipment! 💙`,
+      [MENU_BUTTON],
+      undefined,
+      undefined,
+      undefined,
+      ctaBtn,
+    );
+  } else {
+    return makeReply(
+      `Thank you for your feedback (${"⭐".repeat(rating)}).\n\n` +
+      `We're truly sorry that your experience did not meet expectations. 😔\n\n` +
+      `Your comments have been escalated to our Service Manager for review. If you need immediate assistance or would like to speak with our support team, please tap below. 🙏`,
+      [{ id: "SUPPORT", title: "Speak to Support" }, MENU_BUTTON],
+    );
+  }
 }
 
 // ── FEEDBACK_SATISFIED ────────────────────────────────────────────────────
@@ -6564,9 +6594,21 @@ async function handleFeedbackSatisfied(sessionId: string, meta: SessionMeta, tex
   await updateSession(sessionId, "COMPLETED", {});
 
   if (satisfied) {
+    const reviewUrl = runtime.googleReviewUrl();
+    const ctaBtn: CtaUrlButton = {
+      displayText: "Rate us on Google ⭐",
+      url: reviewUrl,
+      headerText: "We value your feedback! ⭐",
+      footerText: "Poornasree Equipments",
+    };
     return makeReply(
-      `🎉 We're glad you're satisfied!\n\nThank you for your valuable feedback. 🙏`,
-      [MENU_BUTTON]
+      `🎉 *We're glad you're satisfied!* 🙏\n\n` +
+      `Thank you for your valuable feedback. Please tap below to share your review on Google:`,
+      [MENU_BUTTON],
+      undefined,
+      undefined,
+      undefined,
+      ctaBtn,
     );
   }
   return makeReply(
@@ -6940,6 +6982,12 @@ function isGlobalRestartCommand(upper: string): boolean {
 export type ReplyButton = { id: string; title: string };
 export type ReplyList = { buttonText: string; rows: Array<{ id: string; title: string; description?: string }> };
 export type ProductImage = { url: string; caption: string };
+export type CtaUrlButton = {
+  displayText: string;
+  url: string;
+  headerText?: string;
+  footerText?: string;
+};
 export type SimulateReply = {
   message: string;
   buttons?: ReplyButton[];
@@ -6948,6 +6996,7 @@ export type SimulateReply = {
   images?: ProductImage[];
   /** Plain-text follow-up (e.g. video links) sent after interactive replies on WhatsApp. */
   followUpMessage?: string;
+  ctaButton?: CtaUrlButton;
 };
 
 function makeReply(
@@ -6956,8 +7005,9 @@ function makeReply(
   list?: ReplyList,
   images?: ProductImage[],
   followUpMessage?: string,
+  ctaButton?: CtaUrlButton,
 ): SimulateReply {
-  return { message, buttons, list, listMenu: list, images, followUpMessage };
+  return { message, buttons, list, listMenu: list, images, followUpMessage, ctaButton };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

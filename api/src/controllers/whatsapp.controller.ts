@@ -592,7 +592,23 @@ async function deliverBotReply(to: string, result: SimulateReply): Promise<void>
     }
   }
 
-  if (result.listMenu?.rows?.length) {
+  if (result.ctaButton) {
+    const sent = await WhatsAppService.sendCtaUrlButton(
+      to,
+      result.message,
+      result.ctaButton.displayText,
+      result.ctaButton.url,
+      result.ctaButton.headerText,
+      result.ctaButton.footerText,
+    );
+    if (!sent) {
+      console.warn("[whatsapp] CTA button delivery failed — falling back to plain text with link");
+      await WhatsAppService.sendMessage(
+        to,
+        `${result.message}\n\n👉 *${result.ctaButton.displayText}:*\n${result.ctaButton.url}`,
+      );
+    }
+  } else if (result.listMenu?.rows?.length) {
     const sent = await WhatsAppService.sendInteractiveList(to, result.message, result.listMenu.buttonText, result.listMenu.rows);
     if (!sent) {
       console.warn("[whatsapp] Interactive list delivery failed — falling back to plain text");

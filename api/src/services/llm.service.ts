@@ -18,7 +18,6 @@ export type LlmChatOptions = {
 const DEFAULT_GEMINI_KEYS = [
   process.env.GEMINI_API_KEY,
   process.env.GEMINI_API_KEY_SECONDARY,
-  ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join(""),
 ].filter(Boolean) as string[];
 
 // In-memory short cache for support settings in LLM dispatcher

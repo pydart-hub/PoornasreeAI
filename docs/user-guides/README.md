@@ -40,45 +40,69 @@ Behind the scenes, it gives the **Poornasree internal team** a full web dashboar
 
 ---
 
+## 🔑 User Credentials & Portal Access
+
+All web dashboards share the unified login page at **`/login`**.
+
+| Role Name | Role Key | Default Email | Default Password | Portal Route | Primary Function |
+|---|---|---|---|---|---|
+| 👑 **Super Admin** | `super_admin` | `superadmin@poornasree.com` | `SuperAdmin@1234` | `/super-admin` | Runtime settings, LLM keys, WhatsApp billing telemetry, logs |
+| 🛡️ **System Administrator** | `admin` | `admin@poornasree.com` | `Admin@1234` | `/admin` | Master users, products, training videos, documents, templates |
+| 📋 **Service Manager** | `service_manager` | `manager@poornasree.com` | `Manager@1234` | `/service-manager` | Pincode dispatch, SLA tracking, engineer reassignments |
+| 🗂️ **Asst. Service Manager** | `assistant_service_manager` | `assistant_manager@poornasree.com` | `Assistant@1234` | `/assistant-manager` | Ticket queue oversight and delegated approvals |
+| 🔧 **Service Engineer** | `service_engineer` | `engineer1@poornasree.com`<br/>`engineer2@poornasree.com`<br/>`engineer3@poornasree.com` | `Engineer@1234` | `/service` | Field ticket checklist, on-site OTP signoff, work reports |
+| 🏬 **Authorized Dealer** | `dealer` | `dealer@poornasree.com` | `Dealer@1234` | `/dealer` | Machine registration, warranty claim requests, reports |
+| 🎧 **Customer Support** | `customer_support` | `support@poornasree.com` | `Support@1234` | `/support-dashboard` | Live chat takeover, WhatsApp bot pause/resume |
+| 💬 **Customer Service** | `customer_service` | `customerservice@poornasree.com` | `Service@1234` | `/customer-service` | General customer service tickets and complaints |
+| 💼 **Sales Representative** | `sales` | `sales@poornasree.com` | `Sales@1234` | `/sales` | Quotations, machine inquiries, lead management |
+| 📢 **Marketing Specialist** | `marketing` | `marketing@poornasree.com` | `Marketing@1234` | `/marketing` | WhatsApp broadcast promotions, campaigns |
+| 👤 **End Customer** | `customer` | `customer@example.com` | `Customer@123` | `/dashboard` | Machine registry overview (Primary: WhatsApp bot) |
+
+---
+
 ## Role-to-Guide Quick Finder
 
-| 👤 Who are you? | 📄 Your Guide |
-|---|---|
-| 🛒 **Customer / End User** | [CUSTOMER_GUIDE.md](./CUSTOMER_GUIDE.md) |
-| 🔧 **Field Service Engineer** | [SERVICE_ENGINEER_GUIDE.md](./SERVICE_ENGINEER_GUIDE.md) |
-| 📋 **Service Manager / Assistant Manager** | [SERVICE_MANAGER_GUIDE.md](./SERVICE_MANAGER_GUIDE.md) |
-| 🎧 **Customer Support Agent** | [CUSTOMER_SUPPORT_GUIDE.md](./CUSTOMER_SUPPORT_GUIDE.md) |
-| 🏬 **Authorized Dealer / Partner** | [DEALER_GUIDE.md](./DEALER_GUIDE.md) |
-| ⚙️ **System Administrator** | [ADMIN_GUIDE.md](./ADMIN_GUIDE.md) |
+| 👤 Who are you? | 📄 Your Guide | Portal Link |
+|---|---|---|
+| 👑 **Super Admin** | [SUPER_ADMIN_GUIDE.md](./SUPER_ADMIN_GUIDE.md) | `/super-admin` |
+| ⚙️ **System Administrator** | [ADMIN_GUIDE.md](./ADMIN_GUIDE.md) | `/admin` |
+| 📋 **Service Manager / Assistant Manager** | [SERVICE_MANAGER_GUIDE.md](./SERVICE_MANAGER_GUIDE.md) | `/service-manager` · `/assistant-manager` |
+| 🔧 **Field Service Engineer** | [SERVICE_ENGINEER_GUIDE.md](./SERVICE_ENGINEER_GUIDE.md) | `/service` |
+| 🏬 **Authorized Dealer / Partner** | [DEALER_GUIDE.md](./DEALER_GUIDE.md) | `/dealer` |
+| 🎧 **Customer Support & Service** | [CUSTOMER_SUPPORT_GUIDE.md](./CUSTOMER_SUPPORT_GUIDE.md) | `/support-dashboard` · `/customer-service` |
+| 💼 **Sales & Marketing Team** | [ADMIN_GUIDE.md](./ADMIN_GUIDE.md) | `/sales` · `/marketing` |
+| 🛒 **Customer / End User** | [CUSTOMER_GUIDE.md](./CUSTOMER_GUIDE.md) | WhatsApp `+91 94009 61291` |
 
 ---
 
 ## Role Permissions Matrix
 
-| Feature / Access | Customer | Engineer | Manager | Support | Dealer | Admin |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| WhatsApp AI Chat | ✅ | ✅ | — | — | — | — |
-| Self-service Troubleshooting | ✅ | — | — | — | — | — |
-| Raise Service Ticket (WhatsApp) | ✅ | — | ✅ | — | ✅ | — |
-| OTP Verification (site closure) | ✅ | ✅ | — | — | ✅ | — |
-| Engineer Dashboard (`/service`) | — | ✅ | — | — | — | — |
-| Service Manager Dashboard | — | — | ✅ | — | — | — |
-| Customer Support Dashboard | — | — | — | ✅ | — | ✅ |
-| Dealer Portal (`/dealer`) | — | — | — | — | ✅ | — |
-| Admin Portal (`/admin`) | — | — | — | — | — | ✅ |
-| Assign Engineers / Dealers | — | — | ✅ | — | — | — |
-| Accept / Reject Dealer Tickets | — | — | — | — | ✅ | — |
-| Live Chat Takeover (Bot Pause) | — | — | — | ✅ | — | ✅ |
-| View Work Reports (Engineer Updates) | — | — | ✅ | — | — | — |
-| Engineer Feedback / Ratings View | — | — | ✅ | — | — | — |
-| Upload AI Documents | — | — | — | — | — | ✅ |
-| Manage Users | — | — | — | — | — | ✅ |
-| Manage Products | — | — | — | — | — | ✅ |
-| Upload Training Videos | — | — | — | — | — | ✅ |
-| Upload R&D Videos | — | — | — | — | — | ✅ |
-| View R&D Videos | — | ✅ | — | — | — | ✅ |
-| WhatsApp Bot Settings | — | — | — | — | — | ✅ |
-| Analytics | — | — | — | — | — | ✅ |
+| Feature / Access | Customer | Engineer | Manager | Support | Dealer | Admin | Super Admin |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| WhatsApp AI Chat | ✅ | ✅ | — | — | — | — | — |
+| Self-service Troubleshooting | ✅ | — | — | — | — | — | — |
+| Raise Service Ticket (WhatsApp) | ✅ | — | ✅ | — | ✅ | — | — |
+| OTP Verification (site closure) | ✅ | ✅ | — | — | ✅ | — | — |
+| Engineer Dashboard (`/service`) | — | ✅ | — | — | — | — | — |
+| Service Manager Dashboard | — | — | ✅ | — | — | — | — |
+| Customer Support Dashboard | — | — | — | ✅ | — | ✅ | ✅ |
+| Dealer Portal (`/dealer`) | — | — | — | — | ✅ | — | — |
+| Admin Portal (`/admin`) | — | — | — | — | — | ✅ | ✅ |
+| Super Admin Portal (`/super-admin`) | — | — | — | — | — | — | ✅ |
+| Assign Engineers / Dealers | — | — | ✅ | — | — | — | — |
+| Accept / Reject Dealer Tickets | — | — | — | — | ✅ | — | — |
+| Live Chat Takeover (Bot Pause) | — | — | — | ✅ | — | ✅ | ✅ |
+| View Work Reports (Engineer Updates) | — | — | ✅ | — | — | — | — |
+| Engineer Feedback / Ratings View | — | — | ✅ | — | — | — | — |
+| Upload AI Documents | — | — | — | — | — | ✅ | ✅ |
+| Manage Users & Roles | — | — | — | — | — | ✅ | ✅ |
+| Manage Products | — | — | — | — | — | ✅ | ✅ |
+| Upload Training Videos | — | — | — | — | — | ✅ | ✅ |
+| Upload R&D Videos | — | — | — | — | — | ✅ | ✅ |
+| View R&D Videos | — | ✅ | — | — | — | ✅ | ✅ |
+| Runtime Settings & LLM API Keys | — | — | — | — | — | — | ✅ |
+| Telemetry & WhatsApp Billing Logs | — | — | — | — | — | — | ✅ |
+| Analytics & Reporting | — | — | ✅ | — | — | ✅ | ✅ |
 
 
 ---

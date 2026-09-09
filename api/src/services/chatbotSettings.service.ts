@@ -85,7 +85,7 @@ const DEFAULT_COMPANY_KNOWLEDGE = `POORNASREE EQUIPMENTS PVT LTD — COMPLETE OF
 - Function: Complete hardware & software suite combining Milk Analyzer (LactoSure/LactoGrand), Weighing Scale, Thermal Printer, and AMCU Software.
 - Features: Automatic farmer identification, instant billing receipt printing, SMS alerts, and society cloud database upload.`;
 
-const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
+const DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 
 export const DEFAULT_QUICK_BUTTONS: QuickButtonSetting[] = [
   { id: "VIEW_PRODUCTS", title: "📦 View Products" },

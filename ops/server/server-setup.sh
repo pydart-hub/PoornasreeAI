@@ -26,16 +26,16 @@ cat > /root/poornasree-ai/.env << 'ENVEOF'
 # Docker Compose environment
 # ⚠️  DO NOT OVERWRITE THIS FILE WITH YOUR LOCAL DEV .env
 # ⚠️  JWT_SECRET must stay as-is — it is the AES encryption key for DB secrets
-POSTGRES_USER=poorna_user
-POSTGRES_PASSWORD=poorna_secure_pass_2026
-POSTGRES_DB=poornasree_ai
-JWT_SECRET=RF9JUeGQjKo2EzrnDB1Ipiyh4APVWgMS
+POSTGRES_USER=${POSTGRES_USER:-poorna_user}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-<your_postgres_password>}
+POSTGRES_DB=${POSTGRES_DB:-poornasree_ai}
+JWT_SECRET=${JWT_SECRET:-<your_jwt_signing_secret_32_hex>}
 JWT_EXPIRES_IN=7d
 CORS_ORIGIN=https://ai.poornasreecloud.com
 NEXT_PUBLIC_API_URL=
-WA_PHONE_NUMBER_ID=1078437758683658
-WA_ACCESS_TOKEN=EAAc5q7ImYEwBREQVxKz2qv8IlupQQh40FhfIR36WiOK4grfz6V6ZBd4j99qNZASthYpouxCUksZAAQvRLPL7RZBU9G7mdQxaA0soWnPfhaVarqfpV0p3dW4tYznpmvs1KMAtafMYcErFUuIHMn2ow1YdMstp6TJRmWChF5ICUrLfgdBLGjUEaYTfN2HZCxDziAwZDZD
-WA_VERIFY_TOKEN=psr_chatbot_verify_2026
+WA_PHONE_NUMBER_ID=${WA_PHONE_NUMBER_ID:-<your_whatsapp_phone_number_id>}
+WA_ACCESS_TOKEN=${WA_ACCESS_TOKEN:-<your_whatsapp_access_token>}
+WA_VERIFY_TOKEN=${WA_VERIFY_TOKEN:-<your_whatsapp_verify_token>}
 FRONTEND_URL=https://ai.poornasreecloud.com
 ENVEOF
 

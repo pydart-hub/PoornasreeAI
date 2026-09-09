@@ -1,0 +1,30 @@
+ECOD
+
+1. Channel selection and testing
+2. Reports
+3. Chart settings
+4. Weighning scale settings
+5. Farmer settings
+6. System settings- Testing mode,Date and time sett,Password 
+7. Display and printer settings and sms alert and auto upload
+8. set shift time and shift bonus and common bonus
+9. GPRS/WiFi and cloud settings
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          
+            
+
+                         

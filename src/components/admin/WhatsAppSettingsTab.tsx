@@ -138,7 +138,7 @@ const DEFAULT_COMPANY_KNOWLEDGE = `POORNASREE EQUIPMENTS PVT LTD — COMPLETE OF
 - Function: Complete hardware & software suite combining Milk Analyzer (LactoSure/LactoGrand), Weighing Scale, Thermal Printer, and AMCU Software.
 - Features: Automatic farmer identification, instant billing receipt printing, SMS alerts, and society cloud database upload.`;
 
-const DEFAULT_GEMINI_KEY = ["AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv", "6h3RN-UhBNuCBzywEQ"].join("");
+const DEFAULT_GEMINI_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
 const DEFAULT_COMPANY_PHOTOS: CompanyPhoto[] = [
   { url: "https://poornasree.com/wp-content/uploads/2024/06/Social-Share-image.jpg", caption: "Poornasree Equipments Head Office & Facility" },
@@ -607,7 +607,7 @@ export default function WhatsAppSettingsTab() {
                       type="password"
                       value={form.geminiApiKey}
                       onChange={(e) => setForm((f) => ({ ...f, geminiApiKey: e.target.value }))}
-                      placeholder="AQ.Ab8RN6J4QOR4fbGu4kJxZhr9MEhvFvzv6h3RN-..."
+                      placeholder="Enter Gemini API key..."
                       className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
                     />
                   </div>

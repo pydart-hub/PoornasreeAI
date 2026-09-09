@@ -12,7 +12,11 @@ param(
     [string]$KeyFile
 )
 
-. "$PSScriptRoot/scripts/deploy-config.ps1"
+if (Test-Path "$PSScriptRoot/deploy-config.ps1") {
+    . "$PSScriptRoot/deploy-config.ps1"
+} else {
+    . "$PSScriptRoot/../deploy-config.ps1"
+}
 if (-not $Server)    { $Server    = $DeployServer }
 if (-not $User)      { $User      = $DeployUser }
 if (-not $SshPort)   { $SshPort   = $DeploySshPort }
@@ -55,7 +59,7 @@ function Invoke-SshCapture([string]$cmd) {
     return ($out | Out-String).Trim()
 }
 
-$deployCmd = "cd '$RemoteDir' && git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git && env SKIP_OLLAMA=1 bash deploy.sh $mode"
+$deployCmd = "cd '$RemoteDir' && git remote set-url origin https://github.com/pydart-hub/PoornasreeAI.git && env SKIP_OLLAMA=1 bash -c 'if [ -f scripts/deploy/deploy.sh ]; then bash scripts/deploy/deploy.sh `$@; else bash deploy.sh `$@; fi' _ $mode"
 
 Write-Host ""
 Write-Host " PoornasreeAI deploy - $mode" -ForegroundColor Cyan
@@ -63,7 +67,7 @@ Write-Host " Server: ${User}@${Server}" -ForegroundColor Cyan
 Write-Host ""
 
 if ($Background) {
-    $bgCmd = 'cd "' + $RemoteDir + '" && nohup bash deploy.sh ' + $mode + ' >> /tmp/deploy.log 2>&1 &'
+    $bgCmd = 'cd "' + $RemoteDir + '" && nohup bash -c ''if [ -f scripts/deploy/deploy.sh ]; then bash scripts/deploy/deploy.sh ' + $mode + '; else bash deploy.sh ' + $mode + '; fi'' >> /tmp/deploy.log 2>&1 &'
     Invoke-Ssh $bgCmd | Out-Null
     Write-Host "Running in background. Watch: ssh ${User}@${Server} 'tail -f /tmp/deploy.log'" -ForegroundColor Yellow
 } else {

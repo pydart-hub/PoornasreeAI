@@ -8,7 +8,9 @@ JSON and Excel used by the API and import scripts:
 
 - `training.json`, `customer-training.json`, `chatbot-training.json` — mounted into Docker at `/app/data/`
 - `CHATBOT_DATAS.xlsx` — source for `convert-chatbot-excel.js`
+- `Engineers Training.xlsx` — source for `sync-engineer-training.ts`
 - `BUILDING_DOCUMENT.json` — product/spec reference
+- `archive/` — previous version training snapshots (`training-v1.json`)
 
 Import: `cd api && npx ts-node src/scripts/import-training.ts`
 
@@ -25,4 +27,7 @@ PDF quotations and project documents.
 
 ## reference/
 
-Screenshots and reference images (not used by the web app).
+Machine channel notes, ECOD calibration specifications, and reference images:
+- `video-training-notes.txt` — Machine channels, test modes, sales & dispatch notes
+- `ecod-settings.txt` — ECOD analyzer channel selection, printer, SMS, and cloud settings
+

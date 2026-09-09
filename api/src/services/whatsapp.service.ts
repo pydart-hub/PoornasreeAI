@@ -420,6 +420,74 @@ export async function sendInteractiveButtons(
   }
 }
 
+/**
+ * Send an interactive Call-to-Action (CTA) URL button message via WhatsApp Cloud API.
+ * Renders a native clickable button on WhatsApp that opens the specified URL.
+ */
+export async function sendCtaUrlButton(
+  to: string,
+  body: string,
+  displayText: string,
+  url: string,
+  headerText?: string,
+  footerText?: string,
+): Promise<boolean> {
+  if (!isConfigured()) {
+    console.warn("[whatsapp] Not configured — skipping sendCtaUrlButton");
+    return false;
+  }
+
+  const endpoint = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
+  const normalized = normalizeWhatsappNumber(to) ?? to.replace(/\D/g, "");
+  if (!normalized) return false;
+
+  // Meta enforces max 20 chars on CTA button text
+  const cleanDisplay = Array.from(displayText).slice(0, 20).join("");
+
+  const payload: Record<string, unknown> = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalized,
+    type: "interactive",
+    interactive: {
+      type: "cta_url",
+      ...(headerText ? { header: { type: "text", text: headerText } } : {}),
+      body: { text: body.length > 1000 ? body.slice(0, 990) + "…" : body },
+      ...(footerText ? { footer: { text: footerText } } : {}),
+      action: {
+        name: "cta_url",
+        parameters: {
+          display_text: cleanDisplay,
+          url,
+        },
+      },
+    },
+  };
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error(`[whatsapp] CTA URL send failed (${res.status}):`, JSON.stringify(err));
+      return false;
+    }
+
+    console.log(`[whatsapp] Sent CTA button [${cleanDisplay}] → ${normalized}`);
+    return true;
+  } catch (err) {
+    console.error(`[whatsapp] Network error sending CTA button to ${normalized}:`, (err as Error).message);
+    return false;
+  }
+}
+
 /** WhatsApp interactive list-row shape. Title max 24 chars. */
 export type WaListRow = { id: string; title: string; description?: string };
 
