@@ -186,8 +186,11 @@ router.get("/analytics/whatsapp/live", getWhatsappLiveUsers);
 router.get("/export/chats", exportChats);
 
 // GET /api/admin/analytics/groq-usage — Groq & Gemini token usage analytics
-import { getGroqUsageStats, getWhatsAppMessages } from "../controllers/analytics-llm.controller";
+import { getGroqUsageStats, getWhatsAppBillingStats, getWhatsAppMessages } from "../controllers/analytics-llm.controller";
 router.get("/analytics/groq-usage", getGroqUsageStats);
+
+// GET /api/admin/whatsapp/billing — WhatsApp messages delivery status & billing
+router.get("/whatsapp/billing", getWhatsAppBillingStats);
 
 // GET /api/admin/whatsapp/messages — Sent and received WhatsApp messages log
 router.get("/whatsapp/messages", getWhatsAppMessages);

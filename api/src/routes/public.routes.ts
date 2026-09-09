@@ -303,9 +303,17 @@ router.get("/tickets/:id", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-// ── Public Groq & LLM Token Usage Analytics ──────────────────────────────
-import { getGroqUsageStats, getWhatsAppMessages } from "../controllers/analytics-llm.controller";
+// ── Public Groq & LLM Token Usage Analytics (Live Billing & Date Filtering) ────────────────
+import {
+  getGroqUsageStats,
+  getWhatsAppBillingStats,
+  getWhatsAppMessages,
+} from "../controllers/analytics-llm.controller";
+
 router.get("/groq-usage", getGroqUsageStats);
+
+// ── Public WhatsApp Billing & Delivery Status ─────────────────────────────
+router.get("/whatsapp-billing", getWhatsAppBillingStats);
 
 // ── Public WhatsApp Messages (Read-only list of sent & received messages) ──
 router.get("/whatsapp-messages", getWhatsAppMessages);

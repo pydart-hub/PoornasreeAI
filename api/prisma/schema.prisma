@@ -607,4 +607,26 @@ model LlmUsageLog {
 
   @@index([provider, createdAt])
   @@index([feature, createdAt])
-}
+}
+
+// ── WhatsApp Outbound & Inbound Message Delivery & Billing Telemetry ────────
+model WhatsAppMessageLog {
+  id             String   @id @default(uuid())
+  waMessageId    String?  @unique // Meta wamid.xxx
+  recipientPhone String
+  direction      String   @default("outbound") // "outbound" | "inbound"
+  messageType    String   @default("text")     // "text" | "template" | "interactive" | "image" | "video"
+  templateName   String?
+  category       String   @default("service")  // "service" | "utility" | "marketing" | "authentication"
+  status         String   @default("sent")     // "sent" | "delivered" | "read" | "failed"
+  costInr        Float    @default(0.35)
+  costUsd        Float    @default(0.004)
+  errorMessage   String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([recipientPhone, createdAt])
+  @@index([status, createdAt])
+  @@index([category, createdAt])
+}
+

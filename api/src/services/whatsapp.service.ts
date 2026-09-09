@@ -5,6 +5,7 @@
 import path from "path";
 import sharp from "sharp";
 import { runtime } from "./runtime-config.service";
+import prisma from "../lib/prisma";
 
 const API_VERSION = "v21.0";
 
@@ -79,6 +80,53 @@ async function postWhatsAppMessage(
       body: JSON.stringify(jsonBody),
     });
     const body = (await res.json().catch(() => ({}))) as WaApiResponse;
+    const waMsgId = body.messages?.[0]?.id || null;
+    const isFailed = !res.ok || !!body.error || (!isStatusUpdate && !waMsgId);
+
+    // Asynchronously log outbound message telemetry and billing metadata
+    if (!isStatusUpdate && normalized) {
+      const msgType = String(payload.type || "text");
+      const templateName = payload.type === "template" ? String((payload.template as any)?.name || "") : null;
+      
+      let category = "service";
+      let costInr = 0.35;
+      let costUsd = 0.0040;
+
+      if (templateName) {
+        const lowerTpl = templateName.toLowerCase();
+        if (lowerTpl.includes("promo") || lowerTpl.includes("market") || lowerTpl.includes("campaign") || lowerTpl.includes("branding")) {
+          category = "marketing";
+          costInr = 0.88;
+          costUsd = 0.0102;
+        } else if (lowerTpl.includes("otp") || lowerTpl.includes("auth") || lowerTpl.includes("verify")) {
+          category = "authentication";
+          costInr = 0.12;
+          costUsd = 0.0014;
+        } else {
+          category = "utility";
+          costInr = 0.12;
+          costUsd = 0.0014;
+        }
+      }
+
+      prisma.whatsAppMessageLog.create({
+        data: {
+          waMessageId: waMsgId,
+          recipientPhone: normalized,
+          direction: "outbound",
+          messageType: msgType,
+          templateName: templateName || null,
+          category,
+          status: isFailed ? "failed" : "sent",
+          costInr,
+          costUsd,
+          errorMessage: body.error ? (body.error.message || JSON.stringify(body.error)).slice(0, 500) : null,
+        },
+      }).catch((logErr) => {
+        console.warn("[whatsapp] Failed to record message log:", logErr?.message || logErr);
+      });
+    }
+
     if (!res.ok || body.error) {
       console.error(`[whatsapp] API error (${res.status}) → ${to}:`, JSON.stringify(body));
       return body;
@@ -95,6 +143,17 @@ async function postWhatsAppMessage(
     return body;
   } catch (err) {
     console.error(`[whatsapp] Network error → ${to}:`, (err as Error).message);
+    if (!isStatusUpdate && normalized) {
+      prisma.whatsAppMessageLog.create({
+        data: {
+          recipientPhone: normalized,
+          direction: "outbound",
+          messageType: String(payload.type || "text"),
+          status: "failed",
+          errorMessage: (err as Error).message,
+        },
+      }).catch(() => {});
+    }
     return null;
   }
 }

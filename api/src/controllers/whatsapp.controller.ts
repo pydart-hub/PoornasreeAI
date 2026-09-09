@@ -332,14 +332,56 @@ async function processWebhook(body: unknown): Promise<void> {
 
     for (const change of changes) {
       const messages = change?.value?.messages;
-      if (!Array.isArray(messages)) continue;
+      if (Array.isArray(messages)) {
+        for (const msg of messages) {
+          await handleSingleMessage(msg);
+        }
+      }
 
-      for (const msg of messages) {
-        await handleSingleMessage(msg);
+      const statuses = change?.value?.statuses;
+      if (Array.isArray(statuses)) {
+        for (const statusObj of statuses) {
+          await handleDeliveryStatus(statusObj);
+        }
       }
     }
   }
 }
+
+async function handleDeliveryStatus(statusObj: Record<string, unknown>): Promise<void> {
+  const waMsgId = String(statusObj.id || "");
+  const status = String(statusObj.status || "").toLowerCase(); // "sent" | "delivered" | "read" | "failed"
+  const recipientId = String(statusObj.recipient_id || "");
+  const pricingCategory = (statusObj.pricing as Record<string, unknown> | undefined)?.category;
+  const errors = statusObj.errors as Array<Record<string, unknown>> | undefined;
+  const errorMessage = errors?.[0] ? String(errors[0].title || errors[0].message || JSON.stringify(errors[0])) : undefined;
+
+  if (!waMsgId) return;
+
+  try {
+    const updateData: Record<string, unknown> = {};
+    if (["sent", "delivered", "read", "failed"].includes(status)) {
+      updateData.status = status;
+    }
+    if (pricingCategory && typeof pricingCategory === "string") {
+      updateData.category = pricingCategory.toLowerCase();
+    }
+    if (errorMessage) {
+      updateData.errorMessage = errorMessage;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.whatsAppMessageLog.updateMany({
+        where: { waMessageId: waMsgId },
+        data: updateData,
+      });
+      console.log(`[whatsapp] Status updated for wamid=${waMsgId} → ${status} (${recipientId})`);
+    }
+  } catch (err) {
+    console.warn(`[whatsapp] Failed to update delivery status for ${waMsgId}:`, err);
+  }
+}
+
 
 async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> {
   const messageId = String(msg.id ?? "");
