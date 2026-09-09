@@ -39,7 +39,7 @@ async function testGoogleReviewFeedback() {
     if (!reply5.ctaButton) {
       throw new Error("❌ FAILED: Rating 5 did not return a ctaButton!");
     }
-    if (!reply5.ctaButton.url.includes("google.com/search") && !reply5.ctaButton.url.includes("/review")) {
+    if (!reply5.ctaButton.url.includes("share.google") && !reply5.ctaButton.url.includes("google.com/search") && !reply5.ctaButton.url.includes("/review")) {
       throw new Error(`❌ FAILED: Unexpected review URL: ${reply5.ctaButton.url}`);
     }
     if (reply5.ctaButton.displayText !== "Rate us on Google ⭐") {
@@ -72,12 +72,12 @@ async function testGoogleReviewFeedback() {
     await startFeedbackFlow(testPhone, ticket.id, ticket.ticketNumber);
     const reply2 = await handleMessage(testPhone, "2");
     console.log("BOT REPLY:", reply2.message);
-    console.log("BUTTONS:", reply2.buttons?.map(b => b.title).join(" | "));
+    console.log("BUTTONS:", reply2.buttons?.map((b: any) => b.title).join(" | "));
 
     if (reply2.ctaButton) {
       throw new Error("❌ FAILED: Rating 2 returned a ctaButton! Dissatisfied customer should NOT receive Google Review link!");
     }
-    const hasSupportBtn = reply2.buttons?.some(b => b.id === "SUPPORT");
+    const hasSupportBtn = reply2.buttons?.some((b: any) => b.id === "SUPPORT");
     if (!hasSupportBtn) {
       throw new Error("❌ FAILED: Rating 2 did not provide 'Speak to Support' button!");
     }
