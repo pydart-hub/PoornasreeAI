@@ -303,11 +303,35 @@ export async function handleEngineerMessage(
   from: string,
   rawText: string,
   engineer: { id: string; firstName: string; lastName?: string | null },
+  audioContext?: { originalTranscript?: string; detectedLang?: string },
 ): Promise<void> {
   const text = (rawText || "").trim();
   const upper = text.toUpperCase();
 
-  console.log(`[engineer-whatsapp] Inbound from ${engineer.firstName} (${from}): "${text}"`);
+  console.log(
+    `[engineer-whatsapp] Inbound from ${engineer.firstName} (${from}): "${text}"${
+      audioContext?.originalTranscript ? ` [Audio: "${audioContext.originalTranscript}"]` : ""
+    }`,
+  );
+
+  // If language was detected from voice and engineer has not set one yet, sync session language
+  if (audioContext?.detectedLang && audioContext.detectedLang !== "en") {
+    try {
+      const session = await prisma.conversationSession.findFirst({ where: { phoneNumber: from } });
+      if (session) {
+        const meta = (session.metadata as Record<string, unknown>) || {};
+        if (!meta.language) {
+          meta.language = audioContext.detectedLang;
+          await prisma.conversationSession.update({
+            where: { id: session.id },
+            data: { metadata: meta as any },
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   // ── 0. Language Request & Selection Interceptor ──
   if (

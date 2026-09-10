@@ -47,24 +47,30 @@ export const GENERIC_DOMAIN_WORDS = new Set([
   "guide", "tutorial", "troubleshoot", "troubleshooting",
   "video", "videos", "lactosure", "lactogrand", "analyzer", "analyzers",
   "machine", "machines", "milk", "milks", "device", "unit", "help",
-  "fix", "please", "support", "service", "customer", "sample", "samples"
+  "fix", "please", "support", "service", "customer"
 ]);
 
 const DOMAIN_SYNONYMS: Record<string, string[]> = {
-  vibro: ["stirrer", "vibration", "vibrating"],
-  stirrer: ["vibro", "vibration", "vibrating"],
-  printer: ["paper", "blank", "print", "printing"],
-  blank: ["printer", "paper"],
-  t2: ["t2", "t2 error"],
-  hot: ["hot sample", "temperature high", "high temp", "warm", "too hot"],
-  temperature: ["temp", "heat", "t2"],
-  temp: ["temperature", "heat", "t2"],
+  sample: ["sample not found", "sample", "sucking", "suction", "sample error"],
+  vibro: ["stirrer", "vibration", "vibrating", "not vibrating", "stirrer on but not vibrating"],
+  stirrer: ["vibro", "vibration", "vibrating", "not vibrating", "stirrer on but not vibrating"],
+  vibrating: ["vibro", "stirrer", "vibration", "not vibrating"],
+  vibration: ["vibro", "stirrer", "vibrating", "not vibrating"],
+  printer: ["paper", "blank", "print", "printing", "printer paper coming out blank"],
+  blank: ["printer", "paper", "printer paper coming out blank"],
+  paper: ["printer", "blank", "printer paper coming out blank"],
+  t2: ["t2", "t2 error", "temperature error"],
+  hot: ["hot sample", "temperature high", "high temp", "warm", "too hot", "hot sample error"],
+  temperature: ["temp", "heat", "t2", "hot sample"],
+  temp: ["temperature", "heat", "t2", "hot sample"],
   sensor: ["sensor", "plunge", "tube", "water in sensor"],
-  zero: ["water zero", "zero calibration"],
+  zero: ["water zero", "zero calibration", "calibration"],
   calibration: ["water zero", "zero calibration", "calibrate", "recalibrate"],
-  wifi: ["gsm", "cloud", "range", "network", "connectivity"],
+  wifi: ["gsm", "cloud", "range", "network", "connectivity", "wifi range not showing"],
   cleaning: ["clean", "maintenance", "flush", "daily cleaner", "solution"],
-  battery: ["power", "charging", "charger", "adapter", "battery drain", "not on"],
+  battery: ["power", "charging", "charger", "adapter", "battery drain", "not on", "machine not turning on"],
+  power: ["battery", "charger", "adapter", "not on", "turn on", "machine not turning on"],
+  air: ["air in milk", "bubbles", "air error"],
   fat: ["snf", "reading variation", "calibration", "accuracy"],
   snf: ["fat", "reading variation", "calibration", "accuracy"],
 };
@@ -100,6 +106,13 @@ export function scoreVideoMatch(query: string, title: string, keywords: string):
   const targetWords = tokenizeQuery(`${normTitle} ${normKw}`);
   const substantiveTargetWords = targetWords.filter((w) => !GENERIC_DOMAIN_WORDS.has(w));
   if (substantiveTargetWords.length === 0) return 0;
+
+  // Specificity guard: "Hot Sample Error" video requires "hot" / "warm" in query
+  const isHotVideo = normTitle.includes("hot") || normKw.includes("hot sample");
+  const queryHasHot = normQ.includes("hot") || normQ.includes("warm") || normQ.includes("heat");
+  if (isHotVideo && !queryHasHot) {
+    return 0;
+  }
 
   // Direct full-phrase match in title or keywords (e.g. "hot sample error", "t2 error", "water zero")
   if (normTitle && normQ.length >= 4 && (normTitle.includes(normQ) || (normQ.length >= normTitle.length && normQ.includes(normTitle)))) {

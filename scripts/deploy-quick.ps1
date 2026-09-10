@@ -26,8 +26,13 @@ param(
     [string]$KeyFile
 )
 
-$ErrorActionPreference = "Stop"
-$RepoRoot = Split-Path -Parent $PSScriptRoot
+$RepoRoot = $PSScriptRoot
+while ($RepoRoot -and -not (Test-Path (Join-Path $RepoRoot "package.json"))) {
+    $RepoRoot = Split-Path $RepoRoot -Parent
+}
+if (-not $RepoRoot -or -not (Test-Path (Join-Path $RepoRoot "package.json"))) {
+    $RepoRoot = (Get-Location).Path
+}
 
 # ── Guard: detect if local .env looks like a dev file ────────────────────────
 # The production server .env must NEVER be overwritten with local dev values.
@@ -121,7 +126,7 @@ if ($SshPort)    { $common.SshPort = $SshPort }
 if ($RemoteDir)  { $common.RemoteDir = $RemoteDir }
 if ($KeyFile)    { $common.KeyFile = $KeyFile }
 
-$deployScript = "$PSScriptRoot\..\ops\deploy\deploy-quick.ps1"
+$deployScript = Join-Path $RepoRoot "ops\deploy\deploy-quick.ps1"
 
 if ($Full) {
     # API then web

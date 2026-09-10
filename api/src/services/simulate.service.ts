@@ -1385,7 +1385,12 @@ const RATING_LIST: ReplyList = {
 };
 
 // ── Entry point ───────────────────────────────────────────────────────────
-export async function handleMessage(phoneNumber: string, message: string, messageId?: string) {
+export async function handleMessage(
+  phoneNumber: string,
+  message: string,
+  messageId?: string,
+  audioContext?: { transcript?: string; detectedLang?: string; mediaUrl?: string },
+) {
   const text = message.trim();
   const upper = text.toUpperCase();
 
@@ -1395,6 +1400,11 @@ export async function handleMessage(phoneNumber: string, message: string, messag
   }
 
   let meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
+
+  // If language was detected from voice, sync language preference into metadata
+  if (audioContext?.detectedLang && audioContext.detectedLang !== "en" && !meta.language) {
+    meta.language = audioContext.detectedLang as Lang;
+  }
 
   // Auto-detect if user is registered in User table (especially Engineers) if meta.role / meta.isEngineer is unpopulated
   if (!meta.role && !meta.isEngineer) {
@@ -3310,13 +3320,29 @@ export async function runGroqCompanyAssistant(
       // 3. General Product Catalog intent (English, Manglish & Malayalam Script)
       const isCatalogQuery =
         cleanQ === "products" ||
+        cleanQ === "product" ||
         cleanQ === "catalog" ||
         cleanQ === "view_products" ||
+        cleanQ === "all products" ||
+        cleanQ === "all product" ||
+        cleanQ === "show products" ||
+        cleanQ === "show all products" ||
+        cleanQ === "show all product" ||
+        cleanQ === "view products" ||
+        cleanQ.includes("all product") ||
+        cleanQ.includes("all products") ||
         cleanQ.includes("browse product") ||
         cleanQ.includes("show product") ||
         cleanQ.includes("product detail") ||
         cleanQ.includes("product list") ||
         cleanQ.includes("product info") ||
+        cleanQ.includes("list product") ||
+        cleanQ.includes("product catalog") ||
+        cleanQ.includes("what products") ||
+        cleanQ.includes("what are the products") ||
+        cleanQ.includes("our products") ||
+        cleanQ.includes("all models") ||
+        cleanQ.includes("show models") ||
         cleanQ.includes("product kaanik") ||
         cleanQ.includes("product kanik") ||
         cleanQ.includes("product undo") ||
@@ -3606,6 +3632,52 @@ export async function runGroqCompanyAssistant(
     ]);
     const queryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
 
+    // Handle serial number inquiries directly without triggering troubleshooting checklists
+    const lowerQ = cleanQ.toLowerCase();
+    const isExplicitSerialNumberQuery =
+      lowerQ.includes("serial number") ||
+      lowerQ.includes("my serial") ||
+      lowerQ.includes("know my serial") ||
+      lowerQ.includes("what is my serial") ||
+      lowerQ.includes("check my serial") ||
+      lowerQ.includes("find my serial") ||
+      lowerQ.includes("registered serial") ||
+      lowerQ.includes("ender serial") ||
+      query.includes("സീരിയൽ നമ്പർ");
+
+    const isDefectReport =
+      lowerQ.includes("error") ||
+      lowerQ.includes("problem") ||
+      lowerQ.includes("issue") ||
+      lowerQ.includes("not working") ||
+      lowerQ.includes("damage") ||
+      lowerQ.includes("broken") ||
+      lowerQ.includes("fault");
+
+    if (isExplicitSerialNumberQuery && !isDefectReport) {
+      const knownSerial = meta.serialNumber || meta.candidateSerial || meta.machineData?.serial_no;
+      if (knownSerial) {
+        return makeReply(
+          `🔢 Your registered machine serial number is *${knownSerial}*.\n\n` +
+          `Model: *${meta.machineData?.m_model || "Poornasree Milk Analyzer"}*\n\n` +
+          `How can I assist you with this machine today?`,
+          [
+            { id: "BOOK_SERVICE", title: "🔧 Book Service" },
+            getMenuButton(lang),
+          ]
+        );
+      } else {
+        return makeReply(
+          `🔢 I don't have a registered machine serial number linked to your account yet.\n\n` +
+          `If you have your machine nearby, you can find the serial number on the barcode sticker on the back of the unit. Would you like to enter your serial number now?`,
+          [
+            { id: "REGISTER_SERIAL", title: "📝 Enter Serial Number" },
+            getMenuButton(lang),
+          ]
+        );
+      }
+    }
+
     // 1. Check DocumentIssue templates first (exact official troubleshooting checklists)
     const allIssues = await getCachedDocumentIssues();
 
@@ -3725,13 +3797,13 @@ export async function runGroqCompanyAssistant(
             }
           }
 
-          if (score > bestCatalogScore && score >= 8) {
+          if (score > bestCatalogScore && score >= 15) {
             bestCatalogScore = score;
             bestCatalogEntry = entry;
           }
         }
 
-        if (bestCatalogEntry) {
+        if (bestCatalogEntry && isDefectReport) {
           hasExactDocMatch = true;
           matchedDocKnowledge = `[MATCHED OFFICIAL TROUBLESHOOTING KNOWLEDGE: ${bestCatalogEntry.title}]\n${bestCatalogEntry.content}`;
         }
@@ -4030,11 +4102,11 @@ ${settings.companyAddress || ""}
       let finalReply = reply.trim();
       if (isLegitimateTroubleshooting || (isServiceIntent && hasActionableTroubleshootingSteps)) {
         try {
-          // 1. Try finding a video for the current query (in case user reported a specific new fault)
-          let matchingVideos = query.trim() ? await findVideosForQuery(query.trim(), 1) : [];
+          // Find a video genuinely matching the CURRENT query only
+          const matchingVideos = query.trim() ? await findVideosForQuery(query.trim(), 1) : [];
 
-          if (matchingVideos.length > 0) {
-            // A genuine video matched this query -> update active troubleshooting issue & video
+          if (matchingVideos.length > 0 && !finalReply.includes(matchingVideos[0].youtubeUrl)) {
+            finalReply += formatVideoSuggestions(matchingVideos, lang);
             meta.complaint = query.trim();
             meta.lastIssueQuery = query.trim();
             meta.videoSearchQuery = query.trim();
@@ -4042,35 +4114,10 @@ ${settings.companyAddress || ""}
               title: matchingVideos[0].title,
               youtubeUrl: matchingVideos[0].youtubeUrl,
             };
-          } else if (isTechnicalIssueQuery(query.trim())) {
-            // Technical query but NO matching video in DB: save issue description without corrupting video,
-            // AND ensure we DON'T reuse the previous issue's video!
-            meta.complaint = query.trim();
-            meta.lastIssueQuery = query.trim();
-            meta.videoSearchQuery = query.trim();
-            meta.lastTroubleshootVideo = undefined; // CLEAR it so we don't leak old videos to new issues
-          } else if (meta.lastTroubleshootVideo) {
-            // No video match for current query (e.g. language change or follow-up), but we already have an active video for this issue
-            matchingVideos = [{
-              id: "retained",
-              title: meta.lastTroubleshootVideo.title,
-              description: null,
-              youtubeUrl: meta.lastTroubleshootVideo.youtubeUrl,
-              keywords: "",
-            }];
-          } else if (meta.videoSearchQuery) {
-            // Fallback: search using the previously stored valid issue query
-            matchingVideos = await findVideosForQuery(meta.videoSearchQuery, 1);
-            if (matchingVideos.length > 0) {
-              meta.lastTroubleshootVideo = {
-                title: matchingVideos[0].title,
-                youtubeUrl: matchingVideos[0].youtubeUrl,
-              };
-            }
-          }
-
-          if (matchingVideos.length > 0 && !finalReply.includes(matchingVideos[0].youtubeUrl)) {
-            finalReply += formatVideoSuggestions(matchingVideos, lang);
+          } else {
+            // No video match for current query: ALWAYS clear previous video so it NEVER leaks to future turns!
+            meta.lastTroubleshootVideo = undefined;
+            meta.videoSearchQuery = undefined;
           }
 
           if (targetSessionId || options.sessionId) {
@@ -4079,6 +4126,10 @@ ${settings.companyAddress || ""}
         } catch (vErr) {
           console.error("[groq-company-assistant] Video recommendation lookup error:", vErr);
         }
+      } else {
+        // Non-troubleshooting turn: ensure stale troubleshooting video is cleared
+        meta.lastTroubleshootVideo = undefined;
+        meta.videoSearchQuery = undefined;
       }
 
       return makeReply(finalReply, buttons);

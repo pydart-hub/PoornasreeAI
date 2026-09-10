@@ -13,7 +13,12 @@ param(
 )
 
 $RootDir = $PSScriptRoot
-if (-not $RootDir) { $RootDir = (Get-Location).Path }
+while ($RootDir -and -not (Test-Path (Join-Path $RootDir "package.json"))) {
+    $RootDir = Split-Path $RootDir -Parent
+}
+if (-not $RootDir -or -not (Test-Path (Join-Path $RootDir "package.json"))) {
+    $RootDir = (Get-Location).Path
+}
 $ApiDir = Join-Path $RootDir "api"
 
 Write-Host ""
@@ -97,9 +102,9 @@ Write-Host ""
 Write-Host "[2/5] Connecting persistent SSH Tunnel to Database (localhost:$LocalDbPort -> VPS DB)..." -ForegroundColor Yellow
 
 # Detect container DB IP on VPS
-$dbIp = "172.18.0.4"
+$dbIp = "172.19.0.4"
 try {
-    $detectedIp = (ssh -o ConnectTimeout=5 $VpsHost "docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' poornasree-ai-db-1" 2>$null)
+    $detectedIp = (ssh -o ConnectTimeout=5 $VpsHost "docker inspect poornasree-ai-db-1 | grep -m 1 '\"\"IPAddress\"\": \"\"172' | awk -F'\"\"' '{print \$4}'" 2>$null)
     if ($detectedIp -and $detectedIp.Trim() -match '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
         $dbIp = $detectedIp.Trim()
     }

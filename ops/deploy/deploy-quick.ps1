@@ -35,5 +35,8 @@ if ($Api) {
 } else {
     $params.Quick = $true
 }
-if ($Background) { $params.Background = $true }
-& "$RepoRoot\deploy.ps1" @params
+$realDeploy = Join-Path $RepoRoot "scripts\deploy\deploy.ps1"
+if (-not (Test-Path $realDeploy)) {
+    $realDeploy = Join-Path $RepoRoot "deploy.ps1"
+}
+& $realDeploy @params

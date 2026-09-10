@@ -870,19 +870,28 @@ export default function SupportDashboard() {
                                : "bg-white text-[#111b21] rounded-tl-none dark:bg-[#202c33] dark:text-[#e9edef]"
                            )}>
                              {msg.mediaUrl && (
-                               <div className="mb-2 rounded-xl overflow-hidden border border-gray-200/50 dark:border-white/10 max-w-xs transition-all duration-300 hover:shadow-md hover:scale-[1.02] group relative">
-                                 <img
-                                   src={msg.mediaUrl}
-                                   alt="Complaint Attachment"
-                                   className="w-full h-auto object-cover max-h-[220px] cursor-zoom-in transition-transform duration-300 group-hover:brightness-90"
-                                   onClick={() => setZoomedImage(msg.mediaUrl!)}
-                                 />
-                                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                   <span className="text-white text-xs font-semibold bg-black/60 px-2 py-1 rounded-md flex items-center gap-1.5 shadow">
-                                     <ExternalLink className="w-3.5 h-3.5" /> View Large
-                                   </span>
-                                 </div>
-                               </div>
+                                /\.(ogg|mp3|wav|m4a|aac)($|\?)/i.test(msg.mediaUrl) || msg.mediaUrl.includes("-voice.") ? (
+                                  <div className="mb-2 p-2 rounded-xl bg-gray-50/90 dark:bg-gray-800/80 border border-gray-200/60 dark:border-white/10 max-w-xs shadow-sm">
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 font-medium mb-1">
+                                      <span>🎙️ Voice Note</span>
+                                    </div>
+                                    <audio controls src={msg.mediaUrl} className="w-full h-8" preload="metadata" />
+                                  </div>
+                                ) : (
+                                  <div className="mb-2 rounded-xl overflow-hidden border border-gray-200/50 dark:border-white/10 max-w-xs transition-all duration-300 hover:shadow-md hover:scale-[1.02] group relative">
+                                    <img
+                                      src={msg.mediaUrl}
+                                      alt="Complaint Attachment"
+                                      className="w-full h-auto object-cover max-h-[220px] cursor-zoom-in transition-transform duration-300 group-hover:brightness-90"
+                                      onClick={() => setZoomedImage(msg.mediaUrl!)}
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                      <span className="text-white text-xs font-semibold bg-black/60 px-2 py-1 rounded-md flex items-center gap-1.5 shadow">
+                                        <ExternalLink className="w-3.5 h-3.5" /> View Large
+                                      </span>
+                                    </div>
+                                  </div>
+                                )
                              )}
                              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                              <div className="flex items-center justify-end gap-1.5 mt-1 opacity-70">

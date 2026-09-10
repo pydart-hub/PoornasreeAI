@@ -10,7 +10,7 @@ import { runtime } from "../services/runtime-config.service";
 import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
-import { transcribeAudioWithGroq } from "../services/groq.service";
+import { processVoiceNoteWithGroq, transcribeAudioWithGroq } from "../services/groq.service";
 import { touchSupportActivity } from "../services/support-inactivity.service";
 import {
   isServiceEngineer,
@@ -437,8 +437,8 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   // Check if sender is a registered service engineer
   const engineer = await isServiceEngineer(from);
 
-  // Handle media uploads (image, video, audio/voice, document)
-  if (msg.type === "image" || msg.type === "video" || msg.type === "audio" || msg.type === "voice" || msg.type === "document") {
+  // Handle media uploads (image, video, document)
+  if (msg.type === "image" || msg.type === "video" || msg.type === "document") {
     if (engineer && (msg.type === "image" || msg.type === "document")) {
       await handleEngineerMedia(from, msg, engineer);
       return;
@@ -449,27 +449,49 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // Process text, audio/voice, and interactive (button/list reply) messages
   let text = "";
+  let originalVoiceTranscript = "";
+  let voiceDetectedLang = "";
+  let voiceMediaUrl = "";
+
   if (msg.type === "text") {
     text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
   } else if (msg.type === "audio" || msg.type === "voice") {
     const audioObj = (msg.audio || msg.voice) as Record<string, unknown> | undefined;
     const mediaId = String(audioObj?.id ?? "");
     if (mediaId) {
-      console.log(`[whatsapp] Downloading voice note audio (mediaId: ${mediaId})...`);
+      console.log(`[whatsapp] Downloading voice note audio (mediaId: ${mediaId}) from ${from}...`);
       const audioBuffer = await WhatsAppService.downloadMediaBuffer(mediaId);
       if (audioBuffer) {
+        // 1. Save audio file locally so it can be streamed/played back in the support dashboard
         try {
-          text = await transcribeAudioWithGroq(audioBuffer, "voicenote.ogg");
-          console.log(`[whatsapp] Transcribed voice note from ${from}: "${text}"`);
+          const ext = String(audioObj?.mime_type || "").includes("mp4") ? "m4a" : "ogg";
+          const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}-voice.${ext}`;
+          const dir = path.resolve(__dirname, "../../uploads/customer-uploads");
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(path.join(dir, filename), audioBuffer);
+          voiceMediaUrl = `/uploads/customer-uploads/${filename}`;
+        } catch (saveErr) {
+          console.warn("[whatsapp] Could not save voice note to disk:", saveErr);
+        }
+
+        // 2. Transcribe & translate audio using Groq Whisper + Groq translation
+        try {
+          const processed = await processVoiceNoteWithGroq(audioBuffer, "voicenote.ogg");
+          originalVoiceTranscript = processed.transcript;
+          voiceDetectedLang = processed.detectedLangCode;
+          text = processed.englishQuery || processed.transcript;
+          console.log(
+            `[whatsapp] Voice note from ${from} -> Spoken (${voiceDetectedLang}): "${originalVoiceTranscript}" | Bot Query (English): "${text}"`,
+          );
         } catch (e) {
-          console.error("[whatsapp] Voice note transcription failed:", e);
+          console.error("[whatsapp] Voice note processing with Groq failed:", e);
         }
       }
     }
-    if (!text) {
+    if (!text && !originalVoiceTranscript) {
       await WhatsAppService.sendMessage(
         from,
-        "⚠️ Sorry, I could not transcribe your voice note clearly. Please try typing your issue in text.",
+        "⚠️ Sorry, I could not hear or transcribe your voice note clearly. Please try speaking again or type your issue in text.",
       );
       return;
     }
@@ -490,9 +512,27 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     return;
   }
 
+  // Display clean translated question if transcript has foreign script or phonetic hallucinations
+  const hasTamilScript = /[\u0B80-\u0BFF]/.test(originalVoiceTranscript);
+  const hasMalayalamScript = /[\u0D00-\u0D7F]/.test(originalVoiceTranscript);
+  const cleanTranscript = (hasMalayalamScript && !hasTamilScript) ? originalVoiceTranscript : (text || originalVoiceTranscript);
+
   // ── If sender is a Service Engineer, route to Engineer WhatsApp Engine ──
   if (engineer) {
-    await handleEngineerMessage(from, text, engineer);
+    if (text || originalVoiceTranscript) {
+      await prisma.simulateMessage.create({
+        data: {
+          phoneNumber: from,
+          role: "user",
+          content: cleanTranscript || text,
+          mediaUrl: voiceMediaUrl || null,
+        },
+      });
+    }
+    await handleEngineerMessage(from, text, engineer, {
+      originalTranscript: cleanTranscript || originalVoiceTranscript,
+      detectedLang: hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang,
+    });
     return;
   }
 
@@ -500,9 +540,14 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   // Persist user message
   let savedMessage = null;
-  if (text) {
+  if (text || originalVoiceTranscript) {
     savedMessage = await prisma.simulateMessage.create({
-      data: { phoneNumber: from, role: "user", content: text },
+      data: {
+        phoneNumber: from,
+        role: "user",
+        content: cleanTranscript || text,
+        mediaUrl: voiceMediaUrl || null,
+      },
     });
 
     // Bump session activity timestamp (updatedAt) for live dashboards
@@ -511,12 +556,16 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       orderBy: { updatedAt: "desc" },
     });
     if (touchSession) {
+      const currentMeta = (touchSession.metadata as Record<string, unknown>) ?? {};
+      if (voiceDetectedLang && voiceDetectedLang !== "en" && !currentMeta.language) {
+        currentMeta.language = hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang;
+      }
       await prisma.conversationSession.update({
         where: { id: touchSession.id },
-        data: { metadata: (touchSession.metadata as object) ?? {} },
+        data: { metadata: currentMeta as any },
       });
     }
-    
+
     // Broadcast the new user message to the dashboard
     const { io } = await import("../lib/socket");
     if (io) {
@@ -549,11 +598,31 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     upperText.includes("CUSTOMER SUPPORT") ||
     upperText.includes("CUSTOMER CARE");
 
-  if (session?.isBotPaused && !isSupportTrigger) {
-    // Bot is paused and this is regular customer chat, don't run the FSM. Human is watching.
-    // Refresh the 2-minute inactivity countdown so support agent has time to respond.
-    touchSupportActivity(from);
-    return;
+  const isResumeTrigger =
+    upperText === "MENU" ||
+    upperText === "MAIN_MENU" ||
+    upperText === "START" ||
+    upperText === "RESET" ||
+    upperText === "BOT" ||
+    upperText === "RESUME" ||
+    upperText.includes("MAIN MENU") ||
+    upperText.includes("RESUME BOT") ||
+    upperText.includes("TALK TO BOT");
+
+  if (session?.isBotPaused) {
+    if (isResumeTrigger) {
+      console.log(`[whatsapp] Customer ${from} requested to unpause bot via "${text}"`);
+      await prisma.conversationSession.update({
+        where: { id: session.id },
+        data: { isBotPaused: false, state: "MAIN_MENU" },
+      });
+      session.isBotPaused = false;
+    } else if (!isSupportTrigger) {
+      // Bot is paused and this is regular customer chat, don't run the FSM. Human is watching.
+      // Refresh the 2-minute inactivity countdown so support agent has time to respond.
+      touchSupportActivity(from);
+      return;
+    }
   }
 
   // Send status: read immediately (blue ticks ✓✓) & typing indicator animation
@@ -561,7 +630,20 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     WhatsAppService.sendTypingIndicator(messageId).catch(() => {});
   }
 
-  const result = await SimulateService.handleMessage(from, text, messageId);
+  const result = await SimulateService.handleMessage(from, text, messageId, {
+    transcript: cleanTranscript || originalVoiceTranscript,
+    detectedLang: hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang,
+    mediaUrl: voiceMediaUrl,
+  });
+
+  // If this was a voice note, add a visual confirmation banner of what was heard
+  if (originalVoiceTranscript && result.message) {
+    const bannerQuery = cleanTranscript || text;
+    const displayQuery = bannerQuery.length > 70 ? bannerQuery.slice(0, 67) + "..." : bannerQuery;
+    if (!result.message.includes(displayQuery)) {
+      result.message = `🎙️ _"${displayQuery}"_\n\n${result.message}`;
+    }
+  }
 
   await deliverBotReply(from, result);
 }
