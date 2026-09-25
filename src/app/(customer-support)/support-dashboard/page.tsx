@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   Bell,
   PhoneCall,
-  Megaphone
+  Megaphone,
+  X
 } from "lucide-react";
 import PromotionsStudio from "@/components/support/PromotionsStudio";
 
@@ -457,6 +458,17 @@ export default function SupportDashboard() {
     }
   };
 
+  // Option 1: Clears waiting flag locally (optimistic — API already clears it in DB on send)
+  const clearWaitingStatus = (phone: string) => {
+    setSessions((prev) =>
+      prev.map((s) =>
+        isSamePhone(s.phoneNumber, phone)
+          ? { ...s, isWaitingForSupport: false }
+          : s
+      )
+    );
+  };
+
   const handleSendMessage = async () => {
     if (!replyText.trim() || !activePhone || sending) return;
     setSending(true);
@@ -469,6 +481,8 @@ export default function SupportDashboard() {
         body: JSON.stringify({ content: text }),
       });
       if (!r.ok) throw new Error();
+      // Option 1: Auto-clear the waiting banner once reply is sent successfully
+      clearWaitingStatus(activePhone);
     } catch {
       setReplyText(text);
       addToast("Failed to send message", "warning");
@@ -819,16 +833,26 @@ export default function SupportDashboard() {
 
                   {/* Customer Waiting Notice Banner */}
                   {activeSession.isWaitingForSupport && (
-                    <div className="bg-rose-50 dark:bg-rose-950/70 border-b border-rose-200 dark:border-rose-800/60 px-4 py-2.5 flex items-center justify-between animate-in slide-in-from-top-2 duration-200 shrink-0">
-                      <div className="flex items-center gap-2">
+                    <div className="bg-rose-50 dark:bg-rose-950/70 border-b border-rose-200 dark:border-rose-800/60 px-4 py-2.5 flex items-center justify-between gap-2 animate-in slide-in-from-top-2 duration-200 shrink-0">
+                      <div className="flex items-center gap-2 min-w-0">
                         <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 animate-pulse" />
-                        <span className="text-xs font-semibold text-rose-800 dark:text-rose-200">
+                        <span className="text-xs font-semibold text-rose-800 dark:text-rose-200 truncate">
                           Customer is waiting for live support. Reply below to start assisting them.
                         </span>
                       </div>
-                      <span className="text-[10px] uppercase tracking-wider font-bold bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full">
-                        Action Required
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] uppercase tracking-wider font-bold bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 px-2 py-0.5 rounded-full">
+                          Action Required
+                        </span>
+                        {/* Option 3: Manual dismiss button */}
+                        <button
+                          onClick={() => clearWaitingStatus(activeSession.phoneNumber)}
+                          title="Mark as handled"
+                          className="p-1 rounded-full text-rose-500 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/60 hover:text-rose-700 dark:hover:text-rose-200 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   )}
 
