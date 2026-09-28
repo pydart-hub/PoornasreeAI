@@ -523,17 +523,19 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   let explicitLang: string | null = null;
   let explicitScriptPref: string | null = null;
   const lowerIncoming = combinedIncoming.toLowerCase();
+  const isManglishRequest = /\b(manglish|english\s*aksharam|english\s*letters)\b/i.test(lowerIncoming);
+  const isMalayalamRequest = hasMalayalamScript || /\b(malayalam|malayalathil|malayalam\s*font|malayalam\s*text|malayalam\s*script|malayalam\s*aksharam|മലയാളം|മലയാളത്തിൽ)\b/i.test(lowerIncoming);
 
-  if (hasMalayalamScript || lowerIncoming.includes("മലയാളം") || lowerIncoming.includes("malayalam font") || lowerIncoming.includes("malayalam text") || lowerIncoming.includes("മലയാളത്തിൽ")) {
-    explicitLang = "ml";
-    explicitScriptPref = "native";
-  } else if (lowerIncoming.includes("manglish") || lowerIncoming.includes("english aksharam") || lowerIncoming.includes("english letters")) {
+  if (isManglishRequest) {
     explicitLang = "ml";
     explicitScriptPref = "manglish";
-  } else if (hasHindiScript || lowerIncoming === "hindi" || lowerIncoming.includes("hindi me") || lowerIncoming.includes("हिंदी")) {
+  } else if (isMalayalamRequest) {
+    explicitLang = "ml";
+    explicitScriptPref = "native";
+  } else if (hasHindiScript || /\b(hindi|hindi\s*me|हिंदी)\b/i.test(lowerIncoming)) {
     explicitLang = "hi";
     explicitScriptPref = "native";
-  } else if (lowerIncoming === "english" || lowerIncoming.includes("in english")) {
+  } else if (/\b(english|in\s*english)\b/i.test(lowerIncoming)) {
     explicitLang = "en";
     explicitScriptPref = "english";
   }

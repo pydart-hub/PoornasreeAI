@@ -1410,17 +1410,19 @@ export async function handleMessage(
   const incomingRawMsg = (text || audioContext?.transcript || "").trim();
   const hasNativeMalayalam = /[\u0D00-\u0D7F]/.test(incomingRawMsg);
   const lowerIncomingMsg = incomingRawMsg.toLowerCase();
+  const isManglishRequest = /\b(manglish|english\s*aksharam|english\s*letters)\b/i.test(lowerIncomingMsg);
+  const isMalayalamRequest = hasNativeMalayalam || /\b(malayalam|malayalathil|malayalam\s*font|malayalam\s*text|malayalam\s*script|malayalam\s*aksharam|മലയാളം|മലയാളത്തിൽ)\b/i.test(lowerIncomingMsg);
 
-  if (hasNativeMalayalam || lowerIncomingMsg.includes("മലയാളം") || lowerIncomingMsg.includes("malayalam text") || lowerIncomingMsg.includes("malayalam font") || lowerIncomingMsg.includes("മലയാളത്തിൽ")) {
-    meta.language = "ml";
-    (meta as any).scriptPreference = "native";
-  } else if (lowerIncomingMsg.includes("manglish") || lowerIncomingMsg.includes("english aksharam") || lowerIncomingMsg.includes("english letters")) {
+  if (isManglishRequest) {
     meta.language = "ml";
     (meta as any).scriptPreference = "manglish";
-  } else if (/[\u0900-\u097F]/.test(incomingRawMsg) || lowerIncomingMsg === "hindi" || lowerIncomingMsg.includes("hindi me") || lowerIncomingMsg.includes("हिंदी")) {
+  } else if (isMalayalamRequest) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "native";
+  } else if (/[\u0900-\u097F]/.test(incomingRawMsg) || /\b(hindi|hindi\s*me|हिंदी)\b/i.test(lowerIncomingMsg)) {
     meta.language = "hi";
     (meta as any).scriptPreference = "native";
-  } else if (lowerIncomingMsg === "english" || lowerIncomingMsg.includes("in english")) {
+  } else if (/\b(english|in\s*english)\b/i.test(lowerIncomingMsg)) {
     meta.language = "en";
     (meta as any).scriptPreference = "english";
   }
@@ -1510,6 +1512,41 @@ export async function handleMessage(
     "CONFIRM_MACHINE_YES", "CONFIRM_MACHINE_NO",
     "BTN_PRODUCTS", "BTN_SERVICE", "BTN_AGENT",
   ]);
+  // ── Standalone Language / Font Switch Command Interceptor ──
+  const trimmedIncoming = incomingRawMsg.trim();
+  const isMalayalamSwitch =
+    /^(\/)?(malayalam|malayalathil|malayalam\s*font|malayalam\s*text|malayalam\s*script|malayalam\s*aksharam|മലയാളം|മലയാളത്തിൽ|in\s*malayalam|speak\s*in\s*malayalam|talk\s*in\s*malayalam)$/i.test(trimmedIncoming) ||
+    /^malayalam\s*(font|fontil|text|script|please|plz|parayu|parayumo|aano|language)?$/i.test(trimmedIncoming);
+
+  const isManglishSwitch =
+    /^(\/)?(manglish|english\s*aksharam|english\s*letters|in\s*manglish)$/i.test(trimmedIncoming);
+
+  if (isMalayalamSwitch) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "native";
+    await updateSession(session.id, session.state, meta);
+
+    const hasOpenComplaint = meta.complaint || meta.lastIssueQuery;
+    let switchAck = `തീർച്ചയായും! ഇനി മുതൽ സംഭാഷണം മലയാളത്തിൽ തുടരാം.`;
+    if (hasOpenComplaint) {
+      switchAck += `\n\nനിങ്ങളുടെ മെഷീന് എന്താണ് പ്രശ്നം എന്ന് ദയവായി മലയാളത്തിൽ വ്യക്തമാക്കാമോ? (ഉദാഹരണത്തിന്: പവർ വരുന്നില്ല, വൈബ്രേഷൻ ഇല്ല, അസാധാരണമായ ശബ്ദം വരുന്നു). ഞാൻ സഹായിക്കാം.`;
+    } else {
+      switchAck += `\n\nനിങ്ങളുടെ മെഷീന് എന്ത് സഹായമാണ് വേണ്ടത്? പരാതിയോ സംശയങ്ങളോ താഴെ ടൈപ്പ് ചെയ്യുക.`;
+    }
+    return makeReply(switchAck, [getMenuButton("ml")]);
+  }
+
+  if (isManglishSwitch) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "manglish";
+    await updateSession(session.id, session.state, meta);
+
+    return makeReply(
+      `Sure! Ini muthal namukku Manglish-il samsarikkaam.\n\nMachine-nu enthaanu issue ennu type cheyyoo. Njaan help cheyyaam.`,
+      [getMenuButton("ml")]
+    );
+  }
+
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {
     await updateSession(session.id, "REGISTER_MACHINE_COUNT", { language: meta.language });
     return makeReply(
@@ -3184,6 +3221,25 @@ export async function runGroqCompanyAssistant(
 ): Promise<any> {
   const settings = await getWhatsAppSupportSettings();
   const botName = settings.botName?.trim() || "Hari";
+  // Check if query itself has explicit language intent or script
+  const queryLower = query.toLowerCase().trim();
+  const isManglishQuery = /\b(manglish|english\s*aksharam|english\s*letters)\b/i.test(queryLower);
+  const isMalayalamQuery = /[\u0D00-\u0D7F]/.test(query) || /\b(malayalam|malayalathil|malayalam\s*font|malayalam\s*text|malayalam\s*script|malayalam\s*aksharam|മലയാളം|മലയാളത്തിൽ)\b/i.test(queryLower);
+
+  if (isManglishQuery) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "manglish";
+  } else if (isMalayalamQuery) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "native";
+  } else if (/[\u0900-\u097F]/.test(query) || /\b(hindi|hindi\s*me|हिंदी)\b/i.test(queryLower)) {
+    meta.language = "hi";
+    (meta as any).scriptPreference = "native";
+  } else if (/\b(english|in\s*english)\b/i.test(queryLower)) {
+    meta.language = "en";
+    (meta as any).scriptPreference = "english";
+  }
+
   const lang: Lang = (meta.language ?? "en") as Lang;
   const activeState = options.activeFsmState || meta.previousFsmState || "MAIN_MENU";
 
@@ -3946,7 +4002,8 @@ export async function runGroqCompanyAssistant(
 - Write your ENTIRE response in natural, fluent MALAYALAM SCRIPT (മലയാളം ലിപി).
   Example: "മെഷീൻ ഓൺ ആണോ? പവർ കണക്ഷനും ഫ്യൂസും പരിശോധിക്കുക."
 - ABSOLUTELY FORBIDDEN: NEVER write in Hindi or Devanagari script (हिंदी)! Hindi output is strictly prohibited.
-- ABSOLUTELY FORBIDDEN: NEVER reply in English or pure Manglish when Malayalam native script is required.
+- ABSOLUTELY FORBIDDEN: NEVER reply in English or Manglish (Latin/English letters) when Malayalam native script is required!
+- Even if the customer asked in English letters (e.g. "malayalam", "malayalam font"), they are requesting Malayalam language, so your response MUST be written in Malayalam script (മലയാളം ലിപി).
 - Translate all check titles, bullet points, greetings, and remarks into natural Malayalam script (മലയാളം ലിപി).`;
     }
   } else if (resolvedLang === "hi") {
@@ -3980,8 +4037,9 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
    - Do NOT append repetitive sales pitches ("Would you like to browse products or register?").
 5. ABSOLUTELY NO UNWANTED DATA DUMPING: Do NOT dump company capacity, employee count, ISO details, or unrequested catalog specs. Only answer what was asked.
 6. MIRROR THE CUSTOMER'S EXACT LANGUAGE AND WRITING STYLE FAITHFULLY:
-   - If the customer asks to switch script or font (e.g. "Malayalam font use chey", "Malayalam text il samsarikamo", "Hindi me bolo"), IMMEDIATELY write all replies in that requested script/language!
-   - If the customer writes in Romanized transliteration (Manglish, Hinglish, Tanglish), reply in the SAME Romanized transliteration.
+   - If the customer asks to switch script or font (e.g. "Malayalam font use chey", "Malayalam text il samsarikamo", "Hindi me bolo", "malayalam"), IMMEDIATELY write all replies in that requested script/language!
+   - If the active language is Malayalam Native Script, ALWAYS reply in Malayalam script (മലയാളം ലിപി), even if the customer's input or previous messages were in English or Manglish.
+   - If the customer writes in Romanized transliteration (Manglish, Hinglish, Tanglish) and has NOT requested native script, reply in the SAME Romanized transliteration.
    - If the customer writes in Native Script (Malayalam, Hindi Devanagari, Tamil, etc.), reply in the SAME Native Script.
    - If the customer writes in English or any other language, reply in that SAME Language.
 7. PRODUCT COMPARISON REQUESTS:
@@ -4060,12 +4118,20 @@ ${settings.companyAddress || ""}
     }
 
     // If native Malayalam script was requested but output contains zero Malayalam characters:
-    if (resolvedLang === "ml" && preferredScript === "native" && !/[\u0D00-\u0D7F]/.test(reply) && reply.length > 10) {
+    if (resolvedLang === "ml" && preferredScript === "native" && !/[\u0D00-\u0D7F]/.test(reply) && reply.length > 5) {
       console.log(`[simulate-language-guard] Native Malayalam script requested but Latin/English returned for ${phoneNumber}. Translating to Malayalam script...`);
       const { translateText } = await import("./translate.service");
       const mlTranslated = await translateText(reply, "ml");
       if (mlTranslated && /[\u0D00-\u0D7F]/.test(mlTranslated)) {
         reply = mlTranslated;
+      } else {
+        const fallbackTranslate = await llmChat([
+          { role: "system", content: "You are a professional Malayalam translator. Translate the given text completely into natural Malayalam script (മലയാളം ലിപി). Output ONLY Malayalam script. NEVER output English, Manglish, or Hindi." },
+          { role: "user", content: reply }
+        ], { temperature: 0.1 });
+        if (fallbackTranslate && /[\u0D00-\u0D7F]/.test(fallbackTranslate)) {
+          reply = fallbackTranslate.trim();
+        }
       }
     }
 
