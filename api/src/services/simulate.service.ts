@@ -7026,6 +7026,7 @@ async function createTicketManual(sessionId: string, phoneNumber: string, meta: 
     district: meta.manualDistrict,
     state: meta.manualState,
     customerAddress: `${meta.manualAddress?.trim() || [meta.manualPlace, meta.manualDistrict, meta.manualState].filter(Boolean).join(", ")}${(meta.regGmapLink || meta.manualGmapLink) ? " | Map: " + (meta.regGmapLink || meta.manualGmapLink) : ""}`,
+    mediaUrls: meta.mediaUrls || (meta.complaintMediaUrl ? [meta.complaintMediaUrl] : []),
   });
 
   io?.to("managers").emit("ticket:new", ticket);

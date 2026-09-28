@@ -5,7 +5,7 @@ async function main() {
   const token = runtime.waAccessToken();
   const wabaId = runtime.waBusinessAccountId() || "1631698127950324";
   const res = await fetch(
-    `https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=customer_support_alert_v1`,
+    `https://graph.facebook.com/v21.0/${wabaId}/message_templates?name=service_manager_ticket_alert_v1`,
     {
       headers: { Authorization: `Bearer ${token}` },
     }

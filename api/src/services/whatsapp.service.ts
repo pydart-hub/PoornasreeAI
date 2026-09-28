@@ -647,7 +647,80 @@ export async function sendVideo(
   }
 }
 
+/** Send an audio / voice message via WhatsApp Cloud API. */
+export async function sendAudio(
+  to: string,
+  audioUrl: string,
+): Promise<void> {
+  if (!isConfigured()) {
+    console.warn("[whatsapp] Not configured — skipping sendAudio");
+    return;
+  }
+
+  const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${runtime.waAccessToken()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "audio",
+        audio: {
+          link: audioUrl,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error(`[whatsapp] Audio send failed (${res.status}):`, JSON.stringify(err));
+      console.error(`[whatsapp] Audio URL was: ${audioUrl}`);
+    } else {
+      console.log(`[whatsapp] Sent audio → ${to}: url=${audioUrl}`);
+    }
+  } catch (err) {
+    console.error(`[whatsapp] Network error sending audio to ${to}:`, (err as Error).message);
+  }
+}
+
 // ── Meta Approved Message Templates ─────────────────────────────────────────
+
+export async function sendManagerTicketAlertTemplate(
+  to: string,
+  data: {
+    ticketNumber: string;
+    customerName: string;
+    customerPhone: string;
+    location: string;
+    machineInfo: string;
+    warrantyInfo: string;
+    complaint: string;
+    mediaSummary: string;
+  },
+): Promise<boolean> {
+  const sanitize = (val: string, maxLen = 120): string =>
+    (val || "").replace(/[\n\r\t]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLen) || "—";
+
+  return sendTemplate(to, {
+    name: "service_manager_ticket_alert_v1",
+    languageCode: "en",
+    bodyParameters: [
+      sanitize(data.ticketNumber, 40),
+      sanitize(data.customerName, 50),
+      sanitize(data.customerPhone, 30),
+      sanitize(data.location, 60),
+      sanitize(data.machineInfo, 80),
+      sanitize(data.warrantyInfo, 60),
+      sanitize(data.complaint, 120),
+      sanitize(data.mediaSummary, 50),
+    ],
+  });
+}
 
 export async function sendTicketAssignedTemplate(
   to: string,

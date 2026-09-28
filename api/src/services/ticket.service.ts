@@ -854,9 +854,12 @@ export async function notifyServiceManagerNewTicket(ticketId: string): Promise<v
     const phone = ticket.phoneNumber || ticket.customer?.whatsappNumber || "—";
     const place = ticket.pincode?.place || ticket.place || ticket.machineAddress1 || "—";
     const pincode = ticket.pincode?.code || "—";
+    const location = pincode !== "—" ? `${place} · ${pincode}` : place;
     const complaint = ticket.issueDescription || ticket.problemDescription || "—";
+    const cleanComplaint = complaint.replace(/[\n\r\t]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || "—";
 
     let warrantyInfo = "";
+    let warrantySummary = "No Warranty Info";
     if (ticket.machineWarranty && ticket.machineWarranty > 0) {
       if (ticket.machineInvoiceDate && ticket.machineInvoiceDate !== "0000-00-00") {
         const invDate = new Date(ticket.machineInvoiceDate.split(" ")[0]);
@@ -865,20 +868,43 @@ export async function notifyServiceManagerNewTicket(ticketId: string): Promise<v
           expiry.setMonth(expiry.getMonth() + ticket.machineWarranty);
           const diffDays = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
           const diffMo = Math.ceil(diffDays / 30.4375);
+          warrantySummary = diffDays > 0
+            ? `${ticket.machineWarranty} Mos (${diffMo} mos left)`
+            : `Expired (${ticket.machineWarranty} Mos)`;
           warrantyInfo = diffDays > 0
             ? `🛡️ *Warranty:* ${ticket.machineWarranty} Months (${diffMo} months left)`
             : `🛡️ *Warranty:* Expired`;
         } else {
+          warrantySummary = `${ticket.machineWarranty} Months`;
           warrantyInfo = `🛡️ *Warranty:* ${ticket.machineWarranty} Months`;
         }
       } else {
+        warrantySummary = `${ticket.machineWarranty} Months`;
         warrantyInfo = `🛡️ *Warranty:* ${ticket.machineWarranty} Months`;
       }
     }
 
     const machineInfo = ticket.machineName
-      ? `🔧 *Machine:* ${ticket.machineName}${ticket.machineSerialNumber ? ` (S/N: ${ticket.machineSerialNumber})` : ""}`
-      : "";
+      ? `${ticket.machineName}${ticket.machineSerialNumber ? ` (S/N: ${ticket.machineSerialNumber})` : ""}`
+      : (ticket.machineSerialNumber ? `S/N: ${ticket.machineSerialNumber}` : "—");
+
+    // Inspect media attachments (images and voice notes)
+    const rawMediaUrls = Array.isArray(ticket.mediaUrls) ? (ticket.mediaUrls as string[]) : [];
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    const audioExtensions = [".ogg", ".mp3", ".m4a", ".wav", ".aac", ".opus"];
+
+    const imageCount = rawMediaUrls.filter((u) => typeof u === "string" && imageExtensions.some((ext) => u.toLowerCase().includes(ext))).length;
+    const audioCount = rawMediaUrls.filter((u) => typeof u === "string" && audioExtensions.some((ext) => u.toLowerCase().includes(ext))).length;
+    const otherCount = rawMediaUrls.length - imageCount - audioCount;
+
+    let mediaSummary = "None";
+    if (rawMediaUrls.length > 0) {
+      const parts: string[] = [];
+      if (imageCount > 0) parts.push(`${imageCount} Photo${imageCount > 1 ? "s" : ""}`);
+      if (audioCount > 0) parts.push(`${audioCount} Voice Note${audioCount > 1 ? "s" : ""}`);
+      if (otherCount > 0) parts.push(`${otherCount} File${otherCount > 1 ? "s" : ""}`);
+      mediaSummary = parts.join(", ") || `${rawMediaUrls.length} Attachment(s)`;
+    }
 
     const alertMessage = [
       `🔔 *NEW CUSTOMER TICKET CREATED*`,
@@ -886,19 +912,85 @@ export async function notifyServiceManagerNewTicket(ticketId: string): Promise<v
       `📋 *Ticket:* ${ticket.ticketNumber}`,
       `👤 *Customer:* ${customerName}`,
       `📞 *Phone:* ${phone}`,
-      `📍 *Location:* ${place} (${pincode})`,
-      ...(machineInfo ? [machineInfo] : []),
+      `📍 *Location:* ${location}`,
+      `🔧 *Machine:* ${machineInfo}`,
       ...(warrantyInfo ? [warrantyInfo] : []),
       `📝 *Complaint:* ${complaint}`,
+      ...(mediaSummary !== "None" ? [`📎 *Attachments:* ${mediaSummary}`] : []),
       `⚡ *Status:* ${ticket.status}`,
     ].join("\n");
 
     for (const rawPhone of recipientPhones) {
       const normalized = WhatsAppService.normalizeWhatsappNumber(rawPhone);
-      if (normalized) {
-        await WhatsAppService.sendMessage(normalized, alertMessage).catch((err) => {
-          console.warn(`[ticket.service] Failed to send WhatsApp ticket alert to manager ${normalized}:`, err.message);
-        });
+      if (!normalized) continue;
+
+      try {
+        // 1. Send dedicated template alert (service_manager_ticket_alert_v1)
+        let templateSent = await WhatsAppService.sendManagerTicketAlertTemplate(normalized, {
+          ticketNumber: ticket.ticketNumber,
+          customerName,
+          customerPhone: phone,
+          location,
+          machineInfo,
+          warrantyInfo: warrantySummary,
+          complaint: cleanComplaint,
+          mediaSummary,
+        }).catch(() => false);
+
+        // Fallback to approved utility template if new template is still pending Meta review
+        if (!templateSent) {
+          templateSent = await WhatsAppService.sendTemplate(normalized, {
+            name: "engineer_ticket_assigned",
+            languageCode: "en",
+            bodyParameters: [
+              "Service Manager",
+              ticket.ticketNumber,
+              customerName,
+              phone,
+              location,
+              cleanComplaint,
+            ],
+          }).catch(() => false);
+        }
+
+        // Fallback to direct session message if templates failed
+        if (!templateSent) {
+          await WhatsAppService.sendMessage(normalized, alertMessage).catch(() => {});
+        } else {
+          // If template was delivered, session is active; also send rich details card
+          await WhatsAppService.sendMessage(normalized, alertMessage).catch(() => {});
+        }
+
+        // 2. Forward media files (images & audio voice notes) directly to the manager
+        if (rawMediaUrls.length > 0) {
+          for (const rawUrl of rawMediaUrls) {
+            if (!rawUrl || typeof rawUrl !== "string") continue;
+            const lowerUrl = rawUrl.toLowerCase();
+            const fullUrl = rawUrl.startsWith("http")
+              ? rawUrl
+              : `https://ai.poornasreecloud.com${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+
+            if (imageExtensions.some((ext) => lowerUrl.includes(ext))) {
+              await WhatsAppService.sendImage(
+                normalized,
+                fullUrl,
+                `📸 [${ticket.ticketNumber}] Customer Photo Attachment`,
+              ).catch((err) => console.warn(`[ticket.service] Failed to send image to manager ${normalized}:`, err.message));
+            } else if (audioExtensions.some((ext) => lowerUrl.includes(ext))) {
+              await WhatsAppService.sendAudio(
+                normalized,
+                fullUrl,
+              ).catch((err) => console.warn(`[ticket.service] Failed to send audio to manager ${normalized}:`, err.message));
+            } else {
+              await WhatsAppService.sendMessage(
+                normalized,
+                `📎 [${ticket.ticketNumber}] Attachment:\n${fullUrl}`,
+              ).catch(() => {});
+            }
+          }
+        }
+      } catch (sendErr) {
+        console.warn(`[ticket.service] Failed to send WhatsApp ticket alert to manager ${normalized}:`, (sendErr as Error).message);
       }
     }
   } catch (err) {
