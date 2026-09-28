@@ -1401,9 +1401,28 @@ export async function handleMessage(
 
   let meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
 
-  // If language was detected from voice, sync language preference into metadata
-  if (audioContext?.detectedLang && audioContext.detectedLang !== "en" && !meta.language) {
+  // If language was detected from voice or context, sync language preference into metadata
+  if (audioContext?.detectedLang && audioContext.detectedLang !== "en") {
     meta.language = audioContext.detectedLang as Lang;
+  }
+
+  // Real-time script & intent detection from customer message
+  const incomingRawMsg = (text || audioContext?.transcript || "").trim();
+  const hasNativeMalayalam = /[\u0D00-\u0D7F]/.test(incomingRawMsg);
+  const lowerIncomingMsg = incomingRawMsg.toLowerCase();
+
+  if (hasNativeMalayalam || lowerIncomingMsg.includes("മലയാളം") || lowerIncomingMsg.includes("malayalam text") || lowerIncomingMsg.includes("malayalam font") || lowerIncomingMsg.includes("മലയാളത്തിൽ")) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "native";
+  } else if (lowerIncomingMsg.includes("manglish") || lowerIncomingMsg.includes("english aksharam") || lowerIncomingMsg.includes("english letters")) {
+    meta.language = "ml";
+    (meta as any).scriptPreference = "manglish";
+  } else if (/[\u0900-\u097F]/.test(incomingRawMsg) || lowerIncomingMsg === "hindi" || lowerIncomingMsg.includes("hindi me") || lowerIncomingMsg.includes("हिंदी")) {
+    meta.language = "hi";
+    (meta as any).scriptPreference = "native";
+  } else if (lowerIncomingMsg === "english" || lowerIncomingMsg.includes("in english")) {
+    meta.language = "en";
+    (meta as any).scriptPreference = "english";
   }
 
   // Auto-detect if user is registered in User table (especially Engineers) if meta.role / meta.isEngineer is unpopulated
@@ -3900,7 +3919,7 @@ export async function runGroqCompanyAssistant(
       6. ABSOLUTELY NO TRUNCATION: You MUST output EVERY SINGLE Check (Check 1 to N), EVERY Action line, and EVERY sub-bullet item from the matched document without omitting, shortening, or cutting off a single line!
       7. STRICT REMARKS FORMATTING: ANY LINE THAT CONTAINS REMARKS, EXPLANATIONS, OR EXAMPLES (e.g. "Works only in remote mode", "Eg: The scale display shown...", "ASCII code is 076...") MUST BE FORMATTED AS AN INDENTED "↳ Remark:" LINE UNDER ITS CORRESPONDING SUB-POINT! ABSOLUTELY DO NOT FORMAT REMARKS AS "• Action 2:", "• Action 3:", OR MAIN ACTION LINES!
       8. ABSOLUTELY DO NOT omit, skip, or summarize distinct checks, actions, examples, or button enable instructions!
-      9. Translate the *Check* and *Action* items into the customer's language/writing style (Manglish, Malayalam, Hindi, English).
+      9. Translate the *Check* and *Action* items strictly into the customer's active language (${lang === "ml" ? (((meta as any).scriptPreference === "manglish") ? "Manglish" : "Malayalam script മലയാളം") : (lang === "hi" ? "Hindi हिंदी" : "English")}). NEVER output in Hindi or unintended languages!
       10. Follow ONLY the exact steps and sequence from the matched document.
       11. ABSOLUTELY DO NOT suggest or introduce outside steps, outside tools, or procedures that are not written in the document.
       12. ABSOLUTELY NO DUPLICATE REMARKS OR LEAKED FUTURE CHECKS: A Step must NEVER output a "↳ Remark:" that simply mentions, repeats, or previews the next check (e.g. "Check the power supply", "Check the adapter", "Check the sensor and tube") or future replacement actions! If a check step has no unique explanatory notes, parameters, examples (Eg: ...), or ASCII codes, DO NOT output any "↳ Remark:" line under that step. Output only the number emoji header (e.g. 2️⃣ *Check ...:* ) and the action bullet (• Replace ...)!`
@@ -3909,8 +3928,46 @@ export async function runGroqCompanyAssistant(
     - DO NOT hallucinate, invent, or make up ANY troubleshooting steps.
     - Politely inform the customer in 1 natural sentence in their exact language/script that their issue has been logged for technical review, and advise them to book a technician service visit. Do not output checklists or troubleshooting numbers.`;
 
+  const resolvedLang = lang || "en";
+  const preferredScript = (meta as any).scriptPreference || (resolvedLang === "ml" ? "native" : "default");
+
+  let languageDirective = "";
+  if (resolvedLang === "ml") {
+    if (preferredScript === "manglish") {
+      languageDirective = `CRITICAL MANDATORY LANGUAGE INSTRUCTION:
+- Active Customer Language: MANGLISH (Malayalam phonetically written in English/Latin letters).
+- Write your ENTIRE response in natural, fluent MANGLISH (Malayalam using English alphabet, e.g. "Machine power on aano? Fuse check cheythu nokkoo").
+- ABSOLUTELY FORBIDDEN: NEVER write in Hindi or Devanagari script (हिंदी)!
+- ABSOLUTELY FORBIDDEN: NEVER write in native Malayalam script when Manglish is active.
+- Talk like a helpful support executive messaging in Manglish on WhatsApp.`;
+    } else {
+      languageDirective = `CRITICAL MANDATORY LANGUAGE INSTRUCTION:
+- Active Customer Language: MALAYALAM NATIVE SCRIPT (മലയാളം ലിപി).
+- Write your ENTIRE response in natural, fluent MALAYALAM SCRIPT (മലയാളം ലിപി).
+  Example: "മെഷീൻ ഓൺ ആണോ? പവർ കണക്ഷനും ഫ്യൂസും പരിശോധിക്കുക."
+- ABSOLUTELY FORBIDDEN: NEVER write in Hindi or Devanagari script (हिंदी)! Hindi output is strictly prohibited.
+- ABSOLUTELY FORBIDDEN: NEVER reply in English or pure Manglish when Malayalam native script is required.
+- Translate all check titles, bullet points, greetings, and remarks into natural Malayalam script (മലയാളം ലിപി).`;
+    }
+  } else if (resolvedLang === "hi") {
+    languageDirective = `CRITICAL MANDATORY LANGUAGE INSTRUCTION:
+- Active Customer Language: HINDI (हिंदी).
+- Write your ENTIRE response in natural Hindi (Devanagari script: हिंदी).
+- NEVER switch to other scripts unless requested.`;
+  } else if (resolvedLang === "ta") {
+    languageDirective = `CRITICAL MANDATORY LANGUAGE INSTRUCTION:
+- Active Customer Language: TAMIL (தமிழ்).
+- Write your ENTIRE response in natural Tamil script.`;
+  } else {
+    languageDirective = `CRITICAL MANDATORY LANGUAGE INSTRUCTION:
+- Active Customer Language: ENGLISH.
+- Write your response in clean, professional English.`;
+  }
+
   const systemPrompt = `You are ${botName}, a friendly, intelligent human customer support representative for Poornasree Equipments.
 Answer the customer's question directly, concisely, and naturally using the official knowledge below. ${namePrompt}
+
+${languageDirective}
 
 HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 1. FOR GENERAL CONVERSATIONS & INQUIRIES (Greetings, Company info, office locations, general product queries): Write short, direct, natural 1-2 sentence replies. Talk like a real person replying on WhatsApp.
@@ -3941,6 +3998,10 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
     - Do NOT repeat or mention off-topic words in your response.
 \n${troubleshootingRules}
 
+--- STRICT MANDATORY LANGUAGE ENFORCEMENT ---
+${languageDirective}
+---------------------------------------------
+
 --- MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS ---
 ${matchedDocKnowledge || "No specific troubleshooting document match found."}
 
@@ -3958,19 +4019,55 @@ ${settings.companyAddress || ""}
   try {
     const { llmChat } = await import("./llm.service");
 
+    // Sanitize history so that any previous erroneous Hindi/Devanagari responses from assistant are discarded when user is in Malayalam
+    const sanitizedHistory = historyMessages.filter((m) => {
+      if (resolvedLang === "ml" && m.role === "assistant" && /[\u0900-\u097F]/.test(m.content)) {
+        return false;
+      }
+      return true;
+    });
+
     const conversationPayload: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },
-      ...historyMessages,
+      ...sanitizedHistory,
     ];
 
     // Append query if not already the last message in history
-    const lastMsg = historyMessages[historyMessages.length - 1];
+    const lastMsg = sanitizedHistory[sanitizedHistory.length - 1];
     if (!lastMsg || lastMsg.content !== query) {
       conversationPayload.push({ role: "user", content: query });
     }
 
-    const rawReply = await llmChat(conversationPayload, { maxTokens: 1200, temperature: 0.5 });
-    const reply = rawReply ? toSentenceCase(rawReply.trim()) : "";
+    const rawReply = await llmChat(conversationPayload, { maxTokens: 1200, temperature: 0.25 });
+    let reply = rawReply ? rawReply.trim() : "";
+    if (resolvedLang === "en") {
+      reply = toSentenceCase(reply);
+    }
+
+    // Post-generation safety net: Intercept leaked Devanagari Hindi when Malayalam was requested
+    if (resolvedLang === "ml" && /[\u0900-\u097F]/.test(reply)) {
+      console.warn(`[simulate-language-guard] Leaked Devanagari Hindi detected for Malayalam customer ${phoneNumber}. Auto-correcting to clean Malayalam...`);
+      const { translateText } = await import("./translate.service");
+      const mlFixed = await translateText(reply, "ml");
+      if (mlFixed && !/[\u0900-\u097F]/.test(mlFixed)) {
+        reply = mlFixed;
+      } else {
+        reply = await llmChat([
+          { role: "system", content: "You are a professional Malayalam translator. Translate the given text completely into natural Malayalam script (മലയാളം ലിപി). Output ONLY Malayalam script. NEVER output any Hindi or Devanagari." },
+          { role: "user", content: reply }
+        ], { temperature: 0.1 });
+      }
+    }
+
+    // If native Malayalam script was requested but output contains zero Malayalam characters:
+    if (resolvedLang === "ml" && preferredScript === "native" && !/[\u0D00-\u0D7F]/.test(reply) && reply.length > 10) {
+      console.log(`[simulate-language-guard] Native Malayalam script requested but Latin/English returned for ${phoneNumber}. Translating to Malayalam script...`);
+      const { translateText } = await import("./translate.service");
+      const mlTranslated = await translateText(reply, "ml");
+      if (mlTranslated && /[\u0D00-\u0D7F]/.test(mlTranslated)) {
+        reply = mlTranslated;
+      }
+    }
 
     if (reply && reply.trim()) {
       const lowerQuery = query.toLowerCase();

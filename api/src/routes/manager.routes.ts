@@ -32,6 +32,9 @@ import {
   importDealers,
   importAssistants,
   clearTestCustomer,
+  directAssignService,
+  getEngineerChatSessions,
+  getEngineerChatMessages,
 } from "../controllers/manager.controller";
 
 const router = Router();
@@ -94,6 +97,13 @@ router.post("/import/assistants", authorize("service_manager"), xlsxUpload.singl
 
 // Export
 router.get("/export/tickets",               authorize("service_manager"), exportTickets);
+
+// Direct Service / Checkup Assignment (without customer ticket)
+router.post("/direct-assign",               SM, directAssignService);
+
+// Engineer WhatsApp Bot Chat Monitoring
+router.get("/engineer-chats/sessions",      SM, getEngineerChatSessions);
+router.get("/engineer-chats/messages/:identifier", SM, getEngineerChatMessages);
 
 // WhatsApp customer test reset (temporary — service manager only)
 router.delete("/test/customer",             authorize("service_manager"), clearTestCustomer);

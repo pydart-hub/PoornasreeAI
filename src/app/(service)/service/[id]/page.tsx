@@ -30,8 +30,10 @@ import {
   ListChecks,
   User,
   Building2,
+  Shield,
 } from "lucide-react";
 import { getSocket } from "@/lib/socket-client";
+import { calculateWarrantyStatus } from "@/lib/warranty";
 import {
   getWorkReport,
   upsertWorkReport,
@@ -57,6 +59,9 @@ interface Ticket {
   machineCustomer?: string | null;
   machineAddress1?: string | null;
   machineAddress2?: string | null;
+  machineInvoiceNo?: string | null;
+  machineInvoiceDate?: string | null;
+  machineWarranty?: number | null;
   ageHours?: number;
   phoneNumber?: string | null;
   customerAddress?: string | null;
@@ -534,8 +539,22 @@ export default function WorkExecutionScreen() {
                 )}
               </div>
             )}
-            {machineDisplay && (
-              <p className="text-[11px] text-gray-400">🛠 {machineDisplay}</p>
+            {(machineDisplay || ticket.machineWarranty) && (
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
+                {machineDisplay && (
+                  <p className="text-[11px] text-gray-500 font-medium">🛠 {machineDisplay}</p>
+                )}
+                {(() => {
+                  const warranty = calculateWarrantyStatus(ticket.machineWarranty, ticket.machineInvoiceDate);
+                  if (!warranty.hasWarranty) return null;
+                  return (
+                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium border inline-flex items-center gap-1", warranty.badgeClass)}>
+                      <Shield className="w-2.5 h-2.5" />
+                      {warranty.label}
+                    </span>
+                  );
+                })()}
+              </div>
             )}
           </div>
         </div>

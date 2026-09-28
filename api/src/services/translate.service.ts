@@ -38,7 +38,8 @@ export async function translateText(text: string, langCode: string): Promise<str
 
   const langName = LANG_NAMES[langCode] || langCode;
 
-  const translationPrompt = `Translate the following text to ${langName}.
+  const scriptNote = langCode === "ml" ? "Use native Malayalam script (മലയാളം ലിപി). NEVER use Hindi or Devanagari script." : "";
+  const translationPrompt = `Translate the following text to ${langName}. ${scriptNote}
 Output ONLY the ${langName} translation. Do not include any English or extra commentary.
 
 Text to translate:

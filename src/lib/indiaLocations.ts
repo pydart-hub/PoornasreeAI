@@ -1188,3 +1188,14 @@ export function getPincodes(stateName: string, districtName: string): PincodeEnt
   const district = state.districts.find(d => d.name === districtName);
   return district ? district.pincodes : [];
 }
+
+/** Looks up a 6-digit pincode across all states and districts. */
+export function findPincode(code: string): { code: string; name: string; district: string; state: string } | null {
+  for (const s of INDIA_LOCATIONS) {
+    for (const d of s.districts) {
+      const match = d.pincodes.find(p => p.code === code);
+      if (match) return { code: match.code, name: match.name, district: d.name, state: s.name };
+    }
+  }
+  return null;
+}

@@ -24,9 +24,11 @@ import {
   Wrench,
   PanelLeftClose,
   Menu,
+  Shield,
 } from "lucide-react";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import { getSocket } from "@/lib/socket-client";
+import { calculateWarrantyStatus } from "@/lib/warranty";
 
 // ── Types ──────────────────────────────────────────────────────────────
 type TicketStatus = "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
@@ -43,6 +45,9 @@ interface ServiceTicket {
   machineCustomer?: string | null;
   machineAddress1?: string | null;
   machineAddress2?: string | null;
+  machineInvoiceNo?: string | null;
+  machineInvoiceDate?: string | null;
+  machineWarranty?: number | null;
   ageHours?: number;
   createdAt: string;
   updatedAt: string;
@@ -300,6 +305,18 @@ export default function ServiceDashboard() {
               <span className="truncate font-mono">{ticket.machineSerialNumber}</span>
             </div>
           )}
+          {(() => {
+            const warranty = calculateWarrantyStatus(ticket.machineWarranty, ticket.machineInvoiceDate);
+            if (!warranty.hasWarranty) return null;
+            return (
+              <div className="pt-0.5">
+                <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium border inline-flex items-center gap-1", warranty.badgeClass)}>
+                  <Shield className="w-2.5 h-2.5" />
+                  {warranty.label}
+                </span>
+              </div>
+            );
+          })()}
           <div className="flex items-center gap-1 text-[10px] text-gray-400 pt-0.5">
             <Clock className="w-3 h-3" />
             <span>Assigned {formatRelativeTime(new Date(ticket.updatedAt))}</span>

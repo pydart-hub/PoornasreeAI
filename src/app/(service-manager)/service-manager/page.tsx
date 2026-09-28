@@ -59,11 +59,15 @@ import {
   workReportImageSrc,
   isEngineerWorkReport,
 } from "@/lib/api";
+import { Shield, MessageSquare } from "lucide-react";
+import { calculateWarrantyStatus } from "@/lib/warranty";
+import { DirectAssignModal } from "@/components/service-manager/DirectAssignModal";
+import { EngineerChatMonitor } from "@/components/service-manager/EngineerChatMonitor";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type TicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "PENDING_OTP" | "CLOSED";
 type DateRange = "all" | "today" | "7days" | "30days";
-type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "engineer-updates" | "assistants" | "feedback";
+type PageView = "tickets" | "engineers" | "locations" | "dealers" | "work-reports" | "engineer-updates" | "assistants" | "feedback" | "engineer-chats";
 
 interface EngineerFeedbackEntry {
   ticketNumber: string;
@@ -190,6 +194,7 @@ export default function ServiceManagerPage() {
   // ── Navigation state ──
   const [pageView, setPageView] = useState<PageView>("tickets");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showDirectAssignModal, setShowDirectAssignModal] = useState(false);
   const isMobile = useIsMobile();
 
   // ── Responsive ──
@@ -863,6 +868,7 @@ export default function ServiceManagerPage() {
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {([
               { key: "tickets" as PageView, label: "Tickets", icon: <Ticket className="w-4 h-4" />, count: total },
+              { key: "engineer-chats" as PageView, label: "Engineer Chats", icon: <MessageSquare className="w-4 h-4" />, count: undefined },
               { key: "engineers" as PageView, label: "Engineers", icon: <Users className="w-4 h-4" />, count: engineers.length },
               { key: "feedback" as PageView, label: "Feedback", icon: <Star className="w-4 h-4" />, count: engineerFeedback.reduce((s, e) => s + e.feedbackCount, 0) || undefined },
               { key: "locations" as PageView, label: "Locations", icon: <MapPin className="w-4 h-4" />, count: myPincodes.length },
@@ -921,96 +927,109 @@ export default function ServiceManagerPage() {
 
       {/* ═══════════════════ CONTENT ═══════════════════ */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* ═══════════════════ HEADER BANNER ═══════════════════ */}
-        <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
-          {/* Top row */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen((v) => !v)}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
-                <Menu className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-base font-bold text-white leading-tight">Service Manager</h1>
-                <p className="text-xs text-white/50">{user.firstName} {user.lastName}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ThemeToggle />
-              <button onClick={handleRefresh} disabled={refreshing}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-                <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-              </button>
-              <button onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-          {/* Stat cards */}
-          <div className="grid grid-cols-4 gap-2.5">
-            <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
-              <div className="flex items-start justify-between">
-                <p className="text-3xl font-black text-white">{total}</p>
-                <Ticket className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
-              </div>
-              <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Total Tickets</p>
-            </div>
-            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", unassigned > 0 ? "bg-red-500/30 border-red-300/40" : "bg-white/10 border-white/20")}>
-              <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", unassigned > 0 ? "text-red-200" : "text-white/50")}>{unassigned}</p>
-                <AlertCircle className={cn("w-5 h-5 mt-1", unassigned > 0 ? "text-red-300 opacity-70" : "text-white/20")} />
-              </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", unassigned > 0 ? "text-red-200" : "text-white/40")}>Open</p>
-            </div>
-            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", active > 0 ? "bg-primary-500/30 border-primary-300/40" : "bg-white/10 border-white/20")}>
-              <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", active > 0 ? "text-primary-200" : "text-white/50")}>{active}</p>
-                <Zap className={cn("w-5 h-5 mt-1", active > 0 ? "text-primary-300 opacity-70" : "text-white/20")} />
-              </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", active > 0 ? "text-primary-200" : "text-white/40")}>Active</p>
-            </div>
-            <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", closed > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
-              <div className="flex items-start justify-between">
-                <p className={cn("text-3xl font-black", closed > 0 ? "text-emerald-200" : "text-white/50")}>{closed}</p>
-                <CheckCircle className={cn("w-5 h-5 mt-1", closed > 0 ? "text-emerald-300 opacity-70" : "text-white/20")} />
-              </div>
-              <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", closed > 0 ? "text-emerald-200" : "text-white/40")}>Closed</p>
-            </div>
-          </div>
-
-          {/* Resolution progress bar */}
-          {total > 0 && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-white/50" />
-                  <span className="text-[11px] text-white/50 font-medium">Resolution Rate</span>
+        {/* ═══════════════════ HEADER BANNER (Hidden on WhatsApp chat page) ═══════════════════ */}
+        {pageView !== "engineer-chats" && (
+          <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
+            {/* Top row */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSidebarOpen((v) => !v)}
+                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0">
+                  <Menu className="w-5 h-5" />
+                </button>
+                <div>
+                  <h1 className="text-base font-bold text-white leading-tight">Service Manager</h1>
+                  <p className="text-xs text-white/50">{user.firstName} {user.lastName}</p>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-300">{Math.round((closed / total) * 100)}%</span>
               </div>
-              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-700"
-                  style={{ width: `${Math.round((closed / total) * 100)}%` }}
-                />
+              <div className="flex items-center gap-1.5">
+                <ThemeToggle />
+                <button onClick={handleRefresh} disabled={refreshing}
+                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                  <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                </button>
+                <button onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
               </div>
             </div>
-          )}
-        </div>
-
-      <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-6 space-y-4">
-
-          {/* ── Error banner ── */}
-          {error && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 text-red-600 text-sm shadow-sm border border-red-100">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span className="flex-1">{error}</span>
-              <button onClick={() => setError("")} className="p-0.5"><X className="w-4 h-4" /></button>
+            {/* Stat cards */}
+            <div className="grid grid-cols-4 gap-2.5">
+              <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
+                <div className="flex items-start justify-between">
+                  <p className="text-3xl font-black text-white">{total}</p>
+                  <Ticket className="w-5 h-5 text-primary-200 opacity-70 mt-1" />
+                </div>
+                <p className="text-[11px] text-primary-200 font-semibold mt-1 uppercase tracking-wide">Total Tickets</p>
+              </div>
+              <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", unassigned > 0 ? "bg-red-500/30 border-red-300/40" : "bg-white/10 border-white/20")}>
+                <div className="flex items-start justify-between">
+                  <p className={cn("text-3xl font-black", unassigned > 0 ? "text-red-200" : "text-white/50")}>{unassigned}</p>
+                  <AlertCircle className={cn("w-5 h-5 mt-1", unassigned > 0 ? "text-red-300 opacity-70" : "text-white/20")} />
+                </div>
+                <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", unassigned > 0 ? "text-red-200" : "text-white/40")}>Open</p>
+              </div>
+              <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", active > 0 ? "bg-primary-500/30 border-primary-300/40" : "bg-white/10 border-white/20")}>
+                <div className="flex items-start justify-between">
+                  <p className={cn("text-3xl font-black", active > 0 ? "text-primary-200" : "text-white/50")}>{active}</p>
+                  <Zap className={cn("w-5 h-5 mt-1", active > 0 ? "text-primary-300 opacity-70" : "text-white/20")} />
+                </div>
+                <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", active > 0 ? "text-primary-200" : "text-white/40")}>Active</p>
+              </div>
+              <div className={cn("rounded-2xl px-4 py-3.5 border shadow-inner", closed > 0 ? "bg-emerald-500/30 border-emerald-300/40" : "bg-white/10 border-white/20")}>
+                <div className="flex items-start justify-between">
+                  <p className={cn("text-3xl font-black", closed > 0 ? "text-emerald-200" : "text-white/50")}>{closed}</p>
+                  <CheckCircle className={cn("w-5 h-5 mt-1", closed > 0 ? "text-emerald-300 opacity-70" : "text-white/20")} />
+                </div>
+                <p className={cn("text-[11px] font-semibold mt-1 uppercase tracking-wide", closed > 0 ? "text-emerald-200" : "text-white/40")}>Closed</p>
+              </div>
             </div>
-          )}
+
+            {/* Resolution progress bar */}
+            {total > 0 && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-white/50" />
+                    <span className="text-[11px] text-white/50 font-medium">Resolution Rate</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-emerald-300">{Math.round((closed / total) * 100)}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-700"
+                    style={{ width: `${Math.round((closed / total) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      {pageView === "engineer-chats" ? (
+        <main className="flex-1 h-full w-full overflow-hidden bg-[#efeae2] dark:bg-[#0b141a]">
+          <EngineerChatMonitor
+            onToggleSidebar={() => setSidebarOpen((v) => !v)}
+            onOpenTicket={(ticketId) => {
+              const found = tickets.find((t) => t.id === ticketId);
+              if (found) setDrawerTicket(found);
+            }}
+          />
+        </main>
+      ) : (
+        <main className="flex-1 overflow-y-auto bg-slate-100 dark:bg-slate-900">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 pb-6 space-y-4">
+
+            {/* ── Error banner ── */}
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 text-red-600 text-sm shadow-sm border border-red-100">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{error}</span>
+                <button onClick={() => setError("")} className="p-0.5"><X className="w-4 h-4" /></button>
+              </div>
+            )}
 
           {/* ═══════════════════ TICKETS VIEW ═══════════════════ */}
           {pageView === "tickets" && (
@@ -1068,6 +1087,11 @@ export default function ServiceManagerPage() {
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-card dark:bg-surface-dark-card border border-line dark:border-line-dark text-content-secondary dark:text-content-dark-secondary hover:border-primary-400 transition-colors">
                     <Download className="w-3 h-3" /> Export
+                  </button>
+                  <button
+                    onClick={() => setShowDirectAssignModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-600 hover:bg-primary-700 text-white shadow-sm transition-all">
+                    <Plus className="w-3.5 h-3.5" /> Assign Service / Checkup
                   </button>
                 </div>
               </div>
@@ -1164,11 +1188,25 @@ export default function ServiceManagerPage() {
                           )}
                         </div>
 
-                        {/* ── Row 2: Serial Number ── */}
-                        {ticket.machineSerialNumber && (
-                          <div className="flex items-center gap-1 text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
-                            <span className="shrink-0">🔢</span>
-                            <span className="font-mono font-medium">S/N: {ticket.machineSerialNumber}</span>
+                        {/* ── Row 2: Serial Number & Warranty ── */}
+                        {(ticket.machineSerialNumber || ticket.machineWarranty) && (
+                          <div className="flex items-center gap-2 flex-wrap text-xs text-content-secondary dark:text-content-dark-secondary leading-tight">
+                            {ticket.machineSerialNumber && (
+                              <div className="flex items-center gap-1">
+                                <span className="shrink-0">🔢</span>
+                                <span className="font-mono font-medium">S/N: {ticket.machineSerialNumber}</span>
+                              </div>
+                            )}
+                            {(() => {
+                              const warranty = calculateWarrantyStatus(ticket.machineWarranty, ticket.machineInvoiceDate);
+                              if (!warranty.hasWarranty) return null;
+                              return (
+                                <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium border inline-flex items-center gap-1", warranty.badgeClass)}>
+                                  <Shield className="w-2.5 h-2.5" />
+                                  {warranty.label}
+                                </span>
+                              );
+                            })()}
                           </div>
                         )}
 
@@ -2886,8 +2924,9 @@ export default function ServiceManagerPage() {
             </section>
           )}
 
-        </div>
-      </main>
+          </div>
+        </main>
+      )}
       </div>
 
       {/* ═══════════════════ ENGINEER CREATED — ONBOARDING LINK ═══════════════════ */}
@@ -3678,6 +3717,16 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
+
+      {/* ═══════════════════ DIRECT ASSIGN MODAL ═══════════════════ */}
+      <DirectAssignModal
+        isOpen={showDirectAssignModal}
+        onClose={() => setShowDirectAssignModal(false)}
+        engineers={engineers}
+        onSuccess={(newTicket) => {
+          setTickets((prev) => [newTicket, ...prev]);
+        }}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
-"use client";
-
 import type { ServiceTicket } from "./types";
+import { calculateWarrantyStatus } from "@/lib/warranty";
+import { Shield } from "lucide-react";
 
 interface DrawerIssueDetailsProps {
   ticket: ServiceTicket;
@@ -34,25 +34,52 @@ export function DrawerIssueDetails({ ticket }: DrawerIssueDetailsProps) {
           </div>
         )}
 
-        {/* Machine info */}
-        {(ticket.machineName || ticket.machineSerialNumber) && (
-          <div className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-lg p-2.5">
-            <div className="flex items-center gap-3 text-xs">
-              {ticket.machineName && (
-                <div className="min-w-0">
-                  <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary block">Machine</span>
-                  <span className="text-content dark:text-content-dark font-medium truncate block">{ticket.machineName}</span>
-                </div>
-              )}
-              {ticket.machineSerialNumber && (
-                <div className="min-w-0">
-                  <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary block">Serial No.</span>
-                  <span className="text-content dark:text-content-dark font-mono text-[11px] truncate block">{ticket.machineSerialNumber}</span>
+        {/* Machine & Warranty info */}
+        {(ticket.machineName || ticket.machineSerialNumber || ticket.machineWarranty) && (() => {
+          const warranty = calculateWarrantyStatus(ticket.machineWarranty, ticket.machineInvoiceDate);
+          return (
+            <div className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-lg p-2.5 space-y-2">
+              <div className="flex items-center justify-between gap-3 text-xs">
+                {ticket.machineName && (
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary block">Machine</span>
+                    <span className="text-content dark:text-content-dark font-medium truncate block">{ticket.machineName}</span>
+                  </div>
+                )}
+                {ticket.machineSerialNumber && (
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary block">Serial No.</span>
+                    <span className="text-content dark:text-content-dark font-mono text-[11px] truncate block">{ticket.machineSerialNumber}</span>
+                  </div>
+                )}
+                {warranty.hasWarranty && (
+                  <div className="shrink-0 text-right">
+                    <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary block">Warranty Status</span>
+                    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium border ${warranty.badgeClass}`}>
+                      <Shield className="w-2.5 h-2.5" />
+                      {warranty.label}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Invoice details from Passtest */}
+              {(ticket.machineInvoiceNo || ticket.machineInvoiceDate) && (
+                <div className="flex items-center gap-4 pt-1.5 border-t border-line/60 dark:border-line-dark/60 text-[11px] text-content-tertiary">
+                  {ticket.machineInvoiceNo && (
+                    <span>Invoice: <strong className="font-mono text-content-secondary dark:text-content-dark-secondary">{ticket.machineInvoiceNo}</strong></span>
+                  )}
+                  {ticket.machineInvoiceDate && (
+                    <span>Inv. Date: <strong className="font-mono text-content-secondary dark:text-content-dark-secondary">{ticket.machineInvoiceDate}</strong></span>
+                  )}
+                  {ticket.machineWarranty && (
+                    <span>Period: <strong className="text-content-secondary dark:text-content-dark-secondary">{ticket.machineWarranty} Months</strong></span>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
         {/* Closure reason / note */}
         {ticket.dealerNote && (
           <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg p-2.5">

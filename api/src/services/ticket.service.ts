@@ -26,10 +26,10 @@ export function getActiveOtp(ticketId: string): string | null {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const TICKET_INCLUDE = {
-  customer:        { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
+  customer:        { select: { id: true, firstName: true, lastName: true, email: true, role: true, whatsappNumber: true } },
   dealer:          { select: { id: true, firstName: true, lastName: true, email: true } },
-  assignedManager: { select: { id: true, firstName: true, lastName: true } },
-  assignedEngineer:{ select: { id: true, firstName: true, lastName: true } },
+  assignedManager: { select: { id: true, firstName: true, lastName: true, whatsappNumber: true } },
+  assignedEngineer:{ select: { id: true, firstName: true, lastName: true, whatsappNumber: true } },
   assignedDealer:  { select: { id: true, firstName: true, lastName: true, email: true } },
   pincode:         { select: { id: true, code: true, place: true, district: true, state: true } },
 } as const;
@@ -118,6 +118,9 @@ export async function autoAssignEngineer(
   });
 
   if (result.count === 1) {
+    notifyEngineerTicketAssigned(ticketId).catch((err) =>
+      console.error("[autoAssignEngineer] Failed to notify engineer on WhatsApp:", err)
+    );
     return { assigned: true, engineerId: bestEngineer.id };
   }
 
@@ -257,6 +260,9 @@ export async function createTicket(data: {
   });
 
   notifyTicketEvent("ticket.created", ticket.id);
+  notifyServiceManagerNewTicket(ticket.id).catch((err) =>
+    console.error("[createTicket] Failed to alert service manager on WhatsApp:", err)
+  );
   return ticket;
 }
 
@@ -407,6 +413,9 @@ export async function assignEngineer(ticketId: string, engineerId: string, assig
   });
 
   notifyTicketEvent("ticket.assigned", ticketId);
+  notifyEngineerTicketAssigned(ticketId).catch((err) =>
+    console.error("[assignEngineer] Failed to notify engineer on WhatsApp:", err)
+  );
   return updated;
 }
 
@@ -793,3 +802,107 @@ export async function closeCustomerTicket(ticketId: string, reason: string) {
   notifyTicketEvent("ticket.closed", ticketId);
   return updated;
 }
+
+/**
+ * Dispatches a WhatsApp notification to the Service Manager upon new customer ticket creation.
+ */
+export async function notifyServiceManagerNewTicket(ticketId: string): Promise<void> {
+  try {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        customer: { select: { firstName: true, lastName: true, whatsappNumber: true } },
+        pincode: { select: { code: true, place: true, district: true, state: true } },
+        assignedManager: { select: { id: true, firstName: true, whatsappNumber: true } },
+      },
+    });
+
+    if (!ticket) return;
+
+    // Collect recipient phone numbers (service managers or zone owner)
+    const recipientPhones = new Set<string>();
+
+    if (ticket.assignedManager?.whatsappNumber) {
+      recipientPhones.add(ticket.assignedManager.whatsappNumber);
+    }
+
+    // Also notify active service managers
+    const managers = await prisma.user.findMany({
+      where: { role: "service_manager", whatsappNumber: { not: null } },
+      select: { whatsappNumber: true },
+    });
+
+    for (const m of managers) {
+      if (m.whatsappNumber) recipientPhones.add(m.whatsappNumber);
+    }
+
+    // Fallback if no manager has whatsappNumber: check support settings
+    if (recipientPhones.size === 0) {
+      const { getWhatsAppSupportSettings } = await import("./chatbotSettings.service");
+      const settings = await getWhatsAppSupportSettings().catch(() => null);
+      if (settings?.supportPhone) {
+        recipientPhones.add(settings.supportPhone);
+      }
+    }
+
+    if (recipientPhones.size === 0) {
+      console.warn(`[ticket.service] No service manager phone found to alert for ticket ${ticket.ticketNumber}`);
+      return;
+    }
+
+    const customerName = [ticket.customer?.firstName, ticket.customer?.lastName].filter(Boolean).join(" ") || "Customer";
+    const phone = ticket.phoneNumber || ticket.customer?.whatsappNumber || "—";
+    const place = ticket.pincode?.place || ticket.place || ticket.machineAddress1 || "—";
+    const pincode = ticket.pincode?.code || "—";
+    const complaint = ticket.issueDescription || ticket.problemDescription || "—";
+
+    let warrantyInfo = "";
+    if (ticket.machineWarranty && ticket.machineWarranty > 0) {
+      if (ticket.machineInvoiceDate && ticket.machineInvoiceDate !== "0000-00-00") {
+        const invDate = new Date(ticket.machineInvoiceDate.split(" ")[0]);
+        if (!isNaN(invDate.getTime())) {
+          const expiry = new Date(invDate);
+          expiry.setMonth(expiry.getMonth() + ticket.machineWarranty);
+          const diffDays = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          const diffMo = Math.ceil(diffDays / 30.4375);
+          warrantyInfo = diffDays > 0
+            ? `🛡️ *Warranty:* ${ticket.machineWarranty} Months (${diffMo} months left)`
+            : `🛡️ *Warranty:* Expired`;
+        } else {
+          warrantyInfo = `🛡️ *Warranty:* ${ticket.machineWarranty} Months`;
+        }
+      } else {
+        warrantyInfo = `🛡️ *Warranty:* ${ticket.machineWarranty} Months`;
+      }
+    }
+
+    const machineInfo = ticket.machineName
+      ? `🔧 *Machine:* ${ticket.machineName}${ticket.machineSerialNumber ? ` (S/N: ${ticket.machineSerialNumber})` : ""}`
+      : "";
+
+    const alertMessage = [
+      `🔔 *NEW CUSTOMER TICKET CREATED*`,
+      ``,
+      `📋 *Ticket:* ${ticket.ticketNumber}`,
+      `👤 *Customer:* ${customerName}`,
+      `📞 *Phone:* ${phone}`,
+      `📍 *Location:* ${place} (${pincode})`,
+      ...(machineInfo ? [machineInfo] : []),
+      ...(warrantyInfo ? [warrantyInfo] : []),
+      `📝 *Complaint:* ${complaint}`,
+      `⚡ *Status:* ${ticket.status}`,
+    ].join("\n");
+
+    for (const rawPhone of recipientPhones) {
+      const normalized = WhatsAppService.normalizeWhatsappNumber(rawPhone);
+      if (normalized) {
+        await WhatsAppService.sendMessage(normalized, alertMessage).catch((err) => {
+          console.warn(`[ticket.service] Failed to send WhatsApp ticket alert to manager ${normalized}:`, err.message);
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[ticket.service] notifyServiceManagerNewTicket error:", err);
+  }
+}
+

@@ -513,9 +513,32 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   }
 
   // Display clean translated question if transcript has foreign script or phonetic hallucinations
-  const hasTamilScript = /[\u0B80-\u0BFF]/.test(originalVoiceTranscript);
-  const hasMalayalamScript = /[\u0D00-\u0D7F]/.test(originalVoiceTranscript);
-  const cleanTranscript = (hasMalayalamScript && !hasTamilScript) ? originalVoiceTranscript : (text || originalVoiceTranscript);
+  const combinedIncoming = (text || originalVoiceTranscript || "").trim();
+  const hasTamilScript = /[\u0B80-\u0BFF]/.test(combinedIncoming);
+  const hasMalayalamScript = /[\u0D00-\u0D7F]/.test(combinedIncoming);
+  const hasHindiScript = /[\u0900-\u097F]/.test(combinedIncoming);
+  const cleanTranscript = (hasMalayalamScript && !hasTamilScript) ? (originalVoiceTranscript || text) : (text || originalVoiceTranscript);
+
+  // Detect explicit customer language preferences from text or script
+  let explicitLang: string | null = null;
+  let explicitScriptPref: string | null = null;
+  const lowerIncoming = combinedIncoming.toLowerCase();
+
+  if (hasMalayalamScript || lowerIncoming.includes("മലയാളം") || lowerIncoming.includes("malayalam font") || lowerIncoming.includes("malayalam text") || lowerIncoming.includes("മലയാളത്തിൽ")) {
+    explicitLang = "ml";
+    explicitScriptPref = "native";
+  } else if (lowerIncoming.includes("manglish") || lowerIncoming.includes("english aksharam") || lowerIncoming.includes("english letters")) {
+    explicitLang = "ml";
+    explicitScriptPref = "manglish";
+  } else if (hasHindiScript || lowerIncoming === "hindi" || lowerIncoming.includes("hindi me") || lowerIncoming.includes("हिंदी")) {
+    explicitLang = "hi";
+    explicitScriptPref = "native";
+  } else if (lowerIncoming === "english" || lowerIncoming.includes("in english")) {
+    explicitLang = "en";
+    explicitScriptPref = "english";
+  }
+
+  const effectiveDetectedLang = explicitLang || (hasMalayalamScript ? "ml" : (hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang));
 
   // ── If sender is a Service Engineer, route to Engineer WhatsApp Engine ──
   if (engineer) {
@@ -531,7 +554,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     }
     await handleEngineerMessage(from, text, engineer, {
       originalTranscript: cleanTranscript || originalVoiceTranscript,
-      detectedLang: hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang,
+      detectedLang: effectiveDetectedLang,
     });
     return;
   }
@@ -550,15 +573,18 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       },
     });
 
-    // Bump session activity timestamp (updatedAt) for live dashboards
+    // Bump session activity timestamp (updatedAt) and persist language preferences for live dashboards & continuous chat
     const touchSession = await prisma.conversationSession.findFirst({
       where: { phoneNumber: from },
       orderBy: { updatedAt: "desc" },
     });
     if (touchSession) {
       const currentMeta = (touchSession.metadata as Record<string, unknown>) ?? {};
-      if (voiceDetectedLang && voiceDetectedLang !== "en" && !currentMeta.language) {
-        currentMeta.language = hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang;
+      if (effectiveDetectedLang && effectiveDetectedLang !== "en") {
+        currentMeta.language = effectiveDetectedLang;
+      }
+      if (explicitScriptPref) {
+        currentMeta.scriptPreference = explicitScriptPref;
       }
       await prisma.conversationSession.update({
         where: { id: touchSession.id },
@@ -632,7 +658,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   const result = await SimulateService.handleMessage(from, text, messageId, {
     transcript: cleanTranscript || originalVoiceTranscript,
-    detectedLang: hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang,
+    detectedLang: effectiveDetectedLang || (hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang),
     mediaUrl: voiceMediaUrl,
   });
 

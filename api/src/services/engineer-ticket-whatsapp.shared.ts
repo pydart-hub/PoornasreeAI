@@ -53,6 +53,9 @@ export const ENGINEER_ACTIVE_TICKET_SELECT = {
   machineAddress2: true,
   customerAddress: true,
   phoneNumber: true,
+  machineWarranty: true,
+  machineInvoiceNo: true,
+  machineInvoiceDate: true,
   createdAt: true,
   updatedAt: true,
   assignedEngineerId: true,
@@ -83,6 +86,9 @@ export type EngineerTicketRow = {
   machineAddress2: string | null;
   customerAddress: string | null;
   phoneNumber: string | null;
+  machineWarranty?: number | null;
+  machineInvoiceNo?: string | null;
+  machineInvoiceDate?: string | null;
   createdAt: Date;
   updatedAt: Date;
   assignedEngineerId: string | null;
@@ -497,7 +503,30 @@ export function formatTicketDetailMessage(
     assigned: lang === "ml" ? "📅 *നിയമിച്ചത്:*" : lang === "hi" ? "📅 *सौंपा गया:*" : "📅 *Assigned:*",
     complaint: lang === "ml" ? "📝 *പരാതി:*" : lang === "hi" ? "📝 *शिकायत:*" : "📝 *Complaint:*",
     assignedBy: lang === "ml" ? "👨‍💼 *നിയമിച്ച മാനേജർ:*" : lang === "hi" ? "👨‍💼 *सौंपने वाले:*" : "👨‍💼 *Assigned by:*",
+    warranty: lang === "ml" ? "🛡️ *വാറന്റി:*" : lang === "hi" ? "🛡️ *वारंटी:*" : "🛡️ *Warranty:*",
   };
+
+  let warrantyLine = "";
+  if (t.machineWarranty && t.machineWarranty > 0) {
+    if (t.machineInvoiceDate && t.machineInvoiceDate !== "0000-00-00") {
+      const invDate = new Date(t.machineInvoiceDate.split(" ")[0]);
+      if (!isNaN(invDate.getTime())) {
+        const expiry = new Date(invDate);
+        expiry.setMonth(expiry.getMonth() + t.machineWarranty);
+        const diffDays = Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        const diffMo = Math.ceil(diffDays / 30.4375);
+        if (diffDays > 0) {
+          warrantyLine = `${t.machineWarranty} Months (${diffMo} months left)`;
+        } else {
+          warrantyLine = `Expired (${t.machineWarranty} Months Total)`;
+        }
+      } else {
+        warrantyLine = `${t.machineWarranty} Months`;
+      }
+    } else {
+      warrantyLine = `${t.machineWarranty} Months`;
+    }
+  }
 
   const lines = [
     opts?.heading ?? `📋 *Ticket ${t.ticketNumber}* (${t.status})`,
@@ -509,6 +538,7 @@ export function formatTicketDetailMessage(
     ...(t.customerAddress ? [`${labels.address} ${t.customerAddress}`] : []),
     `${labels.location} ${place} (${pincode})`,
     `${labels.product} ${product} (S/N: ${serial})`,
+    ...(warrantyLine ? [`${labels.warranty} ${warrantyLine}`] : []),
     `${labels.assigned} ${assignedAt}`,
     `${labels.complaint} ${complaint}`,
     `${labels.assignedBy} ${assignedBy}`,

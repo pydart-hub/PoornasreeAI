@@ -20,6 +20,8 @@ import {
   canManagerAccessEngineer,
   mapEngineerSource,
 } from "../services/hr-engineer.service";
+import { createTicket as createTicketService, assignEngineer as assignEngineerService } from "../services/ticket.service";
+import { io } from "../lib/socket";
 
 const SALT_ROUNDS = 12;
 const SETUP_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1430,4 +1432,364 @@ export async function clearTestCustomer(req: Request, res: Response): Promise<vo
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
+// ── POST /api/manager/direct-assign ───────────────────────────────────────
+// Directly assign a service, calibration, or checkup visit to an engineer without a customer ticket.
+export async function directAssignService(req: Request, res: Response): Promise<void> {
+  try {
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
+    const {
+      engineerId,
+      purpose,
+      customerName,
+      phoneNumber,
+      customerAddress,
+      place,
+      district,
+      state,
+      pincode,
+      machineName,
+      machineSerialNumber,
+      notes,
+    } = req.body;
+
+    if (!engineerId) {
+      res.status(400).json({ error: "engineerId is required" });
+      return;
+    }
+
+    if (!purpose?.trim()) {
+      res.status(400).json({ error: "purpose is required (e.g. Routine Service, Calibration, Checkup)" });
+      return;
+    }
+
+    // Verify engineer exists and is accessible by this manager
+    const engineer = await prisma.user.findUnique({
+      where: { id: engineerId },
+      select: {
+        id: true,
+        role: true,
+        managerId: true,
+        hrEngineerId: true,
+        email: true,
+        whatsappNumber: true,
+        firstName: true,
+        manager: { select: { managerId: true } },
+      },
+    });
+    if (!engineer || engineer.role !== "service_engineer") {
+      res.status(404).json({ error: "Service engineer not found" });
+      return;
+    }
+
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+    if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
+      res.status(403).json({ error: "This engineer is not in your team" });
+      return;
+    }
+
+    // Resolve or upsert pincode if provided
+    let pincodeId: string | undefined = undefined;
+    if (pincode?.trim()) {
+      pincodeId = await upsertPincode(pincode.trim(), place?.trim() || null, state?.trim() || null);
+    }
+
+    // Resolve customer user: find existing by phone or create
+    const cleanPhone = phoneNumber ? parseWhatsappForStorage(phoneNumber) : null;
+    let customerId: string;
+    if (cleanPhone) {
+      const existing = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { whatsappNumber: cleanPhone },
+            { email: `cust_${cleanPhone}@poornasree.ai` },
+          ],
+        },
+      });
+      if (existing) {
+        customerId = existing.id;
+        if (customerName?.trim() && (existing.firstName === "Customer" || !existing.firstName)) {
+          await prisma.user.update({
+            where: { id: existing.id },
+            data: { firstName: customerName.trim() },
+          });
+        }
+      } else {
+        const newUser = await prisma.user.create({
+          data: {
+            email: `cust_${cleanPhone}@poornasree.ai`,
+            passwordHash: "NO_PASSWORD_DIRECT_ASSIGN",
+            firstName: customerName?.trim() || "Customer",
+            whatsappNumber: cleanPhone,
+            role: "customer",
+          },
+        });
+        customerId = newUser.id;
+      }
+    } else {
+      const fallbackEmail = `direct_${Date.now()}_${Math.floor(Math.random() * 10000)}@poornasree.ai`;
+      const newUser = await prisma.user.create({
+        data: {
+          email: fallbackEmail,
+          passwordHash: "NO_PASSWORD_DIRECT_ASSIGN",
+          firstName: customerName?.trim() || "Customer",
+          role: "customer",
+        },
+      });
+      customerId = newUser.id;
+    }
+
+    const cleanPurpose = purpose.trim();
+    const problemDescription = `[DIRECT ASSIGNMENT - ${cleanPurpose.toUpperCase()}] ${notes?.trim() || "Direct service assignment created by Service Manager."}`;
+
+    // 1. Create ticket using standard ticket service (handles Passtest enrichment, warranty, numbering)
+    const ticket = await createTicketService({
+      customerId,
+      problemDescription,
+      issueDescription: cleanPurpose,
+      machineName: machineName?.trim() || undefined,
+      machineSerialNumber: machineSerialNumber?.trim() || undefined,
+      pincodeId,
+      phoneNumber: cleanPhone || undefined,
+      place: place?.trim() || undefined,
+      district: district?.trim() || undefined,
+      state: state?.trim() || undefined,
+      customerAddress: customerAddress?.trim() || undefined,
+    });
+
+    // 2. Assign to selected engineer and trigger notification
+    const assignedTicket = await assignEngineerService(ticket.id, engineerId, callerId);
+
+    // 3. Emit real-time socket event
+    io?.to("managers").emit("ticket:new", assignedTicket);
+
+    res.status(201).json({
+      ticket: assignedTicket,
+      message: `Direct ${cleanPurpose} assignment dispatched to ${engineer.firstName}`,
+    });
+  } catch (err: unknown) {
+    console.error("directAssignService error:", err);
+    const e = err as { status?: number; message?: string };
+    res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
+  }
+}
+
+// ── GET /api/manager/engineer-chats/sessions ──────────────────────────────
+// Lists chat sessions between managed engineers and the WhatsApp bot.
+export async function getEngineerChatSessions(req: Request, res: Response): Promise<void> {
+  try {
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+
+    const engineers = await prisma.user.findMany({
+      where: engineerManagerWhere(callerRole, callerId, parentManagerId),
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        whatsappNumber: true,
+        engineerPincodes: { select: { code: true, place: true, district: true, state: true } },
+        _count: {
+          select: {
+            engineerTickets: {
+              where: {
+                status: {
+                  in: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS, TicketStatus.PENDING_OTP],
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { firstName: "asc" },
+    });
+
+    const sessions = await Promise.all(
+      engineers.map(async (eng) => {
+        const phone = eng.whatsappNumber;
+        let lastMessage = null;
+        let messageCount = 0;
+
+        if (phone) {
+          const clean = phone.replace(/\D/g, "");
+          const variants = Array.from(
+            new Set([
+              clean,
+              clean.startsWith("91") ? clean.slice(2) : clean,
+              clean.startsWith("91") ? clean : `91${clean}`,
+              `+${clean}`,
+            ])
+          );
+
+          const [lastMsg, count] = await Promise.all([
+            prisma.simulateMessage.findFirst({
+              where: { phoneNumber: { in: variants } },
+              orderBy: { createdAt: "desc" },
+              select: { id: true, role: true, content: true, createdAt: true },
+            }),
+            prisma.simulateMessage.count({
+              where: { phoneNumber: { in: variants } },
+            }),
+          ]);
+
+          lastMessage = lastMsg;
+          messageCount = count;
+        }
+
+        return {
+          id: eng.id,
+          engineerId: eng.id,
+          name: `${eng.firstName} ${eng.lastName ?? ""}`.trim(),
+          email: eng.email,
+          phoneNumber: eng.whatsappNumber ?? null,
+          activeTickets: eng._count.engineerTickets,
+          pincodes: eng.engineerPincodes,
+          lastMessage,
+          messageCount,
+        };
+      })
+    );
+
+    // Sort: engineers with messages first (most recent message first), then by name
+    sessions.sort((a, b) => {
+      const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return a.name.localeCompare(b.name);
+    });
+
+    res.json({ sessions });
+  } catch (err) {
+    console.error("getEngineerChatSessions error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ── GET /api/manager/engineer-chats/messages/:identifier ──────────────────
+// Returns conversation history for an engineer by engineerId or phoneNumber.
+export async function getEngineerChatMessages(req: Request, res: Response): Promise<void> {
+  try {
+    const callerId = req.user!.userId;
+    const callerRole = req.user!.role;
+    const identifier = String(req.params.identifier ?? "");
+
+    if (!identifier.trim()) {
+      res.status(400).json({ error: "identifier (phone or engineer ID) is required" });
+      return;
+    }
+
+    const cleanInput = identifier.trim();
+    const cleanDigits = cleanInput.replace(/\D/g, "");
+
+    // Find engineer by id OR whatsappNumber
+    const engineer = await prisma.user.findFirst({
+      where: {
+        role: "service_engineer",
+        OR: [
+          { id: cleanInput },
+          ...(cleanDigits
+            ? [
+                { whatsappNumber: cleanDigits },
+                { whatsappNumber: cleanDigits.startsWith("91") ? cleanDigits.slice(2) : cleanDigits },
+                { whatsappNumber: cleanDigits.startsWith("91") ? cleanDigits : `91${cleanDigits}` },
+              ]
+            : []),
+        ],
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        whatsappNumber: true,
+        managerId: true,
+        hrEngineerId: true,
+        engineerPincodes: { select: { id: true, code: true, place: true, district: true, state: true } },
+        manager: { select: { managerId: true } },
+      },
+    });
+
+    if (!engineer) {
+      res.status(404).json({ error: "Engineer not found" });
+      return;
+    }
+
+    const parentManagerId =
+      callerRole === "assistant_service_manager"
+        ? await getAssistantParentManagerId(callerId)
+        : null;
+    if (!(await canManagerAccessEngineer(engineer, callerId, callerRole, parentManagerId))) {
+      res.status(403).json({ error: "This engineer is not in your team" });
+      return;
+    }
+
+    const phone = engineer.whatsappNumber || cleanDigits;
+    const variants = phone
+      ? Array.from(
+          new Set([
+            phone,
+            phone.replace(/\D/g, ""),
+            phone.replace(/\D/g, "").startsWith("91") ? phone.replace(/\D/g, "").slice(2) : phone.replace(/\D/g, ""),
+            phone.replace(/\D/g, "").startsWith("91") ? phone.replace(/\D/g, "") : `91${phone.replace(/\D/g, "")}`,
+            `+${phone.replace(/\D/g, "")}`,
+          ])
+        )
+      : [];
+
+    const [messages, activeTickets] = await Promise.all([
+      variants.length > 0
+        ? prisma.simulateMessage.findMany({
+            where: { phoneNumber: { in: variants } },
+            orderBy: { createdAt: "asc" },
+            take: 200,
+          })
+        : [],
+      prisma.ticket.findMany({
+        where: {
+          assignedEngineerId: engineer.id,
+          status: { in: [TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS, TicketStatus.PENDING_OTP] },
+        },
+        select: {
+          id: true,
+          ticketNumber: true,
+          status: true,
+          problemDescription: true,
+          machineName: true,
+          machineSerialNumber: true,
+          machineWarranty: true,
+          machineInvoiceDate: true,
+          createdAt: true,
+          place: true,
+          pincode: { select: { code: true, place: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    res.json({
+      engineer: {
+        id: engineer.id,
+        name: `${engineer.firstName} ${engineer.lastName ?? ""}`.trim(),
+        email: engineer.email,
+        phoneNumber: engineer.whatsappNumber,
+        pincodes: engineer.engineerPincodes,
+      },
+      activeTickets,
+      messages,
+    });
+  } catch (err) {
+    console.error("getEngineerChatMessages error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 
