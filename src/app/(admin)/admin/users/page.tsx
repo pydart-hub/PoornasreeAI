@@ -25,6 +25,7 @@ import {
   CheckCircle,
   XCircle,
   Store,
+  Phone,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -272,7 +273,7 @@ export default function UsersManagementPage() {
         firstName: form.firstName.trim(),
         lastName:  form.lastName?.trim() || undefined,
         role:      form.role,
-        ...(form.role === "service_engineer" && form.whatsappNumber ? { whatsappNumber: form.whatsappNumber } : {}),
+        ...(form.whatsappNumber?.trim() ? { whatsappNumber: form.whatsappNumber.trim() } : {}),
         ...(form.role === "service_engineer" && form.pincodeIds ? { pincodeIds: form.pincodeIds } : {}),
       };
       const created = await createUser(payload);
@@ -352,12 +353,16 @@ export default function UsersManagementPage() {
     setEditSubmitting(true);
     setEditSubmitError(null);
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, any> = {
         firstName: editForm.firstName.trim(),
         lastName: editForm.lastName.trim(),
         email: editForm.email.trim(),
         role: editForm.role,
+        whatsappNumber: editForm.whatsappNumber?.trim() || null,
       };
+      if (editForm.role === "service_engineer" && editForm.pincodeIds) {
+        payload.pincodeIds = editForm.pincodeIds;
+      }
       if (editForm.newPassword) payload.newPassword = editForm.newPassword;
       const updated = await updateUser(editingUser!.id, payload);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
@@ -829,10 +834,13 @@ export default function UsersManagementPage() {
                         </span>
                       </div>
                     )}
-                    {u.role === "dealer" && u.whatsappNumber && (
-                      <span className="text-[10px] text-content-tertiary dark:text-content-dark-tertiary">
-                        {u.whatsappNumber}
-                      </span>
+                    {u.whatsappNumber && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          {u.whatsappNumber}
+                        </span>
+                      </div>
                     )}
                   </div>
 
@@ -1044,25 +1052,36 @@ export default function UsersManagementPage() {
                 )}
               </div>
 
+              {/* WhatsApp Number (For notifications & alerts) */}
+              <div>
+                <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5 flex items-center justify-between">
+                  <span>WhatsApp Number <span className="text-content-tertiary font-normal">(Optional)</span></span>
+                  {(form.role === "service_manager" || form.role === "assistant_service_manager") && (
+                    <span className="text-[10px] text-primary dark:text-primary-300 font-normal">
+                      🔔 Receives new ticket alerts
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="tel"
+                  value={form.whatsappNumber || ""}
+                  onChange={(e) => setField("whatsappNumber", e.target.value)}
+                  placeholder="e.g. 919876543210 (with country code)"
+                  className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                {(form.role === "service_manager" || form.role === "assistant_service_manager") && (
+                  <p className="mt-1 text-[11px] text-content-secondary dark:text-content-dark-secondary">
+                    WhatsApp notifications will be sent to this number when customers create new tickets.
+                  </p>
+                )}
+              </div>
+
               {/* Additional Fields for Service Engineer */}
               {form.role === "service_engineer" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                      WhatsApp Number <span className="text-content-tertiary">(Optional)</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={form.whatsappNumber || ""}
-                      onChange={(e) => setField("whatsappNumber", e.target.value)}
-                      placeholder="e.g. 919876543210"
-                      className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                      Assign Pincodes
-                    </label>
+                <div>
+                  <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                    Assign Pincodes
+                  </label>
                     <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-lg custom-scrollbar">
                       {myPincodes.length === 0 ? (
                         <p className="text-xs text-content-tertiary col-span-2 text-center py-2">No pincodes available</p>
@@ -1091,7 +1110,6 @@ export default function UsersManagementPage() {
                       )}
                     </div>
                   </div>
-                </>
               )}
 
               {/* Actions */}
@@ -1181,25 +1199,37 @@ export default function UsersManagementPage() {
                 </select>
                 {editFieldErrors.role && <p className="mt-1 text-xs text-red-500">{editFieldErrors.role}</p>}
               </div>
+
+              {/* WhatsApp Number (For notifications & alerts) */}
+              <div>
+                <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5 flex items-center justify-between">
+                  <span>WhatsApp Number <span className="text-content-tertiary font-normal">(Optional)</span></span>
+                  {(editForm.role === "service_manager" || editForm.role === "assistant_service_manager") && (
+                    <span className="text-[10px] text-primary dark:text-primary-300 font-normal">
+                      🔔 Receives new ticket alerts
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="tel"
+                  value={editForm.whatsappNumber || ""}
+                  onChange={(e) => setEditField("whatsappNumber", e.target.value)}
+                  placeholder="e.g. 919876543210 (with country code)"
+                  className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                {(editForm.role === "service_manager" || editForm.role === "assistant_service_manager") && (
+                  <p className="mt-1 text-[11px] text-content-secondary dark:text-content-dark-secondary">
+                    WhatsApp notifications will be sent to this number when customers create new tickets.
+                  </p>
+                )}
+              </div>
+
               {/* Additional Fields for Service Engineer */}
               {editForm.role === "service_engineer" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                      WhatsApp Number <span className="text-content-tertiary">(Optional)</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={editForm.whatsappNumber || ""}
-                      onChange={(e) => setEditField("whatsappNumber", e.target.value)}
-                      placeholder="e.g. 919876543210"
-                      className="w-full h-9 px-3 rounded-lg border border-line dark:border-line-dark text-sm bg-surface dark:bg-surface-dark text-content dark:text-content-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                      Assign Pincodes
-                    </label>
+                <div>
+                  <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
+                    Assign Pincodes
+                  </label>
                     <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-lg custom-scrollbar">
                       {myPincodes.length === 0 ? (
                         <p className="text-xs text-content-tertiary col-span-2 text-center py-2">No pincodes available</p>
@@ -1228,7 +1258,6 @@ export default function UsersManagementPage() {
                       )}
                     </div>
                   </div>
-                </>
               )}
 
               <div className="flex items-center gap-3 pt-2">

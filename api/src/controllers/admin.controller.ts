@@ -87,7 +87,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         lastName: lastName?.trim() ?? null,
         role,
         ...setupData,
-        ...((role === "dealer" || role === "service_engineer") && whatsappNumber
+        ...(whatsappNumber
           ? { whatsappNumber: WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "") }
           : {}),
         ...(role === "dealer" && pincodeId ? { pincodeId } : {}),
@@ -455,18 +455,16 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       data.role = role;
     }
 
+    if (whatsappNumber !== undefined) {
+      data.whatsappNumber = whatsappNumber ? (WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "")) : null;
+    }
+
     const effectiveRole = (role as string) || target.role;
     if (effectiveRole === "service_engineer") {
-      if (whatsappNumber !== undefined) {
-        data.whatsappNumber = whatsappNumber ? (WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "")) : null;
-      }
       if (pincodeIds !== undefined && Array.isArray(pincodeIds)) {
         data.engineerPincodes = { set: pincodeIds.map((id: string) => ({ id })) };
       }
     } else if (effectiveRole === "dealer") {
-      if (whatsappNumber !== undefined) {
-        data.whatsappNumber = whatsappNumber ? (WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "")) : null;
-      }
       if (pincode !== undefined) {
         if (pincode && pincode.trim()) {
           data.pincodeId = await upsertPincode(pincode.trim(), city?.trim() || null, state?.trim() || null);
