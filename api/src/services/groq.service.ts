@@ -37,7 +37,7 @@ export function groqAgentModel(): string {
 
 const BACKUP_GROQ_MODELS = [
   "qwen/qwen3.8-27b",
-  "groq/compound-mini",
+  "qwen/qwen3.6-27b",
   "openai/gpt-oss-20b",
 ];
 

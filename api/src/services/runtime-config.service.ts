@@ -72,7 +72,7 @@ export const SETTING_DEFINITIONS: SettingDefinition[] = [
     description: "Used for catalog matching / JSON selection.",
     category: "groq",
     isSecret: false,
-    defaultValue: "groq/compound-mini",
+    defaultValue: "qwen/qwen3.6-27b",
   },
   {
     key: "GROQ_MODEL_AGENT",
@@ -511,7 +511,7 @@ export async function updateSettings(
 /** Convenience typed getters used across the app. */
 export const runtime = {
   groqApiKey: () => cfg("GROQ_API_KEY"),
-  groqModelFast: () => cfg("GROQ_MODEL_FAST") || "groq/compound-mini",
+  groqModelFast: () => cfg("GROQ_MODEL_FAST") || "qwen/qwen3.6-27b",
   groqModelAgent: () => cfg("GROQ_MODEL_AGENT") || "qwen/qwen3.8-27b",
   groqMaxTokensReply: () => {
     const n = parseInt(cfg("GROQ_MAX_TOKENS_REPLY") || "600", 10);

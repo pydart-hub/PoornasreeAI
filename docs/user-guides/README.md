@@ -2,7 +2,7 @@
 
 > **Platform**: PoornasreeAI — WhatsApp-driven AI service management platform for Poornasree Equipments.  
 > **Support Line**: WhatsApp **+91 94009 61291**  
-> **Version**: v1.0 · Last Updated: July 2026
+> **Version**: v1.1 · Last Updated: October 2026
 
 ---
 
@@ -90,6 +90,12 @@ All web dashboards share the unified login page at **`/login`**.
 | Admin Portal (`/admin`) | — | — | — | — | — | ✅ | ✅ |
 | Super Admin Portal (`/super-admin`) | — | — | — | — | — | — | ✅ |
 | Assign Engineers / Dealers | — | — | ✅ | — | — | — | — |
+| Backup Engineer Override (Dealer Tickets) | — | — | ✅ | — | — | — | — |
+| Direct Service Assignment (no ticket) | — | — | ✅ | — | — | — | — |
+| SLA Monitoring (per ticket) | — | — | ✅ | — | — | — | — |
+| Engineer WhatsApp Chat Monitor | — | — | ✅ | — | — | — | — |
+| Bulk Import Engineers / Dealers / Assistants | — | — | ✅ | — | — | — | — |
+| Export Tickets to CSV | — | — | ✅ | — | — | — | — |
 | Accept / Reject Dealer Tickets | — | — | — | — | ✅ | — | — |
 | Live Chat Takeover (Bot Pause) | — | — | — | ✅ | — | ✅ | ✅ |
 | View Work Reports (Engineer Updates) | — | — | ✅ | — | — | — | — |
@@ -119,6 +125,10 @@ All web dashboards share the unified login page at **`/login`**.
 | **Work Report** | Field report submitted by dealer: parts replaced, work done, warranty claim |
 | **R&D Video** | Confidential technical video shared with engineers during WhatsApp troubleshooting |
 | **Training Video** | Internal training videos for engineers, discoverable via WhatsApp free-text query |
+| **SLA** | Service Level Agreement — the maximum allowed time to respond (4h) and resolve (72h) a ticket |
+| **Direct Assign** | A Service Manager-initiated field visit dispatch, without a customer-raised WhatsApp ticket |
+| **Engineer Chat Monitor** | Read-only audit view for Service Managers to inspect live engineer WhatsApp bot sessions |
+| **Backup Engineer** | Option to assign an internal engineer to a dealer-matched ticket when the dealer is unavailable |
 
 ---
 
