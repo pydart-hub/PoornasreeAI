@@ -1415,7 +1415,10 @@ export async function handleMessage(
 
   // If language was detected from voice or context, sync language preference into metadata
   if (audioContext?.detectedLang && audioContext.detectedLang !== "en") {
-    meta.language = audioContext.detectedLang as Lang;
+    const hasExplicitTamil = /[\u0B80-\u0BFF]/.test(text || audioContext?.transcript || "");
+    if (!(meta.language === "ml" && audioContext.detectedLang === "ta" && !hasExplicitTamil)) {
+      meta.language = audioContext.detectedLang as Lang;
+    }
   }
 
   // Real-time script & intent detection from customer message
@@ -1991,16 +1994,45 @@ async function routeState(
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.toUpperCase().trim();
 
-  if (upper === "TROUBLESHOOT_RESOLVED" || upper === "RESOLVED" || upper === "SOLVED" || upper === "PROBLEM FIXED") {
+  if (
+    upper === "TROUBLESHOOT_RESOLVED" ||
+    upper === "RESOLVED" ||
+    upper === "SOLVED" ||
+    upper === "PROBLEM FIXED" ||
+    text.includes("പരിഹരിച്ചു") ||
+    text.includes("തീർന്നു") ||
+    text.includes("തീർന്നത്") ||
+    text.includes("हल हुआ")
+  ) {
     await updateSession(session.id, "MAIN_MENU", meta);
+    const resolvedAck: Record<Lang, string> = {
+      en: `🎉 *Glad we could help!* Your issue has been marked as resolved.\n\nPlease select an option from the menu below if you need anything else:`,
+      ml: `🎉 *സഹായിക്കാൻ കഴിഞ്ഞതിൽ സന്തോഷം!* നിങ്ങളുടെ പ്രശ്നം പരിഹരിച്ചതായി രേഖപ്പെടുത്തി.\n\nമറ്റെന്തെങ്കിലും സഹായം ആവശ്യമുണ്ടെങ്കിൽ താഴെ കാണുന്ന മെനുവിൽ നിന്ന് തിരഞ്ഞെടുക്കുക:`,
+      hi: `🎉 *मदद करके खुशी हुई!* आपकी समस्या का समाधान हो गया है।\n\nयदि आपको कुछ और चाहिए तो नीचे दिए गए मेनू से एक विकल्प चुनें:`,
+      ta: `🎉 *உங்களுக்கு உதவ முடிந்ததில் மகிழ்ச்சி!* உங்கள் பிரச்சனை தீர்க்கப்பட்டது.\n\nவேறு ஏதேனும் உதவி தேவைப்பட்டால் கீழே உள்ள மெனுவிலிருந்து தேர்வு செய்யவும்:`,
+      kn: `🎉 *ಸಹಾಯ ಮಾಡಲು ಸಂತೋಷವಾಗಿದೆ!* ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ಪರಿಹರಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ.\n\nನಿಮಗೆ ಬೇರೇನಾದರೂ ಬೇಕಾದರೆ ಕೆಳಗಿನ ಮೆನುವಿನಿಂದ ಆಯ್ಕೆಮಾಡಿ:`,
+      mr: `🎉 *मदत करण्यात आनंद झाला!* तुमची समस्या सुटली आहे असे चिन्हांकित केले आहे.\n\nतुम्हाला आणखी काही हवे असल्यास खालील मेनूमधून पर्याय निवडा:`,
+      te: `🎉 *సహాయం చేసినందుకు సంతోషంగా ఉంది!* మీ సమస్య పరిష్కరించబడింది.\n\nమీకు ఇంకేమైనా కావాలంటే దిగువ మెనూ నుండి ఎంచుకోండి:`,
+      bn: `🎉 *সাহায্য করতে পেরে আনন্দিত!* আপনার समस्या সমাধান হয়েছে বলে চিহ্নিত করা হয়েছে।\n\nঅন্য কিছুর প্রয়োজন হলে নিচের মেনু থেকে নির্বাচন করুন:`,
+    };
     return makeReply(
-      `🎉 *Glad we could help!* Your issue has been marked as resolved.\n\nPlease select an option from the menu below if you need anything else:`,
+      resolvedAck[lang] || resolvedAck.en,
       undefined,
       await getContextualMainMenuList(phoneNumber, lang)
     );
   }
 
-  if (upper === "TROUBLESHOOT_UNRESOLVED" || upper === "UNRESOLVED" || upper.includes("NOT SOLVED") || upper.includes("NOT FIXED") || upper.includes("UNCATALOGED")) {
+  if (
+    upper === "TROUBLESHOOT_UNRESOLVED" ||
+    upper === "UNRESOLVED" ||
+    upper.includes("NOT SOLVED") ||
+    upper.includes("NOT FIXED") ||
+    upper.includes("UNCATALOGED") ||
+    text.includes("പരിഹരിച്ചില്ല") ||
+    text.includes("തീർന്നില്ല") ||
+    text.includes("தீரவில்லை") ||
+    text.includes("हल नहीं हुआ")
+  ) {
     const rawComplaint = meta.complaint || meta.lastIssueQuery || meta.videoSearchQuery;
     const hasValidIssue = Boolean(rawComplaint && !isGreetingOrSmallTalk(rawComplaint) && isTechnicalIssueQuery(rawComplaint));
 
@@ -4253,6 +4285,16 @@ ${settings.companyAddress || ""}
         return showTicketStatus(targetSessionId || options.sessionId || "", phoneNumber, meta);
       }
 
+      // Script-Content Harmony Guard: Align button language strictly with the generated reply text's script
+      let buttonLang: Lang = lang;
+      if (/[\u0D00-\u0D7F]/.test(reply)) {
+        buttonLang = "ml";
+      } else if (/[\u0B80-\u0BFF]/.test(reply)) {
+        buttonLang = "ta";
+      } else if (/[\u0900-\u097F]/.test(reply)) {
+        buttonLang = "hi";
+      }
+
       if (meta.isEngineer) {
         // Service engineers interact via direct text & troubleshooting without buttons
         buttons = undefined;
@@ -4284,20 +4326,20 @@ ${settings.companyAddress || ""}
           ml: "❌ പരിഹരിച്ചില്ല",
         };
         buttons = [
-          { id: "TROUBLESHOOT_RESOLVED", title: resolvedLabel[lang] || resolvedLabel.en },
-          { id: "TROUBLESHOOT_UNRESOLVED", title: unresolvedLabel[lang] || unresolvedLabel.en },
+          { id: "TROUBLESHOOT_RESOLVED", title: resolvedLabel[buttonLang] || resolvedLabel.en },
+          { id: "TROUBLESHOOT_UNRESOLVED", title: unresolvedLabel[buttonLang] || unresolvedLabel.en },
         ];
       } else if (isAskingQuestion && (inComplaintOrTroubleshootState || isServiceIntent)) {
         // When asking for clarifying info like machine model during complaint/troubleshooting
-        buttons = [getMenuButton(lang)];
+        buttons = [getMenuButton(buttonLang)];
       } else if (isProductIntent) {
         buttons = [
           { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
-          getMenuButton(lang),
+          getMenuButton(buttonLang),
         ];
       } else {
         // Normal conversational chat (general questions, greetings, company info) -> show Main Menu button
-        buttons = [getMenuButton(lang)];
+        buttons = [getMenuButton(buttonLang)];
       }
 
       // If this is a machine complaint or troubleshooting reply, check for a matching troubleshooting video

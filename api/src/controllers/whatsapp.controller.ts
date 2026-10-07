@@ -453,6 +453,14 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   let voiceDetectedLang = "";
   let voiceMediaUrl = "";
 
+  // Retrieve prior session early to check customer context (e.g. established language preference)
+  const existingSession = await prisma.conversationSession.findFirst({
+    where: { phoneNumber: from },
+    orderBy: { updatedAt: "desc" },
+  });
+  const existingMeta = (existingSession?.metadata as Record<string, unknown>) ?? {};
+  const previousLang = (existingMeta.language as string) || "en";
+
   if (msg.type === "text") {
     text = String((msg.text as Record<string, unknown>)?.body ?? "").trim();
   } else if (msg.type === "audio" || msg.type === "voice") {
@@ -476,7 +484,7 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
         // 2. Transcribe & translate audio using Groq Whisper + Groq translation
         try {
-          const processed = await processVoiceNoteWithGroq(audioBuffer, "voicenote.ogg");
+          const processed = await processVoiceNoteWithGroq(audioBuffer, "voicenote.ogg", { previousLang, callerPhone: from });
           originalVoiceTranscript = processed.transcript;
           voiceDetectedLang = processed.detectedLangCode;
           text = processed.englishQuery || processed.transcript;
@@ -540,7 +548,28 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     explicitScriptPref = "english";
   }
 
-  const effectiveDetectedLang = explicitLang || (hasMalayalamScript ? "ml" : (hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang));
+  let effectiveDetectedLang = explicitLang;
+  if (!effectiveDetectedLang) {
+    if (hasMalayalamScript) {
+      effectiveDetectedLang = "ml";
+    } else if (hasTamilScript) {
+      effectiveDetectedLang = "ta";
+    } else if (hasHindiScript) {
+      effectiveDetectedLang = "hi";
+    } else if (previousLang && previousLang !== "en") {
+      // Retain established user language! Never overwrite established "ml" with false "ta" audio detection
+      if (previousLang === "ml" && voiceDetectedLang === "ta" && !hasTamilScript) {
+        effectiveDetectedLang = "ml";
+      } else {
+        effectiveDetectedLang = previousLang;
+      }
+    } else if (voiceDetectedLang === "ta" && !hasTamilScript) {
+      // Default to Malayalam for Poornasree customer base if Whisper returned Tamil on audio without Tamil script
+      effectiveDetectedLang = "ml";
+    } else {
+      effectiveDetectedLang = voiceDetectedLang || "en";
+    }
+  }
 
   // ── If sender is a Service Engineer, route to Engineer WhatsApp Engine ──
   if (engineer) {
@@ -583,7 +612,9 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
     if (touchSession) {
       const currentMeta = (touchSession.metadata as Record<string, unknown>) ?? {};
       if (effectiveDetectedLang && effectiveDetectedLang !== "en") {
-        currentMeta.language = effectiveDetectedLang;
+        if (!(currentMeta.language === "ml" && effectiveDetectedLang === "ta" && !hasTamilScript)) {
+          currentMeta.language = effectiveDetectedLang;
+        }
       }
       if (explicitScriptPref) {
         currentMeta.scriptPreference = explicitScriptPref;
@@ -660,13 +691,25 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
 
   const result = await SimulateService.handleMessage(from, text, messageId, {
     transcript: cleanTranscript || originalVoiceTranscript,
-    detectedLang: effectiveDetectedLang || (hasTamilScript && voiceDetectedLang === "ta" ? "ml" : voiceDetectedLang),
+    detectedLang: effectiveDetectedLang,
     mediaUrl: voiceMediaUrl,
   });
 
   // If this was a voice note, add a visual confirmation banner of what was heard
   if (originalVoiceTranscript && result.message) {
-    const bannerQuery = cleanTranscript || text;
+    let bannerQuery = cleanTranscript || text;
+    const isMalayalamThread = effectiveDetectedLang === "ml" || /[\u0D00-\u0D7F]/.test(result.message);
+    if (isMalayalamThread && !/[\u0D00-\u0D7F]/.test(bannerQuery)) {
+      try {
+        const { translateText } = await import("../services/translate.service");
+        const mlBanner = await translateText(bannerQuery, "ml");
+        if (mlBanner && /[\u0D00-\u0D7F]/.test(mlBanner)) {
+          bannerQuery = mlBanner;
+        }
+      } catch {
+        /* fallback to bannerQuery */
+      }
+    }
     const displayQuery = bannerQuery.length > 70 ? bannerQuery.slice(0, 67) + "..." : bannerQuery;
     if (!result.message.includes(displayQuery)) {
       result.message = `🎙️ _"${displayQuery}"_\n\n${result.message}`;

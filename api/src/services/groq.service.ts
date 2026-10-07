@@ -306,6 +306,7 @@ export type ProcessedVoiceNote = {
 export async function processVoiceNoteWithGroq(
   audioBuffer: Buffer,
   fileName = "voicenote.ogg",
+  options?: { previousLang?: string; callerPhone?: string },
 ): Promise<ProcessedVoiceNote> {
   // Run transcription and audio translation in parallel for maximum speed and accuracy
   const [detailed, translatedRaw] = await Promise.all([
@@ -324,6 +325,19 @@ export async function processVoiceNoteWithGroq(
   // Whisper frequently hallucinates "icelandic" when hearing Malayalam Dravidian phonetics
   if (rawLang.toLowerCase() === "icelandic") {
     rawLang = "malayalam";
+  }
+
+  // Whisper frequently misclassifies short Malayalam speech as Tamil due to shared Dravidian acoustic phonetics.
+  // Guard: If transcript contains Malayalam script, or if prior session was Malayalam and transcript has no Tamil script,
+  // ensure language is accurately routed to Malayalam instead of Tamil.
+  const hasTamilScript = /[\u0B80-\u0BFF]/.test(transcript);
+  const hasMalayalamScript = /[\u0D00-\u0D7F]/.test(transcript);
+  if (hasMalayalamScript) {
+    rawLang = "malayalam";
+  } else if ((rawLang.toLowerCase() === "tamil" || rawLang.toLowerCase() === "ta") && !hasTamilScript) {
+    if (options?.previousLang === "ml" || !options?.previousLang) {
+      rawLang = "malayalam";
+    }
   }
 
   const detectedLangCode = LANG_CODE_MAP[rawLang] || (rawLang.length === 2 ? rawLang : "en");
