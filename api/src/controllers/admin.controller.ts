@@ -5,7 +5,7 @@ import { Request, Response } from "express";
 import fs from "fs";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import { sendEngineerSetupNotification } from "../services/engineer-onboarding.service";
+import { sendEngineerSetupNotification, sendManagerOnboardingNotification } from "../services/engineer-onboarding.service";
 import { runtime } from "../services/runtime-config.service";
 import prisma from "../lib/prisma";
 import { processDocument } from "../services/document.service";
@@ -91,7 +91,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
           ? { whatsappNumber: WhatsAppService.normalizeWhatsappNumber(whatsappNumber) || whatsappNumber.trim().replace(/^\+/, "") }
           : {}),
         ...(role === "dealer" && pincodeId ? { pincodeId } : {}),
-        ...(role === "service_engineer" && Array.isArray(pincodeIds) && pincodeIds.length > 0
+        ...((role === "service_engineer" || role === "service_manager" || role === "assistant_service_manager") && Array.isArray(pincodeIds) && pincodeIds.length > 0
           ? { engineerPincodes: { connect: pincodeIds.map((id: string) => ({ id })) } }
           : {}),
       },
@@ -99,7 +99,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
         id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true,
         whatsappNumber: true,
         pincode: { select: { code: true, place: true, state: true } },
-        engineerPincodes: { select: { code: true } },
+        engineerPincodes: { select: { code: true, place: true, state: true } },
       },
     });
 
@@ -112,12 +112,24 @@ export async function createUser(req: Request, res: Response): Promise<void> {
             firstName: user.firstName, 
             email: user.email, 
             whatsappNumber: user.whatsappNumber,
-            pincodes: user.engineerPincodes?.map((p: any) => p.code) || []
+            pincodes: user.engineerPincodes?.map((p: any) => p.place ? `${p.code} (${p.place})` : p.code) || []
           },
           rawTokenStr,
           "Admin"
         );
       }
+    } else if ((role === "service_manager" || role === "assistant_service_manager") && user.whatsappNumber) {
+      const areaList = user.engineerPincodes?.map((p: any) => p.place ? `${p.code} (${p.place})` : p.code) || [];
+      sendManagerOnboardingNotification(
+        {
+          firstName: user.firstName,
+          email: user.email,
+          whatsappNumber: user.whatsappNumber,
+          role: user.role,
+          pincodes: areaList,
+        },
+        "Admin"
+      ).catch((err) => console.warn("[createUser] Failed to send manager onboarding notification:", err));
     }
     
     res.status(201).json({ user, setPasswordUrl });
@@ -460,7 +472,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
     }
 
     const effectiveRole = (role as string) || target.role;
-    if (effectiveRole === "service_engineer") {
+    if (effectiveRole === "service_engineer" || effectiveRole === "service_manager" || effectiveRole === "assistant_service_manager") {
       if (pincodeIds !== undefined && Array.isArray(pincodeIds)) {
         data.engineerPincodes = { set: pincodeIds.map((id: string) => ({ id })) };
       }
@@ -700,3 +712,66 @@ export async function clearTestCustomer(req: Request, res: Response): Promise<vo
     res.status(e.status ?? 500).json({ error: e.message ?? "Internal server error" });
   }
 }
+
+// ── POST /api/admin/dummy-ticket ──────────────────────────────────────────
+// Creates a realistic dummy ticket to test Service Manager WhatsApp alerts.
+export async function createDummyTicket(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.user?.role !== "admin") {
+      res.status(403).json({ error: "Admins only" });
+      return;
+    }
+
+    const { createTicket } = await import("../services/ticket.service");
+
+    // Find any user with customer or admin role to attach customerId
+    const customer = await prisma.user.findFirst({
+      where: { role: { in: ["customer", "admin"] } },
+      select: { id: true, firstName: true, lastName: true, whatsappNumber: true },
+    });
+
+    if (!customer) {
+      res.status(400).json({ error: "No customer or admin user found to attach ticket" });
+      return;
+    }
+
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+
+    const ticket = await createTicket({
+      customerId: customer.id,
+      problemDescription: `Test Ticket [${randomCode}]: Milk analyzer displaying sensor calibration error (E-04) and vibro motor failure.`,
+      issueDescription: "Sensor calibration error during fat testing. Machine stopped dispensing readings.",
+      machineName: "LactoSure Eco",
+      machineSerialNumber: `LSE-${stamp}-${randomCode}`,
+      phoneNumber: customer.whatsappNumber || "919876543210",
+      place: "Kozhikode",
+      district: "Kozhikode",
+      state: "Kerala",
+      customerAddress: "Kozhikode Co-operative Milk Society",
+    });
+
+    // Retrieve active service managers who received notifications
+    const managers = await prisma.user.findMany({
+      where: { role: "service_manager", whatsappNumber: { not: null } },
+      select: { firstName: true, lastName: true, whatsappNumber: true },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Dummy ticket ${ticket.ticketNumber} created successfully. Service managers alerted via WhatsApp.`,
+      ticket: {
+        id: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        status: ticket.status,
+        machineName: ticket.machineName,
+        problemDescription: ticket.problemDescription,
+      },
+      alertedManagers: managers,
+    });
+  } catch (err) {
+    console.error("createDummyTicket error:", err);
+    res.status(500).json({ error: (err as Error).message || "Failed to create dummy ticket" });
+  }
+}
+

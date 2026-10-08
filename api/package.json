@@ -8,7 +8,8 @@
     "tunnel": "echo No tunnel needed — using local PostgreSQL on port 5432",
     "build": "tsc",
     "start": "node dist/index.js",
-    "webhook:dev": "node scripts/webhook-receiver.js"
+    "webhook:dev": "node scripts/webhook-receiver.js",
+    "ticket:dummy": "ts-node src/scripts/create-dummy-ticket.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

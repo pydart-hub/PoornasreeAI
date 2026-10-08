@@ -98,3 +98,54 @@ export async function sendEngineerSetupNotification(
     buildSessionTextMessage(engineer, setPasswordUrl, managerName),
   );
 }
+
+export type ManagerOnboardingRecipient = {
+  firstName: string;
+  email: string;
+  whatsappNumber: string;
+  role: "service_manager" | "assistant_service_manager" | string;
+  pincodes?: string[];
+};
+
+/**
+ * Send Service Manager / Assistant Service Manager onboarding notification via WhatsApp
+ * with assigned pincodes, locations, and dashboard access information.
+ */
+export async function sendManagerOnboardingNotification(
+  manager: ManagerOnboardingRecipient,
+  adminName = "Administrator"
+): Promise<boolean> {
+  const isAssistant = manager.role === "assistant_service_manager";
+  const roleTitle = isAssistant ? "Assistant Service Manager" : "Service Manager";
+  const dashboardUrl = `${runtime.frontendUrl()}/${isAssistant ? "assistant-manager" : "service-manager"}`;
+
+  const areas = manager.pincodes && manager.pincodes.length > 0
+    ? manager.pincodes.join(", ")
+    : "All Service Areas / National";
+
+  const message = [
+    `🎉 *Welcome to Poornasree Service Team, ${manager.firstName}!*`,
+    ``,
+    `You have been registered as a *${roleTitle}* by ${adminName}.`,
+    ``,
+    `📍 *Assigned Service Areas:* ${areas}`,
+    `📧 *Login Email:* ${manager.email}`,
+    `🔗 *Dashboard Portal:* ${dashboardUrl}`,
+    ``,
+    `🔔 *WhatsApp Notifications:*`,
+    `You will receive real-time alerts on this WhatsApp chat whenever customer service tickets are created, along with attached photos and audio voice notes.`,
+    ``,
+    `Thank you! 🙏`,
+  ].join("\n");
+
+  const normalized = WhatsAppService.normalizeWhatsappNumber(manager.whatsappNumber);
+  if (!normalized) return false;
+
+  return WhatsAppService.sendMessage(normalized, message)
+    .then(() => true)
+    .catch((err) => {
+      console.warn(`[sendManagerOnboardingNotification] Failed to send WhatsApp message to ${normalized}:`, err.message);
+      return false;
+    });
+}
+

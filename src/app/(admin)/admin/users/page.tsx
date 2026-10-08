@@ -1076,11 +1076,11 @@ export default function UsersManagementPage() {
                 )}
               </div>
 
-              {/* Additional Fields for Service Engineer */}
-              {form.role === "service_engineer" && (
+              {/* Additional Fields for Service Engineers & Service Managers */}
+              {(form.role === "service_engineer" || form.role === "assistant_service_manager" || form.role === "service_manager") && (
                 <div>
                   <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                    Assign Pincodes
+                    Assign Service Pincodes / Areas
                   </label>
                     <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-lg custom-scrollbar">
                       {myPincodes.length === 0 ? (
@@ -1224,11 +1224,11 @@ export default function UsersManagementPage() {
                 )}
               </div>
 
-              {/* Additional Fields for Service Engineer */}
-              {editForm.role === "service_engineer" && (
+              {/* Additional Fields for Service Engineers & Service Managers */}
+              {(editForm.role === "service_engineer" || editForm.role === "assistant_service_manager" || editForm.role === "service_manager") && (
                 <div>
                   <label className="block text-xs font-medium text-content-secondary dark:text-content-dark-secondary mb-1.5">
-                    Assign Pincodes
+                    Assign Service Pincodes / Areas
                   </label>
                     <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto p-2 bg-surface dark:bg-surface-dark border border-line dark:border-line-dark rounded-lg custom-scrollbar">
                       {myPincodes.length === 0 ? (

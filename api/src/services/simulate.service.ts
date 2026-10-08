@@ -707,9 +707,9 @@ ml: "ദയവായി സാധുവായ ഒരു ഉൽപ്പന്ന
     en: "👋 Session closed. Thank you for contacting Poornasree Support!\n\nReply anything to start again.",
     hi: "👋 सत्र बंद हो गया। पूर्णश्री सपोर्ट से संपर्क करने के लिए धन्यवाद!\n\nदोबारा शुरू करने के लिए कुछ भी टाइप करें।",
     ta: "👋 அமர்வு மூடப்பட்டது. பூர்ணஸ்ரீ ஆதரவைத் தொடர்புகொண்டதற்கு நன்றி!\n\nமீண்டும் தொடங்க ஏதேனும் பதிலளிக்கவும்.",
-    kn: "👋 ಅಧಿವೇಶನ ಮುಚ್ಚಿದೆ. ಪೂರ್ಣಶ್ರೀ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿದ್ದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು!\n\nಮತ್ತೆ ಪ್ರಾರಂಭಿಸಲು ಏನಾದರೂ ಪ್ರತ್ಯುತ್ತರಿಸಿ.",
-    mr: "👋 सत्र बंद झाले. पूर्णश्री सपोर्टशी संपर्क साधल्याबद्दल धन्यवाद!\n\nपुन्हा सुरू करण्यासाठी काहीही रिप्लाय द्या.",
-    te: "👋 సెషన్ ముగిసింది. పూర్ణశ్రీ మద్దతును సంప్రదించినందుకు ధన్యవాదాలు!\n\nమళ్ళీ ప్రారంభించడానికి ఏదైనా ప్రత్యుత్తరం ఇవ్వండి.",
+    kn: "👋 ಅಧಿವೇಶನ ಮುಚ್ಚಿದೆ. ಪೂರ್ಣಶ್ರೀ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿದ್ದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು!\n\nಮತ್ತೆ ಪ್ರಾರಂಭಿಸಲು ಏನನ್ನಾದರೂ ಉತ್ತರಿಸಿ.",
+    mr: "👋 सत्र बंद झाले. पूर्णश्री सपोर्टशी संपर्क साधल्याबद्दल धन्यवाद!\n\nपुन्हा सुरू करण्यासाठी काहीही पाठवा.",
+    te: "👋 సెషన్ ముగిసింది. పూర్ణశ్రీ సపోర్ట్‌ను సంప్రదించినందుకు ధన్యవాదాలు!\n\nమళ్లీ ప్రారంభించడానికి ఏదైనా టైప్ చేయండి.",
     bn: "👋 সেশন বন্ধ হয়েছে। পূর্ণশ্রী সাপোর্টে যোগাযোগ করার জন্য ধন্যবাদ!\n\nআবার শুরু করতে কিছু উত্তর দিন।",
     ml: "👋 സെഷൻ അവസാനിപ്പിച്ചു. പൂർണ്ണശ്രീ സപ്പോർട്ടുമായി ബന്ധപ്പെട്ടതിന് നന്ദി!\n\nവീണ്ടും ആരംഭിക്കാൻ എന്തെങ്കിലും സന്ദേശം അയക്കുക.",
   },
@@ -1397,6 +1397,32 @@ const RATING_LIST: ReplyList = {
 };
 
 // ── Entry point ───────────────────────────────────────────────────────────
+export function getManagerNoticeReply(role: string, displayName: string): SimulateReply {
+  const isAssistant = (role || "").toLowerCase() === "assistant_service_manager";
+  const roleTitle = isAssistant ? "Assistant Service Manager" : "Service Manager";
+  const icon = isAssistant ? "🗂️" : "📋";
+  const dashboardPath = isAssistant ? "assistant-manager" : "service-manager";
+  const scopeText = isAssistant
+    ? "customer service tickets within your assigned pincodes & service zones"
+    : "newly created customer service tickets across the system";
+
+  return makeReply(
+    [
+      `${icon} *${roleTitle} Portal Notice*`,
+      ``,
+      `Hello *${displayName}*, you are registered as a *${roleTitle}*.`,
+      ``,
+      `Currently on WhatsApp, your account has access to:`,
+      `• 🔔 Real-time alerts for ${scopeText}`,
+      `• 📎 Immediate delivery of customer photos & audio voice notes`,
+      ``,
+      `To dispatch tickets, assign engineers, or manage customer complaints, please access the Web Dashboard:`,
+      `👉 https://ai.poornasreecloud.com/${dashboardPath}`,
+    ].join("\n")
+  );
+}
+
+// ── Entry point ──────────────────────────────────────────────────────────────
 export async function handleMessage(
   phoneNumber: string,
   message: string,
@@ -1414,11 +1440,19 @@ export async function handleMessage(
   let meta: SessionMeta = (session.metadata as SessionMeta) ?? {};
 
   // If language was detected from voice or context, sync language preference into metadata
+  const hasExplicitTamil = /[\u0B80-\u0BFF]/.test(text || audioContext?.transcript || "");
   if (audioContext?.detectedLang && audioContext.detectedLang !== "en") {
-    const hasExplicitTamil = /[\u0B80-\u0BFF]/.test(text || audioContext?.transcript || "");
-    if (!(meta.language === "ml" && audioContext.detectedLang === "ta" && !hasExplicitTamil)) {
+    // Audio from Whisper often misclassifies Malayalam as Tamil -> strictly map to Malayalam unless actual Tamil script is present
+    if (audioContext.detectedLang === "ta" && !hasExplicitTamil) {
+      meta.language = "ml";
+    } else {
       meta.language = audioContext.detectedLang as Lang;
     }
+  }
+
+  // Sanitize historical accidental Tamil tag if user has never used Tamil script
+  if (meta.language === "ta" && !hasExplicitTamil) {
+    meta.language = "en";
   }
 
   // Real-time script & intent detection from customer message
@@ -1440,6 +1474,12 @@ export async function handleMessage(
   } else if (/\b(english|in\s*english)\b/i.test(lowerIncomingMsg)) {
     meta.language = "en";
     (meta as any).scriptPreference = "english";
+  } else if (!/[\u0900-\u0D7F]/.test(incomingRawMsg) && incomingRawMsg.length >= 3 && !isManglishRequest) {
+    // If incoming text is written in English/Latin with no Indic script (e.g. "cloud error", "not working")
+    // and session was stuck on Tamil without Tamil script, auto-reset language to English
+    if (meta.language === "ta") {
+      meta.language = "en";
+    }
   }
 
   // Persist language preference immediately if it changed
@@ -1449,8 +1489,9 @@ export async function handleMessage(
     await updateSession(session.id, session.state, meta);
   }
 
-  // Auto-detect if user is registered in User table (especially Engineers) if meta.role / meta.isEngineer is unpopulated
-  if (!meta.role && !meta.isEngineer) {
+  // Auto-detect if user is registered in User table (especially Managers/Engineers) if not already tagged with a staff role
+  const isStaffRole = ["service_manager", "assistant_service_manager", "service_engineer", "admin", "super_admin", "service", "engineer"].includes(meta.role?.toLowerCase() || "");
+  if (!isStaffRole) {
     const cleanPhone = phoneNumber.replace(/\D/g, "");
     const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
     const dbUser = await prisma.user.findFirst({
@@ -1465,8 +1506,19 @@ export async function handleMessage(
       select: { id: true, firstName: true, lastName: true, role: true },
     });
     if (dbUser) {
-      const isEng = ["service_engineer", "service", "service_manager", "assistant_service_manager", "admin", "super_admin", "engineer"].includes(dbUser.role.toLowerCase());
-      const displayName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ").trim() || (isEng ? "Service Engineer" : "Customer");
+      const roleLower = dbUser.role.toLowerCase();
+      const isManager = roleLower === "service_manager" || roleLower === "assistant_service_manager";
+      const isEng = ["service_engineer", "service", "engineer"].includes(roleLower);
+      const roleTitle = roleLower === "service_manager"
+        ? "Service Manager"
+        : roleLower === "assistant_service_manager"
+        ? "Asst. Service Manager"
+        : roleLower === "admin" || roleLower === "super_admin"
+        ? "Administrator"
+        : isEng
+        ? "Service Engineer"
+        : "Customer";
+      const displayName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ").trim() || roleTitle;
       meta = {
         ...meta,
         role: dbUser.role,
@@ -1474,14 +1526,39 @@ export async function handleMessage(
         regCustomerId: dbUser.id,
         regName: displayName,
         customerName: displayName,
-        hasSkippedRegistration: isEng ? true : meta.hasSkippedRegistration,
+        hasSkippedRegistration: isEng || isManager ? true : meta.hasSkippedRegistration,
       };
-      const nextState = (session.state === "REGISTER_PROMPT" || session.state === "REGISTER_SERIAL") && isEng ? "MAIN_MENU" : session.state;
+      const nextState = (session.state === "REGISTER_PROMPT" || session.state === "REGISTER_SERIAL") && (isEng || isManager) ? "MAIN_MENU" : session.state;
       await updateSession(session.id, nextState, meta);
     }
   }
 
   const lang: Lang = (meta.language ?? "en") as Lang;
+
+  // ── Service Manager & Assistant Service Manager Interceptor ──
+  // Service managers receive real-time ticket alerts & customer media on WhatsApp,
+  // but management actions & ticket dispatches happen on the web dashboard.
+  // Prevent any irrelevant customer self-service menus or technical engineer troubleshooting.
+  if (meta.role === "service_manager" || meta.role === "assistant_service_manager") {
+    const roleTitle = meta.role === "assistant_service_manager" ? "Assistant Service Manager" : "Service Manager";
+    const displayName = meta.customerName || meta.regName || roleTitle;
+    return getManagerNoticeReply(meta.role, displayName);
+  }
+
+  // ── Administrator Interceptor ──
+  if (meta.role === "admin" || meta.role === "super_admin") {
+    const displayName = meta.customerName || meta.regName || "Administrator";
+    return makeReply(
+      [
+        `👑 *Administrator Portal Notice*`,
+        ``,
+        `Hello *${displayName}*, you have full administrative access to Poornasree AI.`,
+        ``,
+        `To manage users, monitor analytics, and configure system settings, please visit the Admin Portal:`,
+        `👉 https://ai.poornasreecloud.com/admin`,
+      ].join("\n")
+    );
+  }
 
   // ── Groq conversational agent (feature-flagged) ─────────────────────────
   // Preserves feedback FSM and falls back to legacy menus on agent errors /
@@ -1913,8 +1990,19 @@ export async function startGreeting(phoneNumber: string) {
 
   // ONLY treat as registered if active User record exists in DB
   if (registeredUser) {
-    const isEng = ["service_engineer", "service", "service_manager", "assistant_service_manager", "admin", "super_admin", "engineer"].includes(registeredUser.role.toLowerCase());
-    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || "Customer";
+    const roleLower = (registeredUser.role || "").toLowerCase();
+    const isManager = roleLower === "service_manager" || roleLower === "assistant_service_manager";
+    const isEng = ["service_engineer", "service", "engineer"].includes(roleLower);
+    const roleTitle = roleLower === "service_manager"
+      ? "Service Manager"
+      : roleLower === "assistant_service_manager"
+      ? "Asst. Service Manager"
+      : roleLower === "admin" || roleLower === "super_admin"
+      ? "Administrator"
+      : isEng
+      ? "Service Engineer"
+      : "Customer";
+    const displayName = [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim() || roleTitle;
 
     const savedProfile = await loadSavedEndCustomer(phoneNumber).catch(() => null);
 
@@ -1944,6 +2032,16 @@ export async function startGreeting(phoneNumber: string) {
       videoSearchQuery: undefined,
     };
     await updateSession(session.id, "MAIN_MENU", meta);
+
+    if (isManager) {
+      return getManagerNoticeReply(registeredUser.role, displayName);
+    }
+
+    if (roleLower === "admin" || roleLower === "super_admin") {
+      return makeReply(
+        `👑 *Welcome, Administrator ${displayName}!*\n\nYou have full administrative access across the platform.\n👉 https://ai.poornasreecloud.com/admin`
+      );
+    }
 
     if (isEng) {
       return makeReply(
@@ -4293,6 +4391,16 @@ ${settings.companyAddress || ""}
         buttonLang = "ta";
       } else if (/[\u0900-\u097F]/.test(reply)) {
         buttonLang = "hi";
+      } else if (/[\u0C00-\u0C7F]/.test(reply)) {
+        buttonLang = "te";
+      } else if (/[\u0C80-\u0CFF]/.test(reply)) {
+        buttonLang = "kn";
+      } else if (/[\u0980-\u09FF]/.test(reply)) {
+        buttonLang = "bn";
+      } else if (!/[\u0900-\u0D7F]/.test(reply)) {
+        // Reply contains ZERO Indic script characters (purely English/Latin letters)
+        // Buttons MUST strictly be English to prevent multilingual mismatch!
+        buttonLang = "en";
       }
 
       if (meta.isEngineer) {

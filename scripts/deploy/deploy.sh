@@ -71,6 +71,10 @@ echo "[2/3] Building $QUICK_SVC..."
 compose build "$QUICK_SVC" 2>&1 | tee /tmp/compose-build.log
 
 echo "[3/3] Restarting $QUICK_SVC..."
+if [ "$QUICK_SVC" = "api" ]; then
+  echo " Ensuring backing services (db, qdrant, ollama) are running..."
+  compose up -d db qdrant ollama 2>&1 | tee -a /tmp/compose-build.log
+fi
 compose up -d --no-deps "$QUICK_SVC" 2>&1 | tee -a /tmp/compose-build.log
 
 if [ "$QUICK_SVC" = "api" ]; then

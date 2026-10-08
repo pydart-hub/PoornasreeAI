@@ -19,6 +19,7 @@ import {
   deleteAllDealersAdmin,
   clearTestCustomer,
   listRegisteredCustomers,
+  createDummyTicket,
 } from "../controllers/admin.controller";
 import {
   getAnalytics,
@@ -241,6 +242,9 @@ router.delete("/products/:id", deleteProduct);
 
 // WhatsApp customer test reset (admin only — remove when no longer needed)
 router.delete("/test/customer", clearTestCustomer);
+
+// Create dummy ticket for testing Service Manager WhatsApp notifications
+router.post("/dummy-ticket", createDummyTicket);
 
 // Manual Complaints (from customer chat)
 router.get("/manual-complaints", listManualComplaints);

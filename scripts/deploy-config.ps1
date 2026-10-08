@@ -2,7 +2,7 @@
 # Dot-source from deploy scripts: . "$PSScriptRoot/deploy-config.ps1"
 
 $script:DeployServer       = "poornasree-v4"   # SSH Alias
-$script:DeployUser         = "root"
+$script:DeployUser         = "abhishek"
 $script:DeploySshPort     = 22
 $script:DeployRemoteDir   = "/root/poornasree-ai"
 $script:DeployKeyFile      = "$env:USERPROFILE\.ssh\poornasree-staff"
