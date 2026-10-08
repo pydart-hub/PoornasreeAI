@@ -426,6 +426,7 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
 
     if (!firstName && !lastName && !email && !newPassword && !role
         && whatsappNumber === undefined && pincode === undefined
+        && pincodeIds === undefined
         && city === undefined && state === undefined) {
       res.status(400).json({ error: "Nothing to update" });
       return;
@@ -505,8 +506,23 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
         id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true,
         whatsappNumber: true,
         pincode: { select: { code: true, place: true, state: true } },
+        engineerPincodes: { select: { id: true, code: true, place: true, state: true } },
       },
     });
+
+    if ((updated.role === "service_manager" || updated.role === "assistant_service_manager") && updated.whatsappNumber && (pincodeIds !== undefined || whatsappNumber !== undefined)) {
+      const areaList = updated.engineerPincodes?.map((p: any) => p.place ? `${p.code} (${p.place})` : p.code) || [];
+      sendManagerOnboardingNotification(
+        {
+          firstName: updated.firstName,
+          email: updated.email,
+          whatsappNumber: updated.whatsappNumber,
+          role: updated.role,
+          pincodes: areaList,
+        },
+        "Administrator"
+      ).catch((err) => console.warn("[updateUser] Failed to send manager update notification:", err));
+    }
 
     res.json({ user: updated });
   } catch (err) {
