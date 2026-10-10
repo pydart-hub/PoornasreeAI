@@ -1620,6 +1620,12 @@ export async function handleMessage(
   const isManglishSwitch =
     /^(\/)?(manglish|english\s*aksharam|english\s*letters|in\s*manglish)$/i.test(trimmedIncoming);
 
+  const isEnglishSwitch =
+    /^(\/)?(english|in\s*english|switch\s*to\s*english|please\s*switch\s*to\s*english|english\s*please|speak\s*in\s*english)$/i.test(trimmedIncoming);
+
+  const isHindiSwitch =
+    /^(\/)?(hindi|in\s*hindi|hindi\s*me|हिंदी|switch\s*to\s*hindi)$/i.test(trimmedIncoming);
+
   if (isMalayalamSwitch) {
     meta.language = "ml";
     (meta as any).scriptPreference = "native";
@@ -1644,6 +1650,36 @@ export async function handleMessage(
       `Sure! Ini muthal namukku Manglish-il samsarikkaam.\n\nMachine-nu enthaanu issue ennu type cheyyoo. Njaan help cheyyaam.`,
       [getMenuButton("ml")]
     );
+  }
+
+  if (isEnglishSwitch) {
+    meta.language = "en";
+    (meta as any).scriptPreference = "english";
+    await updateSession(session.id, session.state, meta);
+
+    const hasOpenComplaint = meta.complaint || meta.lastIssueQuery;
+    let switchAck = `Certainly! We will continue the conversation in English.`;
+    if (hasOpenComplaint) {
+      switchAck += `\n\nPlease describe the issue with your machine in detail. (For example: Not powering on, no vibration, unusual sound). I am here to help.`;
+    } else {
+      switchAck += `\n\nHow can I help you today? Please type your complaint or questions below.`;
+    }
+    return makeReply(switchAck, [getMenuButton("en")]);
+  }
+
+  if (isHindiSwitch) {
+    meta.language = "hi";
+    (meta as any).scriptPreference = "native";
+    await updateSession(session.id, session.state, meta);
+
+    const hasOpenComplaint = meta.complaint || meta.lastIssueQuery;
+    let switchAck = `बिल्कुल! अब हम हिंदी में बात करेंगे।`;
+    if (hasOpenComplaint) {
+      switchAck += `\n\nकृपया अपनी मशीन की समस्या के बारे में विस्तार से बताएं। (उदाहरण: पावर नहीं आ रहा, कंपन नहीं हो रहा, असामान्य आवाज़)। मैं आपकी मदद करूंगा।`;
+    } else {
+      switchAck += `\n\nआज मैं आपकी कैसे मदद कर सकता हूँ? कृपया अपनी शिकायत या सवाल नीचे टाइप करें।`;
+    }
+    return makeReply(switchAck, [getMenuButton("hi")]);
   }
 
   if (upper === "REGISTER" && session.state !== "REGISTER_PROMPT") {

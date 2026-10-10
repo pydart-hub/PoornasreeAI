@@ -454,8 +454,16 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   let voiceMediaUrl = "";
 
   // Retrieve prior session early to check customer context (e.g. established language preference)
+  const normalizedFrom = from.replace(/\D/g, "").slice(-10);
   const existingSession = await prisma.conversationSession.findFirst({
-    where: { phoneNumber: from },
+    where: {
+      OR: [
+        { phoneNumber: from },
+        { phoneNumber: normalizedFrom },
+        { phoneNumber: "91" + normalizedFrom },
+        { phoneNumber: "+91" + normalizedFrom },
+      ],
+    },
     orderBy: { updatedAt: "desc" },
   });
   const existingMeta = (existingSession?.metadata as Record<string, unknown>) ?? {};
