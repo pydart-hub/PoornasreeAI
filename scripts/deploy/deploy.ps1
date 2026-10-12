@@ -37,6 +37,7 @@ $mode = if ($QuickApi) { "quick-api" } else { "quick" }
 function Get-SshArgs {
     $base = @(
         "-p", "$SshPort",
+        "-o", "BatchMode=yes",
         "-o", "StrictHostKeyChecking=no",
         "-o", "ConnectTimeout=30",
         "-o", "ServerAliveInterval=30",
