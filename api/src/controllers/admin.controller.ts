@@ -516,6 +516,24 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
       },
     });
 
+    if (target.whatsappNumber && target.whatsappNumber !== updated.whatsappNumber) {
+      const oldClean = target.whatsappNumber.replace(/\D/g, "").slice(-10);
+      await prisma.conversationSession.updateMany({
+        where: {
+          OR: [
+            { phoneNumber: target.whatsappNumber },
+            { phoneNumber: oldClean },
+            { phoneNumber: "91" + oldClean },
+            { phoneNumber: "+91" + oldClean },
+          ],
+        },
+        data: {
+          state: "GREETING",
+          metadata: {},
+        },
+      }).catch((err) => console.warn("[updateUser] Failed to reset old session:", err));
+    }
+
     if ((updated.role === "service_manager" || updated.role === "assistant_service_manager") && updated.whatsappNumber && (pincodeIds !== undefined || whatsappNumber !== undefined)) {
       const areaList = updated.engineerPincodes?.map((p: any) => p.place ? `${p.code} (${p.place})` : p.code) || [];
       sendManagerOnboardingNotification(

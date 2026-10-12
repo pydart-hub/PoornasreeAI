@@ -1489,47 +1489,58 @@ export async function handleMessage(
     await updateSession(session.id, session.state, meta);
   }
 
-  // Auto-detect if user is registered in User table (especially Managers/Engineers) if not already tagged with a staff role
-  const isStaffRole = ["service_manager", "assistant_service_manager", "service_engineer", "admin", "super_admin", "service", "engineer"].includes(meta.role?.toLowerCase() || "");
-  if (!isStaffRole) {
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
-    const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
-    const dbUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { whatsappNumber: { contains: last10 } },
-          { whatsappNumber: phoneNumber },
-          { whatsappNumber: "91" + last10 },
-          { whatsappNumber: "+91" + last10 },
-        ],
-      },
-      select: { id: true, firstName: true, lastName: true, role: true },
-    });
-    if (dbUser) {
-      const roleLower = dbUser.role.toLowerCase();
-      const isManager = roleLower === "service_manager" || roleLower === "assistant_service_manager";
-      const isEng = ["service_engineer", "service", "engineer"].includes(roleLower);
-      const roleTitle = roleLower === "service_manager"
-        ? "Service Manager"
-        : roleLower === "assistant_service_manager"
-        ? "Asst. Service Manager"
-        : roleLower === "admin" || roleLower === "super_admin"
-        ? "Administrator"
-        : isEng
-        ? "Service Engineer"
-        : "Customer";
-      const displayName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ").trim() || roleTitle;
-      meta = {
-        ...meta,
-        role: dbUser.role,
-        isEngineer: isEng,
-        regCustomerId: dbUser.id,
-        regName: displayName,
-        customerName: displayName,
-        hasSkippedRegistration: isEng || isManager ? true : meta.hasSkippedRegistration,
-      };
-      const nextState = (session.state === "REGISTER_PROMPT" || session.state === "REGISTER_SERIAL") && (isEng || isManager) ? "MAIN_MENU" : session.state;
-      await updateSession(session.id, nextState, meta);
+  // Synchronize staff role dynamically with User table
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+  const dbUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { whatsappNumber: { contains: last10 } },
+        { whatsappNumber: phoneNumber },
+        { whatsappNumber: "91" + last10 },
+        { whatsappNumber: "+91" + last10 },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true, role: true },
+  });
+
+  if (dbUser) {
+    const roleLower = dbUser.role.toLowerCase();
+    const isManager = roleLower === "service_manager" || roleLower === "assistant_service_manager";
+    const isEng = ["service_engineer", "service", "engineer"].includes(roleLower);
+    const roleTitle = roleLower === "service_manager"
+      ? "Service Manager"
+      : roleLower === "assistant_service_manager"
+      ? "Asst. Service Manager"
+      : roleLower === "admin" || roleLower === "super_admin"
+      ? "Administrator"
+      : isEng
+      ? "Service Engineer"
+      : "Customer";
+    const displayName = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ").trim() || roleTitle;
+    meta = {
+      ...meta,
+      role: dbUser.role,
+      isEngineer: isEng,
+      regCustomerId: dbUser.id,
+      regName: displayName,
+      customerName: displayName,
+      hasSkippedRegistration: isEng || isManager ? true : meta.hasSkippedRegistration,
+    };
+    const nextState = (session.state === "REGISTER_PROMPT" || session.state === "REGISTER_SERIAL") && (isEng || isManager) ? "MAIN_MENU" : session.state;
+    await updateSession(session.id, nextState, meta);
+  } else {
+    // If no active User record in DB but session was previously tagged with a staff role, demote it immediately
+    const wasStaffRole = ["service_manager", "assistant_service_manager", "service_engineer", "admin", "super_admin", "service", "engineer"].includes(meta.role?.toLowerCase() || "");
+    if (wasStaffRole) {
+      delete meta.role;
+      meta.isEngineer = false;
+      delete meta.regCustomerId;
+      delete meta.regName;
+      delete meta.customerName;
+      delete meta.hasSkippedRegistration;
+      session.state = "GREETING";
+      await updateSession(session.id, "GREETING", meta);
     }
   }
 
@@ -2098,6 +2109,16 @@ export async function startGreeting(phoneNumber: string) {
   }
 
   // Unregistered user / New contact:
+  const wasStaff = ["service_manager", "assistant_service_manager", "service_engineer", "admin", "super_admin", "service", "engineer"].includes(existingMeta.role?.toLowerCase() || "");
+  if (wasStaff) {
+    delete existingMeta.role;
+    existingMeta.isEngineer = false;
+    delete existingMeta.regCustomerId;
+    delete existingMeta.regName;
+    delete existingMeta.customerName;
+    delete existingMeta.hasSkippedRegistration;
+  }
+
   // If customer has already chosen to skip registration in this active session:
   if (existingMeta.hasSkippedRegistration) {
     await updateSession(session.id, "MAIN_MENU", { language: existingMeta.language, customerPhone: phoneNumber });
