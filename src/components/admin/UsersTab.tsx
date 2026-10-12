@@ -10,6 +10,7 @@ import {
   UserX,
   Filter,
   Users as UsersIcon,
+  Phone,
 } from "lucide-react";
 import { Badge, Avatar } from "@/components/ui";
 import type { ApiUser } from "./types";
@@ -32,7 +33,7 @@ type RoleFilter = "all" | "admin" | "service" | "dealer" | "sales" | "customer_s
 
 function normalizeRole(role: string): RoleFilter {
   const r = (role || "").toLowerCase().trim();
-  if (r === "admin") return "admin";
+  if (r === "admin" || r === "super_admin") return "admin";
   if (r === "service" || r === "service_engineer" || r === "engineer" || r === "service_manager" || r === "assistant_service_manager") return "service";
   if (r === "dealer") return "dealer";
   if (r === "sales") return "sales";
@@ -103,6 +104,7 @@ export default function UsersTab({
         u.firstName.toLowerCase().includes(q) ||
         (u.lastName ?? "").toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
+        (u.whatsappNumber ?? "").toLowerCase().includes(q) ||
         u.role.toLowerCase().includes(q)
       );
     });
@@ -247,10 +249,16 @@ export default function UsersTab({
                     </div>
                   </div>
 
-                  <div className="flex items-center min-w-0">
+                  <div className="flex flex-col justify-center min-w-0">
                     <p className="text-xs text-slate-600 dark:text-slate-300 truncate">
                       {u.email}
                     </p>
+                    {u.whatsappNumber && (
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                        <Phone className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <span>{u.whatsappNumber}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center">

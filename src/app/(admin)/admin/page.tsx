@@ -53,11 +53,16 @@ import ExcelEditorModal from "@/components/admin/ExcelEditorModal";
 // ─────────────────────────────────────────────
 function getRoleBadge(role: string) {
   const map: Record<string, { label: string; variant: string }> = {
-    admin:            { label: "Administrator",     variant: "default" },
-    service:          { label: "Service Engineer",  variant: "info" },
-    sales:            { label: "Sales",             variant: "success" },
-    customer:         { label: "Customer",          variant: "accent" },
-    customer_support: { label: "Customer Support",  variant: "warning" },
+    admin:                     { label: "Administrator",     variant: "default" },
+    super_admin:               { label: "Super Admin",       variant: "default" },
+    service:                   { label: "Service Engineer",  variant: "info" },
+    service_engineer:          { label: "Field Engineer",    variant: "info" },
+    service_manager:           { label: "Service Manager",   variant: "info" },
+    assistant_service_manager: { label: "Asst. Service Mgr", variant: "warning" },
+    dealer:                    { label: "Dealer",            variant: "success" },
+    sales:                     { label: "Sales",             variant: "success" },
+    customer:                  { label: "Customer",          variant: "accent" },
+    customer_support:          { label: "Customer Support",  variant: "warning" },
   };
   return map[role] ?? { label: role, variant: "default" };
 }

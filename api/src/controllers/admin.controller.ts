@@ -28,7 +28,7 @@ function buildSetPasswordUrl(rawToken: string): string {
   return `${runtime.frontendUrl()}/set-password?token=${rawToken}`;
 }
 
-const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "customer_support", "marketing"];
+const VALID_ROLES = ["admin", "service", "service_manager", "assistant_service_manager", "service_engineer", "sales", "dealer", "customer_service", "customer_support", "marketing", "customer"];
 
 // ── POST /api/admin/users ────────────────────────────────────────────────
 export async function createUser(req: Request, res: Response): Promise<void> {
@@ -147,8 +147,14 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const { role } = req.query;
+    const where: any = {};
+    if (role && typeof role === "string" && role !== "all") {
+      where.role = role;
+    }
+
     const users = await prisma.user.findMany({
-      where: { role: { not: "customer" } },
+      where,
       select: {
         id: true,
         email: true,

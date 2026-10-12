@@ -7,6 +7,7 @@ export interface ApiUser {
   lastName?: string;
   role: string;
   createdAt: string;
+  whatsappNumber?: string | null;
   _count: { conversations: number };
 }
 
