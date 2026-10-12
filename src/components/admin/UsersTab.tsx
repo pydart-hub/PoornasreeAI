@@ -29,12 +29,13 @@ interface UsersTabProps {
   getRoleBadge?: (role: string) => { label: string; variant: string };
 }
 
-type RoleFilter = "all" | "admin" | "service" | "dealer" | "sales" | "customer_support" | "customer";
+type RoleFilter = "all" | "admin" | "service_manager" | "service" | "dealer" | "sales" | "customer_support" | "customer";
 
 function normalizeRole(role: string): RoleFilter {
   const r = (role || "").toLowerCase().trim();
   if (r === "admin" || r === "super_admin") return "admin";
-  if (r === "service" || r === "service_engineer" || r === "engineer" || r === "service_manager" || r === "assistant_service_manager") return "service";
+  if (r === "service_manager" || r === "assistant_service_manager") return "service_manager";
+  if (r === "service" || r === "service_engineer" || r === "engineer") return "service";
   if (r === "dealer") return "dealer";
   if (r === "sales") return "sales";
   if (r === "customer_support" || r === "support" || r === "customer_service") return "customer_support";
@@ -45,6 +46,7 @@ function normalizeRole(role: string): RoleFilter {
 function formatRoleBadge(role: string) {
   const norm = normalizeRole(role);
   if (norm === "admin") return { label: "Administrator", variant: "default" as const };
+  if (norm === "service_manager") return { label: "Service Manager", variant: "info" as const };
   if (norm === "service") return { label: "Service Engineer", variant: "info" as const };
   if (norm === "dealer") return { label: "Dealer", variant: "success" as const };
   if (norm === "sales") return { label: "Sales", variant: "success" as const };
@@ -72,6 +74,7 @@ export default function UsersTab({
     const counts = {
       all: users.length,
       admin: 0,
+      service_manager: 0,
       service: 0,
       dealer: 0,
       sales: 0,
@@ -163,6 +166,7 @@ export default function UsersTab({
           >
             <option value="all">All Roles ({roleCounts.all})</option>
             <option value="admin">Admins ({roleCounts.admin})</option>
+            <option value="service_manager">Service Managers ({roleCounts.service_manager})</option>
             <option value="service">Service Engineers ({roleCounts.service})</option>
             <option value="dealer">Dealers ({roleCounts.dealer})</option>
             <option value="sales">Sales ({roleCounts.sales})</option>
