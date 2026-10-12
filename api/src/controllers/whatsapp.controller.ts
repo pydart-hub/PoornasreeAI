@@ -505,10 +505,18 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
       }
     }
     if (!text && !originalVoiceTranscript) {
-      await WhatsAppService.sendMessage(
-        from,
-        "⚠️ Sorry, I could not hear or transcribe your voice note clearly. Please try speaking again or type your issue in text.",
-      );
+      const voiceErrorMap: Record<string, string> = {
+        ml: "⚠️ ക്ഷമിക്കണം, നിങ്ങളുടെ വോയ്‌സ് നോട്ട് വ്യക്തമായി മനസ്സിലാക്കാൻ കഴിഞ്ഞില്ല. ദയവായി വീണ്ടും സംസാരിക്കുക അല്ലെങ്കിൽ പ്രശ്നം മെസ്സേജായി ടൈപ്പ് ചെയ്യുക.",
+        hi: "⚠️ क्षमा करें, आपका वॉइस नोट स्पष्ट रूप से सुनाई नहीं दिया। कृपया पुनः बोलें या अपनी समस्या लिखकर बताएं।",
+        ta: "⚠️ மன்னிக்கவும், உங்கள் குரல் குறிப்பை தெளிவாக கேட்க முடியவில்லை. தயவுசெய்து மீண்டும் பேசவும் அல்லது உங்கள் சிக்கலை தட்டச்சு செய்யவும்.",
+        kn: "⚠️ ಕ್ಷಮಿಸಿ, ನಿಮ್ಮ ಧ್ವನಿ ಟಿಪ್ಪಣಿಯನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ಕೇಳಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಮಾತನಾಡಿ ಅಥವಾ ನಿಮ್ಮ ಸಮಸ್ಯೆಯನ್ನು ಟೈಪ್ ಮಾಡಿ.",
+        te: "⚠️ క్షమించండి, మీ వాయిస్ నోట్ స్పష్టంగా అర్థం కాలేదు. దయచేసి మళ్లీ మాట్లాడండి లేదా మీ సమస్యను టైప్ చేయండి.",
+        mr: "⚠️ क्षमस्व, तुमची व्हॉइस नोट स्पष्टपणे ऐकू आली नाही. कृपया पुन्हा बोला किंवा तुमची समस्या टाईप करा.",
+        bn: "⚠️ দুঃখিত, আপনার ভয়েস নোটটি স্পষ্টভাবে বোঝা যায়নি। দয়া করে আবার বলুন বা আপনার সমস্যাটি টাইপ করুন।",
+        en: "⚠️ Sorry, I could not hear or transcribe your voice note clearly. Please try speaking again or type your issue in text.",
+      };
+      const localizedVoiceErr = voiceErrorMap[previousLang] ?? voiceErrorMap.en;
+      await WhatsAppService.sendMessage(from, localizedVoiceErr);
       return;
     }
   } else if (msg.type === "interactive") {

@@ -743,6 +743,16 @@ ml: "ദയവായി സാധുവായ ഒരു ഉൽപ്പന്ന
     bn: "🌐 *আপনার পছন্দের ভাষা নির্বাচন করুন:*\n\nচালিয়ে যেতে আপনার ভাষা চয়ন করুন 👇",
     ml: "🌐 *നിങ്ങൾക്ക് ഇഷ്ടമുള്ള ഭാഷ തിരഞ്ഞെടുക്കുക:*\n\nതുടരാൻ ഭാഷ തിരഞ്ഞെടുക്കുക 👇",
   },
+  DESCRIBE_MACHINE_ISSUE: {
+    en: "📝 *Please describe the issue you are facing with your machine:*\n\nYou can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).",
+    hi: "📝 *कृपया अपने मशीन में आ रही समस्या का विवरण दें:*\n\nआप लक्षण टाइप कर सकते हैं (उदा. _Vibro काम नहीं कर रहा, T2 error, Reading variation_).",
+    ta: "📝 *உங்கள் கணினியில் உள்ள சிக்கலை விவரிக்கவும்:*\n\nநீங்கள் அறிகுறிகளை தட்டச்சு செய்யலாம் (எ.கா. _Vibro வேலை செய்யவில்லை, T2 error_).",
+    kn: "📝 *ದಯವಿಟ್ಟು ನಿಮ್ಮ ಯಂತ್ರದಲ್ಲಿ ಎದುರಾಗುತ್ತಿರುವ ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಿ:*\n\nನೀವು ಲಕ್ಷಣಗಳನ್ನು ಟೈಪ್ ಮಾಡಬಹುದು (ಉದಾ. _Vibro ಕೆಲಸ ಮಾಡುತ್ತಿಲ್ಲ, T2 error_).",
+    mr: "📝 *कृपया तुमच्या मशीनमधील समस्येचे वर्णन करा:*\n\nतुम्ही लक्षणे टाइप करू शकता (उदा. _Vibro काम करत नाही, T2 error_).",
+    te: "📝 *దయచేసి మీ మెషీన్‌లో ఎదుర్కొంటున్న సమస్యను వివరించండి:*\n\nమీరు లక్షణాలను టైప్ చేయవచ్చు (ఉదా. _Vibro పని చేయడం లేదు, T2 error_).",
+    bn: "📝 *অনুগ্রহ করে আপনার মেশিনের সমস্যাটি বর্ণনা করুন:*\n\nআপনি লক্ষণগুলি টাইপ করতে পারেন (যেমন _Vibro কাজ করছে না, T2 error_).",
+    ml: "📝 *നിങ്ങളുടെ മെഷീന് നേരിടുന്ന പ്രശ്നം എന്താണെന്ന് ദയവായി വിവരിക്കുക:*\n\nനിങ്ങൾക്ക് ലക്ഷണങ്ങൾ താഴെ ടൈപ്പ് ചെയ്യാം (ഉദാ. _Vibro പ്രവർത്തിക്കുന്നില്ല, T2 error, Rate chart എടുക്കുന്നില്ല, Reading variation_).",
+  },
   LANG_CHANGED_EN: {
     en: "✅ Language set to *English*.",
     hi: "✅ Language set to *English*.",
@@ -1730,8 +1740,7 @@ export async function handleMessage(
     const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
     await updateSession(session.id, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
-      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
+      t("DESCRIBE_MACHINE_ISSUE", lang),
       [getMenuButton(lang)]
     );
   }
@@ -3269,8 +3278,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined, lastTroubleshootVideo: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
-      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
+      t("DESCRIBE_MACHINE_ISSUE", lang),
       [getMenuButton(lang)]
     );
   }
@@ -3288,8 +3296,7 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined, lastTroubleshootVideo: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
-      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
+      t("DESCRIBE_MACHINE_ISSUE", lang),
       [getMenuButton(lang)]
     );
   }
@@ -4551,8 +4558,11 @@ ${settings.companyAddress || ""}
     console.error("[groq-company-assistant] Fallback error:", err);
   }
 
-  // Fallback if Groq is unavailable
-  return makeReply(t("VALID_OPTION", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  // Fallback if AI assistant is temporarily unavailable
+  const fallbackMsg = lang === "ml"
+    ? "⚠️ ക്ഷമിക്കണം, സാങ്കേതിക തകരാർ കാരണം ഇപ്പോൾ മറുപടി നൽകാൻ സാധിച്ചില്ല. ഞങ്ങളുടെ സപ്പോർട്ട് ടീം ഉടൻ നിങ്ങളെ സഹായിക്കും അല്ലെങ്കിൽ താഴെയുള്ള മെനുവിൽ നിന്ന് തിരഞ്ഞെടുക്കുക."
+    : "⚠️ Sorry, our AI assistant encountered a temporary issue. Our support team can assist you, or please choose an option below.";
+  return makeReply(fallbackMsg, undefined, await getContextualMainMenuList(phoneNumber, lang));
 }
 
 
@@ -5156,8 +5166,7 @@ export async function startComplaintRegistration(
     const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
-      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
+      t("DESCRIBE_MACHINE_ISSUE", lang),
       [getMenuButton(lang)]
     );
   }
@@ -5864,8 +5873,7 @@ async function handleMachineConfirm(sessionId: string, phoneNumber: string, meta
     // Otherwise, advance to COMPLAINT_DESCRIBE
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", confirmedMeta);
     return makeReply(
-      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
+      t("DESCRIBE_MACHINE_ISSUE", lang),
       [getMenuButton(lang)]
     );
   }
@@ -6386,8 +6394,7 @@ async function handleAnotherComplaintPrompt(sessionId: string, phoneNumber: stri
     const clearedMeta: SessionMeta = { ...meta, complaint: undefined, lastIssueQuery: undefined, videoSearchQuery: undefined };
     await updateSession(sessionId, "COMPLAINT_DESCRIBE", clearedMeta);
     return makeReply(
-      `📝 *Please describe the issue you are facing with your machine:*\n\n` +
-      `You can type the symptoms (e.g. _Vibro not working, T2 error, Rate chart not taking, Reading variation_).`,
+      t("DESCRIBE_MACHINE_ISSUE", lang),
       [getMenuButton(lang)]
     );
   }

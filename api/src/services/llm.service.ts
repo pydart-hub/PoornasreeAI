@@ -67,7 +67,22 @@ export async function llmChat(
       },
     );
   } catch (groqErr) {
-    console.error("[llm-service] Groq LLM failure:", groqErr);
+    console.warn(
+      `[llm-service] Groq LLM failure (${(groqErr as Error).message.slice(0, 120)}), failing over to Gemini...`,
+    );
+    if (keysToTry.length > 0) {
+      for (const key of keysToTry) {
+        try {
+          const text = await geminiChat(messages, key, options);
+          if (text && text.trim()) return text;
+        } catch (geminiErr) {
+          console.warn(
+            `[llm-service] Gemini failover also failed (${(geminiErr as Error).message.slice(0, 120)})`,
+          );
+        }
+      }
+    }
+    console.error("[llm-service] Both Groq and Gemini failover failed:", groqErr);
     throw groqErr;
   }
 }
