@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { isProductCategory, sortByCategory } from "../constants/productCategories";
 import { clearTrainingCatalogCache } from "../services/training-catalog.service";
+import { invalidateSimulateCaches } from "../services/simulate.service";
 
 const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
 
@@ -60,6 +61,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     },
   });
   clearTrainingCatalogCache();
+  invalidateSimulateCaches();
   res.status(201).json({ product });
 }
 
@@ -91,6 +93,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     },
   });
   clearTrainingCatalogCache();
+  invalidateSimulateCaches();
   res.json({ product: updated });
 }
 
@@ -104,5 +107,6 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
   }
   await prisma.product.delete({ where: { id } });
   clearTrainingCatalogCache();
+  invalidateSimulateCaches();
   res.json({ message: "Product deleted" });
 }

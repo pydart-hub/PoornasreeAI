@@ -44,6 +44,7 @@ import {
 } from "./chatbotSettings.service";
 import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
 import * as WhatsAppService from "./whatsapp.service";
+import type { WaListRow } from "./whatsapp.service";
 import { touchSupportActivity } from "./support-inactivity.service";
 import { getCatalogForRole } from "./training-catalog.service";
 
@@ -2215,8 +2216,11 @@ async function routeState(
   if (upper.startsWith("PROD_")) {
     return handleProductDetail(session.id, phoneNumber, meta, text);
   }
-  if (upper.startsWith("CAT_")) {
+  if (upper.startsWith("CAT_") || upper.startsWith("CATPAGE_")) {
     return handleProductCategory(session.id, phoneNumber, meta, text);
+  }
+  if (upper.startsWith("PAGE_PROD_")) {
+    return handleAllProductsPage(session.id, phoneNumber, meta, text);
   }
   if (upper === "VIEW_PRODUCTS" || upper === "PRODUCTS") {
     return handleProductBrowse(session.id, phoneNumber, meta, text);
@@ -4579,7 +4583,7 @@ function categoryLabel(cat: string): string {
   return labels[cat.toLowerCase()] ?? cat.charAt(0).toUpperCase() + cat.slice(1);
 }
 
-/** Step 1: show category selection list */
+/** Step 1: show category selection list & view all options */
 async function showProducts(sessionId: string, meta: SessionMeta) {
   return handleProductBrowse(sessionId, "", meta, "");
 }
@@ -4589,8 +4593,11 @@ async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta
 
   const products = await prisma.product.findMany({
     where: { isActive: true },
-    select: { id: true, name: true, category: true, price: true },
-    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, category: true, price: true, displayOrder: true },
+    orderBy: [
+      { displayOrder: "asc" },
+      { createdAt: "asc" },
+    ],
   });
 
   if (products.length === 0) {
@@ -4601,23 +4608,54 @@ async function handleProductBrowse(sessionId: string, _phoneNumber: string, meta
     );
   }
 
-  await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", meta);
+  await updateSession(sessionId, "VIEW_PRODUCT_CATEGORY", meta);
 
-  const rows = products.map((p) => ({
-    id: `PROD_${p.id}`,
-    title: p.name,
-    description: `${categoryLabel(p.category)}${p.price ? ` — 💰 ${p.price}` : ""}`,
-  }));
-  rows.push({ id: "BACK_MAIN", title: "⬅️ Main Menu", description: "Go back to main menu" });
+  const lactosureCount = products.filter(p => p.category.toLowerCase() === "lactosure").length;
+  const lactograndCount = products.filter(p => p.category.toLowerCase() === "lactogrand").length;
+  const otherCount = products.filter(p => !["lactosure", "lactogrand"].includes(p.category.toLowerCase())).length;
+
+  const rows: WaListRow[] = [];
+  if (lactosureCount > 0) {
+    rows.push({
+      id: "CAT_LACTOSURE",
+      title: "🥛 LactoSure Models",
+      description: `${lactosureCount} models (ECO V, SV, D, etc.)`,
+    });
+  }
+  if (lactograndCount > 0) {
+    rows.push({
+      id: "CAT_LACTOGRAND",
+      title: "🔬 LactoGrand Models",
+      description: `${lactograndCount} models (Lite, S Pro, etc.)`,
+    });
+  }
+  if (otherCount > 0) {
+    rows.push({
+      id: "CAT_OTHER",
+      title: "⚙️ Other Products",
+      description: `${otherCount} equipment & accessories`,
+    });
+  }
+
+  rows.push({
+    id: "PAGE_PROD_1",
+    title: "📋 View All Products",
+    description: `Browse all ${products.length} models`,
+  });
+  rows.push({
+    id: "BACK_MAIN",
+    title: "⬅️ Main Menu",
+    description: "Go back to main menu",
+  });
 
   return makeReply(
-    `📦 *Poornasree Products Catalog*\n\nPlease select any product from the list below to view specs & photos:`,
+    `📦 *Poornasree Products Catalog*\n\nPlease select a category or choose *View All Products* to explore our range:`,
     undefined,
     { buttonText: "Browse Products 📋", rows },
   );
 }
 
-/** Step 2: user picked a category — show products in that category */
+/** Step 2: user picked a category — show products in that category with pagination */
 async function handleProductCategory(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string): Promise<any> {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const upper = text.trim().toUpperCase();
@@ -4626,21 +4664,37 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
     await updateSession(sessionId, "MAIN_MENU", meta);
     return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
   }
+  if (upper === "BACK_CATEGORIES" || upper === "BACK") {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
 
   // If user directly sends a PROD_ id while in this state, pass to detail handler
   if (upper.startsWith("PROD_")) {
     return handleProductDetail(sessionId, phoneNumber, meta, text);
   }
 
-  // Resolve category from button ID like "CAT_LACTOGRAND" or from raw text
+  // Resolve category and page from button ID like "CAT_LACTOGRAND" or "CATPAGE_LACTOGRAND_2"
   let category: string | null = null;
-  if (upper.startsWith("CAT_")) {
+  let page = 1;
+
+  if (upper.startsWith("CATPAGE_")) {
+    const parts = upper.split("_");
+    if (parts.length >= 3) {
+      category = parts[1].toLowerCase();
+      page = parseInt(parts[2], 10) || 1;
+    }
+  } else if (upper.startsWith("CAT_")) {
     category = upper.replace("CAT_", "").toLowerCase();
+    page = 1;
   } else {
     // Try to match category by name
     const cats = await prisma.product.groupBy({ by: ["category"], where: { isActive: true } });
     const match = cats.find(c => c.category.toLowerCase() === upper.toLowerCase() || categoryLabel(c.category).toLowerCase() === upper.toLowerCase());
-    if (match) category = match.category;
+    if (match) {
+      category = match.category;
+    } else if (meta.selectedCategory) {
+      category = meta.selectedCategory;
+    }
   }
 
   if (!category) {
@@ -4650,8 +4704,11 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
 
   const products = await prisma.product.findMany({
     where: { isActive: true, category },
-    select: { id: true, name: true, imageUrl: true, price: true },
-    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, imageUrl: true, price: true, displayOrder: true },
+    orderBy: [
+      { displayOrder: "asc" },
+      { createdAt: "asc" },
+    ],
   });
 
   if (products.length === 0) {
@@ -4660,17 +4717,115 @@ async function handleProductCategory(sessionId: string, phoneNumber: string, met
 
   await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", { ...meta, selectedCategory: category });
 
-  const rows = products.map(p => ({
+  const PAGE_SIZE = 7;
+  const totalPages = Math.ceil(products.length / PAGE_SIZE);
+  if (page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const pageProducts = products.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const rows: WaListRow[] = pageProducts.map(p => ({
     id: `PROD_${p.id}`,
-    title: p.name,
-    description: p.price ? `💰 ${p.price}` : "Tap to view details",
+    title: Array.from(p.name).slice(0, 24).join(""),
+    description: p.price ? `💰 ${p.price}` : "Tap to view specs & photos",
   }));
-  rows.push({ id: "BACK_CATEGORIES", title: "⬅️ Back to Categories", description: "" });
+
+  if (page < totalPages) {
+    rows.push({
+      id: `CATPAGE_${category.toUpperCase()}_${page + 1}`,
+      title: `➡️ Next Page (${page + 1}/${totalPages})`,
+      description: "View more models in this category",
+    });
+  }
+  if (page > 1) {
+    rows.push({
+      id: `CATPAGE_${category.toUpperCase()}_${page - 1}`,
+      title: `⬅️ Prev Page (${page - 1}/${totalPages})`,
+      description: "Previous models in this category",
+    });
+  }
+
+  rows.push({ id: "BACK_CATEGORIES", title: "⬅️ Categories", description: "Back to categories list" });
+  rows.push({ id: "BACK_MAIN", title: "🏠 Main Menu", description: "Return to main menu" });
+
+  const pageInfo = totalPages > 1 ? ` (Page ${page}/${totalPages})` : "";
+  return makeReply(
+    `📦 *${categoryLabel(category)}*${pageInfo}\n\nSelect any model below to view specifications, features & photos:`,
+    undefined,
+    { buttonText: "Select Model 📋", rows },
+  );
+}
+
+/** Paginated View All Products */
+async function handleAllProductsPage(sessionId: string, phoneNumber: string, meta: SessionMeta, text: string): Promise<any> {
+  const lang: Lang = (meta.language ?? "en") as Lang;
+  const upper = text.trim().toUpperCase();
+
+  if (upper === "BACK_MAIN" || upper === "MENU" || upper === "MAIN MENU") {
+    await updateSession(sessionId, "MAIN_MENU", meta);
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+  if (upper === "BACK_CATEGORIES" || upper === "BACK") {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+
+  let page = 1;
+  if (upper.startsWith("PAGE_PROD_")) {
+    page = parseInt(upper.replace("PAGE_PROD_", ""), 10) || 1;
+  }
+
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, category: true, price: true, displayOrder: true },
+    orderBy: [
+      { displayOrder: "asc" },
+      { createdAt: "asc" },
+    ],
+  });
+
+  if (products.length === 0) {
+    return handleProductBrowse(sessionId, phoneNumber, meta, "");
+  }
+
+  await updateSession(sessionId, "VIEW_PRODUCT_DETAIL", meta);
+
+  const PAGE_SIZE = 7;
+  const totalPages = Math.ceil(products.length / PAGE_SIZE);
+  if (page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const pageProducts = products.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const rows: WaListRow[] = pageProducts.map(p => ({
+    id: `PROD_${p.id}`,
+    title: Array.from(p.name).slice(0, 24).join(""),
+    description: `${categoryLabel(p.category)}${p.price ? ` — 💰 ${p.price}` : ""}`,
+  }));
+
+  if (page < totalPages) {
+    rows.push({
+      id: `PAGE_PROD_${page + 1}`,
+      title: `➡️ Next Page (${page + 1}/${totalPages})`,
+      description: "View next models",
+    });
+  }
+  if (page > 1) {
+    rows.push({
+      id: `PAGE_PROD_${page - 1}`,
+      title: `⬅️ Prev Page (${page - 1}/${totalPages})`,
+      description: "Previous models",
+    });
+  }
+
+  rows.push({ id: "BACK_CATEGORIES", title: "⬅️ Categories", description: "Browse by category" });
+  rows.push({ id: "BACK_MAIN", title: "🏠 Main Menu", description: "Go back to main menu" });
 
   return makeReply(
-    `📦 *${categoryLabel(category)}*\n\nSelect a product to view details:`,
+    `📦 *All Products Catalogue* (Page ${page} of ${totalPages})\n\nSelect any product from the list below to view specs & photos:`,
     undefined,
-    { buttonText: `View Products 📋`, rows },
+    { buttonText: `Products (${page}/${totalPages}) 📋`, rows },
   );
 }
 
@@ -4680,6 +4835,9 @@ async function handleProductDetail(sessionId: string, phoneNumber: string, meta:
   const upper = text.trim().toUpperCase();
 
   if (upper === "BACK_CATEGORIES" || upper === "BACK") {
+    if (meta.selectedCategory) {
+      return handleProductCategory(sessionId, phoneNumber, meta, `CAT_${meta.selectedCategory.toUpperCase()}`);
+    }
     return handleProductBrowse(sessionId, phoneNumber, meta, "");
   }
   if (upper === "BACK_MAIN" || upper === "MENU" || upper === "MAIN MENU") {

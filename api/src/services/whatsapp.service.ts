@@ -513,6 +513,9 @@ export async function sendInteractiveList(
   const url = `https://graph.facebook.com/${API_VERSION}/${runtime.waPhoneNumberId()}/messages`;
 
   try {
+    if (rows.length > 10) {
+      console.warn(`[whatsapp] sendInteractiveList received ${rows.length} rows for ${to}; truncating to 10 rows to comply with Meta WhatsApp API limits.`);
+    }
     const cleanButtonText = Array.from(buttonText).slice(0, 20).join("");
     const res = await fetch(url, {
       method: "POST",
