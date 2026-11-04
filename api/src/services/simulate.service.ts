@@ -2208,7 +2208,14 @@ export async function startGreeting(phoneNumber: string) {
   }
 
   // First contact: Send Welcome & Registration Prompt (Option A)
-  const regMeta: SessionMeta = { ...existingMeta, customerPhone: phoneNumber };
+  const regMeta: SessionMeta = {
+    ...existingMeta,
+    customerPhone: phoneNumber,
+    complaint: undefined,
+    lastIssueQuery: undefined,
+    videoSearchQuery: undefined,
+    pendingTicketBooking: false,
+  };
   await updateSession(session.id, "REGISTER_PROMPT", regMeta);
   return makeReply(
     t("REGISTER_WELCOME", lang),
@@ -3307,8 +3314,9 @@ export async function handleCustomerSupportRequest(
 async function showMainMenuAfterRegistration(sessionId: string, phoneNumber: string, meta: SessionMeta, lang: Lang) {
   const name = meta.regName || "Customer";
 
-  // If customer came into registration to book a ticket / resolve an issue:
-  if (meta.pendingTicketBooking || meta.complaint) {
+
+  // If customer came into registration explicitly to book a ticket / resolve an issue:
+  if (meta.pendingTicketBooking) {
     const updatedMeta: SessionMeta = {
       ...meta,
       pendingTicketBooking: false,
