@@ -42,7 +42,7 @@ import {
   formatSupportContactBlock,
   getWhatsAppSupportSettings,
 } from "./chatbotSettings.service";
-import { findVideosForQuery, formatVideoSuggestions } from "../controllers/video.controller";
+import { findVideosForQuery, findVideosForContext, formatVideoSuggestions } from "../controllers/video.controller";
 import * as WhatsAppService from "./whatsapp.service";
 import type { WaListRow } from "./whatsapp.service";
 import { touchSupportActivity } from "./support-inactivity.service";
@@ -1844,6 +1844,77 @@ export async function handleMessage(
 
   if (isSupportIntent && session.state !== "FEEDBACK_RATING" && session.state !== "FEEDBACK_SATISFIED") {
     return handleCustomerSupportRequest(session.id, phoneNumber, meta, lang);
+  }
+
+  // ── Global Video Request Interceptor ──
+  // If customer asks for a video (e.g. "Is there any video?", "video", "show video", "വീഡിയോ ഉണ്ടോ")
+  const isVideoInquiry =
+    upper === "VIDEO" ||
+    upper === "VIDEOS" ||
+    upper === "SHOW VIDEO" ||
+    upper === "SHOW_VIDEO" ||
+    upper.includes("ANY VIDEO") ||
+    upper.includes("HAVE VIDEO") ||
+    upper.includes("HAVE A VIDEO") ||
+    upper.includes("SEND VIDEO") ||
+    upper.includes("WATCH VIDEO") ||
+    upper.includes("VIDEO LINK") ||
+    upper.includes("TUTORIAL VIDEO") ||
+    upper.includes("VIDEO PLEASE") ||
+    upper.includes("THERE ANY VIDEO") ||
+    upper.includes("VIDEO AVAILABLE") ||
+    text.includes("വീഡിയോ") ||
+    text.includes("വിഡിയോ") ||
+    text.includes("वीडियो");
+
+  if (isVideoInquiry && session.state !== "FEEDBACK_RATING" && session.state !== "FEEDBACK_SATISFIED") {
+    const contextQuery = meta.lastIssueQuery || meta.complaint;
+    const matchedVideos = await findVideosForContext(text, contextQuery, 2);
+
+    if (matchedVideos.length > 0) {
+      const topVideo = matchedVideos[0];
+      meta.lastTroubleshootVideo = { title: topVideo.title, youtubeUrl: topVideo.youtubeUrl };
+      await updateSession(session.id, session.state, meta).catch(() => {});
+
+      const videoAck: Record<Lang, string> = {
+        en: `📺 *Here is the video tutorial for your issue:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nDid this video help resolve your issue?`,
+        ml: `📺 *നിങ്ങളുടെ മെഷീനിലെ പ്രശ്നം പരിഹരിക്കാൻ സഹായിക്കുന്ന വീഡിയോ ഇതാ:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nഈ വീഡിയോ സഹായകരമായോ?`,
+        hi: `📺 *आपकी समस्या के समाधान के लिए वीडियो ट्यूटोरियल:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nक्या इस वीडियो से समस्या हल हुई?`,
+        ta: `📺 *உங்கள் பிரச்சனைக்கான வீடியோ டுடோரியல்:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nஇந்த வீடியோ உதவியதா?`,
+        kn: `📺 *ನಿಮ್ಮ ಸಮಸ್ಯೆಗೆ ವೀಡಿಯೊ ಟ್ಯುಟೋರಿಯಲ್ ಇಲ್ಲಿದೆ:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nಈ ವೀಡಿಯೊ ಸಹಾಯ ಮಾಡಿತೇ?`,
+        mr: `📺 *तुमच्या समस्येसाठी व्हिडिओ ट्यूटोरियल येथे आहे:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nया व्हिडिओने मदत केली का?`,
+        te: `📺 *మీ సమస్య పరిష్కారానికి వీడియో ట్యుటోరియల్:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nఈ వీడియో సహాయపడిందా?`,
+        bn: `📺 *আপনার সমস্যার সমাধানের জন্য ভিডিও টিউটোরিয়াল:*\n\n▶️ *${topVideo.title}*\n${topVideo.youtubeUrl}\n\nএই ভিডিওটি কি সাহায্য করেছে?`,
+      };
+
+      return makeReply(
+        videoAck[lang] || videoAck.en,
+        [
+          getYesResolvedButton(lang),
+          getNotResolvedButton(lang),
+          getMenuButton(lang),
+        ]
+      );
+    } else {
+      const noVideoAck: Record<Lang, string> = {
+        en: `📺 We currently don't have a direct video tutorial for this specific issue.\n\nWould you like to book a service visit with our technician or speak with our support team?`,
+        ml: `📺 ഈ പ്രശ്നത്തിന് നിലവിൽ പ്രത്യേക വീഡിയോ ലഭ്യമല്ല.\n\nഞങ്ങളുടെ ടെക്നീഷ്യന്റെ സേവനം ബുക്ക് ചെയ്യണോ അതോ സപ്പോർട്ട് ടീമുമായി സംസാരിക്കണോ?`,
+        hi: `📺 इस विशिष्ट समस्या के लिए वर्तमान में कोई वीडियो उपलब्ध नहीं है।\n\nक्या आप तकनीशियन सेवा बुक करना चाहते हैं या हमारी सपोर्ट टीम से बात करना चाहते हैं?`,
+        ta: `📺 இந்த பிரச்சனைக்கு தற்போது வீடியோ கிடைக்கவில்லை.\n\nதொழில்நுட்ப வல்லுநரை முன்பதிவு செய்ய விரும்புகிறீர்களா?`,
+        kn: `📺 ಈ ಸಮಸ್ಯೆಗೆ ಪ್ರಸ್ತುತ ಯಾವುದೇ ವೀಡಿಯೊ ಲಭ್ಯವಿಲ್ಲ.\n\nನೀವು ತಂತ್ರಜ್ಞರ ಸೇವೆಯನ್ನು ಬುಕ್ ಮಾಡಲು ಬಯಸುವಿರಾ?`,
+        mr: `📺 या समस्येसाठी सध्या कोणताही व्हिडिओ उपलब्ध नाही.\n\nतुम्ही तंत्रज्ञ सेवा बुक करू इच्छिता का?`,
+        te: `📺 ఈ సమస్యకు ప్రస్తుతం వీడియో అందుబాటులో లేదు.\n\nమీరు టెక్నీషియన్ సర్వీస్ బుక్ చేయాలనుకుంటున్నారా?`,
+        bn: `📺 এই নির্দিষ্ট সমস্যার জন্য বর্তমানে কোনো ভিডিও উপলব্ধ নেই।\n\nআপনি কি টেকনিশিয়ান সার্ভিস বুক করতে চান?`,
+      };
+
+      return makeReply(
+        noVideoAck[lang] || noVideoAck.en,
+        [
+          getBookServiceButton(lang),
+          getMenuButton(lang),
+        ]
+      );
+    }
   }
 
   // Product browsing buttons and VIEW_PRODUCTS always bypass state locks and go directly to product handlers
@@ -4523,7 +4594,8 @@ ${settings.companyAddress || ""}
       if (isLegitimateTroubleshooting || (isServiceIntent && hasActionableTroubleshootingSteps)) {
         try {
           // Find a video genuinely matching the CURRENT query only
-          const matchingVideos = query.trim() ? await findVideosForQuery(query.trim(), 1) : [];
+          const contextQuery = meta.lastIssueQuery || meta.complaint;
+          const matchingVideos = query.trim() ? await findVideosForContext(query.trim(), contextQuery, 1) : [];
 
           if (matchingVideos.length > 0 && !finalReply.includes(matchingVideos[0].youtubeUrl)) {
             finalReply += formatVideoSuggestions(matchingVideos, lang);

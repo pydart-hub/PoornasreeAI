@@ -1,7 +1,7 @@
 // ── Video Resource Controller ──────────────────────────────────────────────
 // Admin CRUD for YouTube video recommendations.
-// Also exports findVideosForQuery() used by message.controller to attach
-// relevant videos to AI chat responses.
+// Also exports findVideosForQuery() and findVideosForContext() used by
+// chatbot / simulate.service to attach relevant videos to chat responses.
 
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
@@ -19,11 +19,7 @@ export function isValidYouTubeUrl(url: string): boolean {
   }
 }
 
-// ── Exported helper for message.controller ───────────────────────────────
-/**
- * Given a user query, find up to `limit` matching VideoResources by
- * keyword overlap. Returns an empty array if no matches or DB has no videos.
- */
+// ── Exported helper for message.controller & simulate.service ────────────
 const STOP_WORDS = new Set([
   "the", "and", "for", "are", "not", "how", "why", "what", "when",
   "where", "which", "can", "this", "that", "its", "was", "with",
@@ -56,7 +52,7 @@ const DOMAIN_SYNONYMS: Record<string, string[]> = {
   stirrer: ["vibro", "vibration", "vibrating", "not vibrating", "stirrer on but not vibrating"],
   vibrating: ["vibro", "stirrer", "vibration", "not vibrating"],
   vibration: ["vibro", "stirrer", "vibrating", "not vibrating"],
-  printer: ["paper", "blank", "print", "printing", "printer paper coming out blank"],
+  printer: ["paper", "blank", "print", "printing", "printer paper coming out blank", "display"],
   blank: ["printer", "paper", "printer paper coming out blank"],
   paper: ["printer", "blank", "printer paper coming out blank"],
   t2: ["t2", "t2 error", "temperature error"],
@@ -67,13 +63,28 @@ const DOMAIN_SYNONYMS: Record<string, string[]> = {
   zero: ["water zero", "zero calibration", "calibration"],
   calibration: ["water zero", "zero calibration", "calibrate", "recalibrate"],
   wifi: ["gsm", "cloud", "range", "network", "connectivity", "wifi range not showing"],
-  cleaning: ["clean", "maintenance", "flush", "daily cleaner", "solution"],
+  cleaning: ["clean", "cleaner", "maintenance", "flush", "daily cleaner", "solution", "wash"],
+  clean: ["cleaning", "cleaner", "maintenance", "flush", "daily cleaner", "solution", "wash"],
   battery: ["power", "charging", "charger", "adapter", "battery drain", "not on", "machine not turning on"],
   power: ["battery", "charger", "adapter", "not on", "turn on", "machine not turning on"],
   air: ["air in milk", "bubbles", "air error"],
   fat: ["snf", "reading variation", "calibration", "accuracy"],
   snf: ["fat", "reading variation", "calibration", "accuracy"],
+  chart: ["rate chart", "charts", "rate", "price"],
+  charts: ["rate chart", "chart", "rate", "price"],
+  rate: ["rate chart", "chart", "charts"],
+  scale: ["weighing", "weight", "weighing scale"],
+  weighing: ["scale", "weight", "weighing scale"],
+  weight: ["scale", "weighing", "weighing scale"],
 };
+
+export function normalizeStem(word: string): string {
+  if (word.endsWith("ing") && word.length > 5) return word.slice(0, -3);
+  if (word.endsWith("ed") && word.length > 4) return word.slice(0, -2);
+  if (word.endsWith("es") && word.length > 4) return word.slice(0, -2);
+  if (word.endsWith("s") && word.length > 3) return word.slice(0, -1);
+  return word;
+}
 
 function tokenizeQuery(query: string): string[] {
   return query
@@ -107,10 +118,10 @@ export function scoreVideoMatch(query: string, title: string, keywords: string):
   const substantiveTargetWords = targetWords.filter((w) => !GENERIC_DOMAIN_WORDS.has(w));
   if (substantiveTargetWords.length === 0) return 0;
 
-  // Specificity guard: "Hot Sample Error" video requires "hot" / "warm" in query
-  const isHotVideo = normTitle.includes("hot") || normKw.includes("hot sample");
+  // Specificity guard: ONLY strictly guard dedicated "Hot Sample Error" videos
+  const isDedicatedHotVideo = normTitle.includes("hot sample") || (normTitle.includes("hot") && !normTitle.includes("cleaning") && !normKw.includes("cleaning"));
   const queryHasHot = normQ.includes("hot") || normQ.includes("warm") || normQ.includes("heat");
-  if (isHotVideo && !queryHasHot) {
+  if (isDedicatedHotVideo && !queryHasHot) {
     return 0;
   }
 
@@ -125,22 +136,26 @@ export function scoreVideoMatch(query: string, title: string, keywords: string):
   // Expand query's substantive words with domain synonyms
   const expandedSubstantive = new Set<string>(substantiveQWords);
   for (const w of substantiveQWords) {
-    const syns = DOMAIN_SYNONYMS[w];
+    expandedSubstantive.add(normalizeStem(w));
+    const syns = DOMAIN_SYNONYMS[w] || DOMAIN_SYNONYMS[normalizeStem(w)];
     if (syns) {
       for (const s of syns) {
         tokenizeQuery(s).forEach((sw) => {
           if (!GENERIC_DOMAIN_WORDS.has(sw)) {
             expandedSubstantive.add(sw);
+            expandedSubstantive.add(normalizeStem(sw));
           }
         });
       }
     }
   }
 
+  const targetStems = substantiveTargetWords.map((w) => normalizeStem(w));
+
   // Count overlapping substantive words
   let substantiveMatches = 0;
   for (const qw of expandedSubstantive) {
-    if (substantiveTargetWords.includes(qw)) {
+    if (substantiveTargetWords.includes(qw) || targetStems.includes(qw)) {
       substantiveMatches++;
     }
   }
@@ -156,7 +171,7 @@ export function scoreVideoMatch(query: string, title: string, keywords: string):
   // Title coverage bonus: if a majority of the video's substantive title words are matched
   const titleSubstantive = tokenizeQuery(normTitle).filter((w) => !GENERIC_DOMAIN_WORDS.has(w));
   if (titleSubstantive.length > 0) {
-    const titleMatchedCount = titleSubstantive.filter((tw) => expandedSubstantive.has(tw)).length;
+    const titleMatchedCount = titleSubstantive.filter((tw) => expandedSubstantive.has(tw) || expandedSubstantive.has(normalizeStem(tw))).length;
     if (titleMatchedCount / titleSubstantive.length >= 0.5) {
       score += 30;
     }
@@ -205,9 +220,23 @@ export async function getCachedVideoResources(): Promise<any[]> {
   if (cachedVideos && cachedVideos.expiresAt > now) {
     return cachedVideos.data;
   }
-  const data = await prisma.videoResource.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [videoResources, engVideos] = await Promise.all([
+    prisma.videoResource.findMany({
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.engineerTrainingVideo.findMany({
+      orderBy: { createdAt: "desc" },
+    }).catch(() => []),
+  ]);
+  const mappedEngVideos = engVideos.map((ev) => ({
+    id: ev.id,
+    title: ev.title,
+    description: ev.description,
+    youtubeUrl: ev.youtubeUrl,
+    keywords: `${ev.topic || ""} ${ev.title}`.toLowerCase(),
+    isTrainingVideo: true,
+  }));
+  const data = [...videoResources, ...mappedEngVideos];
   cachedVideos = { data, expiresAt: now + VIDEO_CACHE_TTL_MS };
   return data;
 }
@@ -230,18 +259,38 @@ export async function findVideosForQuery(
   query: string,
   limit = 1
 ): Promise<{ id: string; title: string; description: string | null; youtubeUrl: string; keywords: string }[]> {
+  return findVideosForContext(query, undefined, limit);
+}
+
+/**
+ * Enhanced search: checks user query combined with active conversation context (e.g. "Vibro stirrer")
+ * to deliver accurate videos even on short follow-up messages like "How to clean" or "Is there any video?".
+ */
+export async function findVideosForContext(
+  query: string,
+  contextQuery?: string,
+  limit = 1
+): Promise<{ id: string; title: string; description: string | null; youtubeUrl: string; keywords: string }[]> {
   try {
     const allVideos = await getCachedVideoResources();
     if (allVideos.length === 0) return [];
 
-    const normalizedQuery = query.toLowerCase().trim();
-    if (!normalizedQuery || normalizedQuery.length < 2) return [];
+    const normQ = (query || "").toLowerCase().trim();
+    const normCtx = (contextQuery || "").toLowerCase().trim();
+    const combined = normCtx && normCtx !== normQ ? `${normCtx} ${normQ}` : normQ;
+
+    if (!normQ && !normCtx) return [];
 
     const scored = allVideos
-      .map((v) => ({
-        video: v,
-        score: scoreVideoMatch(normalizedQuery, v.title, v.keywords),
-      }))
+      .map((v) => {
+        const scoreQ = normQ ? scoreVideoMatch(normQ, v.title, v.keywords) : 0;
+        const scoreComb = combined && combined !== normQ ? scoreVideoMatch(combined, v.title, v.keywords) : 0;
+        const scoreCtx = normCtx && normCtx !== normQ ? scoreVideoMatch(normCtx, v.title, v.keywords) : 0;
+        return {
+          video: v,
+          score: Math.max(scoreQ, scoreComb, scoreCtx),
+        };
+      })
       .filter((s) => s.score >= 30)
       .sort((a, b) => b.score - a.score);
 
@@ -257,7 +306,7 @@ export async function findVideosForQuery(
 
     return [];
   } catch (err) {
-    console.error("[VideoSearch] error:", err);
+    console.error("[VideoSearchContext] error:", err);
     return [];
   }
 }
