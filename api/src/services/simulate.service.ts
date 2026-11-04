@@ -1538,7 +1538,7 @@ export async function handleMessage(
       ],
     },
     select: { id: true, firstName: true, lastName: true, role: true },
-  });
+  }).catch(() => null);
 
   if (dbUser) {
     const roleLower = dbUser.role.toLowerCase();
@@ -3431,7 +3431,7 @@ async function getCachedActiveProducts() {
   const data = await prisma.product.findMany({
     where: { isActive: true },
     select: { id: true, name: true, category: true, detail: true, price: true, imageUrl: true },
-  });
+  }).catch(() => []);
   cachedActiveProducts = { data, expiresAt: now + CACHE_TTL_MS };
   return data;
 }
@@ -3454,7 +3454,7 @@ async function getCachedDocumentIssues() {
         select: { stepNumber: true, stepContent: true },
       },
     },
-  });
+  }).catch(() => []);
   cachedDocIssues = { data, expiresAt: now + CACHE_TTL_MS };
   return data;
 }
@@ -3473,7 +3473,7 @@ async function getCachedDocumentChunks(targetDocTypes: string[]) {
       content: true,
       document: { select: { title: true } },
     },
-  });
+  }).catch(() => []);
   cachedDocChunks = { key, data, expiresAt: now + CACHE_TTL_MS };
   return data;
 }
@@ -3577,7 +3577,7 @@ export async function runGroqCompanyAssistant(
       ],
     },
     select: { id: true, firstName: true, lastName: true, role: true },
-  });
+  }).catch(() => null);
 
   const verifiedCustomerName = registeredUser
     ? [registeredUser.firstName, registeredUser.lastName].filter(Boolean).join(" ").trim()
@@ -4083,13 +4083,16 @@ export async function runGroqCompanyAssistant(
       const text = (issue.title + " " + issue.problemType + " " + (issue.description || "")).toLowerCase();
       const issueTokens = text.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
       let score = 0;
-      if (text.includes(cleanQ) && cleanQ.length >= 2) score += 15;
+      let matchedCount = 0;
+      if (text.includes(cleanQ) && cleanQ.length >= 3) score += 20;
       for (const w of queryWords) {
         for (const it of issueTokens) {
           if (w === it) {
-            score += (w.length >= 4 ? 4 : 3);
+            score += (w.length >= 4 ? 5 : 3);
+            matchedCount++;
           } else if (it.includes(w) || w.includes(it)) {
             score += 2;
+            matchedCount++;
           } else if (w.length >= 4 && it.length >= 4) {
             // Levenshtein distance <= 2 for typos like "sampe" -> "sample"
             let dist = 0;
@@ -4101,12 +4104,15 @@ export async function runGroqCompanyAssistant(
                 if (w[i] !== it[i]) diffs++;
               }
               diffs += lenDiff;
-              if (diffs <= 2) score += 2;
+              if (diffs <= 2) {
+                score += 2;
+                matchedCount++;
+              }
             }
           }
         }
       }
-      if (score > bestIssueScore && score >= 2) {
+      if (score > bestIssueScore && score >= 12 && matchedCount >= 1) {
         bestIssueScore = score;
         bestIssue = issue;
       }
@@ -4114,38 +4120,39 @@ export async function runGroqCompanyAssistant(
 
     // 2. Search DocumentChunk for rich knowledge with strict audience isolation
     const allChunks = await getCachedDocumentChunks(targetDocTypes);
-    const allQueryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2);
+    const allQueryWords = cleanQ.split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
 
     const scoredChunks = allChunks.map((chunk) => {
       const contentLower = chunk.content.toLowerCase();
       const firstLine = contentLower.split("\n")[0];
       let score = 0;
+      let matchedWords = 0;
 
       // Heavy priority on Topic/Title match in chunk header
       for (const w of allQueryWords) {
         if (firstLine.includes(w)) {
           score += 10;
-        } else if (contentLower.includes(w)) {
-          score += 3;
-        }
-      }
-
-      if (firstLine.includes(cleanQ)) score += 40;
-      if (contentLower.includes(cleanQ)) score += 30;
-
-      let matchedWords = 0;
-      for (const w of allQueryWords) {
-        if (contentLower.includes(w)) {
           matchedWords++;
+        } else if (contentLower.includes(w)) {
           score += (w.length >= 4 ? 4 : 2);
+          matchedWords++;
         }
       }
+
+      if (firstLine.includes(cleanQ) && cleanQ.length >= 3) score += 40;
+      if (contentLower.includes(cleanQ) && cleanQ.length >= 3) score += 30;
+
       if (matchedWords === allQueryWords.length && allQueryWords.length > 0) score += 15;
-      if (chunk.content.includes("Check") && (chunk.content.includes("Action") || chunk.content.includes("→") || chunk.content.includes("->"))) score += 6;
-      if (chunk.content.includes("↳ Remark:") || chunk.content.includes("Remark")) score += 5;
-      if (chunk.content.includes("•")) score += 5;
-      return { chunk, score, length: chunk.content.length };
-    }).filter((c) => c.score >= 4).sort((a, b) => b.score - a.score || b.length - a.length);
+      
+      // ONLY award structural formatting bonus if at least one meaningful query keyword actually matched!
+      if (matchedWords > 0 || (cleanQ.length >= 3 && contentLower.includes(cleanQ))) {
+        if (chunk.content.includes("Check") && (chunk.content.includes("Action") || chunk.content.includes("→") || chunk.content.includes("->"))) score += 6;
+        if (chunk.content.includes("↳ Remark:") || chunk.content.includes("Remark")) score += 5;
+        if (chunk.content.includes("•")) score += 5;
+      }
+      return { chunk, score, matchedWords, length: chunk.content.length };
+    }).filter((c) => (c.matchedWords > 0 || (cleanQ.length >= 3 && c.chunk.content.toLowerCase().includes(cleanQ))) && c.score >= 12)
+      .sort((a, b) => b.score - a.score || b.length - a.length);
 
     const topMatches = scoredChunks.slice(0, 3);
 
@@ -4177,23 +4184,29 @@ export async function runGroqCompanyAssistant(
           const tokens = text.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2 && !stopWords.has(w));
 
           let score = 0;
+          let catalogMatched = 0;
           if (text.includes(cleanQ) && cleanQ.length >= 3) score += 20;
           for (const p of entry.patterns) {
             const pLower = p.toLowerCase();
-            if (cleanQ.includes(pLower) || pLower.includes(cleanQ)) score += 15;
+            if (cleanQ.includes(pLower) || pLower.includes(cleanQ)) {
+              score += 15;
+              catalogMatched++;
+            }
           }
 
           for (const w of queryWords) {
             for (const it of tokens) {
               if (w === it) {
                 score += (w.length >= 4 ? 4 : 3);
+                catalogMatched++;
               } else if (it.includes(w) || w.includes(it)) {
                 score += 2;
+                catalogMatched++;
               }
             }
           }
 
-          if (score > bestCatalogScore && score >= 15) {
+          if (score > bestCatalogScore && score >= 15 && catalogMatched >= 1) {
             bestCatalogScore = score;
             bestCatalogEntry = entry;
           }
@@ -4209,6 +4222,77 @@ export async function runGroqCompanyAssistant(
     }
   } catch (err) {
     console.error("[groq-company-assistant] Failed to load document troubleshooting chunks:", err);
+  }
+
+  // ── Deterministic Support Contact Interceptor for Ungrounded Technical Queries ──
+  // If the query is asking about machine troubleshooting, errors, rate chart, calibration,
+  // cleaning, or technical operations, but NO official document matched:
+  // Strictly DO NOT generate or hallucinate steps. Return Support Contact block with buttons directly.
+  const isDefect =
+    lowerQuery.includes("error") ||
+    lowerQuery.includes("problem") ||
+    lowerQuery.includes("issue") ||
+    lowerQuery.includes("not working") ||
+    lowerQuery.includes("damage") ||
+    lowerQuery.includes("broken") ||
+    lowerQuery.includes("fault");
+
+  const isTechnicalOrMachineQuery =
+    isTechnicalIssueQuery(query) ||
+    isDefect ||
+    lowerQuery.includes("rate chart") ||
+    lowerQuery.includes("rate") ||
+    lowerQuery.includes("chart") ||
+    lowerQuery.includes("generate") ||
+    lowerQuery.includes("how to") ||
+    lowerQuery.includes("how do") ||
+    lowerQuery.includes("clean") ||
+    lowerQuery.includes("wash") ||
+    lowerQuery.includes("calibrat") ||
+    lowerQuery.includes("setting") ||
+    lowerQuery.includes("setup") ||
+    lowerQuery.includes("install") ||
+    lowerQuery.includes("connect") ||
+    lowerQuery.includes("operate") ||
+    lowerQuery.includes("step") ||
+    lowerQuery.includes("steps") ||
+    lowerQuery.includes("manual") ||
+    lowerQuery.includes("guide") ||
+    lowerQuery.includes("ecod") ||
+    lowerQuery.includes("vibro") ||
+    lowerQuery.includes("analyzer") ||
+    lowerQuery.includes("stirrer") ||
+    lowerQuery.includes("milk tester") ||
+    lowerQuery.includes("തകരാർ") ||
+    lowerQuery.includes("കേടായി") ||
+    lowerQuery.includes("പരാതി");
+
+  if (!hasExactDocMatch && isTechnicalOrMachineQuery) {
+    console.log(`[simulate-grounding-guard] Technical query has no document match: "${query}". Directly returning support contact.`);
+    try {
+      await prisma.manualComplaint.create({
+        data: {
+          phoneNumber,
+          machineName: meta.serialNumber || meta.regName || "Customer Machine",
+          complaint: query.trim(),
+          isReviewed: false,
+          hasMatch: false,
+        },
+      });
+      console.log(`[manual-complaint] Logged un-cataloged technical query for ${phoneNumber}: "${query}"`);
+    } catch (mErr) {
+      console.error("[manual-complaint] Failed to log manual complaint:", mErr);
+    }
+
+    let supportMsg = NO_TROUBLESHOOT_ENQUIRY_MSGS[lang] || NO_TROUBLESHOOT_ENQUIRY_MSGS.en;
+    if (lang === "ml" && (meta as any).scriptPreference === "manglish") {
+      supportMsg = "Itharam aavashyangalkku dayavayi njangalude customer support-umayi bandhapaduka. Call cheyyan aagrahikkunnundengil *+91 94009 61291* enna numberil vilikkuka.";
+    }
+
+    return makeReply(supportMsg, [
+      getTalkToSupportButton(lang),
+      getMenuButton(lang),
+    ]);
   }
 
   const troubleshootingRules = hasExactDocMatch
@@ -4241,49 +4325,19 @@ export async function runGroqCompanyAssistant(
 
       If none of the above steps help, please contact Poornasree Customer Care for further assistance.
 
-      OR for Rate Chart:
-
-      Hi [Name], here are the troubleshooting steps to resolve the rate chart issue:
-
-      1️⃣ *Check the rate chart settings entered properly:*
-      • Enter the correct settings
-      • 1) Rate chart enable - Enable
-      • 2) Auto chart selection and limit set - (Purpose: cow chart to buffalo chart searching)
-         ↳ Remark: Eg: Fat limit = 7.0. Below fat 7.0 rate taken from cow chart and above 7.0 taken from buffalo chart
-      • 3) High-Low FX rate - Enable
-         ↳ Remark: A fixed rate added in the result for below fat limit (eg: F 2.00) and above fat limit (eg: F 12.00)
-      • 4) Low limit fat - Eg: F 2.0
-         ↳ Remark: Below fat 2.0 - A fixed rate taken
-      • 5) High limit fat - Eg: F 12.0
-      • 6) Enter low fat fixed rate - Enter the rupees
-      • 7) Enter high fat fixed rate - Enter the rupees
-      • 8) Rate chart selection - Method / import from pendrive
-      • Rate taken combination - Fat & SNF, Fat & CLR, Fat only, CLR only
-         ↳ Remark: Uses the rate taken on Fat and SNF reading basis
-      • 1) Enter start fat - For the import file
-      • 2) Enter end fat - For the import file
-      • 3) Enter start SNF - For the import file
-      • 4) Enter end SNF - For the import file
-      • Then import file from USB
-         ↳ Remark: If any wrong rate shown at "Check Rate" operation, check if "Auto Chart is Enable" and verify range
-
-      If none of the above steps help, please contact Poornasree Customer Care for further assistance.
-
-      OR for General Errors (e.g. T2 Error, Date and Time, Adapter, Vibro, Temperature, Sensor):
+      OR for General Device Troubleshooting:
 
       Hi [Name], here are the troubleshooting steps to resolve the [issue]:
 
-      1️⃣ *Check the leakage/block in sample sucking sections:*
-      • Check the silicon tube for damage or bend
-      • 1) Check if inlet pipe is broken or blocked
-         ↳ Remark: Replace inlet pipe if damaged
-      • 2) Check inlet tube to preheater silicon tube
-         ↳ Remark: Replace or tie silicon tube
+      1️⃣ *Check the device settings:*
+      • Inspect device configuration settings as per official manual
+      • 1) Verify primary parameter configuration
+         ↳ Remark: Check standard threshold settings
+      • 2) Verify communication or interface cables
+         ↳ Remark: Replace damaged cables if required
 
-      2️⃣ *Check the L-plug properly inserted:*
-      • Check the O-ring
-      • 1) Check L-plug for damage and inspect O-ring quality
-         ↳ Remark: Replace L-plug or O-ring
+      2️⃣ *Check power supply and connections:*
+      • Ensure power adapter and switches are functional
 
       If none of the above steps help, please contact Poornasree Customer Care for further assistance.
 
@@ -4376,6 +4430,10 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 10. OFF-TOPIC CHAT REDIRECTION (Universe, Galaxy, Movies, Jokes):
     - For off-topic questions (universe, galaxy, movies, jokes), give a polite 1-sentence human redirection ("I am ${botName} from Poornasree customer support. How can I assist you with your equipment today?").
     - Do NOT repeat or mention off-topic words in your response.
+11. ABSOLUTE DOCUMENT GROUNDING MANDATE:
+    - You MUST answer technical procedures, machine settings, errors, calibrations, or troubleshooting queries ONLY using the MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS below.
+    - If no document is matched or the information is not explicitly in the matched document, you are STRICTLY FORBIDDEN from inventing, generating, or guessing steps from your own pre-training knowledge.
+    - Output ONLY: "For this type of enquiry, please contact our customer support. If you would like to give a call, please contact +91 94009 61291."
 \n${troubleshootingRules}
 
 --- STRICT MANDATORY LANGUAGE ENFORCEMENT ---
@@ -4540,7 +4598,21 @@ ${settings.companyAddress || ""}
         reply.toLowerCase().includes("enter your serial") ||
         reply.toLowerCase().includes("മോഡൽ ഏതാണ്");
 
-      const isLegitimateTroubleshooting = hasActionableTroubleshootingSteps && !isAskingQuestion;
+      const isLegitimateTroubleshooting = hasExactDocMatch && hasActionableTroubleshootingSteps && !isAskingQuestion;
+
+      // Hallucination Interceptor: If AI generated actionable troubleshooting steps but NO document matched in database,
+      // strictly suppress the hallucination and return the customer support contact block!
+      if (!hasExactDocMatch && hasActionableTroubleshootingSteps) {
+        console.warn(`[simulate-grounding-guard] Suppressed ungrounded AI troubleshooting hallucination for ${phoneNumber}: "${query}"`);
+        let supportMsg = NO_TROUBLESHOOT_ENQUIRY_MSGS[lang] || NO_TROUBLESHOOT_ENQUIRY_MSGS.en;
+        if (lang === "ml" && (meta as any).scriptPreference === "manglish") {
+          supportMsg = "Itharam aavashyangalkku dayavayi njangalude customer support-umayi bandhapaduka. Call cheyyan aagrahikkunnundengil *+91 94009 61291* enna numberil vilikkuka.";
+        }
+        return makeReply(supportMsg, [
+          getTalkToSupportButton(lang),
+          getMenuButton(lang),
+        ]);
+      }
 
       const isCheckTicketStatus =
         lowerQuery.includes("check ticket") ||

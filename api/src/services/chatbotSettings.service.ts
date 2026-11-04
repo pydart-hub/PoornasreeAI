@@ -113,7 +113,7 @@ const DEFAULT_SETTINGS: WhatsAppSupportSettings = {
 };
 
 export async function getWhatsAppSupportSettings(): Promise<WhatsAppSupportSettings> {
-  const row = await prisma.chatbotSetting.findUnique({ where: { id: "default" } });
+  const row = await prisma.chatbotSetting.findUnique({ where: { id: "default" } }).catch(() => null);
   
   let quickButtons: QuickButtonSetting[] = DEFAULT_QUICK_BUTTONS;
   try {
