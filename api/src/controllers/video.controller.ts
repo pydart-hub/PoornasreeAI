@@ -223,23 +223,9 @@ export async function getCachedVideoResources(): Promise<any[]> {
   if (cachedVideos && cachedVideos.expiresAt > now) {
     return cachedVideos.data;
   }
-  const [videoResources, engVideos] = await Promise.all([
-    prisma.videoResource.findMany({
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.engineerTrainingVideo.findMany({
-      orderBy: { createdAt: "desc" },
-    }).catch(() => []),
-  ]);
-  const mappedEngVideos = engVideos.map((ev) => ({
-    id: ev.id,
-    title: ev.title,
-    description: ev.description,
-    youtubeUrl: ev.youtubeUrl,
-    keywords: `${ev.topic || ""} ${ev.title}`.toLowerCase(),
-    isTrainingVideo: true,
-  }));
-  const data = [...videoResources, ...mappedEngVideos];
+  const data = await prisma.videoResource.findMany({
+    orderBy: { createdAt: "desc" },
+  });
   cachedVideos = { data, expiresAt: now + VIDEO_CACHE_TTL_MS };
   return data;
 }
