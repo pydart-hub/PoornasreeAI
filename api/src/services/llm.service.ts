@@ -18,6 +18,7 @@ export type LlmChatOptions = {
 const DEFAULT_GEMINI_KEYS = [
   process.env.GEMINI_API_KEY,
   process.env.GEMINI_API_KEY_SECONDARY,
+
 ].filter(Boolean) as string[];
 
 // In-memory short cache for support settings in LLM dispatcher
@@ -89,7 +90,8 @@ export async function llmChat(
 
 
 const GEMINI_MODELS = [
-  "gemini-2.0-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.8-flash",
   "gemini-1.5-flash",
 ];
 
@@ -129,7 +131,7 @@ export async function geminiChat(
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4500);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const res = await fetch(url, {
         method: "POST",
