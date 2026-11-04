@@ -191,6 +191,17 @@ export function isTechnicalIssueQuery(text: string): boolean {
 }
 
 // ── Bilingual translations (English / हिंदी) ──────────────────────────────
+export const NO_TROUBLESHOOT_ENQUIRY_MSGS: Record<Lang, string> = {
+  en: "For this type of enquiry, please contact our customer support. If you would like to give a call, please contact *+91 94009 61291*.",
+  ml: "ഇത്തരം അന്വേഷണങ്ങൾക്ക് ഞങ്ങളുടെ കസ്റ്റമർ സപ്പോർട്ടുമായി ബന്ധപ്പെടുക. ഫോൺ വിളിക്കാൻ ആഗ്രഹിക്കുന്നുവെങ്കിൽ *+91 94009 61291* എന്ന നമ്പറിൽ വിളിക്കുക.",
+  hi: "इस प्रकार की पूछताछ के लिए कृपया हमारे ग्राहक सहायता से संपर्क करें। यदि आप कॉल करना चाहते हैं, तो कृपया *+91 94009 61291* पर संपर्क करें।",
+  ta: "இந்த வகையான விசாரணைக்கு எங்கள் வாடிக்கையாளர் ஆதரவைத் தொடர்பு கொள்ளவும். நீங்கள் அழைக்க விரும்பினால், *+91 94009 61291* என்ற எண்ணைத் தொடர்பு கொள்ளவும்.",
+  kn: "ಈ ರೀತಿಯ ವಿಚಾರಣೆಗಾಗಿ ದಯವಿಟ್ಟು ನಮ್ಮ ಗ್ರಾಹಕ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ. ನೀವು ಕರೆ ಮಾಡಲು ಬಯಸಿದರೆ, ದಯವಿಟ್ಟು *+91 94009 61291* ಗೆ ಕರೆ ಮಾಡಿ.",
+  mr: "या प्रकारच्या चौकशीसाठी कृपया आमच्या ग्राहक समर्थनाशी संपर्क साधा. आपण कॉल करू इच्छित असल्यास, कृपया *+91 94009 61291* वर संपर्क साधा.",
+  te: "ఈ రకమైన విచారణ కోసం దయచేసి మా కస్టమర్ సపోర్ట్‌ను సంప్రదించండి. మీరు కాల్ చేయాలనుకుంటే, దయచేసి *+91 94009 61291* నంబర్‌ను సంప్రదించండి.",
+  bn: "এই ধরনের অনুসন্ধানের জন্য অনুগ্রহ করে আমাদের গ্রাহক সহায়তার সাথে যোগাযোগ করুন। আপনি যদি কল করতে চান, তবে অনুগ্রহ করে *+91 94009 61291* নম্বরে যোগাযোগ করুন।",
+};
+
 const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   GREETING_HEADER: {
     en: "🙏 *Welcome to Poornasree Equipments!*\nYour Trusted Service Partner 🔧\n--------------------\n\n",
@@ -565,14 +576,14 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
 ml: "ദയവായി സാധുവായ ഒരു ഉൽപ്പന്നം തിരഞ്ഞെടുക്കുക:",
   },
   NO_STEPS: {
-    en: "📝 *Complaint noted:* {complaint}\n\n😔 We were unable to find troubleshooting steps for this issue.\n\nWould you like to book a service visit? Our technician will come to your location.",
-    hi: "📝 *शिकायत नोट की गई:* {complaint}\n\n😔 इस समस्या के लिए कोई समाधान चरण नहीं मिले।\n\nक्या आप सेवा विज़िट बुक करना चाहेंगे? हमारा तकनीशियन आपके स्थान पर आएगा।",
-    ta: "📝 *புகார் குறிக்கப்பட்டது:* {complaint}\n\n😔 இந்த சிக்கலுக்கான தீர்வு படிகள் கிடைக்கவில்லை.\n\nசேவை வருகையை முன்பதிவு செய்ய விரும்புகிறீர்களா? எங்கள் தொழில்நுட்பவியலாளர் உங்கள் இடத்திற்கு வருவார்.",
-    kn: "📝 *ದೂರು ದಾಖಲಾಗಿದೆ:* {complaint}\n\n😔 ಈ ಸಮಸ್ಯೆಗಾಗಿ ಪರಿಹಾರ ಹಂತಗಳು ಕಂಡುಬಂದಿಲ್ಲ.\n\nಸೇವಾ ಭೇಟಿಯನ್ನು ಬುಕ್ ಮಾಡಲು ನೀವು ಬಯಸುವಿರಾ? ನಮ್ಮ ತಂತ್ರಜ್ಞರು ನಿಮ್ಮ ಸ್ಥಳಕ್ಕೆ ಬರುತ್ತಾರೆ.",
-    mr: "📝 *तक्रार नोंदवली:* {complaint}\n\n😔 या समस्येसाठी कोणतेही निवारण चरण सापडले नाहीत.\n\nतुम्ही सेवा भेट बुक करू इच्छिता का? आमचे तंत्रज्ञ तुमच्या ठिकाणी येतील.",
-    te: "📝 *ఫిర్యాదు నమోదు చేయబడింది:* {complaint}\n\n😔 ఈ సమస్య కోసం పరిష్కార దశలు కనుగొనబడలేదు.\n\nమీరు సేవా సందర్శనను బుక్ చేయాలనుకుంటున్నారా? మా సాంకేతిక నిపుణుడు మీ స్థానానికి వస్తాడు.",
-    bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\n😔 এই সমস্যার জন্য কোনও সমাধান পদক্ষেপ পাওয়া যায়নি।\n\nআপনি কি পরিষেবা পরিদর্শন বুক করতে চান? আমাদের প্রযুক্তিবিদ আপনার স্থানে আসবেন।",
-    ml: "📝 *പരാതി രേഖപ്പെടുത്തി:* {complaint}\n\n😔 ഈ പ്രശ്നത്തിന് ട്രബിൾഷൂട്ടിംഗ് ഘട്ടങ്ങൾ കണ്ടെത്താനായില്ല.\n\nഒരു സർവീസ് സന്ദർശനം ബുക്ക് ചെയ്യാൻ ആഗ്രഹിക്കുന്നുണ്ടോ? ഞങ്ങളുടെ ടെക്നീഷ്യൻ നിങ്ങളുടെ സ്ഥലത്ത് എത്തും.",
+    en: "📝 *Complaint noted:* {complaint}\n\nFor this type of enquiry, please contact our customer support. If you would like to give a call, please contact *+91 94009 61291*.",
+    hi: "📝 *शिकायत नोट की गई:* {complaint}\n\nइस प्रकार की पूछताछ के लिए कृपया हमारे ग्राहक सहायता से संपर्क करें। यदि आप कॉल करना चाहते हैं, तो कृपया *+91 94009 61291* पर संपर्क करें।",
+    ta: "📝 *புகார் குறிக்கப்பட்டது:* {complaint}\n\nஇந்த வகையான விசாரணைக்கு எங்கள் வாடிக்கையாளர் ஆதரவைத் தொடர்பு கொள்ளவும். நீங்கள் அழைக்க விரும்பினால், *+91 94009 61291* என்ற எண்ணைத் தொடர்பு கொள்ளவும்.",
+    kn: "📝 *ದೂರು ದಾಖಲಾಗಿದೆ:* {complaint}\n\nಈ ರೀತಿಯ ವಿಚಾರಣೆಗಾಗಿ ದಯವಿಟ್ಟು ನಮ್ಮ ಗ್ರಾಹಕ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ. ನೀವು ಕರೆ ಮಾಡಲು ಬಯಸಿದರೆ, ದಯವಿಟ್ಟು *+91 94009 61291* ಗೆ ಕರೆ ಮಾಡಿ.",
+    mr: "📝 *तक्रार नोंदवली:* {complaint}\n\nया प्रकारच्या चौकशीसाठी कृपया आमच्या ग्राहक समर्थनाशी संपर्क साधा. आपण कॉल करू इच्छित असल्यास, कृपया *+91 94009 61291* वर संपर्क साधा.",
+    te: "📝 *ఫిర్యాదు నమోదు చేయబడింది:* {complaint}\n\nఈ రకమైన విచారణ కోసం దయచేసి మా కస్టమర్ సపోర్ట్‌ను సంప్రదించండి. మీరు కాల్ చేయాలనుకుంటే, దయచేసి *+91 94009 61291* నంబర్‌ను సంప్రదించండి.",
+    bn: "📝 *অভিযোগ নোট করা হয়েছে:* {complaint}\n\nএই ধরনের অনুসন্ধানের জন্য অনুগ্রহ করে আমাদের গ্রাহক সহায়তার সাথে যোগাযোগ করুন। আপনি যদি কল করতে চান, তবে অনুগ্রহ করে *+91 94009 61291* নম্বরে যোগাযোগ করুন।",
+    ml: "📝 *പരാതി രേഖപ്പെടുത്തി:* {complaint}\n\nഇത്തരം അന്വേഷണങ്ങൾക്ക് ഞങ്ങളുടെ കസ്റ്റമർ സപ്പോർട്ടുമായി ബന്ധപ്പെടുക. ഫോൺ വിളിക്കാൻ ആഗ്രഹിക്കുന്നുവെങ്കിൽ *+91 94009 61291* എന്ന നമ്പറിൽ വിളിക്കുക.",
   },
   ISSUE_RESOLVED: {
     en: "🎉 *Issue Resolved!*\n\nWe're glad the troubleshooting helped! 😊\n\nThank you for choosing Poornasree Support. 🙏",
@@ -1174,6 +1185,20 @@ function getNotResolvedButton(lang: Lang): ReplyButton {
     ml: "ഇല്ല, പരിഹരിച്ചില്ല ❌",
   };
   return { id: "NOT_RESOLVED", title: labels[lang] || labels.en };
+}
+
+function getTalkToSupportButton(lang: Lang): ReplyButton {
+  const labels: Record<Lang, string> = {
+    en: "🎧 Talk to Support",
+    hi: "🎧 सपोर्ट से बात करें",
+    ta: "🎧 ஆதரவிடம் பேசுங்கள்",
+    kn: "🎧 ಬೆಂಬಲದೊಂದಿಗೆ ಮಾತನಾಡಿ",
+    mr: "🎧 सपोर्टशी बोला",
+    te: "🎧 మద్దతుతో మాట్లాడండి",
+    bn: "🎧 সহায়তার সাথে কথা বলুন",
+    ml: "🎧 സപ്പോർട്ടുമായി സംസാരിക്കുക",
+  };
+  return { id: "TALK_TO_SUPPORT", title: labels[lang] || labels.en };
 }
 
 function getBookServiceButton(lang: Lang): ReplyButton {
@@ -1897,20 +1922,20 @@ export async function handleMessage(
       );
     } else {
       const noVideoAck: Record<Lang, string> = {
-        en: `📺 We currently don't have a direct video tutorial for this specific issue.\n\nWould you like to book a service visit with our technician or speak with our support team?`,
-        ml: `📺 ഈ പ്രശ്നത്തിന് നിലവിൽ പ്രത്യേക വീഡിയോ ലഭ്യമല്ല.\n\nഞങ്ങളുടെ ടെക്നീഷ്യന്റെ സേവനം ബുക്ക് ചെയ്യണോ അതോ സപ്പോർട്ട് ടീമുമായി സംസാരിക്കണോ?`,
-        hi: `📺 इस विशिष्ट समस्या के लिए वर्तमान में कोई वीडियो उपलब्ध नहीं है।\n\nक्या आप तकनीशियन सेवा बुक करना चाहते हैं या हमारी सपोर्ट टीम से बात करना चाहते हैं?`,
-        ta: `📺 இந்த பிரச்சனைக்கு தற்போது வீடியோ கிடைக்கவில்லை.\n\nதொழில்நுட்ப வல்லுநரை முன்பதிவு செய்ய விரும்புகிறீர்களா?`,
-        kn: `📺 ಈ ಸಮಸ್ಯೆಗೆ ಪ್ರಸ್ತುತ ಯಾವುದೇ ವೀಡಿಯೊ ಲಭ್ಯವಿಲ್ಲ.\n\nನೀವು ತಂತ್ರಜ್ಞರ ಸೇವೆಯನ್ನು ಬುಕ್ ಮಾಡಲು ಬಯಸುವಿರಾ?`,
-        mr: `📺 या समस्येसाठी सध्या कोणताही व्हिडिओ उपलब्ध नाही.\n\nतुम्ही तंत्रज्ञ सेवा बुक करू इच्छिता का?`,
-        te: `📺 ఈ సమస్యకు ప్రస్తుతం వీడియో అందుబాటులో లేదు.\n\nమీరు టెక్నీషియన్ సర్వీస్ బుక్ చేయాలనుకుంటున్నారా?`,
-        bn: `📺 এই নির্দিষ্ট সমস্যার জন্য বর্তমানে কোনো ভিডিও উপলব্ধ নেই।\n\nআপনি কি টেকনিশিয়ান সার্ভিস বুক করতে চান?`,
+        en: `📺 We currently don't have a direct video tutorial for this specific issue.\n\nFor this type of enquiry, please contact our customer support. If you would like to give a call, please contact *+91 94009 61291*.`,
+        ml: `📺 ഈ പ്രശ്നത്തിന് നിലവിൽ പ്രത്യേക വീഡിയോ ലഭ്യമല്ല.\n\nഇത്തരം അന്വേഷണങ്ങൾക്ക് ഞങ്ങളുടെ കസ്റ്റമർ സപ്പോർട്ടുമായി ബന്ധപ്പെടുക. ഫോൺ വിളിക്കാൻ ആഗ്രഹിക്കുന്നുവെങ്കിൽ *+91 94009 61291* എന്ന നമ്പറിൽ വിളിക്കുക.`,
+        hi: `📺 इस विशिष्ट समस्या के लिए वर्तमान में कोई वीडियो उपलब्ध नहीं है।\n\nइस प्रकार की पूछताछ के लिए कृपया हमारे ग्राहक सहायता से संपर्क करें। यदि आप कॉल करना चाहते हैं, तो कृपया *+91 94009 61291* पर संपर्क करें।`,
+        ta: `📺 இந்த பிரச்சனைக்கு தற்போது வீடியோ கிடைக்கவில்லை.\n\nஇந்த வகையான விசாரணைக்கு எங்கள் வாடிக்கையாளர் ஆதரவைத் தொடர்பு கொள்ளவும். நீங்கள் அழைக்க விரும்பினால், *+91 94009 61291* என்ற எண்ணைத் தொடர்பு கொள்ளவும்.`,
+        kn: `📺 ಈ ಸಮಸ್ಯೆಗೆ ಪ್ರಸ್ತುತ ಯಾವುದೇ ವೀಡಿಯೊ ಲಭ್ಯವಿಲ್ಲ.\n\nಈ ರೀತಿಯ ವಿಚಾರಣೆಗಾಗಿ ದಯವಿಟ್ಟು ನಮ್ಮ ಗ್ರಾಹಕ ಬೆಂಬಲವನ್ನು ಸಂಪರ್ಕಿಸಿ. ನೀವು ಕರೆ ಮಾಡಲು ಬಯಸಿದರೆ, ದಯವಿಟ್ಟು *+91 94009 61291* ಗೆ ಕರೆ ಮಾಡಿ.`,
+        mr: `📺 या समस्येसाठी सध्या कोणताही व्हिडिओ उपलब्ध नाही.\n\nया प्रकारच्या चौकशीसाठी कृपया आमच्या ग्राहक समर्थनाशी संपर्क साधा. आपण कॉल करू इच्छित असल्यास, कृपया *+91 94009 61291* वर संपर्क साधा.`,
+        te: `📺 ఈ సమస్యకు ప్రస్తుతం వీడియో అందుబాటులో లేదు.\n\nఈ రకమైన విచారణ కోసం దయచేసి మా కస్టమర్ సపోర్ట్‌ను సంప్రదించండి. మీరు కాల్ చేయాలనుకుంటే, దయచేసి *+91 94009 61291* నంబర్‌ను సంప్రదించండి.`,
+        bn: `📺 এই নির্দিষ্ট সমস্যার জন্য বর্তমানে কোনো ভিডিও উপলব্ধ নেই।\n\nএই ধরনের অনুসন্ধানের জন্য অনুগ্রহ করে আমাদের গ্রাহক সহায়তার সাথে যোগাযোগ করুন। আপনি যদি কল করতে চান, তবে অনুগ্রহ করে *+91 94009 61291* নম্বরে যোগাযোগ করুন।`,
       };
 
       return makeReply(
         noVideoAck[lang] || noVideoAck.en,
         [
-          getBookServiceButton(lang),
+          getTalkToSupportButton(lang),
           getMenuButton(lang),
         ]
       );
@@ -4278,7 +4303,8 @@ export async function runGroqCompanyAssistant(
     : `11. UNCATALOGED COMPLAINT RULE (NO DOCUMENT MATCHED):
     - This customer issue/complaint is NOT covered in our official troubleshooting documents.
     - DO NOT hallucinate, invent, or make up ANY troubleshooting steps.
-    - Politely inform the customer in 1 natural sentence in their exact language/script that their issue has been logged for technical review, and advise them to book a technician service visit. Do not output checklists or troubleshooting numbers.`;
+    - NEVER say that you or the chatbot is facing an error, technical difficulty, or temporary issue.
+    - Politely inform the customer in their exact language/script: "For this type of enquiry, please contact our customer support. If you would like to give a call, please contact +91 94009 61291." Do not output checklists or troubleshooting numbers.`;
 
   const resolvedLang = lang || "en";
   const preferredScript = (meta as any).scriptPreference || (resolvedLang === "ml" ? "native" : "default");
@@ -4587,6 +4613,12 @@ ${settings.companyAddress || ""}
       } else if (isAskingQuestion && (inComplaintOrTroubleshootState || isServiceIntent)) {
         // When asking for clarifying info like machine model during complaint/troubleshooting
         buttons = [getMenuButton(buttonLang)];
+      } else if ((inComplaintOrTroubleshootState || isServiceIntent) && !isLegitimateTroubleshooting) {
+        // Service issue/enquiry with no actionable troubleshooting steps: offer Talk to Support and Main Menu
+        buttons = [
+          getTalkToSupportButton(buttonLang),
+          getMenuButton(buttonLang),
+        ];
       } else if (isProductIntent) {
         buttons = [
           { id: "VIEW_PRODUCTS", title: "📦 Browse Products" },
@@ -4626,6 +4658,22 @@ ${settings.companyAddress || ""}
         isServiceIntent ||
         isHowToOrMaintenance ||
         inComplaintOrTroubleshootState;
+
+      if ((inComplaintOrTroubleshootState || isServiceIntent) && !isLegitimateTroubleshooting && !isAskingQuestion) {
+        if (!finalReply.includes("94009") && !finalReply.includes("9400961291")) {
+          const supportFooter: Record<Lang, string> = {
+            en: "\n\n📞 *Customer Support:* +91 94009 61291",
+            ml: "\n\n📞 *കസ്റ്റമർ സപ്പോർട്ട്:* +91 94009 61291",
+            hi: "\n\n📞 *कस्टमर सपोर्ट:* +91 94009 61291",
+            ta: "\n\n📞 *வாடிக்கையாளர் ஆதரவு:* +91 94009 61291",
+            kn: "\n\n📞 *ಗ್ರಾಹಕ ಬೆಂಬಲ:* +91 94009 61291",
+            mr: "\n\n📞 *ग्राहक सपोर्ट:* +91 94009 61291",
+            te: "\n\n📞 *కస్టమర్ సపోర్ట్:* +91 94009 61291",
+            bn: "\n\n📞 *কাস্টমার সাপোর্ট:* +91 94009 61291",
+          };
+          finalReply += supportFooter[buttonLang] || supportFooter.en;
+        }
+      }
 
       if (shouldCheckVideo) {
         try {
@@ -4679,11 +4727,9 @@ ${settings.companyAddress || ""}
     console.error("[groq-company-assistant] Fallback error:", err);
   }
 
-  // Fallback if AI assistant is temporarily unavailable
-  const fallbackMsg = lang === "ml"
-    ? "⚠️ ക്ഷമിക്കണം, സാങ്കേതിക തകരാർ കാരണം ഇപ്പോൾ മറുപടി നൽകാൻ സാധിച്ചില്ല. ഞങ്ങളുടെ സപ്പോർട്ട് ടീം ഉടൻ നിങ്ങളെ സഹായിക്കും അല്ലെങ്കിൽ താഴെയുള്ള മെനുവിൽ നിന്ന് തിരഞ്ഞെടുക്കുക."
-    : "⚠️ Sorry, our AI assistant encountered a temporary issue. Our support team can assist you, or please choose an option below.";
-  return makeReply(fallbackMsg, undefined, await getContextualMainMenuList(phoneNumber, lang));
+  // Fallback if AI assistant is temporarily unavailable or enquiry cannot be resolved
+  const fallbackMsg = NO_TROUBLESHOOT_ENQUIRY_MSGS[lang] || NO_TROUBLESHOOT_ENQUIRY_MSGS.en;
+  return makeReply(fallbackMsg, [getTalkToSupportButton(lang), getMenuButton(lang)]);
 }
 
 
