@@ -87,8 +87,8 @@ export const env = {
   CHATBOT_MODE: (process.env.CHATBOT_MODE === "groq" ? "groq" : "legacy_fsm") as
     | "groq"
     | "legacy_fsm",
-  GROQ_MODEL_FAST: optional("GROQ_MODEL_FAST", "llama-3.1-8b-instant"),
-  GROQ_MODEL_AGENT: optional("GROQ_MODEL_AGENT", "llama-3.3-70b-versatile"),
+  GROQ_MODEL_FAST: optional("GROQ_MODEL_FAST", "openai/gpt-oss-20b"),
+  GROQ_MODEL_AGENT: optional("GROQ_MODEL_AGENT", "openai/gpt-oss-120b"),
   GROQ_MAX_TOKENS_REPLY: parseInt(optional("GROQ_MAX_TOKENS_REPLY", "600"), 10),
 
   // ── Public OTP endpoint security ────────────────────────────────────────

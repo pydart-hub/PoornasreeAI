@@ -76,6 +76,9 @@ const DOMAIN_SYNONYMS: Record<string, string[]> = {
   scale: ["weighing", "weight", "weighing scale"],
   weighing: ["scale", "weight", "weighing scale"],
   weight: ["scale", "weighing", "weighing scale"],
+  setting: ["settings", "configuration", "setup"],
+  settings: ["setting", "configuration", "setup"],
+  setup: ["setting", "settings", "configuration"],
 };
 
 export function normalizeStem(word: string): string {
@@ -286,13 +289,28 @@ export async function findVideosForContext(
         const scoreQ = normQ ? scoreVideoMatch(normQ, v.title, v.keywords) : 0;
         const scoreComb = combined && combined !== normQ ? scoreVideoMatch(combined, v.title, v.keywords) : 0;
         const scoreCtx = normCtx && normCtx !== normQ ? scoreVideoMatch(normCtx, v.title, v.keywords) : 0;
+
+        // If current query has a direct substantive match (scoreQ >= 30), prioritize scoreQ.
+        // If current query is generic or follow-up ("is there any video?", "steps"), use context.
+        let finalScore = scoreQ;
+        if (scoreQ >= 30) {
+          finalScore = Math.max(scoreQ, scoreComb);
+        } else {
+          finalScore = Math.max(scoreComb, scoreCtx * 0.8);
+        }
+
         return {
           video: v,
-          score: Math.max(scoreQ, scoreComb, scoreCtx),
+          score: finalScore,
+          scoreQ,
         };
       })
       .filter((s) => s.score >= 30)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => {
+        if (a.scoreQ >= 30 && b.scoreQ < 30) return -1;
+        if (b.scoreQ >= 30 && a.scoreQ < 30) return 1;
+        return b.score - a.score;
+      });
 
     if (scored.length > 0) {
       return scored.slice(0, limit).map((s) => ({

@@ -72,7 +72,7 @@ export const SETTING_DEFINITIONS: SettingDefinition[] = [
     description: "Used for catalog matching / JSON selection.",
     category: "groq",
     isSecret: false,
-    defaultValue: "llama-3.1-8b-instant",
+    defaultValue: "openai/gpt-oss-20b",
   },
   {
     key: "GROQ_MODEL_AGENT",
@@ -80,7 +80,7 @@ export const SETTING_DEFINITIONS: SettingDefinition[] = [
     description: "Used for natural WhatsApp replies.",
     category: "groq",
     isSecret: false,
-    defaultValue: "llama-3.3-70b-versatile",
+    defaultValue: "openai/gpt-oss-120b",
   },
   {
     key: "GROQ_MAX_TOKENS_REPLY",
@@ -511,8 +511,8 @@ export async function updateSettings(
 /** Convenience typed getters used across the app. */
 export const runtime = {
   groqApiKey: () => cfg("GROQ_API_KEY"),
-  groqModelFast: () => cfg("GROQ_MODEL_FAST") || "llama-3.1-8b-instant",
-  groqModelAgent: () => cfg("GROQ_MODEL_AGENT") || "llama-3.3-70b-versatile",
+  groqModelFast: () => cfg("GROQ_MODEL_FAST") || "openai/gpt-oss-20b",
+  groqModelAgent: () => cfg("GROQ_MODEL_AGENT") || "openai/gpt-oss-120b",
   groqMaxTokensReply: () => {
     const n = parseInt(cfg("GROQ_MAX_TOKENS_REPLY") || "600", 10);
     return Number.isFinite(n) && n > 0 ? n : 600;

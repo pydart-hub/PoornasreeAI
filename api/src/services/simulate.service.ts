@@ -4591,7 +4591,35 @@ ${settings.companyAddress || ""}
 
       // If this is a machine complaint or troubleshooting reply, check for a matching troubleshooting video
       let finalReply = reply.trim();
-      if (isLegitimateTroubleshooting || (isServiceIntent && hasActionableTroubleshootingSteps)) {
+      const isHowToOrMaintenance =
+        lowerQuery.includes("clean") ||
+        lowerQuery.includes("wash") ||
+        lowerQuery.includes("maint") ||
+        lowerQuery.includes("chart") ||
+        lowerQuery.includes("scale") ||
+        lowerQuery.includes("weigh") ||
+        lowerQuery.includes("calibrat") ||
+        lowerQuery.includes("setting") ||
+        lowerQuery.includes("setup") ||
+        lowerQuery.includes("install") ||
+        lowerQuery.includes("vibro") ||
+        lowerQuery.includes("stirrer") ||
+        lowerQuery.includes("sensor") ||
+        lowerQuery.includes("display") ||
+        lowerQuery.includes("motor") ||
+        lowerQuery.includes("power") ||
+        lowerQuery.includes("error") ||
+        lowerQuery.includes("problem") ||
+        lowerQuery.includes("leak") ||
+        lowerQuery.includes("noise");
+
+      const shouldCheckVideo =
+        isLegitimateTroubleshooting ||
+        isServiceIntent ||
+        isHowToOrMaintenance ||
+        inComplaintOrTroubleshootState;
+
+      if (shouldCheckVideo) {
         try {
           // Find a video genuinely matching the CURRENT query only
           const contextQuery = meta.lastIssueQuery || meta.complaint;
@@ -4606,6 +4634,15 @@ ${settings.companyAddress || ""}
               title: matchingVideos[0].title,
               youtubeUrl: matchingVideos[0].youtubeUrl,
             };
+
+            // If buttons were only [Main Menu] but a troubleshooting video was attached, provide feedback buttons
+            if (!meta.isEngineer && (!buttons || buttons.length <= 1)) {
+              buttons = [
+                getYesResolvedButton(buttonLang),
+                getNotResolvedButton(buttonLang),
+                getMenuButton(buttonLang),
+              ];
+            }
           } else {
             // No video match for current query: ALWAYS clear previous video so it NEVER leaks to future turns!
             meta.lastTroubleshootVideo = undefined;
