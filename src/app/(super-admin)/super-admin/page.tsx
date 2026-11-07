@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Activity,
   Eye,
   EyeOff,
   KeyRound,
@@ -18,6 +19,9 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { Avatar, LoadingScreen, ResponsiveSidebar, SidebarBrand } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/useMediaQuery";
+import SystemHealthTab from "@/components/super-admin/SystemHealthTab";
+
+type ActiveTab = "keys" | "health";
 
 type SettingRow = {
   key: string;
@@ -45,6 +49,7 @@ export default function SuperAdminPage() {
   const isMobile = useIsMobile();
   const { user, isLoading, logout } = useAuth();
 
+  const [activeTab, setActiveTab] = useState<ActiveTab>("health");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settings, setSettings] = useState<SettingRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -60,7 +65,7 @@ export default function SuperAdminPage() {
     if (isMobile) setSidebarOpen(false);
   }, [isMobile]);
 
-  // Same auth pattern as Admin / other dashboards — shared /login screen
+  // Auth guard — super_admin only
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
     if (!isLoading && user && user.role !== "super_admin") router.replace("/login");
@@ -200,8 +205,23 @@ export default function SuperAdminPage() {
     return <LoadingScreen message="Redirecting..." />;
   }
 
+  // ── Nav items ──────────────────────────────────────────────────────────
+  const navItems: { key: ActiveTab; label: string; icon: React.ReactNode }[] = [
+    {
+      key: "health",
+      label: "System Health",
+      icon: <Activity className="w-4 h-4 shrink-0" />,
+    },
+    {
+      key: "keys",
+      label: "API Keys",
+      icon: <KeyRound className="w-4 h-4 shrink-0" />,
+    },
+  ];
+
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-slate-100">
+      {/* ── Sidebar ── */}
       <ResponsiveSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} width={260} miniWidth={68}>
         <div className="flex flex-col h-full bg-primary-900 text-white">
           <SidebarBrand title="Super Admin" compact className="border-white/10" showText={sidebarOpen} />
@@ -213,17 +233,23 @@ export default function SuperAdminPage() {
                   System
                 </p>
               )}
-              <button
-                type="button"
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
-                  "bg-white/20 text-white font-semibold",
-                  !sidebarOpen && "justify-center",
-                )}
-              >
-                <KeyRound className="w-3.5 h-3.5 shrink-0" />
-                {sidebarOpen && <span>API Keys</span>}
-              </button>
+              {navItems.map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className={cn(
+                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                    activeTab === key
+                      ? "bg-white/20 text-white font-semibold"
+                      : "text-white/60 hover:text-white hover:bg-white/10",
+                    !sidebarOpen && "justify-center",
+                  )}
+                >
+                  {icon}
+                  {sidebarOpen && <span className="flex-1 text-left truncate">{label}</span>}
+                </button>
+              ))}
             </div>
           </nav>
 
@@ -254,8 +280,10 @@ export default function SuperAdminPage() {
         </div>
       </ResponsiveSidebar>
 
+      {/* ── Main content ── */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden bg-slate-100">
         <main className="flex-1 overflow-y-auto scrollbar-thin">
+          {/* ── Header ── */}
           <div className="shrink-0 bg-gradient-to-r from-primary-900 via-primary-800 to-primary-900 px-4 sm:px-6 pt-3 pb-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -274,25 +302,29 @@ export default function SuperAdminPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => load()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                  title="Reload"
-                >
-                  <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                  <span className="hidden sm:inline">Reload</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImportEnv}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                  title="Copy all current .env keys into the dashboard"
-                >
-                  <KeyRound className="w-4 h-4" />
-                  <span className="hidden sm:inline">Import from env</span>
-                </button>
+                {activeTab === "keys" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => load()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                      title="Reload"
+                    >
+                      <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
+                      <span className="hidden sm:inline">Reload</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleImportEnv}
+                      disabled={saving}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                      title="Copy all current .env keys into the dashboard"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                      <span className="hidden sm:inline">Import from env</span>
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -304,6 +336,7 @@ export default function SuperAdminPage() {
               </div>
             </div>
 
+            {/* Stats row */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               <div className="bg-white/15 rounded-2xl px-4 py-3.5 border border-white/25 shadow-inner">
                 <div className="flex items-start justify-between">
@@ -337,167 +370,197 @@ export default function SuperAdminPage() {
                 </p>
               </div>
             </div>
+
+            {/* Tab switcher pills */}
+            <div className="flex gap-1.5 mt-4">
+              {navItems.map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors",
+                    activeTab === key
+                      ? "bg-white text-primary-900"
+                      : "bg-white/15 text-white/70 hover:bg-white/25 hover:text-white",
+                  )}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* ── Tab Content ── */}
           <div className="p-4 sm:p-6 space-y-4">
-            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-50">
-              <div className="flex items-start gap-2">
-                <KeyRound className="w-4 h-4 mt-0.5 text-amber-700 shrink-0" />
-                <div className="text-sm text-slate-800">
-                  <p className="font-medium">Configure API keys here instead of editing server `.env`.</p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    {note || "DATABASE_URL and JWT_SECRET stay in environment variables for boot safety."}
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Sign in with the shared login screen using{" "}
-                    <span className="font-mono">superadmin@poornasree.com</span>.
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {success && <p className="text-sm text-emerald-600">{success}</p>}
+            {/* ── Health Tab ── */}
+            {activeTab === "health" && <SystemHealthTab />}
 
-            {loading ? (
-              <div className="py-16 flex justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-              </div>
-            ) : (
-              <form onSubmit={handleSave} className="space-y-4 pb-20">
-                {grouped.map(([category, rows]) => (
-                  <section
-                    key={category}
-                    className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm"
-                  >
-                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-                      <h2 className="text-sm font-semibold text-slate-800">
-                        {CATEGORY_LABELS[category] ?? category}
-                      </h2>
+            {/* ── API Keys Tab ── */}
+            {activeTab === "keys" && (
+              <>
+                <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-50">
+                  <div className="flex items-start gap-2">
+                    <KeyRound className="w-4 h-4 mt-0.5 text-amber-700 shrink-0" />
+                    <div className="text-sm text-slate-800">
+                      <p className="font-medium">Configure API keys here instead of editing server `.env`.</p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        {note || "DATABASE_URL and JWT_SECRET stay in environment variables for boot safety."}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Sign in with the shared login screen using{" "}
+                        <span className="font-mono">superadmin@poornasree.com</span>.
+                      </p>
                     </div>
-                    <div className="divide-y divide-slate-100">
-                      {rows.map((row) => (
-                        <div key={row.key} className="px-4 py-4 space-y-2">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-medium text-slate-900">{row.label}</p>
-                              <p className="text-xs text-slate-500 mt-0.5">{row.description}</p>
-                              <p className="text-[10px] font-mono text-slate-400 mt-1">
-                                {row.key}
-                                {row.storedInDb ? " · stored in DB" : " · env fallback"}
-                                {row.isSet ? " · set" : " · empty"}
-                              </p>
-                            </div>
-                            {row.isSecret && row.isSet && (
-                              <button
-                                type="button"
-                                className="text-[11px] text-red-600 hover:underline"
-                                onClick={() => {
-                                  setClearSecrets((prev) => new Set(prev).add(row.key));
-                                  setDrafts((d) => ({ ...d, [row.key]: "" }));
-                                }}
-                              >
-                                Clear secret
-                              </button>
-                            )}
-                          </div>
+                  </div>
+                </div>
 
-                          {row.options ? (
-                            <select
-                              value={drafts[row.key] ?? row.value}
-                              onChange={(e) =>
-                                setDrafts((d) => ({ ...d, [row.key]: e.target.value }))
-                              }
-                              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                            >
-                              {row.options.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <div className="relative">
-                              <input
-                                type={
-                                  row.isSecret && !showSecrets[row.key] ? "password" : "text"
-                                }
-                                value={
-                                  row.isSecret
-                                    ? clearSecrets.has(row.key)
-                                      ? ""
-                                      : drafts[row.key] ?? ""
-                                    : drafts[row.key] ?? ""
-                                }
-                                placeholder={
-                                  row.isSecret
-                                    ? row.isSet && !clearSecrets.has(row.key)
-                                      ? row.value || "••••••••"
-                                      : "Paste new secret…"
-                                    : ""
-                                }
-                                onChange={(e) => {
-                                  setClearSecrets((prev) => {
-                                    const next = new Set(prev);
-                                    next.delete(row.key);
-                                    return next;
-                                  });
-                                  setDrafts((d) => ({ ...d, [row.key]: e.target.value }));
-                                }}
-                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm font-mono"
-                                autoComplete="off"
-                              />
-                              {row.isSecret && (
-                                <button
-                                  type="button"
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400"
-                                  onClick={() =>
-                                    setShowSecrets((s) => ({
-                                      ...s,
-                                      [row.key]: !s[row.key],
-                                    }))
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                {success && <p className="text-sm text-emerald-600">{success}</p>}
+
+                {loading ? (
+                  <div className="py-16 flex justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                  </div>
+                ) : (
+                  <form onSubmit={handleSave} className="space-y-4 pb-20">
+                    {grouped.map(([category, rows]) => (
+                      <section
+                        key={category}
+                        className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm"
+                      >
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                          <h2 className="text-sm font-semibold text-slate-800">
+                            {CATEGORY_LABELS[category] ?? category}
+                          </h2>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {rows.map((row) => (
+                            <div key={row.key} className="px-4 py-4 space-y-2">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-medium text-slate-900">{row.label}</p>
+                                  <p className="text-xs text-slate-500 mt-0.5">{row.description}</p>
+                                  <p className="text-[10px] font-mono text-slate-400 mt-1">
+                                    {row.key}
+                                    {row.storedInDb ? " · stored in DB" : " · env fallback"}
+                                    {row.isSet ? " · set" : " · empty"}
+                                  </p>
+                                </div>
+                                {row.isSecret && row.isSet && (
+                                  <button
+                                    type="button"
+                                    className="text-[11px] text-red-600 hover:underline"
+                                    onClick={() => {
+                                      setClearSecrets((prev) => new Set(prev).add(row.key));
+                                      setDrafts((d) => ({ ...d, [row.key]: "" }));
+                                    }}
+                                  >
+                                    Clear secret
+                                  </button>
+                                )}
+                              </div>
+
+                              {row.options ? (
+                                <select
+                                  value={drafts[row.key] ?? row.value}
+                                  onChange={(e) =>
+                                    setDrafts((d) => ({ ...d, [row.key]: e.target.value }))
                                   }
+                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                                 >
-                                  {showSecrets[row.key] ? (
-                                    <EyeOff className="w-4 h-4" />
-                                  ) : (
-                                    <Eye className="w-4 h-4" />
+                                  {row.options.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="relative">
+                                  <input
+                                    type={
+                                      row.isSecret && !showSecrets[row.key] ? "password" : "text"
+                                    }
+                                    value={
+                                      row.isSecret
+                                        ? clearSecrets.has(row.key)
+                                          ? ""
+                                          : drafts[row.key] ?? ""
+                                        : drafts[row.key] ?? ""
+                                    }
+                                    placeholder={
+                                      row.isSecret
+                                        ? row.isSet && !clearSecrets.has(row.key)
+                                          ? row.value || "••••••••"
+                                          : "Paste new secret…"
+                                        : ""
+                                    }
+                                    onChange={(e) => {
+                                      setClearSecrets((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(row.key);
+                                        return next;
+                                      });
+                                      setDrafts((d) => ({ ...d, [row.key]: e.target.value }));
+                                    }}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm font-mono"
+                                    autoComplete="off"
+                                  />
+                                  {row.isSecret && (
+                                    <button
+                                      type="button"
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400"
+                                      onClick={() =>
+                                        setShowSecrets((s) => ({
+                                          ...s,
+                                          [row.key]: !s[row.key],
+                                        }))
+                                      }
+                                    >
+                                      {showSecrets[row.key] ? (
+                                        <EyeOff className="w-4 h-4" />
+                                      ) : (
+                                        <Eye className="w-4 h-4" />
+                                      )}
+                                    </button>
                                   )}
-                                </button>
+                                </div>
+                              )}
+                              {row.isSecret && (
+                                <p className="text-[11px] text-slate-500">
+                                  Leave blank to keep the existing secret. Paste a new value to replace it.
+                                </p>
                               )}
                             </div>
-                          )}
-                          {row.isSecret && (
-                            <p className="text-[11px] text-slate-500">
-                              Leave blank to keep the existing secret. Paste a new value to replace it.
-                            </p>
-                          )}
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
+                      </section>
+                    ))}
 
-                <div className="sticky bottom-4 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving || dirtyCount === 0}
-                    className={cn(
-                      "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg",
-                      dirtyCount === 0
-                        ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                        : "bg-primary-700 text-white hover:bg-primary-800",
-                    )}
-                  >
-                    {saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    Save {dirtyCount > 0 ? `(${dirtyCount})` : "changes"}
-                  </button>
-                </div>
-              </form>
+                    <div className="sticky bottom-4 flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={saving || dirtyCount === 0}
+                        className={cn(
+                          "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg",
+                          dirtyCount === 0
+                            ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                            : "bg-primary-700 text-white hover:bg-primary-800",
+                        )}
+                      >
+                        {saving ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4" />
+                        )}
+                        Save {dirtyCount > 0 ? `(${dirtyCount})` : "changes"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </>
             )}
           </div>
         </main>

@@ -8,6 +8,7 @@ import {
   patchSystemSettings,
   reloadSystemSettings,
   importEnvSystemSettings,
+  getSystemHealth,
 } from "../controllers/superAdmin.controller";
 
 const router = Router();
@@ -19,5 +20,6 @@ router.get("/settings", getSystemSettings);
 router.patch("/settings", patchSystemSettings);
 router.post("/settings/reload", reloadSystemSettings);
 router.post("/settings/import-env", importEnvSystemSettings);
+router.get("/health", getSystemHealth);
 
 export default router;
