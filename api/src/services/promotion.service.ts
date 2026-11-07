@@ -100,13 +100,13 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     sampleValues: ["Anand", "DPST Milk Analyzer", "30th November 2026"],
   },
   {
-    id: "promo_festive_celebration_v1",
-    name: "promo_festive_celebration_v1",
+    id: "promo_festive_celebration_v2",
+    name: "promo_festive_celebration_v2",
     title: "Festive Season Celebration",
     category: "MARKETING",
     badge: "Festival",
-    description: "Celebrate Diwali, Onam, New Year, or local festivals with greetings and bundled gifts.",
-    headerType: "NONE",
+    description: "Celebrate Diwali, Onam, New Year, or local festivals with greetings, custom banner image, and bundled gifts.",
+    headerType: "IMAGE",
     bodyText: "Festive Greetings {{1}}! ✨\n\nCelebrate this festive season with special discounts from Poornasree Equipments!\n\nSpecial Festive Deal: {{2}}\n\nValid until {{3}}. Wishing you prosperity and success!",
     footerText: "Poornasree Equipments",
     variables: [
@@ -443,19 +443,36 @@ export async function sendPromotionBroadcast(params: BroadcastPromotionParams) {
     throw new Error("No recipients selected");
   }
 
-  // Resolve template definition
-  const templateDef = PROMOTION_TEMPLATES.find((t) => t.name === templateName);
+  // Support version aliasing (_v1 <-> _v2)
+  const v2Candidate = templateName.endsWith("_v1") ? templateName.replace(/_v1$/, "_v2") : templateName;
+  const v1Candidate = templateName.endsWith("_v2") ? templateName.replace(/_v2$/, "_v1") : templateName;
+
+  // Resolve template definition from catalogue
+  const templateDef =
+    PROMOTION_TEMPLATES.find((t) => t.name === templateName || t.id === templateName) ||
+    PROMOTION_TEMPLATES.find((t) => t.name === v2Candidate || t.id === v2Candidate) ||
+    PROMOTION_TEMPLATES.find((t) => t.name === v1Candidate || t.id === v1Candidate);
+
   if (!templateDef) {
     throw new Error(`Template "${templateName}" not found in catalogue`);
   }
 
   // Fetch live meta statuses to dynamically detect header format and template status
   const liveMetaMap = await getLiveMetaTemplateStatuses().catch((): Record<string, MetaTemplateStatus> => ({}));
-  const liveMeta: MetaTemplateStatus | undefined = liveMetaMap[templateName];
+
+  // Resolve target template name: prefer approved _v2 (with image support), fallback to approved _v1
+  let targetTemplateName = templateName;
+  if (liveMetaMap[v2Candidate]?.status === "APPROVED") {
+    targetTemplateName = v2Candidate;
+  } else if (liveMetaMap[v1Candidate]?.status === "APPROVED") {
+    targetTemplateName = v1Candidate;
+  }
+
+  const liveMeta: MetaTemplateStatus | undefined = liveMetaMap[targetTemplateName];
 
   // Verify template approval on Meta
   if (liveMeta && liveMeta.status !== "APPROVED" && liveMeta.status !== "NOT_SUBMITTED") {
-    throw new Error(`Template "${templateName}" is currently ${liveMeta.status} on Meta.`);
+    throw new Error(`Template "${targetTemplateName}" is currently ${liveMeta.status} on Meta.`);
   }
 
   // Determine whether template supports image headers
@@ -488,7 +505,7 @@ export async function sendPromotionBroadcast(params: BroadcastPromotionParams) {
   const campaign = await prisma.promotionCampaign.create({
     data: {
       title,
-      templateName,
+      templateName: targetTemplateName,
       templateParams: templateParams as any,
       imageUrl: imageUrl || null,
       targetAudience,
@@ -565,7 +582,7 @@ export async function sendPromotionBroadcast(params: BroadcastPromotionParams) {
 
     try {
       const templateOpts: WhatsAppService.SendTemplateOptions = {
-        name: templateName,
+        name: targetTemplateName,
         languageCode: "en",
         bodyParameters,
       };

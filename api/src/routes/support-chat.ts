@@ -349,11 +349,22 @@ router.get("/customer-context/:phoneNumber", async (req: Request, res: Response)
 router.get("/promotions/templates", async (_req: Request, res: Response) => {
   try {
     const metaStatuses = await getLiveMetaTemplateStatuses();
-    const templatesWithStatus = PROMOTION_TEMPLATES.map((tpl) => ({
-      ...tpl,
-      metaStatus: metaStatuses[tpl.name]?.status || "NOT_SUBMITTED",
-      metaId: metaStatuses[tpl.name]?.id || null,
-    }));
+    const templatesWithStatus = PROMOTION_TEMPLATES.map((tpl) => {
+      const v2Name = tpl.name.replace(/_v1$/, "_v2");
+      const isV2Approved = metaStatuses[v2Name]?.status === "APPROVED";
+      const effectiveName = isV2Approved ? v2Name : tpl.name;
+      const meta = metaStatuses[effectiveName] || metaStatuses[tpl.name];
+      const hasImageHeader = meta?.headerFormat === "IMAGE" || isV2Approved;
+
+      return {
+        ...tpl,
+        id: effectiveName,
+        name: effectiveName,
+        headerType: hasImageHeader ? "IMAGE" : tpl.headerType,
+        metaStatus: meta?.status || "NOT_SUBMITTED",
+        metaId: meta?.id || null,
+      };
+    });
     res.json({ templates: templatesWithStatus });
   } catch (error) {
     console.error("[support-chat] GET /promotions/templates error:", error);

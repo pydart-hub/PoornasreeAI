@@ -473,14 +473,22 @@ export default function PromotionsStudio({ onShowToast }: PromotionsStudioProps)
   const templateTitleMap = useMemo(() => {
     const map: Record<string, string> = {
       promo_product_launch_v1: "New Product Launch",
+      promo_product_launch_v2: "New Product Launch",
       promo_special_offer_v1: "Special Discount & Offer",
+      promo_special_offer_v2: "Special Discount & Offer",
       promo_annual_service_v1: "Annual Maintenance & Service",
+      promo_annual_service_v2: "Annual Maintenance & Service",
       promo_warranty_protection_v1: "Warranty Protection & AMC",
+      promo_warranty_protection_v2: "Warranty Protection & AMC",
       promo_festive_celebration_v1: "Festive Season Celebration",
+      promo_festive_celebration_v2: "Festive Season Celebration",
       promo_software_update_v1: "Software & Cloud Updates",
+      promo_software_update_v2: "Software & Cloud Updates",
       promo_customer_feedback_v1: "Post-Service Feedback Survey",
+      promo_customer_feedback_v2: "Post-Service Feedback Survey",
       promo_dealer_referral_v1: "Dealer & Society Referral Program",
       promo_consumables_reorder_v1: "Spares & Consumables Reorder",
+      promo_consumables_reorder_v2: "Spares & Consumables Reorder",
       promo_equipment_demo_v1: "Live Product Demonstration Invite",
     };
     templates.forEach((t) => {
