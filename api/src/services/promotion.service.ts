@@ -450,8 +450,8 @@ export async function sendPromotionBroadcast(params: BroadcastPromotionParams) {
   }
 
   // Fetch live meta statuses to dynamically detect header format and template status
-  const liveMetaMap = await getLiveMetaTemplateStatuses().catch(() => ({}));
-  const liveMeta = liveMetaMap[templateName];
+  const liveMetaMap = await getLiveMetaTemplateStatuses().catch((): Record<string, MetaTemplateStatus> => ({}));
+  const liveMeta: MetaTemplateStatus | undefined = liveMetaMap[templateName];
 
   // Verify template approval on Meta
   if (liveMeta && liveMeta.status !== "APPROVED" && liveMeta.status !== "NOT_SUBMITTED") {
