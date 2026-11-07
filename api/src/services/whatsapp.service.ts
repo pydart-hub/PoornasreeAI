@@ -222,10 +222,12 @@ export async function uploadMediaToMeta(
 }
 
 /**
- * Send an approved WhatsApp message template (required for first outbound contact).
- * Template must exist in Meta Business Manager with matching name, language, and variables.
+ * Send an approved WhatsApp message template with detailed result.
  */
-export async function sendTemplate(to: string, options: SendTemplateOptions): Promise<boolean> {
+export async function sendTemplateWithDetails(
+  to: string,
+  options: SendTemplateOptions
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const components: Record<string, unknown>[] = [];
 
   if (options.headerMediaId) {
@@ -284,7 +286,26 @@ export async function sendTemplate(to: string, options: SendTemplateOptions): Pr
       ...(components.length > 0 ? { components } : {}),
     },
   });
-  return !!result?.messages?.[0]?.id;
+
+  const messageId = result?.messages?.[0]?.id;
+  const errorMsg = result?.error
+    ? result.error.message || JSON.stringify(result.error)
+    : undefined;
+
+  return {
+    success: !!messageId,
+    messageId,
+    error: errorMsg,
+  };
+}
+
+/**
+ * Send an approved WhatsApp message template (required for first outbound contact).
+ * Template must exist in Meta Business Manager with matching name, language, and variables.
+ */
+export async function sendTemplate(to: string, options: SendTemplateOptions): Promise<boolean> {
+  const res = await sendTemplateWithDetails(to, options);
+  return res.success;
 }
 
 /** Mark an incoming customer message as "read" in WhatsApp (blue checkmarks ✓✓). */

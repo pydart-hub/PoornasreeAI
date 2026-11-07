@@ -57,7 +57,7 @@ export interface PromotionTemplateItem {
   category: "MARKETING";
   badge: string;
   description: string;
-  headerType: "IMAGE";
+  headerType: "IMAGE" | "NONE";
   bodyText: string;
   footerText: string;
   variables: TemplateVariableDef[];
@@ -607,9 +607,19 @@ export default function PromotionsStudio({ onShowToast }: PromotionsStudioProps)
                                 ✓ {c.sentCount} Sent
                               </span>
                               {c.failedCount > 0 && (
-                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300">
-                                  ✕ {c.failedCount} Failed
-                                </span>
+                                <div className="space-y-0.5">
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 inline-block">
+                                    ✕ {c.failedCount} Failed
+                                  </span>
+                                  {c.results?.some((r) => r.error) && (
+                                    <p
+                                      className="text-[10px] text-rose-600 dark:text-rose-400 font-mono truncate max-w-[180px]"
+                                      title={c.results.find((r) => r.error)?.error}
+                                    >
+                                      {c.results.find((r) => r.error)?.error}
+                                    </p>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </td>
@@ -885,10 +895,12 @@ export default function PromotionsStudio({ onShowToast }: PromotionsStudioProps)
                         <div>
                           <h3 className="text-sm font-bold text-[#111b21] dark:text-[#e9edef] flex items-center gap-1.5">
                             <ImageIcon className="w-4 h-4 text-[#008069]" />
-                            <span>Attach Promotion Header Image</span>
+                            <span>Promotion Header Image (Optional)</span>
                           </h3>
                           <p className="text-xs text-[#667781] dark:text-[#8696a0] mt-0.5">
-                            All 10 Meta templates support an image header (analyzer photo, discount banner, or certificate).
+                            {selectedTemplate?.headerType === "NONE"
+                              ? "ℹ️ This template is registered as text-only on Meta. Messages will deliver cleanly as text."
+                              : "This Meta template supports an image header (analyzer photo, discount banner, or certificate)."}
                           </p>
                         </div>
                         <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50">

@@ -23,7 +23,7 @@ export interface PromotionTemplateCatalogItem {
   category: "MARKETING";
   badge: string;
   description: string;
-  headerType: "IMAGE";
+  headerType: "IMAGE" | "NONE";
   bodyText: string;
   footerText: string;
   variables: TemplateVariableDef[];
@@ -37,8 +37,8 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     title: "New Product Launch",
     category: "MARKETING",
     badge: "Product Showcase",
-    description: "Announce new dairy analyzers, testing equipment, or accessories with an image and key specs.",
-    headerType: "IMAGE",
+    description: "Announce new dairy analyzers, testing equipment, or accessories with key specs.",
+    headerType: "NONE",
     bodyText: "Hello {{1}},\n\nWe are excited to introduce our latest dairy equipment innovation: *{{2}}*!\n\nKey Highlight: {{3}}\n\nGet exclusive introductory pricing and full specifications today. Contact us for a live demo.",
     footerText: "Poornasree Equipments",
     variables: [
@@ -55,7 +55,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Discount",
     description: "Send limited-time promotional pricing, package deals, or seasonal discounts to boost sales.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Dear {{1}},\n\nExclusive Offer Alert! 🎉\n\n{{2}}\n\nThis limited-time discount is valid until *{{3}}*. Upgrade your equipment or stock up on spares now!",
     footerText: "Poornasree Equipments",
     variables: [
@@ -72,7 +72,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Service",
     description: "Remind societies and centers to book periodic servicing, sensor cleaning, and calibration.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Hello {{1}},\n\nEnsure uninterrupted dairy operations! Your machine *{{2}}* is due for its periodic health checkup and calibration.\n\nBook your service visit today or contact our helpdesk at {{3}} to schedule an engineer.",
     footerText: "Poornasree Service Care",
     variables: [
@@ -89,7 +89,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Warranty",
     description: "Encourage equipment owners to extend their warranty coverage and sign up for AMC plans.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Dear {{1}},\n\nProtect your investment! Extended warranty and AMC plans are now available for your *{{2}}*.\n\nEnroll before *{{3}}* to avoid unexpected downtime and enjoy priority service support.",
     footerText: "Poornasree Equipments",
     variables: [
@@ -106,7 +106,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Festival",
     description: "Celebrate Diwali, Onam, New Year, or local festivals with greetings and bundled gifts.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Festive Greetings {{1}}! ✨\n\nCelebrate this festive season with special discounts from Poornasree Equipments!\n\nSpecial Festive Deal: {{2}}\n\nValid until {{3}}. Wishing you prosperity and success!",
     footerText: "Poornasree Equipments",
     variables: [
@@ -123,7 +123,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Tech Upgrade",
     description: "Notify clients of firmware updates, automated SMS reports, cloud synchronization, and new features.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Hello {{1}},\n\nA brand new upgrade is here! Feature: *{{2}}* is now available.\n\nDetails: {{3}}\n\nReach out to your assigned service engineer or support to enable this update on your system.",
     footerText: "Poornasree Support",
     variables: [
@@ -140,7 +140,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Satisfaction",
     description: "Request valuable reviews and ratings from dairy centers after service completion or installation.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Dear {{1}},\n\nThank you for choosing Poornasree Equipments! We value your experience with our products.\n\nTicket/Reference: {{2}}\n\nPlease share your feedback: {{3}}\n\nYour satisfaction helps us serve you better!",
     footerText: "Poornasree Customer Care",
     variables: [
@@ -157,7 +157,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Referral",
     description: "Encourage dealers, engineers, and satisfied society secretaries to refer new dairy units.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Hello {{1}},\n\nPartner with us and earn rewards! Refer a dairy society or center for Poornasree equipment.\n\nReward Benefit: {{2}}\n\nContact our sales coordinator at {{3}} to claim your referral partner benefits.",
     footerText: "Poornasree Partner Network",
     variables: [
@@ -174,7 +174,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Spares Refill",
     description: "Notify clients to restock cleaning solutions, stirrers, printer rolls, and replacement sensors.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Dear {{1}},\n\nRunning low on cleaning solutions, sensors, or thermal paper rolls for *{{2}}*?\n\nOrder genuine consumables now: {{3}}\n\nEnsure 100% test accuracy with original Poornasree spares.",
     footerText: "Poornasree Spares & Consumables",
     variables: [
@@ -191,7 +191,7 @@ export const PROMOTION_TEMPLATES: PromotionTemplateCatalogItem[] = [
     category: "MARKETING",
     badge: "Demo & Workshop",
     description: "Invite dairy societies, plant managers, and cooperatives to private equipment demos.",
-    headerType: "IMAGE",
+    headerType: "NONE",
     bodyText: "Hello {{1}},\n\nYou are cordially invited to an exclusive live demonstration of *{{2}}*!\n\nSchedule & Details: {{3}}\n\nExperience our next-generation testing speed and cloud reporting firsthand.",
     footerText: "Poornasree Equipments",
     variables: [
@@ -210,6 +210,7 @@ export interface MetaTemplateStatus {
   category?: string;
   language?: string;
   rejectedReason?: string;
+  headerFormat?: "IMAGE" | "TEXT" | "DOCUMENT" | "VIDEO" | "NONE";
 }
 
 /**
@@ -222,7 +223,7 @@ export async function getLiveMetaTemplateStatuses(): Promise<Record<string, Meta
 
   // Initialize all with NOT_SUBMITTED
   for (const t of PROMOTION_TEMPLATES) {
-    statusMap[t.name] = { name: t.name, status: "NOT_SUBMITTED" };
+    statusMap[t.name] = { name: t.name, status: "NOT_SUBMITTED", headerFormat: t.headerType };
   }
 
   if (!token || !wabaId) {
@@ -249,18 +250,22 @@ export async function getLiveMetaTemplateStatuses(): Promise<Record<string, Meta
         id: string;
         category: string;
         language: string;
+        components?: Array<{ type: string; format?: string }>;
         quality_score?: { score: string };
       }>;
     };
 
     if (Array.isArray(data.data)) {
       for (const item of data.data) {
+        const headerComp = item.components?.find((c) => c.type === "HEADER");
+        const headerFormat = (headerComp?.format as any) || "NONE";
         statusMap[item.name] = {
           name: item.name,
           status: (item.status as any) || "UNKNOWN",
           id: item.id,
           category: item.category,
           language: item.language,
+          headerFormat,
         };
       }
     }
@@ -444,6 +449,20 @@ export async function sendPromotionBroadcast(params: BroadcastPromotionParams) {
     throw new Error(`Template "${templateName}" not found in catalogue`);
   }
 
+  // Fetch live meta statuses to dynamically detect header format and template status
+  const liveMetaMap = await getLiveMetaTemplateStatuses().catch(() => ({}));
+  const liveMeta = liveMetaMap[templateName];
+
+  // Verify template approval on Meta
+  if (liveMeta && liveMeta.status !== "APPROVED" && liveMeta.status !== "NOT_SUBMITTED") {
+    throw new Error(`Template "${templateName}" is currently ${liveMeta.status} on Meta.`);
+  }
+
+  // Determine whether template supports image headers
+  const templateSupportsImageHeader =
+    liveMeta?.headerFormat === "IMAGE" ||
+    (!liveMeta?.headerFormat && templateDef.headerType === "IMAGE");
+
   // Build a lookup map of contacts to resolve recipient names
   const { contacts } = await getAudienceContacts("all");
   const contactMap = new Map<string, AudienceContact>();
@@ -545,20 +564,33 @@ export async function sendPromotionBroadcast(params: BroadcastPromotionParams) {
     }
 
     try {
-      const isSent = await WhatsAppService.sendTemplate(phone, {
+      const templateOpts: WhatsAppService.SendTemplateOptions = {
         name: templateName,
         languageCode: "en",
         bodyParameters,
-        headerMediaId: resolvedMediaId,
-        headerImageUrl: resolvedMediaId ? undefined : finalHeaderImageUrl,
-      });
+      };
 
-      if (isSent) {
+      if (templateSupportsImageHeader && (resolvedMediaId || finalHeaderImageUrl)) {
+        if (resolvedMediaId) {
+          templateOpts.headerMediaId = resolvedMediaId;
+        } else if (finalHeaderImageUrl) {
+          templateOpts.headerImageUrl = finalHeaderImageUrl;
+        }
+      }
+
+      const sendResult = await WhatsAppService.sendTemplateWithDetails(phone, templateOpts);
+
+      if (sendResult.success) {
         sentCount++;
         results.push({ phone, name: recipientName, status: "sent" });
       } else {
         failedCount++;
-        results.push({ phone, name: recipientName, status: "failed", error: "Delivery rejected by Meta" });
+        results.push({
+          phone,
+          name: recipientName,
+          status: "failed",
+          error: sendResult.error || "Delivery rejected by Meta",
+        });
       }
     } catch (err: any) {
       failedCount++;
