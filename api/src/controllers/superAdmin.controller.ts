@@ -141,6 +141,19 @@ export async function getSystemHealth(req: Request, res: Response): Promise<void
 
   // ── 2. WhatsApp Template health ──────────────────────────────────────────
   type TemplateStatus = "APPROVED" | "PAUSED" | "REJECTED" | "PENDING" | "NOT_SUBMITTED" | string;
+  type TemplateUsage = "PROMOTION" | "SYSTEM_ACTIVE" | "LEGACY_META";
+
+  // Active system notification templates used by backend services
+  const activeSystemTemplateNames: Record<string, string> = {
+    [runtime.waEngineerSetupTemplate()]: "Engineer Setup / Activation",
+    [runtime.waEngineerTicketTemplate()]: "Engineer Ticket Assigned",
+    service_manager_ticket_alert_v1: "Service Manager Alert",
+    customer_support_alert_v1: "Customer Support Alert",
+    ticket_assigned_v1: "Ticket Assigned",
+    ticket_status_update_v1: "Status Update",
+    service_completed_v1: "Service Completed",
+  };
+  delete activeSystemTemplateNames[""];
 
   const catalogNames = new Set(PROMOTION_TEMPLATES.map((t) => t.name));
   const templateMap: Record<string, { name: string; status: TemplateStatus; id?: string; language?: string }> = {};
@@ -165,37 +178,63 @@ export async function getSystemHealth(req: Request, res: Response): Promise<void
     }
   }
 
-  const templateList = PROMOTION_TEMPLATES.map((t) => {
+  const templateList: Array<{
+    name: string;
+    title: string;
+    status: TemplateStatus;
+    language: string | null;
+    usage: TemplateUsage;
+    inCatalog: boolean;
+  }> = [];
+
+  // 1. Catalog promotions
+  for (const t of PROMOTION_TEMPLATES) {
     const live = templateMap[t.name];
-    return {
+    templateList.push({
       name: t.name,
       title: t.title,
       status: live?.status ?? "NOT_SUBMITTED",
       language: live?.language ?? null,
+      usage: "PROMOTION",
       inCatalog: true,
-    };
-  });
+    });
+  }
 
-  // also include any Meta templates not in our catalog
+  // 2. Other templates from Meta (classify as active system vs legacy)
   for (const [name, meta] of Object.entries(templateMap)) {
     if (!catalogNames.has(name)) {
-      templateList.push({ name, title: name, status: meta.status, language: meta.language ?? null, inCatalog: false });
+      const isSystemActive = Boolean(activeSystemTemplateNames[name]);
+      templateList.push({
+        name,
+        title: activeSystemTemplateNames[name] || name,
+        status: meta.status,
+        language: meta.language ?? null,
+        usage: isSystemActive ? "SYSTEM_ACTIVE" : "LEGACY_META",
+        inCatalog: false,
+      });
     }
   }
 
-  const approved = templateList.filter((t) => t.status === "APPROVED").length;
-  const paused = templateList.filter((t) => t.status === "PAUSED").length;
-  const rejected = templateList.filter((t) => t.status === "REJECTED").length;
-  const notSubmitted = templateList.filter((t) => t.status === "NOT_SUBMITTED").length;
+  // Active templates = catalog promotions + active system templates
+  const activeTemplates = templateList.filter((t) => t.usage !== "LEGACY_META");
+  const legacyTemplates = templateList.filter((t) => t.usage === "LEGACY_META");
+
+  const approved = activeTemplates.filter((t) => t.status === "APPROVED").length;
+  const paused = activeTemplates.filter((t) => t.status === "PAUSED").length;
+  const rejected = activeTemplates.filter((t) => t.status === "REJECTED").length;
+  const notSubmitted = activeTemplates.filter((t) => t.status === "NOT_SUBMITTED").length;
+  const legacyRejected = legacyTemplates.filter((t) => t.status === "REJECTED").length;
 
   const templateHealth = {
     fetchError: templateFetchError,
     fetchedAt: new Date().toISOString(),
-    total: templateList.length,
+    total: activeTemplates.length,
+    totalLegacy: legacyTemplates.length,
     approved,
     paused,
     rejected,
     notSubmitted,
+    legacyRejected,
     list: templateList,
   };
 

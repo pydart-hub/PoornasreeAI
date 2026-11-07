@@ -34,6 +34,7 @@ interface TemplateItem {
   title: string;
   status: string;
   language: string | null;
+  usage: "PROMOTION" | "SYSTEM_ACTIVE" | "LEGACY_META";
   inCatalog: boolean;
 }
 
@@ -41,10 +42,12 @@ interface TemplateHealth {
   fetchError: string | null;
   fetchedAt: string;
   total: number;
+  totalLegacy?: number;
   approved: number;
   paused: number;
   rejected: number;
   notSubmitted: number;
+  legacyRejected?: number;
   list: TemplateItem[];
 }
 
@@ -99,6 +102,28 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wide", cls)}>
       {status}
+    </span>
+  );
+}
+
+function UsageBadge({ usage }: { usage: "PROMOTION" | "SYSTEM_ACTIVE" | "LEGACY_META" }) {
+  if (usage === "SYSTEM_ACTIVE") {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+        Active System
+      </span>
+    );
+  }
+  if (usage === "PROMOTION") {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-violet-50 text-violet-700 border-violet-200">
+        Promotion
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-200">
+      Legacy / Unused
     </span>
   );
 }
@@ -252,7 +277,7 @@ export default function SystemHealthTab() {
       {/* ── Card 2: Templates ── */}
       {(() => {
         const tpl = data?.templates;
-        const cardOk = tpl ? !tpl.fetchError && tpl.approved > 0 : null;
+        const cardOk = tpl ? !tpl.fetchError && tpl.rejected === 0 && tpl.approved > 0 : null;
         return (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
@@ -262,7 +287,7 @@ export default function SystemHealthTab() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-800">WhatsApp Message Templates</p>
-                  <p className="text-[11px] text-slate-400">Live Meta approval status for all promotion templates</p>
+                  <p className="text-[11px] text-slate-400">Live Meta approval status for active system & promotion templates</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -271,7 +296,7 @@ export default function SystemHealthTab() {
                   {loading && !data
                     ? "checking…"
                     : tpl
-                    ? `${tpl.approved}/${tpl.total} approved`
+                    ? `${tpl.approved}/${tpl.total} active approved`
                     : "—"}
                 </span>
               </div>
@@ -302,7 +327,7 @@ export default function SystemHealthTab() {
                   onClick={() => setShowTemplateList((v) => !v)}
                   className="w-full px-5 py-3 flex items-center justify-between text-xs font-medium text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
                 >
-                  <span>View all {tpl.list.length} templates</span>
+                  <span>View all {tpl.list.length} templates (including legacy)</span>
                   {showTemplateList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 {showTemplateList && (
@@ -311,6 +336,7 @@ export default function SystemHealthTab() {
                       <thead>
                         <tr className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wide">
                           <th className="text-left px-5 py-2 font-semibold">Template</th>
+                          <th className="text-left px-3 py-2 font-semibold">Role</th>
                           <th className="text-left px-3 py-2 font-semibold">Name</th>
                           <th className="text-left px-3 py-2 font-semibold">Status</th>
                           <th className="text-left px-3 py-2 font-semibold">Lang</th>
@@ -320,6 +346,9 @@ export default function SystemHealthTab() {
                         {tpl.list.map((t) => (
                           <tr key={t.name} className="hover:bg-slate-50 transition-colors">
                             <td className="px-5 py-2.5 font-medium text-slate-800">{t.title}</td>
+                            <td className="px-3 py-2.5">
+                              <UsageBadge usage={t.usage} />
+                            </td>
                             <td className="px-3 py-2.5 font-mono text-slate-400 text-[10px]">{t.name}</td>
                             <td className="px-3 py-2.5">
                               <StatusBadge status={t.status} />
@@ -338,12 +367,23 @@ export default function SystemHealthTab() {
               <div className="px-5 pb-4">
                 <FixHint>
                   {tpl.paused > 0 && (
-                    <><strong>{tpl.paused} template(s) paused.</strong> This usually means Meta flagged low engagement or quality. Wait 7 days before re-submitting. Avoid sending to users who haven't opted in.<br /></>
+                    <><strong>{tpl.paused} active template(s) paused.</strong> This usually means Meta flagged low engagement or quality. Wait 7 days before re-submitting. Avoid sending to users who haven't opted in.<br /></>
                   )}
                   {tpl.rejected > 0 && (
-                    <><strong>{tpl.rejected} template(s) rejected.</strong> Edit the template content in Meta Business Manager → Message Templates and re-submit for review.</>
+                    <><strong>{tpl.rejected} active template(s) rejected.</strong> Edit the template content in Meta Business Manager → Message Templates and re-submit for review.</>
                   )}
                 </FixHint>
+              </div>
+            )}
+
+            {tpl && (tpl.legacyRejected ?? 0) > 0 && tpl.rejected === 0 && (
+              <div className="px-5 pb-4">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex gap-2">
+                  <Info className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    <strong>Note:</strong> {tpl.legacyRejected} unused legacy template(s) on Meta are rejected (e.g. <code>poornasree_engineer_activation_v2</code>). This does not affect your active system because the configured template is <code>v3</code> (Approved). You can delete old templates in Meta Business Manager if you wish to clean up your account.
+                  </p>
+                </div>
               </div>
             )}
 
