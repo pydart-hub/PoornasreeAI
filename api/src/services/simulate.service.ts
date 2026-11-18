@@ -356,14 +356,14 @@ const TRANSLATIONS: Record<string, Record<Lang, string>> = {
     ml: "📝 *രജിസ്ട്രേഷൻ — ഘട്ടം 3/4*\n\n🏠 ദയവായി നിങ്ങളുടെ *പൂർണ്ണ വിലാസം* നൽകുക (വീട്ടുപേര്/നമ്പർ, റോഡ്, ലാൻഡ്മാർക്ക്).\n\nഉദാഹരണം: വീട് 12, മെയിൻ റോഡ്, ക്ഷേത്രത്തിന് സമീപം",
   },
   REGISTER_PINCODE_PROMPT: {
-    en: "📝 *Registration — Step 3 of 4*\n\n📮 Please enter your *6-digit pincode*.",
-    hi: "📝 *पंजीकरण — चरण 3/4*\n\n📮 कृपया अपना *6 अंकों का पिनकोड* दर्ज करें।",
-    ta: "📝 *பதிவு — படி 3/4*\n\n📮 உங்கள் *6 இலக்க பின்கோடை* உள்ளிடவும்.",
-    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 3/4*\n\n📮 ದಯವಿಟ್ಟು ನಿಮ್ಮ *6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್* ನಮೂದಿಸಿ.",
-    mr: "📝 *नोंदणी — टप्पा 3/4*\n\n📮 कृपया आपला *6 अंकी पिनकोड* प्रविष्ट करा.",
-    te: "📝 *నమోదు — దశ 3/4*\n\n📮 దయచేసి మీ *6 అంకెల పినకోడ్* నమోదు చేయండి.",
-    bn: "📝 *নিবন্ধন — ধাপ 3/4*\n\n📮 অনুগ্রহ করে আপনার *৬-সংখ্যার পিনকোড* লিখুন।",
-    ml: "📝 *രജിസ്ട്രേഷൻ — ഘട്ടം 3/4*\n\n📍 ദയവായി നിങ്ങളുടെ *6 അക്ക പിൻകോഡ്* നൽകുക (ഉദാഹരണത്തിന് 682304).",
+    en: "📝 *Registration — Step 3 of 4*\n\n📮 Please enter your *5 or 6-digit pincode / postal code*.",
+    hi: "📝 *पंजीकरण — चरण 3/4*\n\n📮 कृपया अपना *5 या 6 अंकों का पिनकोड / पोस्टल कोड* दर्ज करें।",
+    ta: "📝 *பதிவு — படி 3/4*\n\n📮 உங்கள் *5 அல்லது 6 இலக்க பின்கோடை* உள்ளிடவும்.",
+    kn: "📝 *ನೋಂದಣಿ — ಹಂತ 3/4*\n\n📮 ದಯವಿಟ್ಟು ನಿಮ್ಮ *5 ಅಥವಾ 6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್* ನಮೂದಿಸಿ.",
+    mr: "📝 *नोंदणी — टप्पा 3/4*\n\n📮 कृपया आपला *5 किंवा 6 अंकी पिनकोड* प्रविष्ट करा.",
+    te: "📝 *నమోదు — దశ 3/4*\n\n📮 దయచేసి మీ *5 లేదా 6 అంకెల పినకోడ్* నమోదు చేయండి.",
+    bn: "📝 *নিবন্ধন — ধাপ 3/4*\n\n📮 অনুগ্রহ করে আপনার *৫ বা ৬-সংখ্যার পিনকোড* লিখুন।",
+    ml: "📝 *രജിസ്ട്രേഷൻ — ഘട്ടം 3/4*\n\n📍 ദയവായി നിങ്ങളുടെ *5 അല്ലെങ്കിൽ 6 അക്ക പിൻകോഡ് / പോസ്റ്റൽ കോഡ്* നൽകുക (ഉദാഹരണത്തിന് 682304).",
   },
   REGISTER_GMAP_PROMPT: {
     en: "📝 *Registration — Step 4 of 4*\n\n📍 Please share your location using the WhatsApp location button (📎/➕ ➔ Location) or paste your *Google Maps location link* so our technician can reach you easily.\n\nWays to send:\n1️⃣ Tap 📎 or ➕ ➔ *Location* ➔ *Send your current location*\n2️⃣ Or copy & paste a Google Maps link (e.g. https://maps.google.com/?q=10.0154,76.3125)\n\nOr press *Skip* if you don't have one.",
@@ -646,34 +646,34 @@ ml: "ദയവായി സാധുവായ ഒരു ഉൽപ്പന്ന
     ml: "ദയവായി നിങ്ങളുടെ പൂർണ്ണമായ പേര് നൽകുക (കുറഞ്ഞത് 2 അക്ഷരങ്ങൾ).",
   },
   ENTER_PINCODE: {
-    en: "Please enter your area pincode (6 digits).",
-    hi: "कृपया अपने क्षेत्र का पिनकोड दर्ज करें (6 अंक)।",
-    ta: "உங்கள் பகுதி பின்கோடை உள்ளிடவும் (6 இலக்கங்கள்).",
-    kn: "ನಿಮ್ಮ ಪ್ರದೇಶದ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ (6 ಅಂಕೆಗಳು).",
-    mr: "कृपया आपल्या क्षेत्राचा पिनकोड प्रविष्ट करा (6 अंक).",
-    te: "దయచేసి మీ ప్రాంత పినకోడ్‌ను నమోదు చేయండి (6 అంకెలు).",
-    bn: "অনুগ্রহ করে আপনার এলাকার পিনকোড লিখুন (6 সংখ্যা)।",
-    ml: "ദയവായി നിങ്ങളുടെ പ്രദേശത്തെ പിൻകോഡ് നൽകുക (6 അക്കങ്ങൾ).",
+    en: "Please enter your area pincode or postal code (5 or 6 digits).",
+    hi: "कृपया अपने क्षेत्र का पिनकोड या पोस्टल कोड दर्ज करें (5 या 6 अंक)।",
+    ta: "உங்கள் பகுதி பின்கோடை உள்ளிடவும் (5 அல்லது 6 இலக்கங்கள்).",
+    kn: "ನಿಮ್ಮ ಪ್ರದೇಶದ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ (5 ಅಥವಾ 6 ಅಂಕೆಗಳು).",
+    mr: "कृपया आपल्या क्षेत्राचा पिनकोड प्रविष्ट करा (5 किंवा 6 अंक).",
+    te: "దయచేసి మీ ప్రాంత పినకోడ్‌ను నమోదు చేయండి (5 లేదా 6 అంకెలు).",
+    bn: "অনুগ্রহ করে আপনার এলাকার পিনকোড লিখুন (5 বা 6 সংখ্যা)।",
+    ml: "ദയവായി നിങ്ങളുടെ പ്രദേശത്തെ പിൻകോഡ് / പോസ്റ്റൽ കോഡ് നൽകുക (5 അല്ലെങ്കിൽ 6 അക്കങ്ങൾ).",
   },
   INVALID_PINCODE: {
-    en: "Please enter a valid 6-digit pincode.",
-    hi: "कृपया एक वैध 6 अंकों का पिनकोड दर्ज करें।",
-    ta: "சரியான 6 இலக்க பின்கோடை உள்ளிடவும்.",
-    kn: "ದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ 6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ.",
-    mr: "कृपया एक वैध 6 अंकी पिनकोड प्रविष्ट करा.",
-    te: "దయచేసి సరైన 6 అంకెల పినకోడ్‌ను నమోదు చేయండి.",
-    bn: "অনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন।",
-    ml: "ദയവായി സാധുവായ 6 അക്ക പിൻകോഡ് നൽകുക.",
+    en: "Please enter a valid 5 or 6-digit pincode.",
+    hi: "कृपया एक वैध 5 या 6 अंकों का पिनकोड दर्ज करें।",
+    ta: "சரியான 5 அல்லது 6 இலக்க பின்கோடை உள்ளிடவும்.",
+    kn: "ದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ 5 ಅಥವಾ 6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ.",
+    mr: "कृपया एक वैध 5 किंवा 6 अंकी पिनकोड प्रविष्ट करा.",
+    te: "దయచేసి సరైన 5 లేదా 6 అంకెల పినకోడ్‌ను నమోదు చేయండి.",
+    bn: "অনুগ্রহ করে একটি বৈধ ৫ বা ৬-অঙ্কের পিনকোড লিখুন।",
+    ml: "ദയവായി സാധുവായ 5 അല്ലെങ്കിൽ 6 അക്ക പിൻകോഡ് നൽകുക.",
   },
   PINCODE_NOT_FOUND: {
-    en: "❌ Pincode *{pincode}* does not exist in our records.\n\nPlease enter a valid 6-digit pincode:",
-    hi: "❌ पिनकोड *{pincode}* हमारे रिकॉर्ड में मौजूद नहीं है।\n\nकृपया एक वैध 6 अंकों का पिनकोड दर्ज करें:",
-    ta: "❌ பின்கோடு *{pincode}* எங்கள் பதிவுகளில் இல்லை.\n\nதயவுசெய்து சரியான 6 இலக்க பின்கோடை உள்ளிடவும்:",
-    kn: "❌ ಪಿನ್‌ಕೋಡ್ *{pincode}* ನಮ್ಮ ದಾಖಲೆಗಳಲ್ಲಿ ಅಸ್ತಿತ್ವದಲ್ಲಿಲ್ಲ.\n\nದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ 6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ:",
-    mr: "❌ पिनकोड *{pincode}* आमच्या रेकॉर्डमध्ये अस्तित्वात नाही.\n\nकृपया एक वैध 6 अंकी पिनकोड प्रविष्ट करा:",
-    te: "❌ పినకోడ్ *{pincode}* మా రికార్డులలో లేదు.\n\nదయచేసి సరైన 6 అంకెల పినకోడ్‌ను నమోదు చేయండి:",
-    bn: "❌ পিনকোড *{pincode}* আমাদের রেকর্ডে নেই।\n\nঅনুগ্রহ করে একটি বৈধ ৬-অঙ্কের পিনকোড লিখুন:",
-    ml: "❌ *{pincode}* എന്ന പിൻകോഡ് ഞങ്ങളുടെ രേഖകളിൽ ഇല്ല.\n\nദയവായി സാധുവായ 6 അക്ക പിൻകോഡ് നൽകുക:",
+    en: "❌ Pincode *{pincode}* does not exist in our records.\n\nPlease enter a valid 5 or 6-digit pincode:",
+    hi: "❌ पिनकोड *{pincode}* हमारे रिकॉर्ड में मौजूद नहीं है।\n\nकृपया एक वैध 5 या 6 अंकों का पिनकोड दर्ज करें:",
+    ta: "❌ பின்கோடு *{pincode}* எங்கள் பதிவுகளில் இல்லை.\n\nதயவுசெய்து சரியான 5 அல்லது 6 இலக்க பின்கோடை உள்ளிடவும்:",
+    kn: "❌ ಪಿನ್‌ಕೋಡ್ *{pincode}* ನಮ್ಮ ದಾಖಲೆಗಳಲ್ಲಿ ಅಸ್ತಿತ್ವದಲ್ಲಿಲ್ಲ.\n\nದಯವಿಟ್ಟು ಮಾನ್ಯವಾದ 5 ಅಥವಾ 6-ಅಂಕಿಯ ಪಿನ್‌ಕೋಡ್ ನಮೂದಿಸಿ:",
+    mr: "❌ पिनकोड *{pincode}* आमच्या रेकॉर्डमध्ये अस्तित्वात नाही.\n\nकृपया एक वैध 5 किंवा 6 अंकी पिनकोड प्रविष्ट करा:",
+    te: "❌ పినకోడ్ *{pincode}* మా రికార్డులలో లేదు.\n\nదయచేసి సరైన 5 లేదా 6 అంకెల పినకోడ్‌ను నమోదు చేయండి:",
+    bn: "❌ পিনকোড *{pincode}* আমাদের রেকর্ডে নেই।\n\nঅনুগ্রহ করে একটি বৈধ ৫ বা ৬-অঙ্কের পিনকোড লিখুন:",
+    ml: "❌ *{pincode}* എന്ന പിൻകോഡ് ഞങ്ങളുടെ രേഖകളിൽ ഇല്ല.\n\nദയവായി സാധുവായ 5 അല്ലെങ്കിൽ 6 അക്ക പിൻകോഡ് നൽകുക:",
   },
   PINCODE_CONFIRM: {
     en: "📍 *We found your area:*\n{location}\n📮 *Pincode:* {pincode}\n\nIs this your service area?",
@@ -3004,7 +3004,7 @@ async function handleRegisterPincode(sessionId: string, phoneNumber: string, met
   }
 
   const digits = text.replace(/\D/g, "");
-  if (digits.length !== 6) {
+  if (digits.length !== 5 && digits.length !== 6) {
     return makeReply(t("INVALID_PINCODE", lang), [getSkipButton(lang), getCancelButton(lang), getMenuButton(lang)]);
   }
 
@@ -3061,9 +3061,9 @@ async function handleRegisterGmap(sessionId: string, phoneNumber: string, meta: 
     return showMainMenuAfterRegistration(sessionId, phoneNumber, meta, lang);
   }
 
-  // Handle 6-digit pincode sent at location step
+  // Handle 5 or 6-digit pincode sent at location step
   const digits = text.replace(/\D/g, "");
-  if (digits.length === 6 && !extractGmapLink(text)) {
+  if ((digits.length === 5 || digits.length === 6) && !extractGmapLink(text)) {
     let place: string | undefined;
     let district: string | undefined;
     let state: string | undefined;
@@ -6953,25 +6953,41 @@ async function handleComplaintManualName(sessionId: string, meta: SessionMeta, t
 async function handleComplaintManualPincode(sessionId: string, _phoneNumber: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const digits = text.replace(/\D/g, "");
-  if (!/^\d{6}$/.test(digits)) {
+  if (!/^\d{5,6}$/.test(digits)) {
     return makeReply(t("INVALID_PINCODE", lang));
   }
 
   const resolved = await fetchPlaceFromPincode(digits);
-  if (!resolved || !resolved.place) {
-    return makeReply(t("PINCODE_NOT_FOUND", lang, { pincode: digits }));
+  if (resolved && resolved.place) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      manualPincode: digits,
+      manualPlace: resolved.place,
+      manualDistrict: resolved.district,
+      manualState: resolved.state,
+      pincodeDisplay: resolved.display,
+    };
+
+    return showManualPincodeConfirm(sessionId, updatedMeta);
   }
 
-  const updatedMeta: SessionMeta = {
-    ...meta,
-    manualPincode: digits,
-    manualPlace: resolved.place,
-    manualDistrict: resolved.district,
-    manualState: resolved.state,
-    pincodeDisplay: resolved.display,
-  };
+  // For 5-digit postal codes (e.g. international customers), accept directly and proceed to address
+  if (digits.length === 5) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      manualPincode: digits,
+      manualPlace: undefined,
+      manualDistrict: undefined,
+      manualState: undefined,
+      pincodeDisplay: digits,
+    };
+    await updateSession(sessionId, "END_CUSTOMER_ADDRESS", updatedMeta);
+    return makeReply(
+      `📮 *Pincode:* ${digits}\n\n` + t("ENTER_ADDRESS", lang)
+    );
+  }
 
-  return showManualPincodeConfirm(sessionId, updatedMeta);
+  return makeReply(t("PINCODE_NOT_FOUND", lang, { pincode: digits }));
 }
 
 async function showManualPincodeConfirm(sessionId: string, meta: SessionMeta) {
@@ -7274,25 +7290,45 @@ async function handlePasstestCustomerName(sessionId: string, phoneNumber: string
 async function handlePasstestPincode(sessionId: string, meta: SessionMeta, text: string) {
   const lang: Lang = (meta.language ?? "en") as Lang;
   const digits = text.replace(/\D/g, "");
-  if (!/^\d{6}$/.test(digits)) {
+  if (!/^\d{5,6}$/.test(digits)) {
     return makeReply(t("INVALID_PINCODE", lang));
   }
 
   const resolved = await fetchPlaceFromPincode(digits);
-  if (!resolved || !resolved.place) {
-    return makeReply(t("PINCODE_NOT_FOUND", lang, { pincode: digits }));
+  if (resolved && resolved.place) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      manualPincode: digits,
+      manualPlace: resolved.place,
+      manualDistrict: resolved.district,
+      manualState: resolved.state,
+      pincodeDisplay: resolved.display,
+    };
+
+    return showPasstestPincodeConfirm(sessionId, updatedMeta);
   }
 
-  const updatedMeta: SessionMeta = {
-    ...meta,
-    manualPincode: digits,
-    manualPlace: resolved.place,
-    manualDistrict: resolved.district,
-    manualState: resolved.state,
-    pincodeDisplay: resolved.display,
-  };
+  // For 5-digit postal codes (e.g. international customers), accept directly and proceed to address
+  if (digits.length === 5) {
+    const updatedMeta: SessionMeta = {
+      ...meta,
+      manualPincode: digits,
+      manualPlace: undefined,
+      manualDistrict: undefined,
+      manualState: undefined,
+      pincodeDisplay: digits,
+    };
 
-  return showPasstestPincodeConfirm(sessionId, updatedMeta);
+    if (updatedMeta.manualAddress?.trim()) {
+      return executePasstestTicketCreation(sessionId, (meta as any).customerPhone || "", updatedMeta);
+    }
+    await updateSession(sessionId, "END_CUSTOMER_ADDRESS", updatedMeta);
+    return makeReply(
+      `📮 *Pincode:* ${digits}\n\n` + t("ENTER_ADDRESS", lang)
+    );
+  }
+
+  return makeReply(t("PINCODE_NOT_FOUND", lang, { pincode: digits }));
 }
 
 async function handlePasstestPincodeConfirm(
