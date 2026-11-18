@@ -3438,6 +3438,21 @@ async function getCachedActiveProducts() {
     where: { isActive: true },
     select: { id: true, name: true, category: true, detail: true, price: true, imageUrl: true },
   }).catch(() => []);
+
+  // Format any raw JSON details into clean WhatsApp presentation and heal DB record
+  try {
+    const { formatProductDetailForDisplay } = await import("./productVision.service");
+    for (const p of data) {
+      if (p.detail && (p.detail.startsWith("{") || (p.detail.includes('"name":') && p.detail.includes('"detail":')))) {
+        const formatted = formatProductDetailForDisplay(p.detail);
+        p.detail = formatted;
+        prisma.product.update({ where: { id: p.id }, data: { detail: formatted } }).catch(() => {});
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
   cachedActiveProducts = { data, expiresAt: now + CACHE_TTL_MS };
   return data;
 }
@@ -5203,8 +5218,8 @@ async function handleProductDetail(sessionId: string, phoneNumber: string, meta:
   }
 
   // Use verified description from image/DB, translated if needed without hallucinations or emojis
-  let description = product.detail ?? "";
-  const { sanitizeProductText } = await import("./productVision.service");
+  const { formatProductDetailForDisplay, sanitizeProductText } = await import("./productVision.service");
+  let description = formatProductDetailForDisplay(product.detail ?? "");
 
   if (description) {
     if (lang !== "en") {

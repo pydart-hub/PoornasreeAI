@@ -91,7 +91,8 @@ async function callGeminiVision(
     ],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 1000,
+      maxOutputTokens: 2500,
+      responseMimeType: "application/json",
     },
   };
 
@@ -184,7 +185,69 @@ async function callGroqVision(
 }
 
 /**
- * Parse JSON safely from LLM output (handles occasional code fences)
+ * Format raw detail text and specifications into clean WhatsApp text with bullets
+ */
+export function formatProductDetailForDisplay(detailRaw: string, keySpecs?: string[]): string {
+  if (!detailRaw) return "";
+  let text = detailRaw.trim();
+
+  // If text is wrapped in or contains raw JSON
+  if (text.startsWith("{") || (text.includes('"name":') && text.includes('"detail":'))) {
+    try {
+      const cleanJson = text.replace(/^```[a-z]*\s*/i, "").replace(/\s*```$/, "").trim();
+      const parsed = JSON.parse(cleanJson);
+      const mainDetail = String(parsed.detail || parsed.description || "").trim();
+      const specs = Array.isArray(parsed.keySpecs) ? parsed.keySpecs : (keySpecs || []);
+      return buildWhatsAppProductText(mainDetail, specs);
+    } catch {
+      // Robust regex extraction if JSON was truncated
+      const detailMatch = text.match(/"detail"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      let extractedDetail = "";
+      if (detailMatch && detailMatch[1]) {
+        try {
+          extractedDetail = JSON.parse(`"${detailMatch[1]}"`);
+        } catch {
+          extractedDetail = detailMatch[1];
+        }
+      }
+
+      // Extract any specs found before truncation
+      const specsMatch = text.match(/"keySpecs"\s*:\s*\[([\s\S]*?)(\]|$)/);
+      const extractedSpecs: string[] = [];
+      if (specsMatch && specsMatch[1]) {
+        const itemMatches = specsMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g);
+        for (const m of itemMatches) {
+          if (m[1]) extractedSpecs.push(m[1].trim());
+        }
+      }
+
+      if (extractedDetail) {
+        return buildWhatsAppProductText(extractedDetail, extractedSpecs.length > 0 ? extractedSpecs : keySpecs);
+      }
+    }
+  }
+
+  return buildWhatsAppProductText(text, keySpecs);
+}
+
+function buildWhatsAppProductText(mainText: string, specs?: string[]): string {
+  let cleaned = sanitizeProductText(mainText);
+  // Convert any markdown bullet lines like "- Measuring Time: 25s" to "• Measuring Time: 25s"
+  cleaned = cleaned.replace(/^[\-\*]\s+/gm, "• ");
+
+  const validSpecs = (specs || [])
+    .map(s => sanitizeProductText(String(s)).replace(/^[\-\*•]\s*/, "").trim())
+    .filter(Boolean);
+
+  if (validSpecs.length > 0 && !cleaned.toLowerCase().includes("key specifications") && !cleaned.toLowerCase().includes("specifications:")) {
+    cleaned += `\n\n*Key Specifications:*\n` + validSpecs.map(s => `• ${s}`).join("\n");
+  }
+
+  return cleaned.trim();
+}
+
+/**
+ * Parse JSON safely from LLM output (handles occasional code fences and truncation)
  */
 function parseVisionJson(rawOutput: string): ProductVisionResult {
   let cleaned = rawOutput.trim();
@@ -202,10 +265,11 @@ function parseVisionJson(rawOutput: string): ProductVisionResult {
         ? "lactosure"
         : "other";
 
-    const detail = sanitizeProductText(parsed.detail || parsed.description || "");
     const keySpecs: string[] = Array.isArray(parsed.keySpecs)
       ? parsed.keySpecs.map((s: any) => sanitizeProductText(String(s))).filter(Boolean)
       : [];
+
+    const detail = formatProductDetailForDisplay(parsed.detail || parsed.description || "", keySpecs);
 
     return {
       name: parsed.name ? sanitizeProductText(String(parsed.name)) : undefined,
@@ -214,10 +278,11 @@ function parseVisionJson(rawOutput: string): ProductVisionResult {
       keySpecs,
     };
   } catch {
-    // If not strict JSON, treat output as clean detail
+    // If not strict JSON (e.g. truncated), format through resilient extractor
+    const formatted = formatProductDetailForDisplay(cleaned);
     return {
       category: "lactosure",
-      detail: sanitizeProductText(cleaned),
+      detail: formatted,
       keySpecs: [],
     };
   }
