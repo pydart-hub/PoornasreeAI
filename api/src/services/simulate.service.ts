@@ -4440,6 +4440,11 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
     - You MUST answer technical procedures, machine settings, errors, calibrations, or troubleshooting queries ONLY using the MATCHED OFFICIAL TROUBLESHOOTING DOCUMENTS below.
     - If no document is matched or the information is not explicitly in the matched document, you are STRICTLY FORBIDDEN from inventing, generating, or guessing steps from your own pre-training knowledge.
     - Output ONLY: "For this type of enquiry, please contact our customer support. If you would like to give a call, please contact +91 94009 61291."
+12. STRICT KNOWLEDGE BOUNDARY — OUT-OF-SCOPE & UNKNOWN QUERY MANDATE:
+    - You ONLY possess knowledge about Poornasree Equipments products (LactoSure Eco, Eco-S, Eco-V, LactoGrand, Vibro Stirrer, Ecod, adapters, pumps), troubleshooting guides, official company details (address, contact numbers, working hours), and service processes (tickets, engineers, warranty).
+    - If the user asks about ANY topic outside Poornasree Equipments (e.g. general science, politics, weather, movies, jokes, general milk chemistry not in specs, other brands, competitor machinery, unrelated general knowledge), or asks for information NOT explicitly contained in the OFFICIAL KNOWLEDGE or MATCHED DOCUMENTS, you MUST NOT guess, invent, or answer using external training knowledge.
+    - Instead, politely explain that you only have information regarding Poornasree Equipments and direct them to contact support if needed. Example: "I'm ${botName} from Poornasree customer support. I can only assist with questions regarding our milk testing machines, products, and services. For other enquiries, please contact our support team at *+91 94009 61291*."
+    - If asked for a Poornasree spec/feature/price that is NOT in the official text below, clearly state that you don't have that detail on file and provide the customer support contact. Never fabricate numbers or facts.
 \n${troubleshootingRules}
 
 --- STRICT MANDATORY LANGUAGE ENFORCEMENT ---
@@ -4482,7 +4487,7 @@ ${settings.companyAddress || ""}
       conversationPayload.push({ role: "user", content: query });
     }
 
-    const rawReply = await llmChat(conversationPayload, { maxTokens: 1200, temperature: 0.25 });
+    const rawReply = await llmChat(conversationPayload, { maxTokens: 1200, temperature: 0.1 });
     let reply = rawReply ? rawReply.trim() : "";
     if (resolvedLang === "en") {
       reply = toSentenceCase(reply);
@@ -4522,7 +4527,61 @@ ${settings.companyAddress || ""}
     }
 
     if (reply && reply.trim()) {
+      // ── Out-of-Scope Reply Interceptor ─────────────────────────────────────────
+      // If the query is not a greeting/smalltalk and not asking about Poornasree domain,
+      // and the generated reply failed to establish the boundary and lacks any Poornasree anchor,
+      // intercept it and provide the polite scope boundary with customer support details.
+      const isSmallTalk = isGreetingOrSmallTalk(query);
       const lowerQuery = query.toLowerCase();
+
+      const isOutOfScopeReply = (() => {
+        if (isSmallTalk || !reply || reply.length < 15) return false;
+        const lowerR = reply.toLowerCase();
+        const knownSupportPhrases = [
+          "i can only assist", "i can only help", "customer support", "support team",
+          "contact our", "94009 61291", "poornasree", "lactosure", "lactogrand",
+          "vibro", "milk analyzer", "milk analyser", "milk testing", "ecod",
+          "ticket", "serial number", "service engineer", "warranty", "machine model",
+          "adapter", "stirrer", "പൂർണ്ണശ്രീ", "കസ്റ്റമർ സപ്പോർട്ട്", "സഹായത്തിന്",
+          "ग्राहक सहायता", "पूर्णश्री"
+        ];
+        if (knownSupportPhrases.some((phrase) => lowerR.includes(phrase))) {
+          return false;
+        }
+        const poornasreeTerms = [
+          "poornasree", "lactosure", "lactogrand", "vibro", "stirrer", "ecod",
+          "analyzer", "analyser", "milk", "adapter", "serial", "ticket", "error",
+          "service", "warranty", "machine", "device", "sensor", "fat", "snf", "clr",
+          "head office", "address", "pincode", "branch", "dealer", "product", "catalog"
+        ];
+        if (poornasreeTerms.some((term) => lowerQuery.includes(term))) {
+          return false;
+        }
+        return true;
+      })();
+
+      if (isOutOfScopeReply) {
+        console.warn(`[simulate-scope-guard] Out-of-scope query/reply detected for ${phoneNumber}: "${query}". Redirecting to support.`);
+        let scopeMsg = lang === "ml"
+          ? `ഞാൻ പൂർണ്ണശ്രീ ഇക്വിപ്മെന്റ്സിൽ നിന്നുള്ള ${botName} ആണ്. ഞങ്ങളുടെ മിൽക്ക് ടെസ്റ്റിംഗ് മെഷീനുകൾ, ഉൽപ്പന്നങ്ങൾ, അല്ലെങ്കിൽ സേവനങ്ങളുമായി ബന്ധപ്പെട്ട ചോദ്യങ്ങൾക്ക് മാത്രമേ എനിക്ക് സഹായിക്കാൻ കഴിയൂ. മറ്റ് അന്വേഷണങ്ങൾക്ക് ദയവായി ഞങ്ങളുടെ സപ്പോർട്ട് ടീമുമായി *+91 94009 61291* എന്ന നമ്പറിൽ ബന്ധപ്പെടുക.`
+          : `I'm ${botName} from Poornasree customer support. I can only assist with questions about our milk testing equipment, products, and services. For other queries, please contact our support team at *+91 94009 61291*.`;
+        if (lang === "ml" && (meta as any).scriptPreference === "manglish") {
+          scopeMsg = `Njan Poornasree Equipments-il ninnulla ${botName} aanu. Njangalude milk testing machines, products, allenkil service sambandhamaaya chodyangalkku maathrame enikku sahayikkan kazhiyu. Mattu aavashyangalkku dayavayi njangalude support team-umayi *+91 94009 61291* enna numberil bandhappaduka.`;
+        } else if (lang === "hi") {
+          scopeMsg = `मैं पूर्णश्री इक्विपमेंट्स से ${botName} हूँ। मैं केवल हमारे मिल्क टेस्टिंग उपकरणों, उत्पादों और सेवाओं से संबंधित प्रश्नों में ही आपकी सहायता कर सकता हूँ। अन्य जानकारी के लिए कृपया हमारी सहायता टीम से *+91 94009 61291* पर संपर्क करें।`;
+        } else if (lang === "ta") {
+          scopeMsg = `நான் பூர்ணஸ்ரீ எக்விப்மென்ட்ஸின் ${botName}. எங்கள் பால் பரிசோதனை இயந்திரங்கள், தயாரிப்புகள் மற்றும் சேவைகள் தொடர்பான கேள்விகளுக்கு மட்டுமே என்னால் உதவ முடியும். பிற விபரங்களுக்கு எங்கள் ஆதரவுக் குழுவை *+91 94009 61291* என்ற எண்ணில் தொடர்பு கொள்ளவும்.`;
+        }
+        let buttonLang: Lang = lang;
+        if (/[\u0D00-\u0D7F]/.test(scopeMsg)) buttonLang = "ml";
+        else if (/[\u0B80-\u0BFF]/.test(scopeMsg)) buttonLang = "ta";
+        else if (/[\u0900-\u097F]/.test(scopeMsg)) buttonLang = "hi";
+
+        return makeReply(scopeMsg, [
+          getTalkToSupportButton(buttonLang),
+          getMenuButton(buttonLang),
+        ]);
+      }
       const isServiceIntent =
         lowerQuery.includes("service") ||
         lowerQuery.includes("complaint") ||
