@@ -3415,6 +3415,12 @@ async function handleMainMenu(sessionId: string, phoneNumber: string, meta: Sess
     return runGroqCompanyAssistant(phoneNumber, "Charger Adapter output voltage troubleshooting", meta, { sessionId });
   }
 
+  // "MENU" / "MAIN_MENU" / "MAIN MENU" arriving while already in MAIN_MENU state
+  // (e.g. customer tapped the "Main Menu" button after support handoff) → re-render the menu
+  if (upperChoice === "MENU" || upperChoice === "MAIN_MENU" || upperChoice === "MAIN MENU") {
+    return makeReply(t("MAIN_MENU_MSG", lang), undefined, await getContextualMainMenuList(phoneNumber, lang));
+  }
+
   // Free-text query (not matching strict menu digits/buttons) -> Groq Conversational Assistant using DB company & product knowledge
   return runGroqCompanyAssistant(phoneNumber, text, meta, { sessionId });
 }

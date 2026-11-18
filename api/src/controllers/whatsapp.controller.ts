@@ -11,7 +11,7 @@ import * as SimulateService from "../services/simulate.service";
 import * as WhatsAppService from "../services/whatsapp.service";
 import type { SimulateReply } from "../services/simulate.service";
 import { processVoiceNoteWithGroq, transcribeAudioWithGroq } from "../services/groq.service";
-import { touchSupportActivity } from "../services/support-inactivity.service";
+import { touchSupportActivity, clearSupportActivity } from "../services/support-inactivity.service";
 import {
   isServiceEngineer,
   handleEngineerMessage,
@@ -687,11 +687,16 @@ async function handleSingleMessage(msg: Record<string, unknown>): Promise<void> 
   if (session?.isBotPaused) {
     if (isResumeTrigger) {
       console.log(`[whatsapp] Customer ${from} requested to unpause bot via "${text}"`);
+      // Cancel the auto-resume inactivity timer so it doesn't re-pause the bot immediately
+      clearSupportActivity(from);
       await prisma.conversationSession.update({
         where: { id: session.id },
         data: { isBotPaused: false, state: "MAIN_MENU" },
       });
       session.isBotPaused = false;
+      // Force canonical MAIN_MENU value so the FSM always routes to the main menu display,
+      // regardless of which button id/title variant was sent (e.g. "MENU", "Main Menu", etc.)
+      text = "MAIN_MENU";
     } else if (!isSupportTrigger) {
       // Bot is paused and this is regular customer chat, don't run the FSM. Human is watching.
       // Refresh the 2-minute inactivity countdown so support agent has time to respond.
