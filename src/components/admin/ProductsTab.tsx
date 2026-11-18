@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Loader2, Search, Package, Pencil, Power, X, Upload, Phone } from "lucide-react";
+import { Plus, Trash2, Loader2, Search, Package, Pencil, Power, X, Upload, Phone, Sparkles } from "lucide-react";
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_CATEGORY_KEYS,
@@ -72,6 +72,109 @@ export default function ProductsTab() {
   // Delete / toggle
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // Vision AI Scanning states
+  const [scanningNew, setScanningNew] = useState(false);
+  const [scanningEdit, setScanningEdit] = useState(false);
+  const [scanningId, setScanningId] = useState<string | null>(null);
+  const [scanSuccess, setScanSuccess] = useState("");
+
+  const handleScanNewImage = async () => {
+    if (!imageFile) {
+      setError("Please choose an image file first");
+      return;
+    }
+    setScanningNew(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      const res = await apiFetch<{
+        success: boolean;
+        analysis: { name?: string; category?: ProductCategory; detail: string; keySpecs: string[] };
+      }>("/api/admin/products/scan-image", { method: "POST", body: fd });
+
+      if (res.analysis?.detail) {
+        setForm(f => ({
+          ...f,
+          detail: res.analysis.detail,
+          name: f.name.trim() ? f.name : (res.analysis.name || f.name),
+          category: (PRODUCT_CATEGORY_KEYS.includes(res.analysis.category as ProductCategory)
+            ? res.analysis.category
+            : f.category) as ProductCategory,
+        }));
+        setScanSuccess("Machine specifications and details extracted from image!");
+        setTimeout(() => setScanSuccess(""), 5000);
+      }
+    } catch (e) {
+      setError(`Image scan failed: ${(e as Error).message}`);
+    }
+    setScanningNew(false);
+  };
+
+  const handleScanEditImage = async () => {
+    if (!editImageFile && !editingProduct?.imageUrl) {
+      setEditError("Please choose or provide an image first");
+      return;
+    }
+    setScanningEdit(true);
+    setEditError("");
+    try {
+      if (editImageFile) {
+        const fd = new FormData();
+        fd.append("image", editImageFile);
+        const res = await apiFetch<{
+          success: boolean;
+          analysis: { name?: string; category?: ProductCategory; detail: string; keySpecs: string[] };
+        }>("/api/admin/products/scan-image", { method: "POST", body: fd });
+
+        if (res.analysis?.detail) {
+          setEditForm(f => ({
+            ...f,
+            detail: res.analysis.detail,
+            name: f.name.trim() ? f.name : (res.analysis.name || f.name),
+            category: (PRODUCT_CATEGORY_KEYS.includes(res.analysis.category as ProductCategory)
+              ? res.analysis.category
+              : f.category) as ProductCategory,
+          }));
+        }
+      } else if (editingProduct?.id) {
+        const res = await apiFetch<{
+          success: boolean;
+          product: Product;
+          analysis: { name?: string; category?: ProductCategory; detail: string; keySpecs: string[] };
+        }>(`/api/admin/products/${editingProduct.id}/scan-image`, { method: "POST" });
+
+        if (res.analysis?.detail) {
+          setEditForm(f => ({
+            ...f,
+            detail: res.analysis.detail,
+          }));
+          setProducts(prev => prev.map(p => p.id === editingProduct.id ? res.product : p));
+        }
+      }
+    } catch (e) {
+      setEditError(`Image scan failed: ${(e as Error).message}`);
+    }
+    setScanningEdit(false);
+  };
+
+  const handleScanExisting = async (p: Product) => {
+    if (!p.imageUrl) return;
+    setScanningId(p.id);
+    try {
+      const res = await apiFetch<{
+        success: boolean;
+        product: Product;
+      }>(`/api/admin/products/${p.id}/scan-image`, { method: "POST" });
+      if (res.product) {
+        setProducts(prev => prev.map(x => x.id === p.id ? res.product : x));
+      }
+    } catch (e) {
+      alert(`Image scan failed: ${(e as Error).message}`);
+    }
+    setScanningId(null);
+  };
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -285,6 +388,20 @@ export default function ProductsTab() {
             {p.isActive ? "Active" : "Inactive"}
           </button>
           <div className="flex-1" />
+          {p.imageUrl && (
+            <button
+              onClick={() => handleScanExisting(p)}
+              disabled={scanningId === p.id}
+              title="Scan Machine Image & Generate Verified Details"
+              className="p-1.5 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors disabled:opacity-50"
+            >
+              {scanningId === p.id ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
           <button
             onClick={() => openEditModal(p)}
             className="p-1.5 rounded-lg text-content-secondary hover:text-primary hover:bg-primary/10 transition-colors"
@@ -396,7 +513,7 @@ export default function ProductsTab() {
           rows={2}
           className="w-full px-3 py-2 rounded-xl border border-line dark:border-line-dark bg-surface dark:bg-surface-dark text-sm resize-none"
         />
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-line dark:border-line-dark hover:border-primary cursor-pointer text-sm text-content-secondary">
             <Upload className="w-4 h-4" />
             {imageFile ? imageFile.name : "Choose Image"}
@@ -412,9 +529,30 @@ export default function ProductsTab() {
             />
           </label>
           {imagePreview && (
-            <img src={imagePreview} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-line" />
+            <img src={imagePreview} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-line" />
+          )}
+          {imageFile && (
+            <button
+              type="button"
+              onClick={handleScanNewImage}
+              disabled={scanningNew}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40 text-xs font-semibold transition-all disabled:opacity-50"
+            >
+              {scanningNew ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Scanning machine image with AI...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Scan Image & Auto-Generate Details
+                </>
+              )}
+            </button>
           )}
         </div>
+        {scanSuccess && <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{scanSuccess}</p>}
         {error && <p className="text-xs text-red-500">{error}</p>}
         <button
           onClick={handleCreate}
@@ -519,7 +657,7 @@ export default function ProductsTab() {
               </div>
               <div>
                 <label className="text-xs font-medium text-content-secondary">Image</label>
-                <div className="flex items-center gap-3 mt-1">
+                <div className="flex flex-wrap items-center gap-3 mt-1">
                   <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-line dark:border-line-dark hover:border-primary cursor-pointer text-sm text-content-secondary">
                     <Upload className="w-4 h-4" />
                     {editImageFile ? editImageFile.name : "Change Image"}
@@ -535,7 +673,27 @@ export default function ProductsTab() {
                     />
                   </label>
                   {editImagePreview && (
-                    <img src={editImagePreview} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-line" />
+                    <img src={editImagePreview} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-line" />
+                  )}
+                  {(editImageFile || editImagePreview) && (
+                    <button
+                      type="button"
+                      onClick={handleScanEditImage}
+                      disabled={scanningEdit}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600/10 hover:bg-purple-600/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40 text-xs font-semibold transition-all disabled:opacity-50"
+                    >
+                      {scanningEdit ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Scanning image...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Scan Image with AI
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
               </div>

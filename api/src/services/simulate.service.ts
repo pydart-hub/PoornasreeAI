@@ -4443,6 +4443,12 @@ HUMAN CONVERSATIONAL RULES (STRICT NO-BOT-DATA POLICY):
 12. STRICT KNOWLEDGE BOUNDARY — OUT-OF-SCOPE & UNKNOWN QUERY MANDATE:
     - You ONLY possess knowledge about Poornasree Equipments products (LactoSure Eco, Eco-S, Eco-V, LactoGrand, Vibro Stirrer, Ecod, adapters, pumps), troubleshooting guides, official company details (address, contact numbers, working hours), and service processes (tickets, engineers, warranty).
     - If the user asks about ANY topic outside Poornasree Equipments (e.g. general science, politics, weather, movies, jokes, general milk chemistry not in specs, other brands, competitor machinery, unrelated general knowledge), or asks for information NOT explicitly contained in the OFFICIAL KNOWLEDGE or MATCHED DOCUMENTS, you MUST NOT guess, invent, or answer using external training knowledge.
+13. STRICT DAIRY EQUIPMENT ACCURACY & NO-SEPARATOR RULE:
+    - Poornasree Equipments manufactures Ultrasonic Milk Analyzers (measuring FAT, SNF, Added Water, Density, Temperature, Protein, Lactose), Automatic Milk Collection Units (AMCU), Data Processing Units (DPU), and Ultrasonic Stirrers.
+    - Poornasree Equipments DOES NOT manufacture milk separators, cream separators, or centrifugal separation machines.
+    - NEVER refer to or describe any Poornasree machine as a milk separator or cream separator under any circumstance!
+14. STRICT ZERO DECORATIVE EMOJIS DIRECTIVE:
+    - Do NOT output decorative or unrelated emojis (strictly NO 🌿, ✨, 🚀, 🥛, 🎉, etc.). Keep all product descriptions and service messages clean, professional, and factual.
     - Instead, politely explain that you only have information regarding Poornasree Equipments and direct them to contact support if needed. Example: "I'm ${botName} from Poornasree customer support. I can only assist with questions regarding our milk testing machines, products, and services. For other enquiries, please contact our support team at *+91 94009 61291*."
     - If asked for a Poornasree spec/feature/price that is NOT in the official text below, clearly state that you don't have that detail on file and provide the customer support contact. Never fabricate numbers or facts.
 \n${troubleshootingRules}
@@ -5172,41 +5178,71 @@ async function handleProductDetail(sessionId: string, phoneNumber: string, meta:
     ? (product.imageUrl.startsWith("http") ? product.imageUrl : `${baseUrl}${product.imageUrl}`)
     : null;
 
-  // Detect customer's language name for Groq prompt
+  // Detect customer's language name
   const langNames: Record<string, string> = {
     en: "English", hi: "Hindi", ml: "Malayalam", ta: "Tamil",
     kn: "Kannada", mr: "Marathi", te: "Telugu", bn: "Bengali",
   };
   const targetLanguage = langNames[lang] ?? "English";
 
-  // Use unified LLM to generate a product description in the customer's language
-  let description = product.detail ?? "";
-  try {
-    const { llmChat } = await import("./llm.service");
-    const systemPrompt = `You are a product description specialist for Poornasree Equipments, a dairy equipment company.
-The customer's preferred language is ${targetLanguage}.
-Write a compelling, friendly product description in ${targetLanguage} language only.
-Be concise (2-3 sentences). Use WhatsApp-friendly formatting (bold with *text*, emojis).
-If the product name includes technical terms (like LactoGrand, LactoSure, Vibro, ECO), keep those in English.
-Do NOT include pricing or contact info in the description.`;
-
-    const userPrompt = product.imageUrl
-      ? `Product name: "${product.name}" (Category: ${product.category}). This product has an image at: ${imageUrl}. Generate a compelling product description in ${targetLanguage}.`
-      : `Product name: "${product.name}" (Category: ${product.category}). Generate a compelling product description in ${targetLanguage}.`;
-
-    description = await llmChat(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      { maxTokens: 250, temperature: 0.7 },
-    );
-  } catch (err) {
-    console.error("[product] LLM description generation failed:", err);
-    description = product.detail ?? product.name;
+  // Auto-generate description from image if not yet populated in DB
+  if (!product.detail && product.imageUrl) {
+    try {
+      const { analyzeProductImageFile, sanitizeProductText } = await import("./productVision.service");
+      const analysis = await analyzeProductImageFile(product.imageUrl);
+      if (analysis.detail) {
+        product.detail = sanitizeProductText(analysis.detail);
+        await prisma.product.update({
+          where: { id: productId },
+          data: { detail: product.detail },
+        }).catch(() => {});
+      }
+    } catch (visErr) {
+      console.warn("[product] Dynamic image analysis on inquiry failed:", (visErr as Error).message);
+    }
   }
 
-  // Fetch other active products to display under "Other Products" in 3rd point
+  // Use verified description from image/DB, translated if needed without hallucinations or emojis
+  let description = product.detail ?? "";
+  const { sanitizeProductText } = await import("./productVision.service");
+
+  if (description) {
+    if (lang !== "en") {
+      try {
+        const { llmChat } = await import("./llm.service");
+        const systemPrompt = `You are a technical translator for Poornasree Equipments, an ISO-certified dairy equipment manufacturer in Kerala.
+The customer's preferred language is ${targetLanguage}.
+Translate the following verified product details into ${targetLanguage} accurately and concisely.
+CRITICAL RULES:
+- Do NOT alter, add, or exaggerate technical specifications.
+- NEVER describe dairy equipment as milk separators or cream separators.
+- Strictly DO NOT include ANY decorative emojis (NO 🌿, ✨, 🚀, 🥛, 📦, etc.).
+- Keep technical terms and product names (like LactoSure, ECO, Vibro, FAT, SNF, DPU, AMCU) in standard English.
+- Return ONLY the clean, translated text.`;
+
+        const translated = await llmChat(
+          [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `Translate this verified description into ${targetLanguage}:\n${description}` },
+          ],
+          { maxTokens: 250, temperature: 0.1 },
+        );
+        if (translated && translated.trim()) {
+          description = translated.trim();
+        }
+      } catch (err) {
+        console.error("[product] Translation failed, using verified English description:", err);
+      }
+    }
+  } else {
+    // Safe factual fallback if no image or scan failed
+    const categoryName = categoryLabel(product.category);
+    description = `${product.name} is a high-performance ${categoryName.toLowerCase().includes("lacto") ? "ultrasonic milk analyzer" : "dairy automation equipment"} manufactured by Poornasree Equipments, built for rapid, accurate testing and reliable field operation.`;
+  }
+
+  description = sanitizeProductText(description);
+
+  // Fetch other active products to display under "Other Products"
   const otherProducts = await prisma.product.findMany({
     where: { isActive: true, id: { not: productId } },
     select: { id: true, name: true, category: true, price: true },
@@ -5219,14 +5255,14 @@ Do NOT include pricing or contact info in the description.`;
   );
 
   const otherProductsBlock = otherLines.length > 0
-    ? `\n✨ *Other Products Available:*\n${otherLines.join("\n")}`
+    ? `\n*Other Products Available:*\n${otherLines.join("\n")}`
     : "";
 
   const contact = product.contactNumber ?? DEFAULT_CONTACT;
   const priceText = product.price ? `\n💰 *Price:* ${product.price}` : "";
 
   const msg = [
-    `📦 *${product.name}*`,
+    `*${product.name}*`,
     ``,
     description,
     priceText,

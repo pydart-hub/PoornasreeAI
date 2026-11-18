@@ -33,7 +33,7 @@ import { exportChats, exportSupport, exportTickets } from "../controllers/export
 import { listVideos, createVideo, updateVideo, deleteVideo } from "../controllers/video.controller";
 
 import { listRdVideos, createRdVideo, deleteRdVideo, updateRdVideo } from "../controllers/rd-video.controller";
-import { listProducts, createProduct, updateProduct, deleteProduct } from "../controllers/product.controller";
+import { listProducts, createProduct, updateProduct, deleteProduct, scanProductImage, scanExistingProduct } from "../controllers/product.controller";
 import { getChatbotSettings, updateChatbotSettings } from "../controllers/chatbotSettings.controller";
 import { listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate } from "../controllers/template.controller";
 import { listMachines, createMachine, updateMachine, deleteMachine, searchMachines } from "../controllers/machine.controller";
@@ -234,9 +234,11 @@ router.delete("/rd-videos/:id", deleteRdVideo);
 router.get("/chatbot-settings", getChatbotSettings);
 router.patch("/chatbot-settings", updateChatbotSettings);
 
-// Product catalogue (admin CRUD with image upload)
+// Product catalogue (admin CRUD with image upload & AI vision analysis)
 router.get("/products", listProducts);
 router.post("/products", upload.single("image"), createProduct);
+router.post("/products/scan-image", upload.single("image"), scanProductImage);
+router.post("/products/:id/scan-image", scanExistingProduct);
 router.patch("/products/:id", upload.single("image"), updateProduct);
 router.delete("/products/:id", deleteProduct);
 
